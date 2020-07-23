@@ -1,0 +1,50 @@
+# input files
+gasFile = "./caseFiles/advectingFlame/global1.chem"
+meshFile = "./caseFiles/advectingFlame/mesh_0to0.01_256c.inp"
+initFile = "./caseFiles/advectingFlame/ic_lf_256.npy"
+
+# time discretization
+dt = 1.0e-8
+numSteps = 10000
+timeScheme = "rk"
+timeOrder = 3
+
+# space discretization
+spaceScheme = "roe"
+spaceOrder = 1
+viscScheme = 1
+
+# inlet
+boundType_inlet = "characteristic"
+press_inlet = 1.0e6
+vel_inlet = 1.0
+temp_inlet = 300.0
+massFrac_inlet = [1.0, 0.0]
+
+# outlet
+boundType_outlet = "subsonic"
+press_outlet = 1.0e6
+vel_outlet = 0.0
+temp_outlet = 2500.0
+pertType_outlet = "pressure"
+pertPerc_outlet = 0.01
+pertFreq_outlet = [200000.0]
+
+# misc
+velAdd = 100.0
+
+# output
+outInterval = 1000
+primOut = True
+consOut = False
+RHSOut = False
+visType = "field"
+visVar  = "temperature"
+visInterval = 50
+probeLoc = 0.008
+
+# ROM params
+calcROM = False
+romMethod = "linear"
+romProj = "Galerkin"
+
