@@ -18,6 +18,7 @@ def updateGhostCells(sol, bounds: boundaries, params, geom, gas):
 # @profile
 def calcInletGhostCell(sol: solutionPhys, inlet: boundary, params: parameters, geom: geometry, gas: gasProps):
 
+	# TODO: this is absolutely not correct
 	if (inlet.type == "characteristic"):
 		Qp = 2.0 * sol.solPrim[[0],:] - sol.solPrim[[1],:]
 		Q, RMix, enthRefMix, CpMix = calcStateFromPrim(Qp, gas)
