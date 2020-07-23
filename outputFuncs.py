@@ -7,14 +7,24 @@ import matplotlib.gridspec as gridspec
 import os
 from classDefs import parameters, geometry
 from solution import solutionPhys
+import constants
 import time
 import pdb
 
 # TODO: could go overboard an make a visualization class
-# TODO: plot multiple variables with subplots
+# TODO: plot/save multiple variables for probe and field/probe images
 # TODO: add option to fix y-axis bounds?
 # TODO: add visualization for arbitrary species
 # TODO: move label selection to parameters
+
+# store snapshots of field data
+def storeFieldData(sol: solutionPhys, params:parameters, tStep):
+
+	storeIdx = int(tStep / params.outInterval)
+
+	if params.primOut: sol.primSnap[:,:,storeIdx] = sol.solPrim
+	if params.consOut: sol.consSnap[:,:,storeIdx] = sol.solCons
+	if params.RHSOut:  sol.RHSSnap[:,:,storeIdx]  = sol.RHS
 
 def plotField(ax: plt.Axes, sol: solutionPhys, params: parameters, geom: geometry):
 
@@ -99,3 +109,22 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, sol: solutionPhys, params: paramete
 	ax.set_xlabel("t (s)")
 	plt.show(block=False)
 	plt.pause(0.001)
+
+# write snapshot matrices and point monitors to disk
+def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
+
+	# save snapshot matrices to disk
+	if params.primOut:
+		solPrimFile = os.path.join(params.unsOutDir, "solPrim_"+params.simType+".npy")
+		np.save(solPrimFile, sol.primSnap)
+	if params.consOut:
+		solConsFile = os.path.join(params.unsOutDir, "solCons_"+params.simType+".npy")
+		np.save(solConsFile, sol.consSnap) 
+	if params.RHSOut:
+		solRHSFile = os.path.join(params.unsOutDir, "solRHS_"+params.simType+".npy")
+		np.save(solRHSFile, sol.RHSSnap) 
+
+	# save point monitors to disk
+	probeFile = os.path.join(params.probeOutDir, "probe_"+params.simType+".npy")
+	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,1)), axis=1)
+	np.save(probeFile, probeSave)

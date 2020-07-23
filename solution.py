@@ -16,13 +16,14 @@ class solutionPhys:
 	def __init__(self, numCells, solPrimIn, solConsIn, gas: gasProps, params: parameters):
 		
 		# solution and mixture properties
-		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)
-		self.solCons	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)
-		self.mwMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)
-		self.RMix		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)
-		self.gammaMix 	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)
-		self.enthRefMix = np.zeros((numCells, gas.numEqs), dtype = constants.floatType)
-		self.CpMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)
+		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# solution in primitive variables
+		self.solCons	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# solution in conservative variables
+		self.RHS 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# RHS function
+		self.mwMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture molecular weight
+		self.RMix		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture specific gas constant
+		self.gammaMix 	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture ratio of specific heats
+		self.enthRefMix = np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture reference enthalpy
+		self.CpMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture specific heat at constant pressure
 
 		# load initial condition and check size
 		assert(solPrimIn.shape == (numCells, gas.numEqs))

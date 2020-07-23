@@ -29,10 +29,8 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 	source = calcSource(sol.solPrim, sol.solCons[:,0], params, gas)
 
 	# compute RHS
-	RHS = (flux[1:,:] - flux[:-1,:]) / geom.dx
-	RHS = source - RHS
-
-	return RHS
+	sol.RHS = (flux[1:,:] - flux[:-1,:]) / geom.dx
+	sol.RHS = source - sol.RHS
 
 # compute inviscid fluxes
 # TODO: expand beyond Roe flux

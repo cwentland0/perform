@@ -1,64 +1,77 @@
 import numpy as np 
-from constants import rkCoeffs, floatType
+import constants
+from constants import floatType
 from inputFuncs import readInputFile
+import os
 import pdb
 
 # TODO: honestly, some of this could just be permanently dicts if we really wanted
 #	guess it's more readable with object references though
-# TODO: error checks for input values
-# TODO: add type descriptors for every parameter
+# TODO: catch input for all input values with appropriate defaults
 # TODO: cast input parameters appropriately (mostly all ints)
+# TODO: add defaults for some of these (e.g. calcROM)
 
 # inputs/solver properties
 class parameters:
 
-	def __init__(self, paramFile):
+	def __init__(self, workdir, paramFile):
 		paramDict = readInputFile(paramFile)
 		self.paramDict = paramDict
 
-		# input files
+		# input files, output directories
 		self.gasFile 		= str(paramDict["gasFile"]) 		# gas properties file (string)
 		self.meshFile 		= str(paramDict["meshFile"]) 	# mesh properties file (string)
 		self.initFile		= str(paramDict["initFile"])		# initial condition file
+		self.unsOutDir 		= os.path.join(workdir, constants.unsteadyOutputDir)
+		self.probeOutDir 	= os.path.join(workdir, constants.probeOutputDir)
+		self.imgOutDir 		= os.path.join(workdir, constants.imageOutputDir)
 
 		# temporal discretization parameters
 		self.dt 			= float(paramDict["dt"])		# physical time step
 		self.numSteps 		= int(paramDict["numSteps"])	# total number of physical time iterations
 		self.timeScheme 	= str(paramDict["timeScheme"]) 	# time integration scheme (string)
 		self.timeOrder 		= int(paramDict["timeOrder"])	# time integration order of accuracy (int)
-		
+		self.solTime 		= 0.0
+
 		if (self.timeScheme in ["bdf","pTime"]):
 			self.timeType 		= "implicit"
-			self.numSubIters 	= int(paramDict["numSubIters"])	# maximum number of subiterations for iterative solver
-			self.resTol 		= float(paramDict["resTol"])	# residual tolerance for iterative solver 
+			self.numSubIters 	= catchInput(paramDict, "numSubIters", 20)	# maximum number of subiterations for iterative solver
+			self.resTol 		= catchInput(paramDict, "resTol", 1e-10)	# residual tolerance for iterative solver 
 		elif (self.timeScheme == "rk"):
 			self.timeType 		= "explicit"
 			self.numSubIters 	= self.timeOrder
-			self.subIterCoeffs 	= rkCoeffs[-self.timeOrder:]
+			self.subIterCoeffs 	= constants.rkCoeffs[-self.timeOrder:]
 
 		# spatial discretization parameters
-		self.spaceScheme 	= str(paramDict["spaceScheme"])	# spatial discretization scheme (string)
-		self.spaceOrder 	= int(paramDict["spaceOrder"])	# spatial discretization order of accuracy (int)
-		self.viscScheme 	= int(paramDict["viscScheme"])	# 0 for inviscid, 1 for viscous
+		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)
+		self.spaceOrder 	= catchInput(paramDict, "spaceOrder", 1)		# spatial discretization order of accuracy (int)
+		self.viscScheme 	= paramDict["viscScheme"]						# 0 for inviscid, 1 for viscous
 		
 		# misc
-		self.velAdd 		= float(paramDict["velAdd"]) 	# velocity to add to entire initial condition
+		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
 
 		# output
-		self.outInterval	= int(paramDict["outInterval"]) 			# iteration interval to save data (int)
-		self.primOut		= bool(paramDict["primOut"])				# whether to save the primitive variables
-		self.consOut 		= bool(paramDict["consOut"]) 				# whether to save the conservative variables
-		self.RHSOut 		= bool(paramDict["RHSOut"])					# whether to save the RHS vector
+		self.outInterval	= catchInput(paramDict, "outInterval", 1) 		# iteration interval to save data (int)
+		self.primOut		= catchInput(paramDict, "primOut", True)		# whether to save the primitive variables
+		self.consOut 		= catchInput(paramDict, "consOut", False) 		# whether to save the conservative variables
+		self.RHSOut 		= catchInput(paramDict, "RHSOut", False)		# whether to save the RHS vector
 		self.numSnaps 		= int(self.numSteps / self.outInterval)
 
-		self.visType 		= str(paramDict["visType"])				# "field" or "point"
-		self.visVar			= str(paramDict["visVar"])				# variable to visualize (string)
-		self.visInterval 	= int(paramDict["visInterval"])			# interval at which to visualize (int)
-		if (self.visType == "probe"):
-			self.probeLoc = float(paramDict["probeLoc"])			# point monitor location (will reference closest cell)
+		self.visType 		= catchInput(paramDict, "visType", "field")			# "field" or "point"
+		self.visVar			= catchInput(paramDict, "visVar", "pressure")		# variable to visualize (string)
+		self.visInterval 	= catchInput(paramDict, "visInterval", 1)			# interval at which to visualize (int)
+		self.visSave 		= catchInput(paramDict, "visSave", False)			# whether to write images to disk (bool)
+		self.probeLoc = float(paramDict["probeLoc"])			# point monitor location (will reference closest cell)
 
-		self.solTime = 0.0		
-
+		# ROM parameters
+		# TODO: potentially move this to another input file
+		self.calcROM 		= catchInput(paramDict, "calcROM", False)
+		if self.calcROM:
+			self.romMethod 		= catchInput(paramDict, "romMethod", "linear")
+			self.romProj 		= catchInput(paramDict, "romProj", "galerkin")
+			self.simType 		= self.romMethod + "_" + self.romProj
+		else:
+			self.simType  	= "FOM"
 
 # gas thermofluid properties
 # TODO: expand Arrhenius factors to allow for multiple reactions
@@ -112,5 +125,19 @@ class geometry:
 		self.dx 		= self.x_node[1] - self.x_node[0]
 		self.numNodes 	= self.numCells + 1
 
+# assign default values if user does not provide a certain input
+# TODO: correct error handling if default type is not recognized
+def catchInput(inDict, inVal, default):
+	try:
+		if (type(default) == bool):
+			val = bool(inDict[inVal])
+		elif (type(default) == int):
+			val = int(inDict[inVal])
+		elif (type(default) == float):
+			val = float(inDict[inVal])
+		elif (type(default) == str):
+			val = str(inDict[inVal])
+	except:
+		val = default
 
-
+	return val
