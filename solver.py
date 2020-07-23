@@ -7,6 +7,7 @@ from spaceSchemes import calcRHS
 import outputFuncs
 import constants
 import time
+import os
 import sys
 import pdb
 
@@ -29,7 +30,10 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	probeIdx = np.absolute(geom.x_cell - params.probeLoc).argmin()
 	probeVals = np.zeros(params.numSteps, dtype = constants.floatType)
 	tVals = np.linspace(params.dt, params.dt*params.numSteps, params.numSteps)
-	
+	if (params.visType == "field"):
+		fieldImgDir = os.path.join(params.imgOutDir, "field_"+params.visVar+"_"+params.simType)
+		if not os.path.isdir(fieldImgDir): os.mkdir(fieldImgDir)
+
 	# loop over time iterations
 	for tStep in range(params.numSteps):
 		
@@ -46,11 +50,12 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 
 
 		# draw visualization plots
-		drawVis = ( ((tStep+1) % params.visInterval) == 0)
-		if (params.visType == "field"):
-			if drawVis: outputFuncs.plotField(ax, sol, params, geom)
-		elif (params.visType == "probe"):
-			if drawVis: outputFuncs.plotProbe(fig, ax, sol, params, probeVals, tStep, tVals)
+		if ( ((tStep+1) % params.visInterval) == 0):
+			if (params.visType == "field"): 
+				outputFuncs.plotField(ax, sol, params, geom)
+				if params.visSave: outputFuncs.writeFieldImg(fig, params, tStep, fieldImgDir)
+			elif (params.visType == "probe"): 
+				outputFuncs.plotProbe(ax, sol, params, probeVals, tStep, tVals)
 			
 
 	print("Solve finished, writing to disk")
@@ -59,7 +64,9 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	outputFuncs.writeData(sol, params, probeVals, tVals)
 
 	# draw images, save to disk
-
+	if ((params.visType == "probe") and params.visSave): 
+		figFile = os.path.join(params.imgOutDir,"probe_"+params.visVar+"_"+params.simType+".png")
+		fig.savefig(figFile)
 
 # numerically integrate ODE forward one physical time step
 # TODO: add implicit time integrators

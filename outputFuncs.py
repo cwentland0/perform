@@ -11,11 +11,18 @@ import constants
 import time
 import pdb
 
+mpl.rc('font', family='serif',size='12')
+mpl.rc('axes', labelsize='x-large')
+mpl.rc('figure', facecolor='w')
+mpl.rc('text', usetex=False)
+mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
+
 # TODO: could go overboard an make a visualization class
 # TODO: plot/save multiple variables for probe and field/probe images
 # TODO: add option to fix y-axis bounds?
 # TODO: add visualization for arbitrary species
 # TODO: move label selection to parameters
+# TODO: better automatic formatting of images? Ultimately real plotting will be un utils, might now be worth the time
 
 # store snapshots of field data
 def storeFieldData(sol: solutionPhys, params:parameters, tStep):
@@ -60,6 +67,14 @@ def plotField(ax: plt.Axes, sol: solutionPhys, params: parameters, geom: geometr
 	plt.show(block=False)
 	plt.pause(0.001)
 
+# write field plot image to disk
+def writeFieldImg(fig: plt.Figure, params: parameters, tStep, fieldImgDir):
+
+	visIdx 	= int((tStep+1) / params.visInterval)
+	figNum 	= params.imgString % visIdx
+	figFile = os.path.join(fieldImgDir, "fig_"+figNum+".png")
+	fig.savefig(figFile)
+
 # update probeVals, as this happens every time iteration
 def updateProbe(sol: solutionPhys, params: parameters, probeVals, probeIdx, tStep):
 
@@ -83,7 +98,7 @@ def updateProbe(sol: solutionPhys, params: parameters, probeVals, probeIdx, tSte
 	probeVals[tStep] = probe 
 
 # plot probeVals at specied visInterval
-def plotProbe(fig: plt.Figure, ax: plt.Axes, sol: solutionPhys, params: parameters, probeVals, tStep, tVals):
+def plotProbe(ax: plt.Axes, sol: solutionPhys, params: parameters, probeVals, tStep, tVals):
 
 	ax.cla()
 
@@ -107,6 +122,7 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, sol: solutionPhys, params: paramete
 	ax.plot(tVals[:tStep+1], probeVals[:tStep+1])
 	ax.set_ylabel(axLabel)
 	ax.set_xlabel("t (s)")
+	plt.subplots_adjust(left=0.2)
 	plt.show(block=False)
 	plt.pause(0.001)
 
@@ -128,3 +144,4 @@ def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
 	probeFile = os.path.join(params.probeOutDir, "probe_"+params.simType+".npy")
 	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,1)), axis=1)
 	np.save(probeFile, probeSave)
+

@@ -2,6 +2,7 @@ import numpy as np
 import constants
 from constants import floatType
 from inputFuncs import readInputFile
+from math import floor, log
 import os
 import pdb
 
@@ -61,7 +62,9 @@ class parameters:
 		self.visVar			= catchInput(paramDict, "visVar", "pressure")		# variable to visualize (string)
 		self.visInterval 	= catchInput(paramDict, "visInterval", 1)			# interval at which to visualize (int)
 		self.visSave 		= catchInput(paramDict, "visSave", False)			# whether to write images to disk (bool)
-		self.probeLoc = float(paramDict["probeLoc"])			# point monitor location (will reference closest cell)
+		self.probeLoc 		= float(paramDict["probeLoc"])						# point monitor location (will reference closest cell)
+		numImgs 			= int(self.numSteps / self.visInterval)
+		self.imgString 		= '%0'+str(floor(log(numImgs, 10))+1)+'d'
 
 		# ROM parameters
 		# TODO: potentially move this to another input file
