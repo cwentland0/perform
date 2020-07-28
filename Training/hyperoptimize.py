@@ -59,7 +59,7 @@ def create_model(X_train, y_train, X_val, y_val,X_test, y_test):
     
     input_shape = X_train.shape
                 
-    n_epochs = 1
+    n_epochs = 100
     learr = 1e-3
     #encoder model
 
