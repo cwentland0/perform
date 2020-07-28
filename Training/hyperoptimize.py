@@ -38,7 +38,7 @@ def data():
     U_4 = sol_FOM_scaled[:,3,:].T
     
     training_snapshots = np.zeros((sol_FOM_scaled.shape[2],sol_FOM_scaled.shape[0],1))
-    training_snapshots[:,:,0] = U_1[:,:]
+    training_snapshots[:,:,0] = U_1[:,:] #vary this for different prim vars
     
     #splitting into training, validation and test sets
     X_train, X_test, y_train, y_test = model_selection.train_test_split(training_snapshots, training_snapshots, test_size=0.1, shuffle='False')
