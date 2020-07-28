@@ -34,7 +34,7 @@ pertFreq_outlet = [200000.0]
 velAdd = 100.0
 
 # output
-outInterval = 1000
+outInterval = 1
 primOut = True
 consOut = False
 RHSOut = False
