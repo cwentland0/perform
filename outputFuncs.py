@@ -64,6 +64,9 @@ def plotField(ax: plt.Axes, sol: solutionPhys, params: parameters, geom: geometr
 	ax.plot(geom.x_cell, field)
 	ax.set_ylabel(axLabel)
 	ax.set_xlabel("x (m)")
+	# ax.set_ylim([290,310])
+	# ax.set_xlim([0.0,0.0005])
+	plt.subplots_adjust(left=0.2)
 	plt.show(block=False)
 	plt.pause(0.001)
 
@@ -122,6 +125,7 @@ def plotProbe(ax: plt.Axes, sol: solutionPhys, params: parameters, probeVals, tS
 	ax.plot(tVals[:tStep+1], probeVals[:tStep+1])
 	ax.set_ylabel(axLabel)
 	ax.set_xlabel("t (s)")
+	# ax.set_ylim([975000,1025000])
 	plt.subplots_adjust(left=0.2)
 	plt.show(block=False)
 	plt.pause(0.001)
@@ -145,3 +149,24 @@ def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
 	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,1)), axis=1)
 	np.save(probeFile, probeSave)
 
+# write restart files containing primitive and conservative fields, plus physical time 
+def writeRestartFile(sol: solutionPhys, params: parameters, tStep):
+
+	# write restart file to zipped file
+	restartFile = os.path.join(params.restOutDir, "restartFile_"+str(params.restartIter)+".npz")
+	np.savez(restartFile, solTime = params.solTime, solPrim = sol.solPrim, solCons = sol.solCons)
+
+	# write iteration number files
+	restartIterFile = os.path.join(params.restOutDir, "restartIter.dat")
+	with open(restartIterFile, "w") as f:
+		f.write(str(params.restartIter)+"\n")
+
+	restartPhysIterFile = os.path.join(params.restOutDir, "restartIter_"+str(params.restartIter)+".dat")
+	with open(restartPhysIterFile, "w") as f:
+		f.write(str(tStep+1)+"\n")
+
+	# iterate file count
+	if (params.restartIter < params.numRestarts):
+		params.restartIter += 1
+	else:
+		params.restartIter = 1

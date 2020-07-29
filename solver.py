@@ -1,9 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from classDefs import parameters, geometry, gasProps
-from solution import solutionPhys, boundaries
+from solution import solutionPhys, boundaries, genInitialCondition
 from boundaryFuncs import updateGhostCells
 from spaceSchemes import calcRHS
+from romClasses import solutionROM
+from inputFuncs import readRestartFile
 import outputFuncs
 import constants
 import time
@@ -16,34 +18,60 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 
 	# TODO: could move this to driver?
 	# TODO: make an option to interpolate a solution onto the given mesh, if different
-	# intialize solution
-	initCond = np.load(params.initFile)
-	sol = solutionPhys(geom.numCells, initCond[:,:,0], initCond[:,:,1], gas, params)
-	sol.solPrim[:,1] += params.velAdd
+	# intialize from restart file
+	if params.initFromRestart:
+		params.solTime, solPrim0, solCons0 = readRestartFile(params.restOutDir)
+
+	# otherwise init from scratch IC or custom IC file 
+	else:
+		if (params.initFile == None):
+			solPrim0, solCons0 = genInitialCondition(params, gas, geom)
+		else:
+			# TODO: change this to .npz format with physical time included
+			initCond = np.load(params.initFile)
+			solPrim0 = initCond[:,:,0]
+			solCons0 = initCond[:,:,0]
+	sol = solutionPhys(geom.numCells, solPrim0, solCons0, gas, params)
+	
+	# add bulk velocity if required
+	# TODO: should definitely be moved somewhere else
+	if (params.velAdd > 0.0):
+		sol.solPrim[:,1] += params.velAdd
+	
 	sol.updateState(gas, fromCons = False)
+
+	# initialize ROM
+	if params.calcROM: rom = solutionROM(params.romInputs, sol, params)
 	
 	# initialize boundary state
-	bounds = boundaries(params, gas)
+	bounds = boundaries(sol, params, gas)
 
 	# prep output
 	fig, ax = plt.subplots(nrows=1, ncols=1)
+	tVals = np.linspace(params.dt, params.dt*params.numSteps, params.numSteps)
 	probeIdx = np.absolute(geom.x_cell - params.probeLoc).argmin()
 	probeVals = np.zeros(params.numSteps, dtype = constants.floatType)
-	tVals = np.linspace(params.dt, params.dt*params.numSteps, params.numSteps)
 	if (params.visType == "field"):
 		fieldImgDir = os.path.join(params.imgOutDir, "field_"+params.visVar+"_"+params.simType)
 		if not os.path.isdir(fieldImgDir): os.mkdir(fieldImgDir)
 
+		
+
 	# loop over time iterations
 	for tStep in range(params.numSteps):
 		
-		print("Iteration "+str(tStep))
+		print("Iteration "+str(tStep+1))
 		# call time integration scheme
 		advanceSolution(sol, bounds, params, geom, gas)
 
 		params.solTime += params.dt
 
-		# write/store/visualize unsteady output
+		# write restart files
+		if params.saveRestarts: 
+			if ( ((tStep+1) % params.restartInterval) == 0):
+				outputFuncs.writeRestartFile(sol, params, tStep)	 
+
+		# write unsteady output
 		if ( ((tStep+1) % params.outInterval) == 0):
 			outputFuncs.storeFieldData(sol, params, tStep)
 		outputFuncs.updateProbe(sol, params, probeVals, probeIdx, tStep)

@@ -1,5 +1,6 @@
 import re 
 import numpy as np
+import os
 import pdb
 
 # parse read text value into dict value
@@ -71,3 +72,20 @@ def parseBC(bcName, inDict):
         pertFreq = None
     
     return press, vel, temp, massFrac, pertType, pertPerc, pertFreq
+
+# read solution state from restart file 
+def readRestartFile(restartDir):
+
+	# read text file for restart file iteration number
+	with open(os.path.join(restartDir, "restartIter.dat"), "r") as f:
+		iterNum = int(f.read())
+
+	# read solution
+	restartFile = os.path.join(restartDir, "restartFile_"+str(iterNum)+".npz")
+	restartIn = np.load(restartFile)
+
+	solTime = restartIn["solTime"].item() 	# convert array() to scalar
+	solPrim = restartIn["solPrim"]
+	solCons = restartIn["solCons"]
+
+	return solTime, solPrim, solCons
