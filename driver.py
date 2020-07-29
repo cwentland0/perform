@@ -1,6 +1,7 @@
 import argparse
 import constants 
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2" # don't print all the TensorFlow warnings
 from classDefs import parameters, gasProps, geometry 
 from solver import solver
 import pdb
@@ -18,7 +19,7 @@ args = parser.parse_args()
 workdir = args.workdir
 
 # read input files, setup problem
-paramFile	= os.path.join(workdir, constants.paramFile)
+paramFile	= os.path.join(workdir, constants.paramInputs)
 paramIn 	= parameters(workdir, paramFile)
 meshIn 		= geometry(paramIn.meshFile)
 gasIn 		= gasProps(paramIn.gasFile)
@@ -27,10 +28,9 @@ gasIn 		= gasProps(paramIn.gasFile)
 if not os.path.isdir(paramIn.unsOutDir): 	os.mkdir(paramIn.unsOutDir)
 if not os.path.isdir(paramIn.probeOutDir): 	os.mkdir(paramIn.probeOutDir)
 if not os.path.isdir(paramIn.imgOutDir): 	os.mkdir(paramIn.imgOutDir)
+if not os.path.isdir(paramIn.restOutDir): 	os.mkdir(paramIn.restOutDir)
 
 # start run
 solver(paramIn, meshIn, gasIn)
-
-# pdb.set_trace()
 
 print("Run finished!")

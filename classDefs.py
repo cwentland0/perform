@@ -21,11 +21,16 @@ class parameters:
 
 		# input files, output directories
 		self.gasFile 		= str(paramDict["gasFile"]) 		# gas properties file (string)
-		self.meshFile 		= str(paramDict["meshFile"]) 	# mesh properties file (string)
-		self.initFile		= str(paramDict["initFile"])		# initial condition file
+		self.meshFile 		= str(paramDict["meshFile"]) 		# mesh properties file (string)
+		try:
+			self.initFile		= str(paramDict["initFile"])		# initial condition file
+		except:
+			self.initFile 		= None
+
 		self.unsOutDir 		= os.path.join(workdir, constants.unsteadyOutputDir)
 		self.probeOutDir 	= os.path.join(workdir, constants.probeOutputDir)
 		self.imgOutDir 		= os.path.join(workdir, constants.imageOutputDir)
+		self.restOutDir 	= os.path.join(workdir, constants.restartOutputDir)
 
 		# temporal discretization parameters
 		self.dt 			= float(paramDict["dt"])		# physical time step
@@ -46,22 +51,38 @@ class parameters:
 		# spatial discretization parameters
 		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)
 		self.spaceOrder 	= catchInput(paramDict, "spaceOrder", 1)		# spatial discretization order of accuracy (int)
-		self.viscScheme 	= paramDict["viscScheme"]						# 0 for inviscid, 1 for viscous
+		self.viscScheme 	= catchInput(paramDict, "viscScheme", 0)		# 0 for inviscid, 1 for viscous
 		
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
 
-		# output
+		# restart files
+		self.saveRestarts 	= catchInput(paramDict, "saveRestarts", False) 	# whether to save restart files
+		if self.saveRestarts:
+			self.restartInterval 	= catchInput(paramDict, "restartInterval", 100)	# number of steps between restart file saves
+			self.numRestarts 		= catchInput(paramDict, "numRestarts", 20) 		# number of restart files to keep saved
+			self.restartIter 		= 1		# file number counter
+		self.initFromRestart = catchInput(paramDict, "initFromRestart", False)
+
+		if ((self.initFile == None) and (not self.initFromRestart)):
+			try:
+				self.icParamsFile 	= str(paramDict["icParamsFile"])
+			except:
+				raise ValueError("If not providing IC profile or restarting from restart file, must provide icParamsFile")
+
+		# unsteady output
 		self.outInterval	= catchInput(paramDict, "outInterval", 1) 		# iteration interval to save data (int)
 		self.primOut		= catchInput(paramDict, "primOut", True)		# whether to save the primitive variables
 		self.consOut 		= catchInput(paramDict, "consOut", False) 		# whether to save the conservative variables
 		self.RHSOut 		= catchInput(paramDict, "RHSOut", False)		# whether to save the RHS vector
 		self.numSnaps 		= int(self.numSteps / self.outInterval)
 
+		# visualization
 		self.visType 		= catchInput(paramDict, "visType", "field")			# "field" or "point"
 		self.visVar			= catchInput(paramDict, "visVar", "pressure")		# variable to visualize (string)
 		self.visInterval 	= catchInput(paramDict, "visInterval", 1)			# interval at which to visualize (int)
 		self.visSave 		= catchInput(paramDict, "visSave", False)			# whether to write images to disk (bool)
+		# TODO: account for 0, 2+ probes
 		self.probeLoc 		= float(paramDict["probeLoc"])						# point monitor location (will reference closest cell)
 		numImgs 			= int(self.numSteps / self.visInterval)
 		self.imgString 		= '%0'+str(floor(log(numImgs, 10))+1)+'d'
@@ -69,12 +90,10 @@ class parameters:
 		# ROM parameters
 		# TODO: potentially move this to another input file
 		self.calcROM 		= catchInput(paramDict, "calcROM", False)
-		if self.calcROM:
-			self.romMethod 		= catchInput(paramDict, "romMethod", "linear")
-			self.romProj 		= catchInput(paramDict, "romProj", "galerkin")
-			self.simType 		= self.romMethod + "_" + self.romProj
+		if not self.calcROM: 
+			self.simType = "FOM"
 		else:
-			self.simType  	= "FOM"
+			self.romInputs = os.path.join(workdir, constants.romInputs)
 
 # gas thermofluid properties
 # TODO: expand Arrhenius factors to allow for multiple reactions
@@ -140,6 +159,8 @@ def catchInput(inDict, inVal, default):
 			val = float(inDict[inVal])
 		elif (type(default) == str):
 			val = str(inDict[inVal])
+		elif (type(default) == type(None)):
+			val = None
 	except:
 		val = default
 

@@ -12,6 +12,8 @@ rkCoeffs = np.array([0.25, 1.0/3.0, 0.5, 1.0], dtype = floatType)
 unsteadyOutputDir   = "UnsteadyFieldResults"
 probeOutputDir 		= "ProbeResults"
 imageOutputDir 		= "ImageResults"
+restartOutputDir 	= "RestartFiles"
 
 # input files
-paramFile 	= "solverParams.inp"
+paramInputs 	= "solverParams.inp"
+romInputs		= "romParams.inp"

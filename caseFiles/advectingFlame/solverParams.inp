@@ -31,7 +31,13 @@ pertPerc_outlet = 0.01
 pertFreq_outlet = [200000.0]
 
 # misc
-velAdd = 100.0
+velAdd = 0.0
+
+# restart files
+saveRestarts    = False
+restartInterval = 1000
+numRestarts     = 20
+initFromRestart = False
 
 # output
 outInterval = 1
@@ -39,12 +45,9 @@ primOut = True
 consOut = False
 RHSOut = False
 visType = "field"
-visVar  = "temperature"
+visVar  = "pressure"
 visInterval = 50
 probeLoc = 0.008
 
 # ROM params
 calcROM = False
-romMethod = "linear"
-romProj = "Galerkin"
-

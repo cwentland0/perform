@@ -6,6 +6,7 @@ from stateFuncs import calcGammaMixture, calcCpMixture, calcGasConstantMixture
 import pdb	
 
 # TODO: check for repeated calculations, just make a separate variable
+# TODO: check references to muRef, might be some broadcast issues
 
 # compute RHS function
 # @profile
