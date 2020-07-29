@@ -38,7 +38,7 @@ def data():
     U_4 = sol_FOM_scaled[:,3,:].T
     
     training_snapshots = np.zeros((sol_FOM_scaled.shape[2],sol_FOM_scaled.shape[0],1))
-    training_snapshots[:,:,0] = U_1[:,:] #vary this for different prim vars
+    training_snapshots[:,:,0] = U_4[:,:] #vary this for different prim vars
     
     #splitting into training, validation and test sets
     X_train, X_test, y_train, y_test = model_selection.train_test_split(training_snapshots, training_snapshots, test_size=0.1, shuffle='False')
@@ -59,7 +59,7 @@ def create_model(X_train, y_train, X_val, y_val,X_test, y_test):
     
     input_shape = X_train.shape
                 
-    n_epochs = 100
+    n_epochs = 20
     learr = 1e-3
     #encoder model
 
@@ -144,6 +144,6 @@ decoder_PC = best_model.layers[-1]
 autoencoder_PC = best_model
 
 
-# autoencoder_PC.save('./Hyperopt models/Amp Inf/autoencoder_4.h5')
-# encoder_PC.save('./Hyperopt models/Amp Inf/encoder_4.h5')
-# decoder_PC.save('./Hyperopt models/Amp Inf/decoder_4.h5')
+autoencoder_PC.save('./Optimized Models/autoencoder_4.h5')
+encoder_PC.save('./Optimized Models/encoder_4.h5')
+decoder_PC.save('./Optimized Models/decoder_4.h5')
