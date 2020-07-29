@@ -4,7 +4,7 @@ from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, genInitialCondition
 from boundaryFuncs import updateGhostCells
 from spaceSchemes import calcRHS
-from romClasses import solutionROM
+# from romClasses import solutionROM
 from inputFuncs import readRestartFile
 import outputFuncs
 import constants
@@ -41,7 +41,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	sol.updateState(gas, fromCons = False)
 
 	# initialize ROM
-	if params.calcROM: rom = solutionROM(params.romInputs, sol, params)
+	# if params.calcROM: rom = solutionROM(params.romInputs, sol, params)
 	
 	# initialize boundary state
 	bounds = boundaries(sol, params, gas)
