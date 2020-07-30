@@ -249,8 +249,8 @@ def calcSource(solPrim, rho, params: parameters, gas: gasProps):
 def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: gasProps):
     
     
-    solPrimL = np.zeros((geom.numCells,4))
-    solPrimR = np.zeros((geom.numCells,4))
+    solPrimL = np.zeros((geom.numCells+1,4))
+    solPrimR = np.zeros((geom.numCells+1,4))
     
     for i in range(4):
         
@@ -275,22 +275,22 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
         phil = np.ones(geom.numCells+2)
         phir = np.ones(geom.numCells+2)
         
-        phil[(Ql-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) > 0],((Qmax-Qm)/(Ql-Qm))[(Ql-Qm) > 0]]),axis=0)
-        phir[(Qr-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) > 0],((Qmax-Qm)/(Qr-Qm))[(Qr-Qm) > 0]]),axis=0)
+        phil[(Ql-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) > 0],((Qmax-Qm)[(Ql-Qm) > 0]/(Ql-Qm)[(Ql-Qm) > 0])]),axis=0)
+        phir[(Qr-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) > 0],((Qmax-Qm)[(Qr-Qm) > 0]/(Qr-Qm)[(Qr-Qm) > 0])]),axis=0)
     
-        phil[(Ql-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) < 0],((Qmin-Qm)/(Ql-Qm))[(Ql-Qm) < 0]]),axis=0)
-        phir[(Qr-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) < 0],((Qmin-Qm)/(Qr-Qm))[(Qr-Qm) < 0]]),axis=0)
+        phil[(Ql-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) < 0],((Qmin-Qm)[(Ql-Qm) < 0]/(Ql-Qm)[(Ql-Qm) < 0])]),axis=0)
+        phir[(Qr-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) < 0],((Qmin-Qm)[(Qr-Qm) < 0]/(Qr-Qm)[(Qr-Qm) < 0])]),axis=0)
 
-        phi = np.amin(np.array[phil,phir],axis=0)
+        phi = np.amin(np.array([phil,phir]),axis=0)
         
         Ql = Qm + phi*delQ
-        Qr = Qr*phi*delQ
+        Qr = Qr - phi*delQ
         
         solPrimL[:,i] = Ql[1:]
-        solPrimR[:,i] = Qr[:geom.numCells]
+        solPrimR[:,i] = Qr[:geom.numCells+1]
         
-    solConsL = calcStateFromPrim(solPrimL,gas)
-    solConsR = calcStateFromPrim(solPrimR,gas)
+    [solConsL, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimL,gas)
+    [solConsR, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimR,gas)
     
     return solPrimL,solConsL,solPrimR,solConsR
         
