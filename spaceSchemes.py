@@ -15,7 +15,7 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 	# store left and right cell states
 	# TODO: this is memory-inefficient, left and right state are not mutations from the state vectors
 
-	if (params.spaceOrder > 1):
+	if (params.spaceOrder > 2):
 		raise ValueError("Higher-order fluxes not implemented yet")
 	elif (params.spaceOrder == 2):
 		[solPrimL,solConsL,solPrimR,solConsR] = reconstruct_2nd(sol,bounds,geom,gas)        
@@ -255,21 +255,21 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
     for i in range(4):
         
         #gradients at all cell centres (including ghost) (grad*dx)
-        fsv = np.concatenate((bounds.inlet.sol.solPrim[:,i], sol.solPrim[:,i], bounds.outlet.sol.solPrim[:,i]),axis=0)
-        gradQ = getA(geom.numCells+2) @ fsv
-        gradQ = gradQ/2
+        Q = np.concatenate((bounds.inlet.sol.solPrim[:,i], sol.solPrim[:,i], bounds.outlet.sol.solPrim[:,i]),axis=0)
+        delQ = getA(geom.numCells+2) @ Q
+        delQ = delQ/2 #(grad*dx/2)
         
-        #max and min at each cell 
-        Ql = np.concatenate(([0],fsv[:geom.numCells+1]))
-        Qm = fsv
-        Qr = np.concatenate((fsv[1:],[0]))
+        #max and min wrt neighbours at each cell 
+        Ql = np.concatenate(([0],Q[:geom.numCells+1]))
+        Qm = Q
+        Qr = np.concatenate((Q[1:],[0]))
         
         Qmax = np.amax(np.array([Ql,Qm,Qr]),axis=0)
         Qmin = np.amin(np.array([Ql,Qm,Qr]),axis=0)
     
         #unconstrained reconstruction at each face
-        Ql = Qm + gradQ
-        Qr = Qm - gradQ
+        Ql = Qm + delQ
+        Qr = Qm - delQ
         
         #gradient limiting
         phil = np.ones(geom.numCells+2)
@@ -283,8 +283,8 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
 
         phi = np.amin(np.array[phil,phir],axis=0)
         
-        Ql = Ql*phi
-        Qr = Qr*phi
+        Ql = Qm + phi*delQ
+        Qr = Qr*phi*delQ
         
         solPrimL[:,i] = Ql[1:]
         solPrimR[:,i] = Qr[:geom.numCells]
@@ -296,10 +296,11 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
         
 def getA(nx):
     
-    A = (np.diag(np.ones(nx-1),k=1) + np.diag(-1*np.ones(nx-1),k=-1))/2
-    A[0,1] = 1
+    A = (np.diag(np.ones(nx-1),k=1) + np.diag(-1*np.ones(nx-1),k=-1))/2 #second-order stencil for interior
+    #first-order stencil for ghost cells
+    A[0,1] = 1 #forward
     A[0,0] = -1
-    A[nx-1,nx-1] = 1
+    A[nx-1,nx-1] = 1 #backward
     A[nx-1,nx-2] = -1
     
     return A
