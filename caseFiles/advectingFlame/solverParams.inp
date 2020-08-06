@@ -33,6 +33,9 @@ pertFreq_outlet = [200000.0]
 # misc
 velAdd = 0.0
 
+# Solving for primitive variables
+solforPrim = False
+
 # restart files
 saveRestarts    = False
 restartInterval = 1000

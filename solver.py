@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, genInitialCondition
 from boundaryFuncs import updateGhostCells
-from spaceSchemes import calcRHS
+from spaceSchemes import calcRHS, calc_dsolPrim
 # from romClasses import solutionROM
 from inputFuncs import readRestartFile
 import outputFuncs
@@ -100,7 +100,11 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 # TODO: add implicit time integrators
 def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
 
-	solConsOuter = sol.solCons.copy()
+
+	if params.solforPrim:
+		solOuter = sol.solPrim.copy()
+	else:
+		solOuter = sol.solCons.copy()        
 
 	# loop over max subiterations
 	for subiter in range(params.numSubIters):
@@ -111,15 +115,29 @@ def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, g
 		# compute RHS function
 		calcRHS(sol, bounds, params, geom, gas)
 
-		# if ROM, project onto test space
+		# if solPrim, calculate d(solPrim)/dt
+		if params.solforPrim:        
+  			sol.RHS=calc_dsolPrim(sol,gas) 
+
+        # if ROM, project onto test space
 
 		# compute change in solution/code, advance solution/code
-		dSolCons = params.dt * params.subIterCoeffs[subiter] * sol.RHS
+		dSol = params.dt * params.subIterCoeffs[subiter] * sol.RHS
 
 		# if ROM, reconstruct solution
 
 		# update state
-		sol.solCons = solConsOuter + dSolCons
-		sol.updateState(gas)
-
+		if params.solforPrim:        
+  			sol.solPrim = solOuter + dSol
+  			sol.updateState(gas,fromCons=False)            
+		else:      
+  			sol.solCons = solOuter + dSol
+  			sol.updateState(gas)
+        
 		# if implicit method, check residual and break if necessary
+
+
+
+    
+
+

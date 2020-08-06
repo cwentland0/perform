@@ -56,6 +56,9 @@ class parameters:
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
 
+		# Solving for Primitive Variables
+		self.solforPrim 		= catchInput(paramDict, "solforPrim", False)
+
 		# restart files
 		self.saveRestarts 	= catchInput(paramDict, "saveRestarts", False) 	# whether to save restart files
 		if self.saveRestarts:
