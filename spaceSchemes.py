@@ -260,16 +260,16 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
         delQ = delQ/2 #(grad*dx/2)
         
         #max and min wrt neighbours at each cell 
-        Ql = np.concatenate(([0],Q[:geom.numCells+1]))
+        Ql = np.concatenate(([Q[0]],Q[:geom.numCells+1]))
         Qm = Q
-        Qr = np.concatenate((Q[1:],[0]))
+        Qr = np.concatenate((Q[1:],[Q[geom.numCells+1]]))
         
         Qmax = np.amax(np.array([Ql,Qm,Qr]),axis=0)
         Qmin = np.amin(np.array([Ql,Qm,Qr]),axis=0)
     
         #unconstrained reconstruction at each face
-        Ql = Qm + delQ
-        Qr = Qm - delQ
+        Ql = Qm - delQ
+        Qr = Qm + delQ
         
         #gradient limiting
         phil = np.ones(geom.numCells+2)
@@ -283,11 +283,11 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
 
         phi = np.amin(np.array([phil,phir]),axis=0)
         
-        Ql = Qm + phi*delQ
-        Qr = Qr - phi*delQ
+        Ql = Qm - phi*delQ
+        Qr = Qr + phi*delQ
         
-        solPrimL[:,i] = Ql[1:]
-        solPrimR[:,i] = Qr[:geom.numCells+1]
+        solPrimL[:,i] = Qr[:geom.numCells+1]
+        solPrimR[:,i] = Ql[1:]
         
     [solConsL, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimL,gas)
     [solConsR, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimR,gas)
