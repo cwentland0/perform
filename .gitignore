@@ -11,3 +11,5 @@
 *.out
 *.toc
 *.synctex.gz
+*.gif
+*.npy

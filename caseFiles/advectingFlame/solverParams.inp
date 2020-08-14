@@ -5,7 +5,7 @@ initFile = "./caseFiles/advectingFlame/ic_lf_256.npy"
 
 # time discretization
 dt = 1.0e-8
-numSteps = 10000
+numSteps = 2000
 timeScheme = "rk"
 timeOrder = 3
 

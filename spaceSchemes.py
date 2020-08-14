@@ -18,7 +18,7 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 	if (params.spaceOrder > 2):
 		raise ValueError("Higher-order fluxes not implemented yet")
 	elif (params.spaceOrder == 2):
-		[solPrimL,solConsL,solPrimR,solConsR] = reconstruct_2nd(sol,bounds,geom,gas)        
+		[solPrimL,solConsL,solPrimR,solConsR,phi] = reconstruct_2nd(sol,bounds,geom,gas)        
 	else:
 		solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
 		solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
@@ -221,6 +221,8 @@ def calcSource(solPrim, rho, params: parameters, gas: gasProps):
 	temp = solPrim[:,2]
 	massFracs = solPrim[:,3:]
 	sourceTerm = np.zeros(solPrim.shape, dtype = constants.floatType)
+	if (solPrim.dtype == np.complex64): #for complex step check
+		sourceTerm = np.zeros(solPrim.shape, dtype = np.complex64)
 	wf = gas.preExpFact * np.exp(gas.actEnergy / temp)
 	
 	# to avoid recalculating
@@ -251,6 +253,7 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
     
     solPrimL = np.zeros((geom.numCells+1,4))
     solPrimR = np.zeros((geom.numCells+1,4))
+    phi_col = np.zeros((geom.numCells+2,4))
     
     for i in range(4):
         
@@ -268,8 +271,8 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
         Qmin = np.amin(np.array([Ql,Qm,Qr]),axis=0)
     
         #unconstrained reconstruction at each face
-        Ql = Qm - delQ
-        Qr = Qm + delQ
+        Ql = Qm + delQ
+        Qr = Qm - delQ
         
         #gradient limiting
         phil = np.ones(geom.numCells+2)
@@ -283,16 +286,18 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
 
         phi = np.amin(np.array([phil,phir]),axis=0)
         
-        Ql = Qm - phi*delQ
-        Qr = Qr + phi*delQ
+        Ql = Qm + phi*delQ
+        Qr = Qr - phi*delQ
         
-        solPrimL[:,i] = Qr[:geom.numCells+1]
-        solPrimR[:,i] = Ql[1:]
+        solPrimL[:,i] = Qr[1:]
+        solPrimR[:,i] = Ql[:geom.numCells+1]
+        
+        phi_col[:,i] = phi
         
     [solConsL, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimL,gas)
     [solConsR, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimR,gas)
     
-    return solPrimL,solConsL,solPrimR,solConsR
+    return solPrimL,solConsL,solPrimR,solConsR,phi_col
         
 def getA(nx):
     
@@ -306,85 +311,7 @@ def getA(nx):
     return A
     
 
-def calc_dsolPrim(sol,gas):
     
-    rhs = sol.RHS.copy()
-    Jac = calc_dsolPrimdsolCons(sol.solCons, sol.solPrim, gas)
-    
-    for i in range(sol.solPrim.shape[0]):
-        
-        rhs[i,:] = Jac[:,:,i] @ rhs[i,:]
-    
-    return rhs
-
-
-def calc_dsolPrimdsolCons(solCons,solPrim,gas):
-    
-    RUniv = 8314.0
-    gamma_matrix_inv = np.zeros((gas.numEqs,gas.numEqs,solPrim.shape[0]))
-    
-    rho = solCons[:,0]
-    p = solPrim[:,0]
-    u = solPrim[:,1]
-    T = solPrim[:,2]
-    
-    if (gas.numSpecies > 1):
-        Y = solPrim[:,3:]
-        massFracs = solPrim[:,3:]
-    else:
-        Y = solPrim[:,3]
-        massFracs = solPrim[:,3]
-        
-    Ri = calcGasConstantMixture(massFracs, gas)
-    Cpi = calcCpMixture(massFracs, gas)
-    
-    rhop = 1/(Ri*T)
-    rhoT = -rho/T
-    hT = Cpi
-    d = rho*rhop*hT + rhoT
-    h0 = (solCons[:,2]+p)/rho
-    
-    if (gas.numSpecies == 0):
-        gamma11 = (rho*hT + rhoT*(h0-(u*u)))/d
-        
-    else:
-        rhoY = -(rho*rho)*(RUniv*T/p)*(1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies_full-1])
-        hY = gas.enthRefDiffs + (T-gas.tempRef)*(gas.Cp[0]-gas.Cp[gas.numSpecies_full-1])
-        gamma11 = (rho*hT + rhoT*(h0-(u*u))+ (Y*(rhoY*hT - rhoT*hY)))/d #s
-        
-    gamma_matrix_inv[0,0,:] = gamma11
-    gamma_matrix_inv[0,1,:] = u*rhoT/d
-    gamma_matrix_inv[0,2,:] = -rhoT/d
-    
-    if (gas.numSpecies > 0):
-        gamma_matrix_inv[0,3:,:] = (rhoT*hY - rhoY*hT)/d
-        
-    gamma_matrix_inv[1,0,:] = -u/rho
-    gamma_matrix_inv[1,1,:] = 1/rho
-    
-    if (gas.numSpecies == 0):
-        gamma_matrix_inv[2,0,:] = (-rhop*(h0-(u*u))+1)/d
-        
-    else:
-        gamma_matrix_inv[2,0,:] = (-rhop*(h0-(u*u)) + 1 + (Y * (rho*rhop*hY + rhoY))/rho)/d #s
-        gamma_matrix_inv[2,3:,:] = -(rho*rhop*hY + rhoY)/(rho*d)
-        
-    gamma_matrix_inv[2,1,:] = -u*rhop/d
-    gamma_matrix_inv[2,2,:] = rhop/d
-    
-    if (gas.numSpecies > 0):
-        gamma_matrix_inv[3:,0,:] = -Y/rho
-        
-        for i in range(3,gas.numEqs):
-            gamma_matrix_inv[i,i,:] = 1/rho
-            
-            
-    return gamma_matrix_inv
-
-
-        
-    
-
         
     
         

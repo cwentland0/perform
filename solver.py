@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, genInitialCondition
 from boundaryFuncs import updateGhostCells
-from spaceSchemes import calcRHS, calc_dsolPrim
+from spaceSchemes import calcRHS
+from Jacobians import calc_dsolPrim,calc_dSourcedsolPrim,calc_dSourcedsolPrim_FD,calc_dSourcedsolPrim_imag
 # from romClasses import solutionROM
 from inputFuncs import readRestartFile
 import outputFuncs
@@ -55,7 +56,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		fieldImgDir = os.path.join(params.imgOutDir, "field_"+params.visVar+"_"+params.simType)
 		if not os.path.isdir(fieldImgDir): os.mkdir(fieldImgDir)
 
-		
+	
 
 	# loop over time iterations
 	for tStep in range(params.numSteps):
@@ -63,7 +64,6 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		print("Iteration "+str(tStep+1))
 		# call time integration scheme
 		advanceSolution(sol, bounds, params, geom, gas)
-
 		params.solTime += params.dt
 
 		# write restart files
@@ -96,6 +96,8 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		figFile = os.path.join(params.imgOutDir,"probe_"+params.visVar+"_"+params.simType+".png")
 		fig.savefig(figFile)
 
+	return 
+
 # numerically integrate ODE forward one physical time step
 # TODO: add implicit time integrators
 def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
@@ -115,7 +117,11 @@ def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, g
 		# compute RHS function
 		calcRHS(sol, bounds, params, geom, gas)
 
-		# if solPrim, calculate d(solPrim)/dt
+		# checking Source Term Jacobians
+		#diff=calc_dSourcedsolPrim_imag(sol, gas, geom, params, params.dt, 1e-25)
+        
+        
+        # if solPrim, calculate d(solPrim)/dt
 		if params.solforPrim:        
   			sol.RHS=calc_dsolPrim(sol,gas) 
 
@@ -136,8 +142,11 @@ def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, g
         
 		# if implicit method, check residual and break if necessary
 
+		
+        
 
-
+    
+    
     
 
 

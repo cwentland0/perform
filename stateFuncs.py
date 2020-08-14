@@ -38,6 +38,9 @@ def calcStateFromPrim(solPrim, gas: gasProps):
 	# density, momentum, energy, density-weighted mass fraction
 	solCons = np.zeros(solPrim.shape, dtype = constants.floatType)
 
+	if (solPrim.dtype==np.complex64): #for complex step jacobian
+		solCons = np.zeros(solPrim.shape, dtype = np.complex64)
+
 	if (gas.numSpecies > 1):
 		massFracs = solPrim[:,3:]
 	else:
