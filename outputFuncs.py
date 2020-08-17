@@ -11,7 +11,7 @@ import constants
 import time
 import pdb
 
-mpl.rc('font', family='serif',size='12')
+mpl.rc('font', family='serif',size='10')
 mpl.rc('axes', labelsize='x-large')
 mpl.rc('figure', facecolor='w')
 mpl.rc('text', usetex=False)
@@ -33,40 +33,98 @@ def storeFieldData(sol: solutionPhys, params:parameters, tStep):
 	if params.consOut: sol.consSnap[:,:,storeIdx] = sol.solCons
 	if params.RHSOut:  sol.RHSSnap[:,:,storeIdx]  = sol.RHS
 
-def plotField(ax: plt.Axes, sol: solutionPhys, params: parameters, geom: geometry):
+# get figure and axes handles for visualization
+# TODO: some way to generalize this for any number of visualization plots?
+# 	not even 9 variables to visualize right now
+def setupPlotAxes(params: parameters):
 
-	ax.cla()
+	if (params.numVis == 1):
+		params.visNRows = 1 
+		params.visNCols = 1
+	elif (params.numVis == 2):
+		params.visNRows = 2
+		params.visNCols = 1
+	elif (params.numVis <= 4):
+		params.visNRows = 2
+		params.visNCols = 2
+	elif (params.numVis <= 6):
+		params.visNRows = 3
+		params.visNCols = 2
+	elif (params.numVis <= 9):
+		params.visNRows = 3
+		params.visNCols = 3
 
-	if (params.visVar == "pressure"):
-		field = sol.solPrim[:,0]
-		axLabel = "Pressure (Pa)"
-	elif (params.visVar == "velocity"):
-		field = sol.solPrim[:,1]
-		axLabel = "Velocity (m/s)"
-	elif (params.visVar == "temperature"):
-		field = sol.solPrim[:,2]
-		axLabel = "Temperature (K)"
-	elif (params.visVar == "species"):
-		field = sol.solPrim[:,3]
-		axLabel = "Species Mass Fraction"
-	elif (params.visVar == "density"):
-		field = sol.solCons[:,0]
-		axLabel = "Density (kg/m^3)"
-	elif (params.visVar == "momentum"):
-		field = sol.solCons[:,1]
-		axLabel = "Momentum (kg/s-m^2)"
-	elif (params.visVar == "energy"):
-		field = sol.solCons[:,2]
-		axLabel = "Energy"
+	# axis labels
+	axLabels = []
+	for axIdx in range(params.numVis):
+		varStr = params.visVar[axIdx]
+		if (varStr == "pressure"):
+			axLabels.append("Pressure (Pa)")
+		elif (varStr == "velocity"):
+			axLabels.append("Velocity (m/s)")
+		elif (varStr == "temperature"):
+			axLabels.append("Temperature (K)")
+		elif (varStr == "species"):
+			axLabels.append("Species Mass Fraction")
+		elif (varStr == "density"):
+			axLabels.append("Density (kg/m^3)")
+		elif (varStr == "momentum"):
+			axLabels.append("Momentum (kg/s-m^2)")
+		elif (varStr == "energy"):
+			axLabels.append("Total Energy")
+		else:
+			raise ValueError("Invalid field visualization variable:"+str(params.visVar))
+
+	fig, ax = plt.subplots(nrows=params.visNRows, ncols=params.visNCols, figsize=(12,6))
+
+	return fig, ax, axLabels
+
+# plot field line plots
+def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params: parameters, geom: geometry):
+
+	if (type(ax) != np.ndarray): 
+		axList = [ax]
 	else:
-		raise ValueError("Invalid field visualization variable:"+str(params.visVar))
+		axList = ax 
 
-	ax.plot(geom.x_cell, field)
-	ax.set_ylabel(axLabel)
-	ax.set_xlabel("x (m)")
-	# ax.set_ylim([290,310])
-	# ax.set_xlim([0.0,0.0005])
-	plt.subplots_adjust(left=0.2)
+	for colIdx, col in enumerate(axList):
+		if (type(col) != np.ndarray):
+			colList = [col]
+		else:
+			colList = col
+		for rowIdx, axVar in enumerate(colList):
+
+			axVar.cla()
+			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (params.visNRows, params.visNCols))[0]
+			if ((linIdx+1) > params.numVis): 
+				axVar.axis("off")
+				break
+
+			varStr = params.visVar[linIdx]
+			if (varStr == "pressure"):
+				field = sol.solPrim[:,0]
+			elif (varStr == "velocity"):
+				field = sol.solPrim[:,1]
+			elif (varStr == "temperature"):
+				field = sol.solPrim[:,2]
+			elif (varStr == "species"):
+				field = sol.solPrim[:,3]
+			elif (varStr == "density"):
+				field = sol.solCons[:,0]
+			elif (varStr == "momentum"):
+				field = sol.solCons[:,1]
+			elif (varStr == "energy"):
+				field = sol.solCons[:,2]
+			else:
+				raise ValueError("Invalid field visualization variable:"+str(varStr))
+
+			axVar.plot(geom.x_cell, field)
+			axVar.set_ylim(params.visYBounds[linIdx])
+			axVar.set_xlim(params.visXBounds[linIdx])
+			axVar.set_ylabel(axLabels[linIdx])
+			axVar.set_xlabel("x (m)")
+
+	fig.tight_layout()
 	plt.show(block=False)
 	plt.pause(0.001)
 
@@ -81,54 +139,58 @@ def writeFieldImg(fig: plt.Figure, params: parameters, tStep, fieldImgDir):
 # update probeVals, as this happens every time iteration
 def updateProbe(sol: solutionPhys, params: parameters, probeVals, probeIdx, tStep):
 
-	if (params.visVar == "pressure"):
-		probe = sol.solPrim[probeIdx,0]
-	elif (params.visVar == "velocity"):
-		probe = sol.solPrim[probeIdx,1]
-	elif (params.visVar == "temperature"):
-		probe = sol.solPrim[probeIdx,2]
-	elif (params.visVar == "species"):
-		probe = sol.solPrim[probeIdx,3]
-	elif (params.visVar == "density"):
-		probe = sol.solCons[probeIdx,0]
-	elif (params.visVar == "momentum"):
-		probe = sol.solCons[probeIdx,1]
-	elif (params.visVar == "energy"):
-		probe = sol.solCons[probeIdx,2]
-	else:
-		raise ValueError("Invalid field visualization variable:"+str(params.visVar))
+	for visIdx in range(params.numVis):
+		varStr = params.visVar[visIdx]
+		if (varStr == "pressure"):
+			probe = sol.solPrim[probeIdx,0]
+		elif (varStr == "velocity"):
+			probe = sol.solPrim[probeIdx,1]
+		elif (varStr == "temperature"):
+			probe = sol.solPrim[probeIdx,2]
+		elif (varStr == "species"):
+			probe = sol.solPrim[probeIdx,3]
+		elif (varStr == "density"):
+			probe = sol.solCons[probeIdx,0]
+		elif (varStr == "momentum"):
+			probe = sol.solCons[probeIdx,1]
+		elif (varStr == "energy"):
+			probe = sol.solCons[probeIdx,2]
+		else:
+			raise ValueError("Invalid field visualization variable:"+str(params.visVar))
 
-	probeVals[tStep] = probe 
+		probeVals[tStep, visIdx] = probe 
 
 # plot probeVals at specied visInterval
-def plotProbe(ax: plt.Axes, sol: solutionPhys, params: parameters, probeVals, tStep, tVals):
+def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params: parameters, probeVals, tStep, tVals):
 
-	ax.cla()
-
-	if (params.visVar == "pressure"):
-		axLabel = "Pressure (Pa)"
-	elif (params.visVar == "velocity"):
-		axLabel = "Velocity (m/s)"
-	elif (params.visVar == "temperature"):
-		axLabel = "Temperature (K)"
-	elif (params.visVar == "species"):
-		axLabel = "Species Mass Fraction"
-	elif (params.visVar == "density"):
-		axLabel = "Density (kg/m^3)"
-	elif (params.visVar == "momentum"):
-		axLabel = "Momentum (kg/s-m^2)"
-	elif (params.visVar == "energy"):
-		axLabel = "Energy"
+	if (type(ax) != np.ndarray): 
+		axList = [ax]
 	else:
-		raise ValueError("Invalid field visualization variable:"+str(params.visVar))
+		axList = ax 
 
-	ax.plot(tVals[:tStep+1], probeVals[:tStep+1])
-	ax.set_ylabel(axLabel)
-	ax.set_xlabel("t (s)")
-	# ax.set_ylim([975000,1025000])
-	plt.subplots_adjust(left=0.2)
+	for colIdx, col in enumerate(axList):
+		if (type(col) != np.ndarray):
+			colList = [col]
+		else:
+			colList = col
+		for rowIdx, axVar in enumerate(colList):
+
+			axVar.cla()
+			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (params.visNRows, params.visNCols))[0]
+			if ((linIdx+1) > params.numVis): 
+				axVar.axis("off")
+				break
+
+			axVar.plot(tVals[:tStep+1], probeVals[:tStep+1, linIdx])
+			axVar.set_ylim(params.visYBounds[linIdx])
+			axVar.set_xlim(params.visXBounds[linIdx])
+			axVar.set_ylabel(axLabels[linIdx])
+			axVar.set_xlabel("t (s)")
+
+	fig.tight_layout()
 	plt.show(block=False)
 	plt.pause(0.001)
+
 
 # write snapshot matrices and point monitors to disk
 def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
@@ -145,9 +207,13 @@ def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
 		np.save(solRHSFile, sol.RHSSnap) 
 
 	# save point monitors to disk
-	probeFile = os.path.join(params.probeOutDir, "probe_"+params.simType+".npy")
-	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,1)), axis=1)
+	probeFileName = "probe"
+	for visVar in params.visVar:
+		probeFileName += "_"+visVar
+	probeFile = os.path.join(params.probeOutDir, probeFileName+"_"+params.simType+".npy")
+	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,params.numVis)), axis=1) 	# TODO: add third reshape dimensions for multiple probes
 	np.save(probeFile, probeSave)
+
 
 # write restart files containing primitive and conservative fields, plus physical time 
 def writeRestartFile(sol: solutionPhys, params: parameters, tStep):

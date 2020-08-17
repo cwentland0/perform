@@ -3,6 +3,7 @@ import constants
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries
 from stateFuncs import calcGammaMixture, calcCpMixture, calcGasConstantMixture
+from boundaryFuncs import calcBoundaries
 import pdb	
 
 # TODO: check for repeated calculations, just make a separate variable
@@ -12,26 +13,47 @@ import pdb
 # @profile
 def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
 
+	# compute ghost cell state or boundary fluxes
+	calcBoundaries(sol, bounds, params, gas)
+
 	# store left and right cell states
 	# TODO: this is memory-inefficient, left and right state are not mutations from the state vectors
 	if (params.spaceOrder > 1):
-		raise ValueError("Higher-order fluxes not implemented yet")
-	else:
+		raise ValueError("Higher-order fluxes not implemented yet") 
+		
+	# if using strong boundary conditions, append ghost cells to state vectors
+	if not params.weakBCs:
 		solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
 		solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
 		solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
 		solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)
-		
+	
+	else:
+		solPrimL = sol.solPrim[:-1, :]
+		solConsL = sol.solCons[:-1, :]
+		solPrimR = sol.solPrim[1:, :]
+		solConsR = sol.solCons[1:, :]
+
 	# compute fluxes
 	flux = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas)
-	flux -= calcViscFlux(sol, bounds, params, gas, geom)
+	if (params.viscScheme == 1):
+		flux -= calcViscFlux(sol, bounds, params, gas, geom)
 
 	# compute source term
 	source = calcSource(sol.solPrim, sol.solCons[:,0], params, gas)
 
 	# compute RHS
-	sol.RHS = (flux[1:,:] - flux[:-1,:]) / geom.dx
-	sol.RHS = source - sol.RHS
+	sol.RHS[:,:] 	= 0.0 
+	if params.weakBCs:
+		sol.RHS[0,:] 	= bounds.inlet.flux
+		sol.RHS[-1,:] 	= -bounds.outlet.flux
+		sol.RHS[1:,:]   = sol.RHS[1:,:] + flux 
+		sol.RHS[:-1,:]  = sol.RHS[:-1,:] - flux
+	else:
+		sol.RHS = flux[:-1,:] - flux[1:,:]
+
+	sol.RHS[:,:] /= geom.dx	
+	sol.RHS  = source + sol.RHS
 
 # compute inviscid fluxes
 # TODO: expand beyond Roe flux
@@ -84,13 +106,14 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas: gasProps):
 	dQp = solPrimR - solPrimL
 	M_ROE = calcRoeDissipation(solPrimRoe, rhoi, Hi, ci, Ri, Cpi, gas)
 
-	flux = 0.5 * (EL + ER) - 0.5 * (M_ROE * np.expand_dims(dQp, -2)).sum(-1)
+	dissTerm = 0.5 * (M_ROE * np.expand_dims(dQp, -2)).sum(-1)
+
+	flux = 0.5 * (EL + ER) - dissTerm 
 
 	return flux
 
 # compute dissipation term of Roe flux
 # TODO: better naming conventions
-# @profile
 def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 
 	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.floatType)
@@ -175,20 +198,26 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 	return dissMat
 
 # compute viscous fluxes
-# @profile
 def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry):
 
-	solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
-	rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
+	# for weak BCs, viscous effects are ignored
+	if params.weakBCs:
+		solPrim = sol.solPrim
+		rho = sol.solCons[:,0]
+		cp = sol.CpMix
 
+	else:
+		solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
+		rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
+		cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis = 0)
+	
+	# TODO: gradients should conform with higher-order gradients
 	solPrimGrad = np.zeros(solPrim.shape, dtype = constants.floatType)
 	solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (solPrim[2:, :] - solPrim[:-2, :]) 
 	solPrimGrad[0,:] = (solPrim[1,:] - solPrim[0,:]) / geom.dx
-	solPrimGrad[-1,:] = (solPrim[-1,:] - solPrim[-2,:]) / geom.dx
+	solPrimGrad[-1,:] = (solPrim[-1,:] - solPrim[-2,:]) / geom.dx 
 
 	Fv = np.zeros(solPrim.shape, dtype = constants.floatType)
-
-	cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis = 0)
 
 	Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
 	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[:,1]

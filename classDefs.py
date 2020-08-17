@@ -1,16 +1,10 @@
 import numpy as np 
 import constants
-from constants import floatType
+from constants import floatType, RUniv
 from inputFuncs import readInputFile
 from math import floor, log
 import os
 import pdb
-
-# TODO: honestly, some of this could just be permanently dicts if we really wanted
-#	guess it's more readable with object references though
-# TODO: catch input for all input values with appropriate defaults
-# TODO: cast input parameters appropriately (mostly all ints)
-# TODO: add defaults for some of these (e.g. calcROM)
 
 # inputs/solver properties
 class parameters:
@@ -52,7 +46,8 @@ class parameters:
 		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)
 		self.spaceOrder 	= catchInput(paramDict, "spaceOrder", 1)		# spatial discretization order of accuracy (int)
 		self.viscScheme 	= catchInput(paramDict, "viscScheme", 0)		# 0 for inviscid, 1 for viscous
-		
+		self.weakBCs 		= catchInput(paramDict, "weakBCs", False)
+
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
 
@@ -68,7 +63,7 @@ class parameters:
 			try:
 				self.icParamsFile 	= str(paramDict["icParamsFile"])
 			except:
-				raise ValueError("If not providing IC profile or restarting from restart file, must provide icParamsFile")
+				raise KeyError("If not providing IC profile or restarting from restart file, must provide icParamsFile")
 
 		# unsteady output
 		self.outInterval	= catchInput(paramDict, "outInterval", 1) 		# iteration interval to save data (int)
@@ -78,14 +73,23 @@ class parameters:
 		self.numSnaps 		= int(self.numSteps / self.outInterval)
 
 		# visualization
-		self.visType 		= catchInput(paramDict, "visType", "field")			# "field" or "point"
-		self.visVar			= catchInput(paramDict, "visVar", "pressure")		# variable to visualize (string)
-		self.visInterval 	= catchInput(paramDict, "visInterval", 1)			# interval at which to visualize (int)
-		self.visSave 		= catchInput(paramDict, "visSave", False)			# whether to write images to disk (bool)
+		self.visType 		= catchInput(paramDict, "visType", "None")			# "field" or "point"
+		if (self.visType != "None"): 
+			self.visVar		= catchList(paramDict, "visVar", [None])		# variable(s) to visualize (string)
+			self.numVis 	= len(self.visVar)
+			if (None in self.visVar):
+				raise KeyError("If requesting visualization, must provide list of valid visualization variables")
+			
+			else:
+				self.visXBounds 	= catchList(paramDict, "visXBounds", [[None,None]], lenHighest=self.numVis)  # x-axis plot bounds
+				self.visYBounds 	= catchList(paramDict, "visYBounds", [[None,None]], lenHighest=self.numVis)  # y-axis plot bounds
+				self.visInterval 	= catchInput(paramDict, "visInterval", 1)			# interval at which to visualize (int)
+				self.visSave 		= catchInput(paramDict, "visSave", False)			# whether to write images to disk (bool)
+
 		# TODO: account for 0, 2+ probes
 		self.probeLoc 		= float(paramDict["probeLoc"])						# point monitor location (will reference closest cell)
 		numImgs 			= int(self.numSteps / self.visInterval)
-		self.imgString 		= '%0'+str(floor(log(numImgs, 10))+1)+'d'
+		self.imgString 		= '%0'+str(floor(log(numImgs, 10))+1)+'d'	# TODO: this fails if numSteps is less than visInterval
 
 		# ROM parameters
 		# TODO: potentially move this to another input file
@@ -107,7 +111,7 @@ class gasProps:
 		self.molWeights 		= gasDict["molWeights"].astype(floatType)	# molecular weights, g/mol
 		self.enthRef 			= gasDict["enthRef"].astype(floatType) 		# reference enthalpy, J/kg
 		self.tempRef 			= gasDict["tempRef"]						# reference temperature, K
-		self.Cp 				= gasDict["Cp"].astype(floatType)			# heat capacity at constant pressure, J/K
+		self.Cp 				= gasDict["Cp"].astype(floatType)			# heat capacity at constant pressure, J/(kg-K)
 		self.Pr 				= gasDict["Pr"].astype(floatType)			# Prandtl number
 		self.Sc 				= gasDict["Sc"].astype(floatType)			# Schmidt number
 		self.muRef				= gasDict["muRef"].astype(floatType)		# reference viscosity for Sutherland model (I think?)
@@ -120,7 +124,7 @@ class gasProps:
 		self.preExpFact 		= float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
 
 		# misc calculations
-		self.RGas 				= 1.0 / self.molWeights 			# specific gas constant, J/(K*mol) * 1,000
+		self.RGas 				= RUniv / self.molWeights 			# specific gas constant, J/(K*kg)
 		self.numSpecies 		= self.numSpecies_full - 1			# last species is not directly solved for
 		self.numEqs 			= self.numSpecies + 3				# pressure, velocity, temperature, and species transport
 		self.molWeightNu 		= self.molWeights * self.nu 
@@ -149,19 +153,61 @@ class geometry:
 
 # assign default values if user does not provide a certain input
 # TODO: correct error handling if default type is not recognized
-def catchInput(inDict, inVal, default):
+# TODO: instead of trusting user for NoneType, could also use NaN/Inf to indicate int/float defaults without passing a numerical default
+# 		or could just pass the actual default type lol, that'd be easier
+def catchInput(inDict, inKey, default):
+
+	defaultType = type(default)
 	try:
-		if (type(default) == bool):
-			val = bool(inDict[inVal])
-		elif (type(default) == int):
-			val = int(inDict[inVal])
-		elif (type(default) == float):
-			val = float(inDict[inVal])
-		elif (type(default) == str):
-			val = str(inDict[inVal])
-		elif (type(default) == type(None)):
-			val = None
+		# if NoneType passed as default, trust user
+		if (defaultType == type(None)):
+			val = inDict[inKey]
+		else:
+			val = defaultType(inDict[inKey])
+
+	# if inDict doesn't contain the given key, fall back to given default 
 	except:
 		val = default
 
 	return val
+
+# input processor for reading lists or lists of lists
+# default defines length of lists at lowest level
+# TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
+def catchList(inDict, inKey, default, lenHighest=1):
+
+	listOfListsFlag = (type(default[0]) == list)
+	
+	try:
+		inList = inDict[inKey]
+
+		# list of lists
+		if listOfListsFlag:
+			typeDefault = type(default[0][0])
+			valList = []
+			for listIdx in range(lenHighest):
+				# if default type is NoneType, trust user
+				if (typeDefault == type(None)):
+					valList.append(inList[listIdx])
+				else:
+					castInList = [typeDefault(inVal) for inVal in inList[listIdx]]
+					valList.append(castInList)
+
+		# normal list
+		else:
+			typeDefault = type(default[0])
+			# if default type is NoneType, trust user 
+			if (typeDefault == type(None)):
+				valList = inList
+			else:
+				valList = [typeDefault(inVal) for inVal in inList]
+
+	except:
+		if listOfListsFlag:
+			valList = []
+			for listIdx in range(lenHighest):
+				valList.append(default[0])
+		else:
+			valList = default
+
+	return valList

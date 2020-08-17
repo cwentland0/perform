@@ -1,6 +1,7 @@
 import numpy as np
 from classDefs import gasProps
 import constants
+from constants import floatType, RUniv
 import pdb
 
 # TODO: could possibly convert these to solution methods
@@ -11,7 +12,7 @@ import pdb
 def calcStateFromCons(solCons, gas: gasProps):
 
 	# pressure, velocity, temperature, mass fraction
-	solPrim = np.zeros(solCons.shape, dtype = constants.floatType)
+	solPrim = np.zeros(solCons.shape, dtype = floatType)
 
 	solPrim[:,3:] 	= solCons[:,3:] / solCons[:,[0]] 
 	if (gas.numSpecies > 1):
@@ -36,7 +37,7 @@ def calcStateFromCons(solCons, gas: gasProps):
 def calcStateFromPrim(solPrim, gas: gasProps):
 
 	# density, momentum, energy, density-weighted mass fraction
-	solCons = np.zeros(solPrim.shape, dtype = constants.floatType)
+	solCons = np.zeros(solPrim.shape, dtype = floatType)
 
 	if (gas.numSpecies > 1):
 		massFracs = solPrim[:,3:]
@@ -51,17 +52,19 @@ def calcStateFromPrim(solPrim, gas: gasProps):
 	# update conservative variables
 	solCons[:,0] = solPrim[:,0] / (RMix * solPrim[:,2]) 
 	solCons[:,1] = solCons[:,0] * solPrim[:,1]				
-	solCons[:,2] = solCons[:,0] * ( enthRefMix + CpMix * (solPrim[:,2] - gas.tempRef) + np.power(solPrim[:,1],2.0)/2.0 ) - solPrim[:,0]
+	solCons[:,2] = solCons[:,0] * ( enthRefMix + CpMix * (solPrim[:,2] - gas.tempRef) + np.power(solPrim[:,1],2.0) / 2.0 ) - solPrim[:,0]
 	solCons[:,3:] = solCons[:,[0]]*solPrim[:,3:]
 
 	return solCons, RMix, enthRefMix, CpMix
 
+# TODO: faster implementation of these in PTM
+
 # compute mixture specific gas constant
 def calcGasConstantMixture(massFracs, gas: gasProps):
 	if (gas.numSpecies > 1):
-		RMix = constants.RUniv * ( (1.0 / gas.molWeights[-1]) + np.sum(massFracs * gas.mwDiffs, axis = 1) )
+		RMix = RUniv * ( (1.0 / gas.molWeights[-1]) + np.sum(massFracs * gas.mwDiffs, axis = 1) )
 	else:
-		RMix = constants.RUniv * ( (1.0 / gas.molWeights[-1]) + massFracs * gas.mwDiffs[0] )
+		RMix = RUniv * ( (1.0 / gas.molWeights[-1]) + massFracs * gas.mwDiffs[0] )
 	return RMix
 
 # compute mixture ratio of specific heats
@@ -84,3 +87,218 @@ def calcCpMixture(massFracs, gas: gasProps):
 	else:
 		CpMix = gas.Cp[-1] + massFracs * gas.CpDiffs[0]
 	return CpMix
+
+
+##### state functions ripped directly from ptm.f90 ####
+# TODO: there are lot of redundant, repeated operations in many cases. Not sure if it can be cleaned up
+# TODO: rename, comment these with more explanatory text
+# TODO: modify these to work for full state vectors, not just single cells 
+# expand these beyond perfect gases
+
+def calcStateEigenvalues(solPrim, gas: gasProps):
+
+	vel 	= solPrim[1]
+	rhox 	= calcRhoxf(solPrim, gas)
+	h0x 	= calcH0xf(solPrim, gas)
+	rho 	= calcRhof(solPrim, gas)
+	
+	rhop 	= rhox[0]
+	rhot 	= rhox[2]
+	hp 		= h0x[0]
+	ht 		= h0x[2]
+	rhopp 	= rhop 
+
+	dpp 	= rhopp + rhot * (1.0 - rho * hp) / (rho * ht)
+
+	if (abs(dpp) <= constants.tinyNum):
+		raise ValueError("Error in state eigenvalue routine")
+
+	dpp 	= 1.0 / dpp
+	rhopmpp = (rhop - rhopp) * dpp 
+	velb 	= 0.5 * rhopmpp * vel 
+	dpp 	= np.sqrt(abs(vel * vel + dpp))
+
+	c1 		= vel + velb + dpp
+	c2 		= vel + velb - dpp
+
+	return c1, c2
+
+def calcStateEigenvectors(solPrim, c1, c2, gas: gasProps):
+
+	rhox 	= calcRhoxf(solPrim, gas)
+	h0x 	= calcH0xf(solPrim, gas)
+	rho 	= calcRhof(solPrim, gas)
+	
+	hp 		= h0x[0]
+	ht		= h0x[2]
+	vel 	= solPrim[1]
+
+	htinv 	= (1.0 - rho * hp) / ht
+	c1mvel 	= c1 - vel
+	c2mvel 	= c2 - vel 
+	c2mc1inv 		= 1.0 / (c2 - c1)
+	rhoc2mc1inv 	= c2mc1inv / rho 
+	c1mveloc2mc1 	= c1mvel * c2mc1inv
+	c2mveloc2mc1 	= c2mvel * c2mc1inv
+
+	zm = np.zeros((gas.numEqs, gas.numEqs), dtype=floatType)
+	zmInv = np.zeros((gas.numEqs, gas.numEqs), dtype=floatType)
+
+	zm[0,1] = c1mvel * rho 
+	zm[0,2] = c2mvel * rho
+	zm[1,1] = 1.0
+	zm[1,2] = 1.0
+	zm[2,0] = 1.0
+	zm[2,1] = c1mvel * htinv
+	zm[2,2] = c2mvel * htinv
+
+	zmInv[0,0] = -htinv / rho
+	zmInv[0,3] = 1.0
+	zmInv[1,0] = -rhoc2mc1inv
+	zmInv[1,1] = c2mveloc2mc1
+	zmInv[2,0] = rhoc2mc1inv
+	zmInv[2,1] = -c1mveloc2mc1
+
+	for specIdx in range(3,gas.numEqs+1):
+		zm[specIdx,specIdx] 	= 1.0
+		zmInv[specIdx,specIdx] 	= 1.0
+
+	return zm, zmInv
+
+
+def calcRhoxf(solPrim, gas: gasProps):
+
+	yi 		= calcYif(solPrim, gas)
+	rhoi 	= calcRhoif(solPrim, gas) 
+	rhopi 	= calcRhopi(solPrim, gas)
+	rhoti 	= calcRhoti(solPrim, gas)
+
+	wrho 	= rho / rhoi
+	wrho 	= wrho * wrho * yi
+	rhot 	= np.sum(wrho * rhoti)
+	rhop 	= np.sum(wrho * rhopi)
+
+	rhoxf = np.zeros(gas.numEqs, dtype=floatType)
+	rhoxf[0] = rhop
+	rhoxf[2] = rhot
+	rhoxf[3:] = - rho * rho * (1.0 / rhoi[:-1] - 1.0 / rhoi[-1])
+
+	return rhoxf
+
+
+def calcRhof(solPrim, gas: gasProps):
+
+	rhoi 	= calcRhoif(solPrim, gas)
+	yi 		= calcYif(solPrim, gas)
+	rhof 	= 1.0 / np.sum(yi / rhoi)
+
+	return rhof
+
+def calcRhoif(solPrim, gas: gasProps):
+
+	# perfect gas
+	press 	= solPrim[0]
+	temp 	= solPrim[2]
+	rhoif 	= press / (gas.RGas * temp)
+
+	return rhoif
+
+# derivative of density with respect to pressure
+def calcRhopif(solPrim, gas: gasProps):
+
+	# perfect gas 
+	temp 	= solPrim[2]
+	rhopif 	= 1.0 / (gas.RGas * temp)
+
+	return rhopif
+
+# derivative of density with respect to temperature
+def calcRhotif(solPrim, gas: gasProps):
+
+	# perfect gas
+	press 	= solPrim[0]
+	temp 	= solPrim[2]
+	rhotif 	= - press / (gas.RGas * temp**2)
+
+	return rhotif
+
+# threshold pressure to small number, at minimum
+def calcPf(solPrim, gas: gasProps):
+
+	pf = max(solPrim[0], constants.tinyNum)
+	return pf
+
+
+def calcH0xf(solPrim, gas: gasProps):
+
+	h0xf = np.zeros(gas.numEqs, dtype=floatType)
+	h0xf[0] = calcHpf(solPrim, gas)
+	h0xf[1] = solPrim[1]
+	h0xf[2] = calcHtf(solPrim, gas)
+
+	hi = calcHif(solPrim, gas)
+	h0xf[3:] = hi[:-1] - hi[-1]
+
+	return h0xf
+
+# mass fraction weighted sum of derivatives of enthalpy with respect to pressure
+def calcHpf(solPrim, gas: gasProps):
+
+	hpi = calcHpif(solPrim, gas)
+	yi 	= calcYif(solPrim, gas)
+	hpf = np.sum(hpi * yi)
+
+	return hpf
+
+# mass fraction weighted sum of derivatives of enthalpy with respect to temperature
+def calcHtf(solPrim, gas: gasProps):
+
+	hti = calcHtif(solPrim, gas)
+	yi 	= calcYif(solPrim, gas)
+	htf = np.sum(hti * yi)
+
+	return htf
+
+# I have no idea what the original intended purpose of this function is
+def calcHzf(solPrim, gas: gasProps):
+
+	return constants.q0
+
+def hif(solPrim, gas: gasProps):
+
+	hif = np.zeros(gas.numSpecies_full, dtype=floatType)
+
+	# perfect gas
+	hif = gas.enthRef + gas.Cp * (solPrim[2] - constants.enthRefTemp)
+
+	return hif
+
+# derivative of enthalpy with respect to pressure
+def calcHpif(solPrim, gas: gasProps):
+
+	hpif = np.zeros(gas.numSpecies_full, dtype=floatType)
+
+	# perfect gas
+	hpif = 0.0
+
+	return hpif
+
+# derivative of enthalpy with respect to temperature
+def calcHtif(solPrim, gas: gasProps):
+
+	htif = np.zeros(gas.numSpecies_full, dtype=floatType)
+
+	# perfect gas
+	htif = gas.Cp
+
+	return htif
+
+# threshold species mass fractions between 0 and 1
+def calcYif(solPrim, gas: gasProps):
+
+	yif = np.zeros(gas.numSpecies_full, dtype=floatType)
+	
+	yif[:-1] = np.amin(np.amax(0.0, solPrim[3:]), 1.0)
+	yif[-1] = 1.0 - np.sum(yif[:-1])
+
+	return yif

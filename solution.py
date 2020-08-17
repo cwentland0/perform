@@ -28,8 +28,8 @@ class solutionPhys:
 		# load initial condition and check size
 		assert(solPrimIn.shape == (numCells, gas.numEqs))
 		assert(solConsIn.shape == (numCells, gas.numEqs))
-		self.solPrim = solPrimIn
-		self.solCons = solConsIn
+		self.solPrim = solPrimIn.copy()
+		self.solCons = solConsIn.copy()
 
 		# snapshot storage matrices, store initial condition
 		if params.primOut: 
@@ -40,7 +40,7 @@ class solutionPhys:
 			self.consSnap[:,:,0] = solConsIn
 		if params.RHSOut:  self.RHSSnap  = np.zeros((numCells, gas.numEqs, params.numSnaps), dtype = constants.floatType)
 
-		# TODO: initialize thermo properties at initialization too
+		# TODO: initialize thermo properties at initialization too (might be problematic for BC state)
 
 	# update solution after a time step 
 	# TODO: convert to using class methods
@@ -56,42 +56,47 @@ class boundaries:
 	
 	def __init__(self, sol: solutionPhys, params: parameters, gas: gasProps):
 		# initialize inlet
-		pressIn, velIn, tempIn, massFracIn, pertTypeIn, pertPercIn, pertFreqIn = parseBC("inlet", params.paramDict)
-		self.inlet = boundary(params.paramDict["boundType_inlet"], pressIn, velIn, tempIn, massFracIn, 
+		pressIn, velIn, tempIn, massFracIn, rhoIn, pertTypeIn, pertPercIn, pertFreqIn = parseBC("inlet", params.paramDict)
+		self.inlet = boundary(params.paramDict["boundType_inlet"], params, gas, pressIn, velIn, tempIn, massFracIn, rhoIn,
 								pertTypeIn, pertPercIn, pertFreqIn)
-		self.inlet.initState(sol.solPrim[[0],:], sol.solCons[[0],:], gas, params)
-		self.inlet.sol.updateState(gas, fromCons = False)
 
 		# initialize outlet
-		pressOut, velOut, tempOut, massFracOut, pertTypeOut, pertPercOut, pertFreqOut = parseBC("outlet", params.paramDict)
-		self.outlet = boundary(params.paramDict["boundType_outlet"], pressOut, velOut, tempOut, massFracOut, 
+		pressOut, velOut, tempOut, massFracOut, rhoOut, pertTypeOut, pertPercOut, pertFreqOut = parseBC("outlet", params.paramDict)
+		self.outlet = boundary(params.paramDict["boundType_outlet"], params, gas, pressOut, velOut, tempOut, massFracOut, rhoOut,
 								pertTypeOut, pertPercOut, pertFreqOut)
-		self.outlet.initState(sol.solPrim[[-1],:], sol.solCons[[-1],:], gas, params)
-		self.outlet.sol.updateState(gas, fromCons = False)
+
 
 # boundary cell parameters
 class boundary:
 
-	def __init__(self, boundType, press, vel, temp, massFrac, pertType, pertPerc, pertFreq):
+	def __init__(self, boundType, params, gas: gasProps, press, vel, temp, massFrac, rho, pertType, pertPerc, pertFreq):
 		
 		self.type 		= boundType 
+
+		# this generally stores fixed/stagnation properties
 		self.press 		= press
 		self.vel 		= vel 
 		self.temp 		= temp 
-		self.massFrac 	= massFrac
+		self.massFrac 	= massFrac 
+		self.rho 		= rho
+		self.CpMix 		= stateFuncs.calcCpMixture(self.massFrac[:-1], gas)
+		self.RMix 		= stateFuncs.calcGasConstantMixture(self.massFrac[:-1], gas)
+		self.gamma 		= stateFuncs.calcGammaMixture(self.RMix, self.CpMix)
+		self.enthRefMix = stateFuncs.calcEnthRefMixture(self.massFrac[:-1], gas)
+
+		# boundary flux for weak BCs
+		if params.weakBCs:
+			self.flux 		= np.zeros(gas.numEqs, dtype = constants.floatType)
+		
+		# unsteady ghost cell state for strong BCs
+		else:
+			solDummy 		= np.zeros((1, gas.numEqs), dtype = constants.floatType)
+			self.sol 		= solutionPhys(1, solDummy, solDummy, gas, params)
+			self.sol.solPrim[0,3:] = self.massFrac[:-1]
 
 		self.pertType 	= pertType 
 		self.pertPerc 	= pertPerc 
 		self.pertFreq 	= pertFreq
-
-	# TODO: need to init state to something besides zero if specifying full state for BC
-	def initState(self, solPrim, solCons, gas: gasProps, params: parameters):
-		# solPrimDummy = np.zeros((1, gas.numEqs), dtype = constants.floatType)
-		# solConsDummy = np.zeros((1, gas.numEqs), dtype = constants.floatType)
-		self.rho 	= solCons[0,0]
-		self.vel 	= solPrim[0,1]
-		self.temp 	= solPrim[0,2]
-		self.sol 	= solutionPhys(1, solPrim, solCons, gas, params) # not saving any snapshots here
 
 	# compute sinusoidal perturbation
 	# TODO: add phase offset
