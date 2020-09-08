@@ -9,7 +9,6 @@ import pdb
 
 
 # compute boundary ghost cell state (strong BCs) or flux (weak BCs)
-# TODO: this should accept the higher-order face reconstruction
 def calcBoundaries(sol, bounds: boundaries, params, gas):
 
 	calcInlet(sol, bounds.inlet, params, gas)
@@ -131,7 +130,7 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		tempUp 		= inlet.temp
 		massFracUp	= inlet.massFrac[:-1]
 		rhoCMean 	= inlet.vel 
-		rhoCpMean 	= inlet.rho 
+		rhoCpMean 	= inlet.rho
 
 		if (inlet.pertType == "pressure"):
 			pressUp *= (1.0 + inlet.calcPert(params.solTime))
@@ -140,6 +139,7 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		pressIn 	= sol.solPrim[:2,0]
 		velIn 		= sol.solPrim[:2,1]
 
+		# pdb.set_trace()
 		# characteristic variables
 		w3In 	= velIn - pressIn / rhoCMean  
 
@@ -171,6 +171,7 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 			inlet.sol.solPrim[0,2] 	= tempBound
 			inlet.sol.solPrim[0,3:] = massFracBound
 			inlet.sol.updateState(gas, fromCons = False)
+			# pdb.set_trace()
 
 	else:
 		raise ValueError("Invalid inlet boundary condition choice: "+inlet.type)
@@ -254,8 +255,8 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		massFracOut = sol.solPrim[-2:,3:]
 
 		# characteristic variables
-		w1Out 	= tempOut - pressOut / rhoCpMean 
-		w2Out 	= velOut + pressOut / rhoCMean 
+		w1Out 	= tempOut - pressOut / rhoCpMean
+		w2Out 	= velOut + pressOut / rhoCMean
 		w4Out 	= massFracOut 
 
 		# extrapolate to exterior
@@ -290,6 +291,22 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 			outlet.sol.solPrim[0,2] = tempBound
 			outlet.sol.solPrim[0,3:] = massFracBound
 			outlet.sol.updateState(gas, fromCons = False)
+
+	elif (outlet.type == "interp"):
+
+		outlet.sol.solPrim[0,:] = 2.0*sol.solPrim[-1,:] - sol.solPrim[-2,:]
+		outlet.sol.updateState(gas, fromCons = False)
+
+		if params.weakBCs:
+			rhoBound 	= outlet.sol.solCons[0,0]
+			pressBound 	= outlet.sol.solPrim[0,0]
+			velBound 	= outlet.sol.solPrim[0,1]
+			tempBound 	= outlet.sol.solPrim[0,2]
+			massFracBound = outlet.sol.solPrim[0,3:]
+			rhoEnergyBound 	= rhoBound * ( outlet.enthRefMix + outlet.CpMix * (tempBound - gas.tempRef) + velBound**2 / 2.0 ) - pressBound
+
+			calcInviscidFlux(outlet, rhoBound, pressBound, velBound, rhoEnergyBound, massFracBound, gas)
+			
 
 	else:
 		raise ValueError("Invalid outlet boundary condition choice: "+outler.type)
