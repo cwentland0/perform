@@ -2,7 +2,7 @@
 import numpy as np
 
 floatType = np.float64 	# precision of floating point numbers
-
+complexType = np.complex128 #precision for complex step
 RUniv = 8314.0    # universal gas constant, J/(K*mol) * 1,000
 
 # time integration coefficients

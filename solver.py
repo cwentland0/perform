@@ -1,10 +1,13 @@
+
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, genInitialCondition
 from boundaryFuncs import updateGhostCells
 from spaceSchemes import calcRHS
-from Jacobians import calc_dsolPrim,calc_dSourcedsolPrim,calc_dSourcedsolPrim_FD,calc_dSourcedsolPrim_imag
+#from Jacobians import calc_dsolPrim, calc_dSourcedsolPrim, calc_dSourcedsolPrim_FD, calc_dSourcedsolPrim_imag
+from timeSchemes import advanceexplicit, advancedual, init_sol_mat, update_sol_mat
 # from romClasses import solutionROM
 from inputFuncs import readRestartFile
 import outputFuncs
@@ -13,8 +16,14 @@ import time
 import os
 import sys
 import pdb
+#profiling
+import line_profiler
+import atexit
+profile = line_profiler.LineProfiler()
+atexit.register(profile.print_stats)
 
 # driver function for advancing the solution
+#@profile
 def solver(params: parameters, geom: geometry, gas: gasProps):
 
 	# TODO: could move this to driver?
@@ -63,7 +72,12 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		
 		print("Iteration "+str(tStep+1))
 		# call time integration scheme
-		advanceSolution(sol, bounds, params, geom, gas)
+		if (params.solTime == 0):  
+   			
+   			sol_mat = init_sol_mat(sol, bounds, params, geom, gas) #initialising time-memory
+
+		sol_mat = advanceSolution(sol, bounds, params, geom, gas, sol_mat)
+
 		params.solTime += params.dt
 
 		# write restart files
@@ -96,51 +110,46 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		figFile = os.path.join(params.imgOutDir,"probe_"+params.visVar+"_"+params.simType+".png")
 		fig.savefig(figFile)
 
-	return 
 
 # numerically integrate ODE forward one physical time step
 # TODO: add implicit time integrators
-def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
+#@profile
+def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, sol_mat):
 
-
-	if params.solforPrim:
-		solOuter = sol.solPrim.copy()
-	else:
-		solOuter = sol.solCons.copy()        
+	solOuter = sol.solCons.copy()
+    
 
 	# loop over max subiterations
 	for subiter in range(params.numSubIters):
-
-		# update boundary ghost cells
-		updateGhostCells(sol, bounds, params, geom, gas)
-
-		# compute RHS function
-		calcRHS(sol, bounds, params, geom, gas)
-
-		# checking Source Term Jacobians
-		#diff=calc_dSourcedsolPrim_imag(sol, gas, geom, params, params.dt, 1e-25)
+      
+        # update boundary ghost cells
         
-        
-        # if solPrim, calculate d(solPrim)/dt
-		if params.solforPrim:        
-  			sol.RHS=calc_dsolPrim(sol,gas) 
+		if (params.timeType == 'explicit'):  
+   			updateGhostCells(sol, bounds, params, geom, gas)
+   			sol = advanceexplicit(sol, bounds, params, geom, gas, subiter, solOuter)
+                       
+		else:  
 
-        # if ROM, project onto test space
+			if (params.solTime <= params.timeOrder*params.dt): 
+				sol_mat,res = advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=True) #cold-start
+				updateGhostCells(sol, bounds, params, geom, gas)           
+				sol_mat[0] = sol.solCons.copy()           
+			else:
+				sol_mat,res = advancedual(sol, sol_mat, bounds, params, geom, gas)
+				updateGhostCells(sol, bounds, params, geom, gas)           
+				sol_mat[0] = sol.solCons.copy()     
+       			 
+		if (params.timeType == 'implicit'):  
+			#print(np.linalg.norm(res,ord=2)) #printitng sub-iterations convergence
+			if (np.linalg.norm(res,ord=2) < params.resTol): 
+				break
 
-		# compute change in solution/code, advance solution/code
-		dSol = params.dt * params.subIterCoeffs[subiter] * sol.RHS
-
-		# if ROM, reconstruct solution
-
-		# update state
-		if params.solforPrim:        
-  			sol.solPrim = solOuter + dSol
-  			sol.updateState(gas,fromCons=False)            
-		else:      
-  			sol.solCons = solOuter + dSol
-  			sol.updateState(gas)
-        
-		# if implicit method, check residual and break if necessary
+	if(params.timeType == 'implicit'):
+		
+		sol_mat = update_sol_mat(sol_mat, bounds, params, geom, gas) #updating time-memory
+		return sol_mat
+      
+             
 
 		
         

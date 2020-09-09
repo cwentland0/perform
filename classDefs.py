@@ -34,6 +34,7 @@ class parameters:
 
 		# temporal discretization parameters
 		self.dt 			= float(paramDict["dt"])		# physical time step
+		self.dtau 			= 1e-5#float(paramDict["dt"]*1e-4)		# psuedo time step
 		self.numSteps 		= int(paramDict["numSteps"])	# total number of physical time iterations
 		self.timeScheme 	= str(paramDict["timeScheme"]) 	# time integration scheme (string)
 		self.timeOrder 		= int(paramDict["timeOrder"])	# time integration order of accuracy (int)

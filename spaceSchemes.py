@@ -25,7 +25,12 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 		solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
 		solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)
 
-		
+	if (sol.solPrim.dtype == constants.complexType):
+		solPrimL = solPrimL.astype(dtype=constants.complexType)
+		solPrimR = solPrimR.astype(dtype=constants.complexType)
+		solConsL = solConsL.astype(dtype=constants.complexType)
+		solConsR = solConsR.astype(dtype=constants.complexType)
+
 	# compute fluxes
 	flux = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas)
 	flux -= calcViscFlux(sol, bounds, params, gas, geom)
@@ -50,6 +55,10 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas: gasProps):
 	# allocations
 	EL 			= np.zeros(matShape, dtype = constants.floatType)
 	ER 			= np.zeros(matShape, dtype = constants.floatType)
+
+	if (solPrimL.dtype == constants.complexType):
+		EL 			= np.zeros(matShape, dtype = constants.complexType)        
+		ER 			= np.zeros(matShape, dtype = constants.complexType)        
 
 	# left flux
 	rHL = solConsL[:,[2]] + solPrimL[:,[0]]
@@ -98,6 +107,8 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas: gasProps):
 def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 
 	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.floatType)
+	if (solPrim.dtype == constants.complexType):
+		dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.complexType)        
 	temp = solPrim[:,2]
 
 	# TODO: use the relevant stateFunc
@@ -184,15 +195,24 @@ def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas:
 
 	solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
 	rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
-
+	if (sol.solPrim.dtype == constants.complexType):
+		solPrim = solPrim.astype(dtype=constants.complexType)
+		rho = rho.astype(dtype=constants.complexType)
+        
 	solPrimGrad = np.zeros(solPrim.shape, dtype = constants.floatType)
+	if (solPrim.dtype == constants.complexType):
+		solPrimGrad = np.zeros(solPrim.shape, dtype = constants.complexType)        
 	solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (solPrim[2:, :] - solPrim[:-2, :]) 
 	solPrimGrad[0,:] = (solPrim[1,:] - solPrim[0,:]) / geom.dx
 	solPrimGrad[-1,:] = (solPrim[-1,:] - solPrim[-2,:]) / geom.dx
 
 	Fv = np.zeros(solPrim.shape, dtype = constants.floatType)
+	if (sol.solPrim.dtype == constants.complexType):
+		Fv = Fv.astype(dtype=constants.complexType)
 
 	cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis = 0)
+	if (sol.solPrim.dtype == constants.complexType):
+		cp = cp.astype(dtype=constants.complexType)
 
 	Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
 	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[:,1]
@@ -221,8 +241,8 @@ def calcSource(solPrim, rho, params: parameters, gas: gasProps):
 	temp = solPrim[:,2]
 	massFracs = solPrim[:,3:]
 	sourceTerm = np.zeros(solPrim.shape, dtype = constants.floatType)
-	if (solPrim.dtype == np.complex64): #for complex step check
-		sourceTerm = np.zeros(solPrim.shape, dtype = np.complex64)
+	if (solPrim.dtype == constants.complexType): #for complex step check
+		sourceTerm = np.zeros(solPrim.shape, dtype = constants.complexType)
 	wf = gas.preExpFact * np.exp(gas.actEnergy / temp)
 	
 	# to avoid recalculating
@@ -243,7 +263,7 @@ def calcSource(solPrim, rho, params: parameters, gas: gasProps):
 
 	# TODO: implicit implementation
 	if (params.timeType == "implicit"):
-		raise ValueError("Implicit source term needs to be implemented!")
+		return sourceTerm
 	elif (params.timeType == "explicit"):
 		return sourceTerm
 
@@ -271,8 +291,8 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
         Qmin = np.amin(np.array([Ql,Qm,Qr]),axis=0)
     
         #unconstrained reconstruction at each face
-        Ql = Qm + delQ
-        Qr = Qm - delQ
+        Ql = Qm - delQ
+        Qr = Qm + delQ
         
         #gradient limiting
         phil = np.ones(geom.numCells+2)
@@ -286,11 +306,11 @@ def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: 
 
         phi = np.amin(np.array([phil,phir]),axis=0)
         
-        Ql = Qm + phi*delQ
-        Qr = Qr - phi*delQ
+        Ql = Qm - phi*delQ
+        Qr = Qr + phi*delQ
         
-        solPrimL[:,i] = Qr[1:]
-        solPrimR[:,i] = Ql[:geom.numCells+1]
+        solPrimL[:,i] = Ql[:geom.numCells+1]
+        solPrimR[:,i] = Qr[1:]
         
         phi_col[:,i] = phi
         
