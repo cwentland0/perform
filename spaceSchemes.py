@@ -2,7 +2,7 @@ import numpy as np
 import constants
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries
-from stateFuncs import calcGammaMixture, calcCpMixture, calcGasConstantMixture
+from stateFuncs import calcGammaMixture, calcCpMixture, calcGasConstantMixture, calcStateFromPrim
 from boundaryFuncs import calcBoundaries
 import pdb	
 
@@ -18,21 +18,28 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 
 	# store left and right cell states
 	# TODO: this is memory-inefficient, left and right state are not mutations from the state vectors
-	if (params.spaceOrder > 1):
-		raise ValueError("Higher-order fluxes not implemented yet") 
-		
-	# if using strong boundary conditions, append ghost cells to state vectors
-	if not params.weakBCs:
-		solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
-		solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
-		solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
-		solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)
-	
+	if (params.spaceOrder == 1):
+		if not params.weakBCs:
+			solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
+			solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
+			solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
+			solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)
+		else:
+			solPrimL = sol.solPrim[:-1, :]
+			solConsL = sol.solCons[:-1, :]
+			solPrimR = sol.solPrim[1:, :]
+			solConsR = sol.solCons[1:, :]
+	elif (params.spaceOrder == 2):
+		raise ValueError("2nd Order non-functional right now.")
+		# [solPrimL,solConsL,solPrimR,solConsR,phi] = reconstruct_2nd(sol,bounds,geom,gas)  
 	else:
-		solPrimL = sol.solPrim[:-1, :]
-		solConsL = sol.solCons[:-1, :]
-		solPrimR = sol.solPrim[1:, :]
-		solConsR = sol.solCons[1:, :]
+		raise ValueError("Higher-order fluxes not implemented yet")
+
+	if (sol.solPrim.dtype == constants.complexType):
+		solPrimL = solPrimL.astype(dtype=constants.complexType)
+		solPrimR = solPrimR.astype(dtype=constants.complexType)
+		solConsL = solConsL.astype(dtype=constants.complexType)
+		solConsR = solConsR.astype(dtype=constants.complexType)
 
 	# compute fluxes
 	flux = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas)
@@ -66,8 +73,12 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas: gasProps):
 	matShape = solPrimL.shape
 
 	# allocations
-	EL 			= np.zeros(matShape, dtype = constants.floatType)
-	ER 			= np.zeros(matShape, dtype = constants.floatType)
+	EL 			= np.zeros(matShape, dtype = constants.realType)
+	ER 			= np.zeros(matShape, dtype = constants.realType)
+
+	if (solPrimL.dtype == constants.complexType):
+		EL 			= np.zeros(matShape, dtype = constants.complexType)        
+		ER 			= np.zeros(matShape, dtype = constants.complexType)        
 
 	# left flux
 	rHL = solConsL[:,[2]] + solPrimL[:,[0]]
@@ -116,7 +127,9 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas: gasProps):
 # TODO: better naming conventions
 def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 
-	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.floatType)
+	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.realType)
+	if (solPrim.dtype == constants.complexType):
+		dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.complexType)        
 	temp = solPrim[:,2]
 
 	# TODO: use the relevant stateFunc
@@ -211,13 +224,24 @@ def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas:
 		rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
 		cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis = 0)
 	
-	# TODO: gradients should conform with higher-order gradients
-	solPrimGrad = np.zeros(solPrim.shape, dtype = constants.floatType)
+	# solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
+	# rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
+	if (sol.solPrim.dtype == constants.complexType):
+	# 	solPrim = solPrim.astype(dtype=constants.complexType)
+		rho = rho.astype(dtype=constants.complexType)
+		cp = cp.astype(dtype=constants.complexType)
+
+	# TODO: gradients should conform with higher-order gradients    
+	solPrimGrad = np.zeros(solPrim.shape, dtype = constants.realType)
+	if (solPrim.dtype == constants.complexType):
+		solPrimGrad = np.zeros(solPrim.shape, dtype = constants.complexType)        
 	solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (solPrim[2:, :] - solPrim[:-2, :]) 
 	solPrimGrad[0,:] = (solPrim[1,:] - solPrim[0,:]) / geom.dx
 	solPrimGrad[-1,:] = (solPrim[-1,:] - solPrim[-2,:]) / geom.dx 
 
-	Fv = np.zeros(solPrim.shape, dtype = constants.floatType)
+	Fv = np.zeros(solPrim.shape, dtype = constants.realType)
+	if (sol.solPrim.dtype == constants.complexType):
+		Fv = Fv.astype(dtype=constants.complexType)
 
 	Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
 	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[:,1]
@@ -245,7 +269,9 @@ def calcSource(solPrim, rho, params: parameters, gas: gasProps):
 
 	temp = solPrim[:,2]
 	massFracs = solPrim[:,3:]
-	sourceTerm = np.zeros(solPrim.shape, dtype = constants.floatType)
+	sourceTerm = np.zeros(solPrim.shape, dtype = constants.realType)
+	if (solPrim.dtype == constants.complexType): #for complex step check
+		sourceTerm = np.zeros(solPrim.shape, dtype = constants.complexType)
 	wf = gas.preExpFact * np.exp(gas.actEnergy / temp)
 	
 	# to avoid recalculating
@@ -266,6 +292,88 @@ def calcSource(solPrim, rho, params: parameters, gas: gasProps):
 
 	# TODO: implicit implementation
 	if (params.timeType == "implicit"):
-		raise ValueError("Implicit source term needs to be implemented!")
+		return sourceTerm
 	elif (params.timeType == "explicit"):
 		return sourceTerm
+
+
+def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: gasProps):
+    
+    
+    solPrimL = np.zeros((geom.numCells+1,4))
+    solPrimR = np.zeros((geom.numCells+1,4))
+    phi_col = np.zeros((geom.numCells+2,4))
+    
+    for i in range(4):
+        
+        #gradients at all cell centres (including ghost) (grad*dx)
+        Q = np.concatenate((bounds.inlet.sol.solPrim[:,i], sol.solPrim[:,i], bounds.outlet.sol.solPrim[:,i]),axis=0)
+        delQ = getA(geom.numCells+2) @ Q
+        delQ = delQ/2 #(grad*dx/2)
+        
+        #max and min wrt neighbours at each cell 
+        Ql = np.concatenate(([Q[0]],Q[:geom.numCells+1]))
+        Qm = Q
+        Qr = np.concatenate((Q[1:],[Q[geom.numCells+1]]))
+        
+        Qmax = np.amax(np.array([Ql,Qm,Qr]),axis=0)
+        Qmin = np.amin(np.array([Ql,Qm,Qr]),axis=0)
+    
+        #unconstrained reconstruction at each face
+        Ql = Qm - delQ
+        Qr = Qm + delQ
+        
+        #gradient limiting
+        phil = np.ones(geom.numCells+2)
+        phir = np.ones(geom.numCells+2)
+        
+        phil[(Ql-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) > 0],((Qmax-Qm)[(Ql-Qm) > 0]/(Ql-Qm)[(Ql-Qm) > 0])]),axis=0)
+        phir[(Qr-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) > 0],((Qmax-Qm)[(Qr-Qm) > 0]/(Qr-Qm)[(Qr-Qm) > 0])]),axis=0)
+    
+        phil[(Ql-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) < 0],((Qmin-Qm)[(Ql-Qm) < 0]/(Ql-Qm)[(Ql-Qm) < 0])]),axis=0)
+        phir[(Qr-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) < 0],((Qmin-Qm)[(Qr-Qm) < 0]/(Qr-Qm)[(Qr-Qm) < 0])]),axis=0)
+
+        phi = np.amin(np.array([phil,phir]),axis=0)
+        
+        Ql = Qm - phi*delQ
+        Qr = Qr + phi*delQ
+        
+        solPrimL[:,i] = Ql[:geom.numCells+1]
+        solPrimR[:,i] = Qr[1:]
+        
+        phi_col[:,i] = phi
+        
+    [solConsL, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimL,gas)
+    [solConsR, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimR,gas)
+    
+    return solPrimL,solConsL,solPrimR,solConsR,phi_col
+        
+def getA(nx):
+    
+    A = (np.diag(np.ones(nx-1),k=1) + np.diag(-1*np.ones(nx-1),k=-1))/2 #second-order stencil for interior
+    #first-order stencil for ghost cells
+    A[0,1] = 1 #forward
+    A[0,0] = -1
+    A[nx-1,nx-1] = 1 #backward
+    A[nx-1,nx-2] = -1
+    
+    return A
+    
+
+    
+        
+    
+        
+        
+    
+    
+    
+    
+    
+   
+    
+    
+    
+    
+    
+        

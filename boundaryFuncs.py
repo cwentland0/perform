@@ -4,7 +4,7 @@ import stateFuncs
 from stateFuncs import calcStateFromPrim, calcGammaMixture, calcGasConstantMixture, calcCpMixture
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, boundary
-from constants import floatType
+from constants import realType
 import pdb
 
 

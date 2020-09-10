@@ -1,9 +1,13 @@
+
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, genInitialCondition
 from spaceSchemes import calcRHS
 from stateFuncs import calcStateFromPrim
+#from Jacobians import calc_dsolPrim, calc_dSourcedsolPrim, calc_dSourcedsolPrim_FD, calc_dSourcedsolPrim_imag
+from timeSchemes import advanceexplicit, advancedual, init_sol_mat, update_sol_mat
 # from romClasses import solutionROM
 from inputFuncs import readRestartFile
 import outputFuncs
@@ -14,6 +18,7 @@ import sys
 import pdb
 
 # driver function for advancing the solution
+#@profile
 def solver(params: parameters, geom: geometry, gas: gasProps):
 
 	# TODO: could move this to driver?
@@ -35,7 +40,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	
 	# add bulk velocity if required
 	# TODO: should definitely be moved somewhere else
-	if (params.velAdd > 0.0):
+	if (params.velAdd != 0.0):
 		sol.solPrim[:,1] += params.velAdd
 	
 	sol.updateState(gas, fromCons = False)
@@ -54,7 +59,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	# prep probe
 	# TODO: expand to multiple probe locations
 	probeIdx = np.absolute(geom.x_cell - params.probeLoc).argmin()
-	probeVals = np.zeros((params.numSteps, params.numVis), dtype = constants.floatType)
+	probeVals = np.zeros((params.numSteps, params.numVis), dtype = constants.realType)
 
 	# prep visualization
 	if (params.visType != "None"): 
@@ -64,9 +69,9 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 			visName += "_"+visVar
 		visName += "_"+params.simType
 
-	tVals = np.linspace(params.dt, params.dt*params.numSteps, params.numSteps, dtype = constants.floatType)
+	tVals = np.linspace(params.dt, params.dt*params.numSteps, params.numSteps, dtype = constants.realType)
 	if ((params.visType == "field") and params.visSave):
-		fieldImgDir = os.path.join(params.imgOutDir, "field_"+visName)
+		fieldImgDir = os.path.join(params.imgOutDir, "field"+visName)
 		if not os.path.isdir(fieldImgDir): os.mkdir(fieldImgDir)
 	else:
 		fieldImgDir = None
@@ -77,7 +82,10 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		
 		print("Iteration "+str(tStep+1))
 		# call time integration scheme
-		advanceSolution(sol, rom, bounds, params, geom, gas)
+		if (tStep == 0):  
+   			sol_mat = init_sol_mat(sol, bounds, params, geom, gas) #initialising time-memory
+
+		sol_mat = advanceSolution(sol, bounds, params, geom, gas, sol_mat)
 
 		params.solTime += params.dt
 
@@ -110,34 +118,58 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		figFile = os.path.join(params.imgOutDir,"probe"+visName+".png")
 		fig.savefig(figFile)
 
+
 # numerically integrate ODE forward one physical time step
-# TODO: add implicit time integrators
-def advanceSolution(sol: solutionPhys, rom, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
+def advanceSolution(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, sol_mat):
 
-	solConsOuter = sol.solCons.copy()
-
+	solOuter = sol.solCons.copy()
+    
 	# loop over max subiterations
 	for subiter in range(params.numSubIters):
+      
+        # update boundary ghost cells
+        
+		if (params.timeType == 'explicit'):  
+   			sol = advanceexplicit(sol, bounds, params, geom, gas, subiter, solOuter)
+                       
+		else:  
 
-		# compute RHS function
-		calcRHS(sol, bounds, params, geom, gas)
+			if (params.solTime <= params.timeOrder*params.dt): 
+				sol_mat, res = advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=True) # cold-start
+				sol_mat[0] = sol.solCons.copy()           
+			else:
+				sol_mat, res = advancedual(sol, sol_mat, bounds, params, geom, gas)
+				sol_mat[0] = sol.solCons.copy()     
+       			 
+			# print(np.linalg.norm(res, ord=2)) # printing sub-iterations convergence
+			if (np.linalg.norm(res,ord=2) < params.resTol): 
+				break
 
-		# advance solution/code
-		# FOM
-		if not params.calcROM:
-			dSolCons = params.dt * params.subIterCoeffs[subiter] * sol.RHS
+	if(params.timeType == 'implicit'):
+		
+		sol_mat = update_sol_mat(sol_mat, bounds, params, geom, gas) # updating time-memory
+		return sol_mat
+      
+             
 
-		# ROM
-		else:
-			raise ValueError("ROM not implemented yet")
-			# rom.mapRHSToModels(sol)
+		# # compute RHS function
+		# calcRHS(sol, bounds, params, geom, gas)
 
-			# # project onto test space
-			# rom.calcProjection()
-			# dSolCons = rom.advanceSubiter(sol, params, subiter)
+		# # advance solution/code
+		# # FOM
+		# if not params.calcROM:
+		# 	dSolCons = params.dt * params.subIterCoeffs[subiter] * sol.RHS
 
-		sol.solCons = solConsOuter + dSolCons
-		sol.updateState(gas)
+		# # ROM
+		# else:
+		# 	raise ValueError("ROM not implemented yet")
+		# 	# rom.mapRHSToModels(sol)
+
+		# 	# # project onto test space
+		# 	# rom.calcProjection()
+		# 	# dSolCons = rom.advanceSubiter(sol, params, subiter)
+
+		# sol.solCons = solConsOuter + dSolCons
+		# sol.updateState(gas)
 		
 
-		# if implicit method, check residual and break if necessary

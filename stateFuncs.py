@@ -1,7 +1,7 @@
 import numpy as np
 from classDefs import gasProps
 import constants
-from constants import floatType, RUniv
+from constants import realType, RUniv
 import pdb
 
 # TODO: could possibly convert these to solution methods
@@ -12,7 +12,7 @@ import pdb
 def calcStateFromCons(solCons, gas: gasProps):
 
 	# pressure, velocity, temperature, mass fraction
-	solPrim = np.zeros(solCons.shape, dtype = floatType)
+	solPrim = np.zeros(solCons.shape, dtype = realType)
 
 	solPrim[:,3:] 	= solCons[:,3:] / solCons[:,[0]] 
 	if (gas.numSpecies > 1):
@@ -37,7 +37,10 @@ def calcStateFromCons(solCons, gas: gasProps):
 def calcStateFromPrim(solPrim, gas: gasProps):
 
 	# density, momentum, energy, density-weighted mass fraction
-	solCons = np.zeros(solPrim.shape, dtype = floatType)
+	solCons = np.zeros(solPrim.shape, dtype = realType)
+
+	if (solPrim.dtype==constants.complexType): #for complex step jacobian
+		solCons = np.zeros(solPrim.shape, dtype = constants.complexType)
 
 	if (gas.numSpecies > 1):
 		massFracs = solPrim[:,3:]
@@ -141,8 +144,8 @@ def calcStateEigenvectors(solPrim, c1, c2, gas: gasProps):
 	c1mveloc2mc1 	= c1mvel * c2mc1inv
 	c2mveloc2mc1 	= c2mvel * c2mc1inv
 
-	zm = np.zeros((gas.numEqs, gas.numEqs), dtype=floatType)
-	zmInv = np.zeros((gas.numEqs, gas.numEqs), dtype=floatType)
+	zm = np.zeros((gas.numEqs, gas.numEqs), dtype=realType)
+	zmInv = np.zeros((gas.numEqs, gas.numEqs), dtype=realType)
 
 	zm[0,1] = c1mvel * rho 
 	zm[0,2] = c2mvel * rho
@@ -178,7 +181,7 @@ def calcRhoxf(solPrim, gas: gasProps):
 	rhot 	= np.sum(wrho * rhoti)
 	rhop 	= np.sum(wrho * rhopi)
 
-	rhoxf = np.zeros(gas.numEqs, dtype=floatType)
+	rhoxf = np.zeros(gas.numEqs, dtype=realType)
 	rhoxf[0] = rhop
 	rhoxf[2] = rhot
 	rhoxf[3:] = - rho * rho * (1.0 / rhoi[:-1] - 1.0 / rhoi[-1])
@@ -231,7 +234,7 @@ def calcPf(solPrim, gas: gasProps):
 
 def calcH0xf(solPrim, gas: gasProps):
 
-	h0xf = np.zeros(gas.numEqs, dtype=floatType)
+	h0xf = np.zeros(gas.numEqs, dtype=realType)
 	h0xf[0] = calcHpf(solPrim, gas)
 	h0xf[1] = solPrim[1]
 	h0xf[2] = calcHtf(solPrim, gas)
@@ -266,7 +269,7 @@ def calcHzf(solPrim, gas: gasProps):
 
 def hif(solPrim, gas: gasProps):
 
-	hif = np.zeros(gas.numSpecies_full, dtype=floatType)
+	hif = np.zeros(gas.numSpecies_full, dtype=realType)
 
 	# perfect gas
 	hif = gas.enthRef + gas.Cp * (solPrim[2] - constants.enthRefTemp)
@@ -276,7 +279,7 @@ def hif(solPrim, gas: gasProps):
 # derivative of enthalpy with respect to pressure
 def calcHpif(solPrim, gas: gasProps):
 
-	hpif = np.zeros(gas.numSpecies_full, dtype=floatType)
+	hpif = np.zeros(gas.numSpecies_full, dtype=realType)
 
 	# perfect gas
 	hpif = 0.0
@@ -286,7 +289,7 @@ def calcHpif(solPrim, gas: gasProps):
 # derivative of enthalpy with respect to temperature
 def calcHtif(solPrim, gas: gasProps):
 
-	htif = np.zeros(gas.numSpecies_full, dtype=floatType)
+	htif = np.zeros(gas.numSpecies_full, dtype=realType)
 
 	# perfect gas
 	htif = gas.Cp
@@ -296,7 +299,7 @@ def calcHtif(solPrim, gas: gasProps):
 # threshold species mass fractions between 0 and 1
 def calcYif(solPrim, gas: gasProps):
 
-	yif = np.zeros(gas.numSpecies_full, dtype=floatType)
+	yif = np.zeros(gas.numSpecies_full, dtype=realType)
 	
 	yif[:-1] = np.amin(np.amax(0.0, solPrim[3:]), 1.0)
 	yif[-1] = 1.0 - np.sum(yif[:-1])
