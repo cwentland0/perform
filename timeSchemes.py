@@ -102,9 +102,8 @@ def advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=False):
 	# print(diff)
 
 	# Solving linear system 
-	resJacob_dense, resJacob_sparse = vec_assemble(resJacob)
+	resJacob_sparse = vec_assemble(resJacob)
 	dSol = spsolve(resJacob_sparse, (res.flatten('F')))
-	dSol = solve(resJacob_dense, (res.flatten('F')))
 
 	# updating state
 	sol.solPrim += dSol.reshape((geom.numCells, gas.numEqs), order='F')
