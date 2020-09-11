@@ -4,7 +4,7 @@ from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, genInitialCondition
 from spaceSchemes import calcRHS
 from stateFuncs import calcStateFromPrim
-# from romClasses import solutionROM
+import romClasses
 from inputFuncs import readRestartFile
 import outputFuncs
 import constants
@@ -42,11 +42,13 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 
 	# initialize ROM
 	if params.calcROM: 
-		raise ValueError("ROM not implemented yet")
-		# rom = solutionROM(params.romInputs, sol, params)
-		# rom.initializeROMState(sol)
+		# raise ValueError("ROM not implemented yet")
+		rom = romClasses.solutionROM(params.romInputs, sol, params)
+		rom.initializeROMState(sol)
 	else:
 		rom = None
+
+	pdb.set_trace()
 
 	# initialize boundary state
 	bounds = boundaries(sol, params, gas)

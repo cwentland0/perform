@@ -5,19 +5,14 @@ from classDefs import parameters, catchInput
 from solution import solutionPhys
 import constants
 from constants import floatType
-import tensorflow as tf 
-from tensorflow.keras.models import load_model
+# import tensorflow as tf 
+# from tensorflow.keras.models import load_model
+import matplotlib.pyplot as plt
 import pdb
 
 # TODO: a little too liberal with similar variable names between solutionROM and model
-
-def romSetup(romFile, sol: solutionPhys, params: parameters):
-
-	# read inputs and form overarching ROM solution
-	rom = solutionROM(romFile, sol, params)
-
-	# set up individual models
-
+# TODO: quite a bit changes if using primitive variables or conservative variables
+# 		This includes VTROM, and which variables are projected
 
 # overarching class containing all info/objects/methods required to compute ROMs
 class solutionROM:
@@ -50,19 +45,20 @@ class solutionROM:
 			self.code0	= np.load(romIC)
 			# check that IC dimensions match expected dimensions
 			try:
-				assert(len(code0) == self.numModels)
+				assert(len(self.code0) == self.numModels)
 				for modelNum in self.numModels:
-					assert(code0[modelNum].shape[0] == self.latentDims[modelNum])
+					assert(self.code0[modelNum].shape[0] == self.latentDims[modelNum])
 			except:
 				raise ValueError("ROM IC input dimensions did not match expected dimensions")
 
 		# normalization/centering profiles
-		# TODO: get list implementation working
+		# TODO: make this a function
 		onesProf = np.ones(sol.solPrim.shape, dtype=floatType)
 
 		normSubIn = romDict["normSubIn"]
 		if (type(normSubIn) == list):
-			normSubVals = normSubIn.astype(floatType)		# load normalization subtraction values from user input
+			assert(len(normSubIn) == sol.solPrim.shape[-1])
+			normSubVals = np.arrray(normSubIn, dtype=floatType)		# load normalization subtraction values from user input
 			self.normSubProf = onesProf * normSubVals
 		elif (type(normSubIn) == str):
 			self.normSubProf = np.load(os.path.join(self.modelDir, normSubIn))				# load normalization subtraction profile from file
@@ -70,14 +66,18 @@ class solutionROM:
 
 		normFacIn = romDict["normFacIn"]
 		if (type(normFacIn) == list):
-			normFacVals = normFacIn.astype(floatType)		# load normalization division values from user input
+			assert(len(normFacIn) == sol.solPrim.shape[-1])
+			normFacVals = np.array(normFacIn, dtype=floatType)		# load normalization division values from user input 
+			self.normFacProf = onesProf * normFacVals
 		elif (type(normFacIn) == str):
 			self.normFacProf = np.load(os.path.join(self.modelDir, normFacIn))				# load normalization division profile from file
 			assert(self.normFacProf.shape == sol.solPrim.shape)
 
 		centIn = romDict["centIn"]
 		if (type(centIn) == list):
-			centVals = centIn.astype(floatType)		# load centering values from user input
+			assert(len(centIn) == sol.solPrim.shape[-1])
+			centVals = np.array(centIn, dtype=floatType)		# load centering values from user input
+			self.centProf = onesProf * centVals
 		elif (type(centIn) == str):
 			self.centProf = np.load(os.path.join(self.modelDir, centIn))					# load centering profile from file
 			assert(self.centProf.shape == sol.solPrim.shape)
@@ -98,7 +98,7 @@ class solutionROM:
 
 		# load linear basis for distributing to models
 		if (self.romMethod == "linear"):
-			linearBasis = np.load(os.path.join(self.modelDir, self.modelNames))
+			linearBasis = np.load(os.path.join(self.modelDir, self.modelNames+".npy"))
 			linearBasis = linearBasis[:, :, :max(self.latentDims)]
 
 		# build solution
@@ -141,7 +141,9 @@ class solutionROM:
 					decoder.standardizeData(decoder.solCons)
 					decoder.code = decoder.calcProjection(decoder.solCons)
 
+				pdb.set_trace()
 				sol.solCons[:,decoder.varIdxs] = decoder.inferModel()
+				pdb.set_trace()
 
 			elif (self.romMethod == "nonlinear"):
 				raise ValueError("Nonlinear initialization not yet implemented")
@@ -303,7 +305,7 @@ class model:
 
 			if (self.romMethod == "linear"):
 				for varIdx in range(self.numVars):
-					solDecode[:,[varIdx]] = self.decoder[:,varIdx,:] @ self.code
+					solDecode[:, varIdx] = self.decoder[:,varIdx,:] @ self.code
 
 			elif (self.romMethod == "nonlinear"):
 				raise ValueError("Nonlinear manifold decoder not yet implemented")

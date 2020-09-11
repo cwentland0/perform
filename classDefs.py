@@ -17,9 +17,9 @@ class parameters:
 		self.gasFile 		= str(paramDict["gasFile"]) 		# gas properties file (string)
 		self.meshFile 		= str(paramDict["meshFile"]) 		# mesh properties file (string)
 		try:
-			self.initFile		= str(paramDict["initFile"])		# initial condition file
+			self.initFile	= str(paramDict["initFile"])		# initial condition file
 		except:
-			self.initFile 		= None
+			self.initFile 	= None
 
 		self.unsOutDir 		= os.path.join(workdir, constants.unsteadyOutputDir)
 		self.probeOutDir 	= os.path.join(workdir, constants.probeOutputDir)

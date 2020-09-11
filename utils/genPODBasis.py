@@ -1,5 +1,5 @@
 import numpy as np 
-from scipy.linalg import svd
+from numpy.linalg import svd
 import pdb
 import os
 
@@ -7,14 +7,14 @@ import os
 
 ##### BEGIN USER INPUT #####
 
-dataDir 	= "/home/chris/Research/GEMS_runs/prf_nonlinManifold/pyGEMS/advectingFlame/DataProc/testData"
+dataDir 	= "/home/chris/Research/GEMS_runs/1d_flame/pyGEMS_1D/transientFlame/dataProc/0p1ms_to_0p5ms"
 dataFile 	= "solCons_FOM.npy"		
 iterStart 	= 1 		# one-indexed starting index for snapshot array
-iterEnd 	= 2001		# one-indexed ending index for snapshot array
+iterEnd 	= 401		# one-indexed ending index for snapshot array
 iterSkip 	= 1
 
 centType 	= "initCond" 		# accepts "initCond" and "mean"
-normType 	= "minmax"			# accepts "minmax"
+normType 	= "l2"			# accepts "minmax"
 
 varIdxs 	= [[0,1,2,3]]	# zero-indexed list of lists for group variables
 
@@ -29,6 +29,7 @@ def main():
 	# load data
 	inFile = os.path.join(dataDir, dataFile)
 	snapArr = np.load(inFile)
+	snapArr = snapArr[:,:,iterStart-1:iterEnd:iterSkip] 	# subsample
 	nCells, nVarsTot, nSnaps = snapArr.shape
 
 	minDim = min(nCells, nSnaps)
@@ -36,7 +37,7 @@ def main():
 
 	# loop through groups
 	basisOut 	 	= np.zeros((nCells, nVarsTot, maxModes), dtype = np.float64)
-	singValsList 	= []
+	singVals 		= np.zeros((nSnaps,len(varIdxs)), dtype = np.float64)
 	centProfOut 	= np.zeros((nCells, nVarsTot), dtype = np.float64)
 	normSubOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
 	normFacOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
@@ -59,7 +60,7 @@ def main():
 		normSubOut[:,varIdxList] = normSubProf.copy() 
 		normFacOut[:,varIdxList] = normFacProf.copy()
 		basisOut[:,varIdxList,:] = U[:,:,:maxModes] # truncate modes
-		singValsList.append(s)
+		singVals[:,groupIdx] = s
 
 	# suffix for output files
 	suffix = ""
@@ -83,7 +84,7 @@ def main():
 	np.save(normSubFile+suffix, normSubOut)
 	np.save(normFacFile+suffix, normFacOut)
 	np.save(spatialModeFile+suffix, basisOut)
-	np.save(singValsFile+suffix, singValsList)
+	np.save(singValsFile+suffix, singVals)
 
 	print("POD basis generated!")
 
@@ -109,12 +110,23 @@ def centerData(dataArr):
 # normalize training data
 def normalizeData(dataArr):
 
+	onesProf = np.ones((dataArr.shape[0],dataArr.shape[1],1), dtype = np.float64)
+	zeroProf = np.zeros((dataArr.shape[0],dataArr.shape[1],1), dtype = np.float64)
+
 	# normalize by  (X - min(X)) / (max(X) - min(X)) 
 	if (normType == "minmax"):
 		minVals = np.amin(dataArr, axis=(0,2), keepdims=True)
 		maxVals = np.amax(dataArr, axis=(0,2), keepdims=True)
-		normSubProf = minVals * np.ones((dataArr.shape[0],dataArr.shape[1],1), dtype = np.float64)
-		normFacProf = (maxVals - minVals) * np.ones((dataArr.shape[0],dataArr.shape[1],1), dtype = np.float64)
+		normSubProf = minVals * onesProf
+		normFacProf = (maxVals - minVals) * onesProf
+
+	# normalize by L2 norm sqaured of each variable
+	elif (normType == "l2"):
+		dataArrSq = np.square(dataArr)
+		normFacProf = np.sum(np.sum(dataArrSq, axis=0, keepdims=True), axis=2, keepdims=True) 
+		normFacProf /= (dataArr.shape[0] * dataArr.shape[2])
+		normFacProf = normFacProf * onesProf
+		normSubProf = zeroProf
 
 	else: 
 		raise ValueError("Invalid normType input: "+str(centType))
