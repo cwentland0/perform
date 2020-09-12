@@ -27,7 +27,7 @@ mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 # store snapshots of field data
 def storeFieldData(sol: solutionPhys, params:parameters, tStep):
 
-	storeIdx = int(tStep / params.outInterval)
+	storeIdx = int(tStep / params.outInterval) + 1
 
 	if params.primOut: sol.primSnap[:,:,storeIdx] = sol.solPrim
 	if params.consOut: sol.consSnap[:,:,storeIdx] = sol.solCons

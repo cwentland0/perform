@@ -1,3 +1,4 @@
+*.png
 *.txt
 *.pyc
 *.lprof
@@ -10,3 +11,7 @@
 *.out
 *.toc
 *.synctex.gz
+*.gif
+*.npy
+*.dat
+*.npz

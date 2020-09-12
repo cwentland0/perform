@@ -16,14 +16,14 @@ class solutionPhys:
 	def __init__(self, numCells, solPrimIn, solConsIn, gas: gasProps, params: parameters):
 		
 		# solution and mixture properties
-		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# solution in primitive variables
-		self.solCons	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# solution in conservative variables
-		self.RHS 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# RHS function
-		self.mwMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture molecular weight
-		self.RMix		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture specific gas constant
-		self.gammaMix 	= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture ratio of specific heats
-		self.enthRefMix = np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture reference enthalpy
-		self.CpMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.floatType)		# mixture specific heat at constant pressure
+		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# solution in primitive variables
+		self.solCons	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# solution in conservative variables
+		self.RHS 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# RHS function
+		self.mwMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture molecular weight
+		self.RMix		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture specific gas constant
+		self.gammaMix 	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture ratio of specific heats
+		self.enthRefMix = np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture reference enthalpy
+		self.CpMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture specific heat at constant pressure
 
 		# load initial condition and check size
 		assert(solPrimIn.shape == (numCells, gas.numEqs))
@@ -33,12 +33,12 @@ class solutionPhys:
 
 		# snapshot storage matrices, store initial condition
 		if params.primOut: 
-			self.primSnap = np.zeros((numCells, gas.numEqs, params.numSnaps+1), dtype = constants.floatType)
-			self.primSnap[:,:,0] = solPrimIn 
+			self.primSnap = np.zeros((numCells, gas.numEqs, params.numSnaps+1), dtype = constants.realType)
+			self.primSnap[:,:,0] = solPrimIn.copy()
 		if params.consOut: 
-			self.consSnap = np.zeros((numCells, gas.numEqs, params.numSnaps+1), dtype = constants.floatType)
-			self.consSnap[:,:,0] = solConsIn
-		if params.RHSOut:  self.RHSSnap  = np.zeros((numCells, gas.numEqs, params.numSnaps), dtype = constants.floatType)
+			self.consSnap = np.zeros((numCells, gas.numEqs, params.numSnaps+1), dtype = constants.realType)
+			self.consSnap[:,:,0] = solConsIn.copy()
+		if params.RHSOut:  self.RHSSnap  = np.zeros((numCells, gas.numEqs, params.numSnaps), dtype = constants.realType)
 
 		# TODO: initialize thermo properties at initialization too (might be problematic for BC state)
 
@@ -86,11 +86,11 @@ class boundary:
 
 		# boundary flux for weak BCs
 		if params.weakBCs:
-			self.flux 		= np.zeros(gas.numEqs, dtype = constants.floatType)
+			self.flux 		= np.zeros(gas.numEqs, dtype = constants.realType)
 		
 		# unsteady ghost cell state for strong BCs
 		else:
-			solDummy 		= np.zeros((1, gas.numEqs), dtype = constants.floatType)
+			solDummy 		= np.zeros((1, gas.numEqs), dtype = constants.realType)
 			self.sol 		= solutionPhys(1, solDummy, solDummy, gas, params)
 			self.sol.solPrim[0,3:] = self.massFrac[:-1]
 
@@ -120,7 +120,7 @@ def genInitialCondition(params: parameters, gas: gasProps, geom: geometry):
 	icDict 	= readInputFile(params.icParamsFile)
 
 	splitIdx 	= np.absolute(geom.x_cell - icDict["xSplit"]).argmin()
-	solPrim 	= np.zeros((geom.numCells, gas.numEqs), dtype = constants.floatType)
+	solPrim 	= np.zeros((geom.numCells, gas.numEqs), dtype = constants.realType)
 
 	# left state
 	solPrim[:splitIdx,0] 	= icDict["pressLeft"]

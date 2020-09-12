@@ -4,7 +4,7 @@ from inputFuncs import readInputFile
 from classDefs import parameters, catchInput
 from solution import solutionPhys
 import constants
-from constants import floatType
+from constants import realType
 # import tensorflow as tf 
 # from tensorflow.keras.models import load_model
 import matplotlib.pyplot as plt
@@ -53,12 +53,12 @@ class solutionROM:
 
 		# normalization/centering profiles
 		# TODO: make this a function
-		onesProf = np.ones(sol.solPrim.shape, dtype=floatType)
+		onesProf = np.ones(sol.solPrim.shape, dtype=realType)
 
 		normSubIn = romDict["normSubIn"]
 		if (type(normSubIn) == list):
 			assert(len(normSubIn) == sol.solPrim.shape[-1])
-			normSubVals = np.arrray(normSubIn, dtype=floatType)		# load normalization subtraction values from user input
+			normSubVals = np.arrray(normSubIn, dtype=realType)		# load normalization subtraction values from user input
 			self.normSubProf = onesProf * normSubVals
 		elif (type(normSubIn) == str):
 			self.normSubProf = np.load(os.path.join(self.modelDir, normSubIn))				# load normalization subtraction profile from file
@@ -67,7 +67,7 @@ class solutionROM:
 		normFacIn = romDict["normFacIn"]
 		if (type(normFacIn) == list):
 			assert(len(normFacIn) == sol.solPrim.shape[-1])
-			normFacVals = np.array(normFacIn, dtype=floatType)		# load normalization division values from user input 
+			normFacVals = np.array(normFacIn, dtype=realType)		# load normalization division values from user input 
 			self.normFacProf = onesProf * normFacVals
 		elif (type(normFacIn) == str):
 			self.normFacProf = np.load(os.path.join(self.modelDir, normFacIn))				# load normalization division profile from file
@@ -76,7 +76,7 @@ class solutionROM:
 		centIn = romDict["centIn"]
 		if (type(centIn) == list):
 			assert(len(centIn) == sol.solPrim.shape[-1])
-			centVals = np.array(centIn, dtype=floatType)		# load centering values from user input
+			centVals = np.array(centIn, dtype=realType)		# load centering values from user input
 			self.centProf = onesProf * centVals
 		elif (type(centIn) == str):
 			self.centProf = np.load(os.path.join(self.modelDir, centIn))					# load centering profile from file
@@ -118,7 +118,7 @@ class solutionROM:
 			elif (self.romMethod == "nonlinear"):
 				self.decoderList.append(model(modelID, self))
 				if self.encoderApprox:
-					self.encoderList.append(model(modelID, self, encoder=True))
+					self.encoderList.append(model(modelID, self, encoderFlag=True))
 
 	# initialize code and solution, if required 
 	def initializeROMState(self, sol: solutionPhys):
@@ -138,12 +138,11 @@ class solutionROM:
 					decoder.code = self.code0.copy()	
 				# project onto test space
 				else:
-					decoder.standardizeData(decoder.solCons)
+					decoder.solCons = decoder.standardizeData(decoder.solCons)
 					decoder.code = decoder.calcProjection(decoder.solCons)
 
-				pdb.set_trace()
-				sol.solCons[:,decoder.varIdxs] = decoder.inferModel()
-				pdb.set_trace()
+				decoder.solCons = decoder.inferModel()
+				sol.solCons[:,decoder.varIdxs] = decoder.solCons
 
 			elif (self.romMethod == "nonlinear"):
 				raise ValueError("Nonlinear initialization not yet implemented")
@@ -157,6 +156,9 @@ class solutionROM:
 			else:
 				modelObj = self.decoderList[modelID]
 
+			pdb.set_trace()
+			modelObj.RHS = modelObj.standardizeData(modelObj.RHS, centering=False)
+			pdb.set_trace()
 			modelObj.RHSProj = modelObj.calcProjection(modelObj.RHS)
 
 	# advance solution forward one subiteration
@@ -164,12 +166,13 @@ class solutionROM:
 	def advanceSubiter(self, sol: solutionPhys, params: parameters, subiter):
 
 		# if linear, can just compute change in code, don't need to decenter
-		dSolCons = np.zeros(self.solCons.shape, dtype=floatType)
+		dSolCons = np.zeros(self.solCons.shape, dtype=realType)
 		for modelID in range(self.numModels):
 			decoder = self.decoderList[modelID]
 
 			if (self.romMethod == "linear"):
-				dCode = params.dt * params.subIterCoeffs[subiter] * decoder.RHSProj
+				# dCode = params.dt * params.subIterCoeffs[subiter] * decoder.RHSProj
+				decoder.code = params.dt * params.subIterCoeffs[subiter] * decoder.RHSProj
 				dSolCons[:, decoder.varIdxs] = decoder.inferModel(centering = False)
 				
 			# for nonlinear, need to compute next code step explicitly, decode
@@ -177,6 +180,16 @@ class solutionROM:
 				raise ValueError("Nonlinear subiter advance not yet implemented")
 
 		return dSolCons
+
+	# simply returns a list containing the latent space solution
+	def getCode(self):
+
+		code = [None]*self.numModels
+		for modelID in range(self.numModels):
+			decoder = self.decoderList[modelID]
+			code[modelID] = decoder.code
+
+		return code
 
 	# # collect decoder inferences into sol
 	# # note: needs to map to solPrim or solCons, depending on how the model is trained
@@ -215,14 +228,14 @@ class solutionROM:
 # TODO: some quantities are not required for the encoder (e.g. RHS), don't allocate unless necessary
 class model:
 
-	def __init__(self, modelID: int, rom: solutionROM, linearBasis=None, encoder=False, consForm=True):
+	def __init__(self, modelID: int, rom: solutionROM, linearBasis=None, encoderFlag=False, consForm=True):
 
 		self.modelID 	= modelID
 		self.latentDim 	= rom.latentDims[modelID] 		# latent code size for model
 		self.varIdxs 	= rom.modelVarIdxs[modelID]		# variable indices associated with model
 		self.numVars 	= len(self.varIdxs)				# number of prim/cons variables associated with model
 		self.numCells 	= rom.solCons.shape[0]			# number of cells in physical domain
-		self.encoder 	= encoder 						# whether or not the model is an encoder
+		self.encoderFlag = encoderFlag 						# whether or not the model is an encoder
 		self.romMethod  = rom.romMethod 				# "linear" or "nonlinear"
 		self.romProj 	= rom.romProj 					# "galerkin"
 		self.consForm 	= consForm
@@ -232,9 +245,9 @@ class model:
 		self.solPrim 	= rom.solPrim[:,self.varIdxs].copy()
 		self.RHS 		= rom.RHS[:,self.varIdxs] 				# no copy for this, as this can just be a true reference
 		self.solShape 	= self.solCons.shape
-		self.code 		= np.zeros((self.latentDim,1), dtype=floatType) # temporary space for any encodings/projections
-		self.codeN 		= np.zeros((self.latentDim,1), dtype=floatType) # code from last physical time step
-		self.RHSProj 	= np.zeros((self.latentDim,1), dtype=floatType) # projected RHS
+		self.code 		= np.zeros((self.latentDim,1), dtype=realType) # temporary space for any encodings/projections
+		self.codeN 		= np.zeros((self.latentDim,1), dtype=realType) # code from last physical time step
+		self.RHSProj 	= np.zeros((self.latentDim,1), dtype=realType) # projected RHS
 
 		# load encoder/decoder
 		# if (rom.romMethod == linear):
@@ -246,7 +259,7 @@ class model:
 		self.centProf 		= rom.centProf[:, self.varIdxs]
 
 		# storage for projection matrix
-		self.projector 		= np.zeros((self.latentDim, self.numCells, self.numVars), dtype = floatType)
+		self.projector 		= np.zeros((self.latentDim, self.numCells, self.numVars), dtype = realType)
 
 
 		# load linear basis and truncate modes
@@ -260,7 +273,7 @@ class model:
 		# TODO: add option to ingest full autoencoder and split, but I remember this being a pain in the ass
 		elif (rom.romMethod == "nonlinear"):
 
-			if encoder:
+			if encoderFlag:
 				modelLoc 		= os.path.join(rom.modelDir, "encoder_"+rom.modelNames[modelID]+".h5") 
 				self.encoder 	= load_model(modelLoc)
 				inputShape 		= self.encoder.layers[0].input_shape
@@ -296,12 +309,12 @@ class model:
 	def inferModel(self, centering=True):
 
 		# if encoder, center and normalize, run evaluation
-		if self.encoder:
+		if self.encoderFlag:
 			raise ValueError("Encoder inference not yet implemented")
 
 		# if decoder, run evaluation, denormalize and decenter sol
 		else:
-			solDecode = np.zeros(self.solShape, dtype=floatType)
+			solDecode = np.zeros(self.solShape, dtype=realType)
 
 			if (self.romMethod == "linear"):
 				for varIdx in range(self.numVars):
@@ -310,7 +323,7 @@ class model:
 			elif (self.romMethod == "nonlinear"):
 				raise ValueError("Nonlinear manifold decoder not yet implemented")
 
-			self.standardizeData(solDecode, centering, denormalize=True, decenter=True)
+			solDecode = self.standardizeData(solDecode, centering, denormalize=True, decenter=True)
 
 			return solDecode
 
@@ -318,7 +331,7 @@ class model:
 	# project a vector (presumably solution or RHS vector) onto latent space
 	def calcProjection(self, projVec):
 
-		if self.encoder:
+		if self.encoderFlag:
 			raise ValueError("Encoder projection not yet implemented")
 
 		else:
@@ -330,7 +343,7 @@ class model:
 				raise ValueError("Nonlinear decoder projection not yet implemented")
 
 		# compute projection
-		proj = np.zeros(self.latentDim, dtype=floatType)
+		proj = np.zeros(self.latentDim, dtype=realType)
 		for varIdx in range(self.numVars):
 			proj += self.projector[:,:,varIdx] @ projVec[:,varIdx]
 
@@ -351,8 +364,9 @@ class model:
 	# (de)centering and (de)normalization
 	def standardizeData(self, solArr, centering=True, denormalize=False, decenter=False):
 
-		self.normalizeSol(solArr, denormalize=denormalize)
-		if centering: self.centerSol(solArr, decenter=decenter)
+		if centering: solArr = self.centerSol(solArr, decenter=decenter)
+		solArr = self.normalizeSol(solArr, denormalize=denormalize)
+		return solArr 
 
 
 	# center/decenter full-order solution
@@ -362,6 +376,7 @@ class model:
 			solArr += self.centProf
 		else:
 			solArr -= self.centProf
+		return solArr
 
 
 	# normalize/denormalize full-order solution
@@ -371,6 +386,7 @@ class model:
 			solArr = solArr * self.normFacProf + self.normSubProf
 		else:
 			solArr = (solArr - self.normSubProf) / self.normFacProf
+		return solArr
 
 
 	

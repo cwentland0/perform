@@ -1,5 +1,6 @@
 import numpy as np 
 from numpy.linalg import svd
+import matplotlib.pyplot as plt
 import pdb
 import os
 
@@ -7,10 +8,10 @@ import os
 
 ##### BEGIN USER INPUT #####
 
-dataDir 	= "/home/chris/Research/GEMS_runs/1d_flame/pyGEMS_1D/transientFlame/dataProc/0p1ms_to_0p5ms"
+dataDir 	= "/home/chris/Research/GEMS_runs/prf_nonlinManifold/pyGEMS/standingFlame/dataProc/40microsec"
 dataFile 	= "solCons_FOM.npy"		
 iterStart 	= 1 		# one-indexed starting index for snapshot array
-iterEnd 	= 401		# one-indexed ending index for snapshot array
+iterEnd 	= 4001		# one-indexed ending index for snapshot array
 iterSkip 	= 1
 
 centType 	= "initCond" 		# accepts "initCond" and "mean"
@@ -32,12 +33,12 @@ def main():
 	snapArr = snapArr[:,:,iterStart-1:iterEnd:iterSkip] 	# subsample
 	nCells, nVarsTot, nSnaps = snapArr.shape
 
-	minDim = min(nCells, nSnaps)
+	minDim = min(nCells*nVarsTot, nSnaps)
 	assert(maxModes <= minDim)
 
 	# loop through groups
 	basisOut 	 	= np.zeros((nCells, nVarsTot, maxModes), dtype = np.float64)
-	singVals 		= np.zeros((nSnaps,len(varIdxs)), dtype = np.float64)
+	singVals 		= np.zeros((minDim,len(varIdxs)), dtype = np.float64)
 	centProfOut 	= np.zeros((nCells, nVarsTot), dtype = np.float64)
 	normSubOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
 	normFacOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
@@ -69,6 +70,8 @@ def main():
 		for varIdx in varIdxList:
 			suffix += str(varIdx)
 	suffix += ".npy"	
+
+	pdb.set_trace()
 
 	# save data to disk
 	outDir = os.path.join(dataDir, "podData")

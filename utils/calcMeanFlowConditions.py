@@ -9,21 +9,21 @@ import pdb
 
 ##### BEGIN USER INPUT #####
 
-gasFile = "/home/chris/Research/GEMS_runs/prf_nonlinManifold/pyGEMS/advectingFlame/global1.chem"
+gasFile = "/home/chris/Research/GEMS_runs/prf_nonlinManifold/pyGEMS/standingFlame/Inputs/global1.chem"
 
 fromICFile = False  # If True, load primitive state from file. If False, specify left and right primitive state
 
 icFile = "" 	# primitive state file
 
 # left and right states, if fomrICFile = False
-pressL 		= 1.0e6
-velL 		= 0.61
-tempL 		= 300.0
+pressL 		= 999775.96996096
+velL 		= 11.07569418
+tempL 		= 300.03214239
 massFracL 	= [1.0, 0.0]
-pressR 		= 1.0e6
-velR 		= 10.0
-tempR 		= 300.0
-massFracR 	= [1.0, 0.0]
+pressR 		= 999743.38742495
+velR 		= 16.53076408
+tempR 		= 2491.04091458
+massFracR 	= [0.0, 1.0]
 
 ##### END USER INPUT #####
 

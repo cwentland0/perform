@@ -1,6 +1,6 @@
 import numpy as np 
 import constants
-from constants import floatType, RUniv
+from constants import realType, RUniv
 from inputFuncs import readInputFile
 from math import floor, log
 import os
@@ -28,6 +28,7 @@ class parameters:
 
 		# temporal discretization parameters
 		self.dt 			= float(paramDict["dt"])		# physical time step
+		self.dtau 			= 1e-5#float(paramDict["dt"]*1e-4)		# psuedo time step
 		self.numSteps 		= int(paramDict["numSteps"])	# total number of physical time iterations
 		self.timeScheme 	= str(paramDict["timeScheme"]) 	# time integration scheme (string)
 		self.timeOrder 		= int(paramDict["timeOrder"])	# time integration order of accuracy (int)
@@ -50,6 +51,9 @@ class parameters:
 
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
+
+		# Solving for Primitive Variables
+		self.solforPrim 		= catchInput(paramDict, "solforPrim", False)
 
 		# restart files
 		self.saveRestarts 	= catchInput(paramDict, "saveRestarts", False) 	# whether to save restart files
@@ -108,18 +112,18 @@ class gasProps:
 
 		# gas composition
 		self.numSpecies_full 	= int(gasDict["numSpecies"])				# total number of species in case
-		self.molWeights 		= gasDict["molWeights"].astype(floatType)	# molecular weights, g/mol
-		self.enthRef 			= gasDict["enthRef"].astype(floatType) 		# reference enthalpy, J/kg
+		self.molWeights 		= gasDict["molWeights"].astype(realType)	# molecular weights, g/mol
+		self.enthRef 			= gasDict["enthRef"].astype(realType) 		# reference enthalpy, J/kg
 		self.tempRef 			= gasDict["tempRef"]						# reference temperature, K
-		self.Cp 				= gasDict["Cp"].astype(floatType)			# heat capacity at constant pressure, J/(kg-K)
-		self.Pr 				= gasDict["Pr"].astype(floatType)			# Prandtl number
-		self.Sc 				= gasDict["Sc"].astype(floatType)			# Schmidt number
-		self.muRef				= gasDict["muRef"].astype(floatType)		# reference viscosity for Sutherland model (I think?)
+		self.Cp 				= gasDict["Cp"].astype(realType)			# heat capacity at constant pressure, J/(kg-K)
+		self.Pr 				= gasDict["Pr"].astype(realType)			# Prandtl number
+		self.Sc 				= gasDict["Sc"].astype(realType)			# Schmidt number
+		self.muRef				= gasDict["muRef"].astype(realType)		# reference viscosity for Sutherland model (I think?)
 		
 		# Arrhenius factors
 		# TODO: modify these to allow for multiple global reactions
-		self.nu 				= gasDict["nu"].astype(floatType)		# ?????
-		self.nuArr 				= gasDict["nuArr"].astype(floatType)	# ?????
+		self.nu 				= gasDict["nu"].astype(realType)		# ?????
+		self.nuArr 				= gasDict["nuArr"].astype(realType)	# ?????
 		self.actEnergy			= float(gasDict["actEnergy"])			# global reaction Arrhenius activation energy, divided by RUniv, ?????
 		self.preExpFact 		= float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
 
@@ -146,7 +150,7 @@ class geometry:
 		self.numCells 	= int(meshDict["numCells"])
 
 		# mesh coordinates
-		self.x_node 	= np.linspace(xL, xR, self.numCells + 1, dtype = floatType)
+		self.x_node 	= np.linspace(xL, xR, self.numCells + 1, dtype = realType)
 		self.x_cell 	= (self.x_node[1:] + self.x_node[:-1]) / 2.0
 		self.dx 		= self.x_node[1] - self.x_node[0]
 		self.numNodes 	= self.numCells + 1

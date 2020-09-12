@@ -1,7 +1,7 @@
 # input files
-gasFile  = "./caseFiles/advectingFlame/global1.chem"
-meshFile = "./caseFiles/advectingFlame/mesh_0to0.01_256c.inp"
-initFile = "./caseFiles/advectingFlame/advectingFlameMeanFlow_256c.npy"
+gasFile  = "./caseFiles/advectingFlame_forced/global1.chem"
+meshFile = "./caseFiles/advectingFlame_forced/mesh_0to0.01_256c.inp"
+initFile = "./caseFiles/advectingFlame_forced/advectingFlameMeanFlow_256c.npy"
 
 # time discretization
 dt = 1.0e-8
@@ -30,10 +30,14 @@ vel_outlet = 1174.0221130843454
 rho_outlet = 1583.0816448907553
 massFrac_outlet = [0.0, 1.0]
 
+pertType_outlet = "pressure"
+pertPerc_outlet = 0.01
+pertFreq_outlet = [200000.0]
+
 # restart files
 saveRestarts    = True
 restartInterval = 1000
-numRestarts     = 40
+numRestarts     = 20
 initFromRestart = False
 
 # output
