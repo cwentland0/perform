@@ -7,7 +7,7 @@ from solution import solutionPhys, boundaries, genInitialCondition
 from spaceSchemes import calcRHS
 from stateFuncs import calcStateFromPrim
 from romClasses import solutionROM
-from timeSchemes import advanceexplicit, advancedual, init_sol_mat, update_sol_mat
+from timeSchemes import advanceexplicit, advancedual, initSolMat, updateSolMat
 from inputFuncs import readRestartFile
 import outputFuncs
 import constants
@@ -20,7 +20,7 @@ import pdb
 #@profile
 def solver(params: parameters, geom: geometry, gas: gasProps):
 
-	# TODO: could move this to driver?
+	# TODO: could move most of this to driver? Or just move to one big init function
 	# TODO: make an option to interpolate a solution onto the given mesh, if different
 	# intialize from restart file
 	if params.initFromRestart:
@@ -46,7 +46,6 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 
 	# initialize ROM
 	if params.calcROM: 
-		# raise ValueError("ROM not implemented yet")
 		rom = solutionROM(params.romInputs, sol, params)
 		rom.initializeROMState(sol)
 	else:
@@ -75,15 +74,17 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	else:
 		fieldImgDir = None
 
-	sol_mat = init_sol_mat(sol, bounds, params, gas) # initializing time-memory
+	# initializing time-memory
+	# TODO: just make this part of solutionPhys class
+	sol_mat = initSolMat(sol, bounds, params, gas) 
 
 	# loop over time iterations
 	for tStep in range(params.numSteps):
 		
 		print("Iteration "+str(tStep+1))
 
-		# call time integration scheme
-		sol_mat = advanceSolution(sol, rom, bounds, params, geom, gas, sol_mat)
+		# time integration scheme, advance one physical time step
+		advanceSolution(sol, rom, bounds, params, geom, gas, sol_mat)
 
 		params.solTime += params.dt
 
@@ -106,7 +107,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 			elif (params.visType == "probe"): 
 				outputFuncs.plotProbe(fig, ax, axLabels, sol, params, probeVals, tStep, tVals)
 			
-	print("Solve finished, writing to disk")
+	print("Solve finished, writing to disk!")
 
 	# write data to disk
 	outputFuncs.writeData(sol, params, probeVals, tVals)
@@ -120,6 +121,8 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 # numerically integrate ODE forward one physical time step
 def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, sol_mat):
     
+	# explicit time integrator is low-mem, only uses outer loop
+	# TODO: just make explicit integrator interoperable with sol_mat
 	if (params.timeType == "explicit"): 
 		if (params.calcROM):
 			solOuter = rom.getCode()
@@ -128,14 +131,13 @@ def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, par
 
 	# loop over max subiterations
 	for subiter in range(params.numSubIters):
-      
-        # update boundary ghost cells
-        
+              
 		if (params.timeType == "explicit"):  
    			sol = advanceexplicit(sol, rom, bounds, params, geom, gas, subiter, solOuter)
                        
 		else:  
 
+			# TODO: definitely a better way to work the cold start, gotta make operable with timeOrder > 2
 			if (params.solTime <= params.timeOrder*params.dt): 
 				sol_mat, res = advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=True) # cold-start
 				sol_mat[0] = sol.solCons.copy()           
@@ -147,31 +149,6 @@ def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, par
 			if (np.linalg.norm(res,ord=2) < params.resTol): 
 				break
 
-	if(params.timeType == "implicit"):
-		
-		sol_mat = update_sol_mat(sol_mat) # updating time-memory
-		return sol_mat
-      
-             
 
-		# # compute RHS function
-		# calcRHS(sol, bounds, params, geom, gas)
-
-		# # advance solution/code
-		# # FOM
-		# if not params.calcROM:
-		# 	dSolCons = params.dt * params.subIterCoeffs[subiter] * sol.RHS
-
-		# # ROM
-		# else:
-		# 	raise ValueError("ROM not implemented yet")
-		# 	# rom.mapRHSToModels(sol)
-
-		# 	# # project onto test space
-		# 	# rom.calcProjection()
-		# 	# dSolCons = rom.advanceSubiter(sol, params, subiter)
-
-		# sol.solCons = solConsOuter + dSolCons
-		# sol.updateState(gas)
-		
-
+	if (params.timeType == "implicit"):
+		sol_mat = updateSolMat(sol_mat) # updating time history

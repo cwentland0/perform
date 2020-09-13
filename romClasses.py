@@ -156,30 +156,32 @@ class solutionROM:
 			else:
 				modelObj = self.decoderList[modelID]
 
-			pdb.set_trace()
-			modelObj.RHS = modelObj.standardizeData(modelObj.RHS, centering=False)
-			pdb.set_trace()
+			# pdb.set_trace()
+			modelObj.RHS = modelObj.standardizeData(modelObj.RHS, center=False)
+			# pdb.set_trace()
 			modelObj.RHSProj = modelObj.calcProjection(modelObj.RHS)
+			# pdb.set_trace()
+
 
 	# advance solution forward one subiteration
 	# TODO: right now returning dSolCons, really should just return next time step but requires input of previous time step solution
-	def advanceSubiter(self, sol: solutionPhys, params: parameters, subiter):
+	def advanceSubiter(self, sol: solutionPhys, params: parameters, subiter, solOuter):
 
 		# if linear, can just compute change in code, don't need to decenter
-		dSolCons = np.zeros(self.solCons.shape, dtype=realType)
+		# dSolCons = np.zeros(self.solCons.shape, dtype=realType)
 		for modelID in range(self.numModels):
 			decoder = self.decoderList[modelID]
 
 			if (self.romMethod == "linear"):
 				# dCode = params.dt * params.subIterCoeffs[subiter] * decoder.RHSProj
-				decoder.code = params.dt * params.subIterCoeffs[subiter] * decoder.RHSProj
-				dSolCons[:, decoder.varIdxs] = decoder.inferModel(centering = False)
+				decoder.code = solOuter[modelID] + params.dt * params.subIterCoeffs[subiter] * decoder.RHSProj
+				decoder.solCons = decoder.inferModel(centering = True)
+				sol.solCons[:,decoder.varIdxs] = decoder.solCons
 				
 			# for nonlinear, need to compute next code step explicitly, decode
 			elif (self.romMethod == "nonlinear"):
 				raise ValueError("Nonlinear subiter advance not yet implemented")
 
-		return dSolCons
 
 	# simply returns a list containing the latent space solution
 	def getCode(self):
@@ -212,6 +214,7 @@ class solutionROM:
 				
 			modelObj.solCons = sol.solCons[:, modelObj.varIdxs]
 			modelObj.solPrim = sol.solPrim[:, modelObj.varIdxs]
+
 
 	# distribute RHS arrays to models for projection
 	def mapRHSToModels(self, sol: solutionPhys):
@@ -319,11 +322,12 @@ class model:
 			if (self.romMethod == "linear"):
 				for varIdx in range(self.numVars):
 					solDecode[:, varIdx] = self.decoder[:,varIdx,:] @ self.code
+					# pdb.set_trace()
 
 			elif (self.romMethod == "nonlinear"):
 				raise ValueError("Nonlinear manifold decoder not yet implemented")
 
-			solDecode = self.standardizeData(solDecode, centering, denormalize=True, decenter=True)
+			solDecode = self.standardizeData(solDecode, centering, inverse=True)
 
 			return solDecode
 
@@ -362,10 +366,15 @@ class model:
 	# def calcNonlinearProjector(self):
 
 	# (de)centering and (de)normalization
-	def standardizeData(self, solArr, centering=True, denormalize=False, decenter=False):
+	def standardizeData(self, solArr, center=True, inverse=False):
 
-		if centering: solArr = self.centerSol(solArr, decenter=decenter)
-		solArr = self.normalizeSol(solArr, denormalize=denormalize)
+		if inverse:
+			solArr = self.normalizeSol(solArr, denormalize=True)
+			if center: solArr = self.centerSol(solArr, decenter=True)
+		else:
+			if center: solArr = self.centerSol(solArr, decenter=False)
+			solArr = self.normalizeSol(solArr, denormalize=False)
+		
 		return solArr 
 
 

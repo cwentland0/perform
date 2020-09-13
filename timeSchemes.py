@@ -9,27 +9,29 @@ from scipy.sparse.linalg import spsolve
 import numpy as np
 import pdb
 
-
-def init_sol_mat(sol, bounds, params, gas):
+# initialize time history of solution
+def initSolMat(sol, bounds, params, gas):
 	
 	sol_mat = []
 	
-	calcBoundaries(sol, bounds, params, gas)
+	# calcBoundaries(sol, bounds, params, gas) # Ashish, why was this here?
 	
-	for i in range(params.timeOrder+1):
+	for _ in range(params.timeOrder+1):
 		sol_mat.append(sol.solCons.copy())
 	
 	return sol_mat
 
 
-def update_sol_mat(sol_mat):
+# update time history of solution for implicit time integration
+def updateSolMat(sol_mat):
 	
 	sol_mat[1:] = sol_mat[:-1]
 			
 	return sol_mat
 
+# compute fully-discrete residual
 # TODO: cold start is not valid for timeOrder > 2
-def calc_implicitres(sol: solutionPhys, sol_mat, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, colstrt):
+def calcImplicitRes(sol: solutionPhys, sol_mat, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, colstrt):
 	
 	t_or = params.timeOrder
 	
@@ -67,25 +69,19 @@ def advanceexplicit(sol: solutionPhys, rom: solutionROM,
 	# if params.solforPrim:
 	# 	sol.RHS = calc_dsolPrim(sol, gas) 
 		
-	pdb.set_trace()
 	# compute change in solution/code, advance solution/code
-	# if (params.calcROM)
-	rom.mapRHSToModels(sol)
-	rom.calcRHSProjection()
-	dSol_rom = rom.advanceSubiter(sol, params, subiter)
-	# else:
-	dSol = params.dt * params.subIterCoeffs[subiter] * sol.RHS
-	
-	pdb.set_trace()
+	if (params.calcROM):
+		rom.mapRHSToModels(sol)
+		rom.calcRHSProjection()
+		rom.advanceSubiter(sol, params, subiter, solOuter)
+	else:
+		dSol = params.dt * params.subIterCoeffs[subiter] * sol.RHS
+		if params.solforPrim:
+			sol.solPrim = solOuter + dSol
+			sol.updateState(gas, fromCons = False)  
+		else:
+			sol.solCons = solOuter + dSol
 
-	# if ROM, reconstruct solution
-	
-	# update state
-	# if params.solforPrim:
-	# 	sol.solPrim = solOuter + dSol
-	# 	sol.updateState(gas, fromCons = False)  
-	# else:
-	sol.solCons = solOuter + dSol
 	sol.updateState(gas)
 	
 	return sol
@@ -94,26 +90,26 @@ def advanceexplicit(sol: solutionPhys, rom: solutionROM,
 def advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=False):
 	
 
-	# residual
-	res = calc_implicitres(sol, sol_mat, bounds, params, geom, gas, colstrt)
+	# compute residual
+	res = calcImplicitRes(sol, sol_mat, bounds, params, geom, gas, colstrt)
 	
-	# dt_inv
+	# compute time/pseudo-time factors
+	# TODO: add dynamic settings for this (i.e. robustness controls)
 	dt_inv = constants.bdfCoeffs[params.timeOrder-1]/params.dt
 	dtau_inv = 1./params.dtau
 
-
-	# Jacobian
+	# compute Jacobian or residual
 	resJacob = calc_dresdsolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
 	
 	# Comparing with numerical jacobians
 	# diff = calc_dresdsolPrim_imag(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
 	# print(diff)
 
-	# Solving linear system 
+	# solve linear system 
 	resJacob_sparse = vec_assemble(resJacob)
 	dSol = spsolve(resJacob_sparse, (res.flatten('F')))
 
-	# updating state
+	# update state
 	sol.solPrim += dSol.reshape((geom.numCells, gas.numEqs), order='F')
 	sol.updateState(gas, fromCons = False)
 	
