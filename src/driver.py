@@ -11,12 +11,12 @@ import pdb
 # TODO: make code general for more than two species, array broadcasts are different for 2 vs 3+ species
 #		idea: custom iterators for species-related slicing, or just squeeze any massfrac references
 
-
 # read working directory input
 parser = argparse.ArgumentParser(description = "Read working directory")
 parser.add_argument('workdir', type = str, default = "./", help="runtime working directory")
 args = parser.parse_args()
 workdir = args.workdir
+workdir = os.path.expanduser(workdir) # expand tilde notation for home directory
 
 # read input files, setup problem
 paramFile	= os.path.join(workdir, constants.paramInputs)
