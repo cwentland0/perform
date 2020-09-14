@@ -2,6 +2,15 @@
 
 This code is intended to be a sort of low-fidelity Python port of the General Mesh and Equations Solver (**GEMS**). Whereas **GEMS** is capable of computing high-fidelity simulations of 2D/3D reacting flows with enormous libraries for flame modeling, **pyGEMS** is intended for simulating one-dimensional reacting flows with simple global reaction mechanisms. **GEMS** was originally developed by Guoping Xia at Purdue University, and has since been expanded drastically by researchers from Purdue University, the University of Michigan, Ann Arbor, and the Air Force Research Laboratory. The hope is that this code might serve as a useful testbed for projection-based reduced-order model (ROM) developers to analyze performance of new ROM methods for reacting flow simulations, a field of research which poses significant difficulties in effective model-order reduction. 
 
+## Table of Contents 
+* [Documentation](#documentation)
+* [Installing Dependencies](#installing-dependencies)
+* [Input Files](#input-files)
+* [Running pyGEMS](#running-pygems)
+* [Outputs](#outputs)
+* [Sample Cases](#sample-cases)
+* [Utilities](#utilities)
+
 ## Documentation
 
 A very brief introduction to running **pyGEMS** is included below. However, a PDF file containing much more detailed documentation for **pyGEMS** is included in `doc/`. This contains some theory regarding the governing equations, spatial discretization, and temporal discretization of the dynamical system. The various ROM methods which are currently implemented are also explained. Tables of the various input parameters, their required data types, and default values (where applicable), are included as well. This documentation will be continuously updated as new features are added.
