@@ -76,11 +76,11 @@ def advanceexplicit(sol: solutionPhys, rom: solutionROM,
 		rom.advanceSubiter(sol, params, subiter, solOuter)
 	else:
 		dSol = params.dt * params.subIterCoeffs[subiter] * sol.RHS
-		if params.solforPrim:
-			sol.solPrim = solOuter + dSol
-			sol.updateState(gas, fromCons = False)  
-		else:
-			sol.solCons = solOuter + dSol
+		# if params.solforPrim:
+		# 	sol.solPrim = solOuter + dSol
+		# 	sol.updateState(gas, fromCons = False)  
+		# else:
+		sol.solCons = solOuter + dSol
 
 	sol.updateState(gas)
 	

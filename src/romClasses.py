@@ -55,32 +55,44 @@ class solutionROM:
 		# TODO: make this a function
 		onesProf = np.ones(sol.solPrim.shape, dtype=realType)
 
-		normSubIn = romDict["normSubIn"]
-		if (type(normSubIn) == list):
-			assert(len(normSubIn) == sol.solPrim.shape[-1])
-			normSubVals = np.arrray(normSubIn, dtype=realType)		# load normalization subtraction values from user input
-			self.normSubProf = onesProf * normSubVals
-		elif (type(normSubIn) == str):
-			self.normSubProf = np.load(os.path.join(self.modelDir, normSubIn))				# load normalization subtraction profile from file
-			assert(self.normSubProf.shape == sol.solPrim.shape)
+		try: 
+			normSubIn = romDict["normSubIn"]
+			if (type(normSubIn) == list):
+				assert(len(normSubIn) == sol.solPrim.shape[-1])
+				normSubVals = np.arrray(normSubIn, dtype=realType)		# load normalization subtraction values from user input
+				self.normSubProf = onesProf * normSubVals
+			elif (type(normSubIn) == str):
+				self.normSubProf = np.load(os.path.join(self.modelDir, normSubIn))				# load normalization subtraction profile from file
+				assert(self.normSubProf.shape == sol.solPrim.shape)
+		except:
+			print("WARNING: normSubIn load failed or not specified, defaulting to zeros...")
+			self.normSubProf = np.zeros(sol.solPrim.shape, dtype=realType)
 
-		normFacIn = romDict["normFacIn"]
-		if (type(normFacIn) == list):
-			assert(len(normFacIn) == sol.solPrim.shape[-1])
-			normFacVals = np.array(normFacIn, dtype=realType)		# load normalization division values from user input 
-			self.normFacProf = onesProf * normFacVals
-		elif (type(normFacIn) == str):
-			self.normFacProf = np.load(os.path.join(self.modelDir, normFacIn))				# load normalization division profile from file
-			assert(self.normFacProf.shape == sol.solPrim.shape)
+		try: 
+			normFacIn = romDict["normFacIn"]
+			if (type(normFacIn) == list):
+				assert(len(normFacIn) == sol.solPrim.shape[-1])
+				normFacVals = np.array(normFacIn, dtype=realType)		# load normalization division values from user input 
+				self.normFacProf = onesProf * normFacVals
+			elif (type(normFacIn) == str):
+				self.normFacProf = np.load(os.path.join(self.modelDir, normFacIn))				# load normalization division profile from file
+				assert(self.normFacProf.shape == sol.solPrim.shape)
+		except:
+			print("WARNING: normFacIn load failed or not specified, defaulting to ones...")
+			self.normSubProf = np.ones(sol.solPrim.shape, dtype=realType)
 
-		centIn = romDict["centIn"]
-		if (type(centIn) == list):
-			assert(len(centIn) == sol.solPrim.shape[-1])
-			centVals = np.array(centIn, dtype=realType)		# load centering values from user input
-			self.centProf = onesProf * centVals
-		elif (type(centIn) == str):
-			self.centProf = np.load(os.path.join(self.modelDir, centIn))					# load centering profile from file
-			assert(self.centProf.shape == sol.solPrim.shape)
+		try: 
+			centIn = romDict["centIn"]
+			if (type(centIn) == list):
+				assert(len(centIn) == sol.solPrim.shape[-1])
+				centVals = np.array(centIn, dtype=realType)		# load centering values from user input
+				self.centProf = onesProf * centVals
+			elif (type(centIn) == str):
+				self.centProf = np.load(os.path.join(self.modelDir, centIn))					# load centering profile from file
+				assert(self.centProf.shape == sol.solPrim.shape)
+		except:
+			print("WARNING: centIn load failed or not specified, defaulting to zeros...")
+			self.normSubProf = np.zeros(sol.solPrim.shape, dtype=realType)
 
 		# nonlinear models are stored in separate files, linear basis is not
 		try: 
@@ -340,6 +352,7 @@ class model:
 
 		else:
 
+			# TODO: only do this once if it's static linear galerkin, don't need to keep reassigning it
 			if (self.romMethod == "linear"):
 				self.calcLinearProjector()
 

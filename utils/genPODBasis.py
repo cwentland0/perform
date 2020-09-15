@@ -17,11 +17,13 @@ iterSkip 	= 1
 centType 	= "initCond" 		# accepts "initCond" and "mean"
 normType 	= "l2"			# accepts "minmax"
 
-varIdxs 	= [[0,1,2,3]]	# zero-indexed list of lists for group variables
+varIdxs 	= [[0],[1],[2,3]]	# zero-indexed list of lists for group variables
 
 maxModes 	= 200
 
 writeRightEvecs = False
+
+basisOutDir = "podData_cons_dens_mom_energymommf_samp1"
 
 ##### END USER INPUT #####
 
@@ -38,7 +40,7 @@ def main():
 
 	# loop through groups
 	basisOut 	 	= np.zeros((nCells, nVarsTot, maxModes), dtype = np.float64)
-	singVals 		= np.zeros((minDim,len(varIdxs)), dtype = np.float64)
+	singVals 		= [] #np.zeros((minDim,len(varIdxs)), dtype = np.float64)
 	centProfOut 	= np.zeros((nCells, nVarsTot), dtype = np.float64)
 	normSubOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
 	normFacOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
@@ -61,7 +63,7 @@ def main():
 		normSubOut[:,varIdxList] = normSubProf.copy() 
 		normFacOut[:,varIdxList] = normFacProf.copy()
 		basisOut[:,varIdxList,:] = U[:,:,:maxModes] # truncate modes
-		singVals[:,groupIdx] = s
+		singVals.append(s.copy())
 
 	# suffix for output files
 	suffix = ""
@@ -71,10 +73,8 @@ def main():
 			suffix += str(varIdx)
 	suffix += ".npy"	
 
-	pdb.set_trace()
-
 	# save data to disk
-	outDir = os.path.join(dataDir, "podData")
+	outDir = os.path.join(dataDir, basisOutDir)
 	if not os.path.isdir(outDir): os.mkdir(outDir)
 
 	centFile = os.path.join(outDir, "centProf")
@@ -107,7 +107,7 @@ def centerData(dataArr):
 
 	dataArr -= centProf
 
-	return dataArr, np.squeeze(centProf)
+	return dataArr, np.squeeze(centProf, axis=-1)
 
 
 # normalize training data
@@ -136,7 +136,7 @@ def normalizeData(dataArr):
 
 	dataArr = (dataArr - normSubProf) / normFacProf 
 
-	return dataArr, np.squeeze(normSubProf), np.squeeze(normFacProf)
+	return dataArr, np.squeeze(normSubProf, axis = -1), np.squeeze(normFacProf, axis = -1)
 
 
 if __name__ == "__main__":
