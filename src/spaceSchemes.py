@@ -47,7 +47,7 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 		flux -= calcViscFlux(sol, bounds, params, gas, geom)
 
 	# compute source term
-	source = calcSource(sol.solPrim, sol.solCons[:,0], params, gas)
+	calcSource(sol, params, gas)
 
 	# compute RHS
 	sol.RHS[:,:] 	= 0.0 
@@ -60,7 +60,7 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 		sol.RHS = flux[:-1,:] - flux[1:,:]
 
 	sol.RHS[:,:] /= geom.dx	
-	sol.RHS  = source + sol.RHS
+	sol.RHS[:,3:]  = sol.source + sol.RHS[:,3:]
 
 # compute inviscid fluxes
 # TODO: expand beyond Roe flux
@@ -265,17 +265,15 @@ def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas:
 
 # compute source term
 # TODO: bring in rho*Yi so it doesn't keep getting calculated
-def calcSource(solPrim, rho, params: parameters, gas: gasProps):
+def calcSource(sol: solutionPhys, params: parameters, gas: gasProps):
 
-	temp = solPrim[:,2]
-	massFracs = solPrim[:,3:]
-	sourceTerm = np.zeros(solPrim.shape, dtype = constants.realType)
-	if (solPrim.dtype == constants.complexType): #for complex step check
-		sourceTerm = np.zeros(solPrim.shape, dtype = constants.complexType)
+	temp = sol.solPrim[:,2]
+	massFracs = sol.solPrim[:,3:]
+	if (sol.solPrim.dtype == constants.complexType): #for complex step check
+		sol.source = np.zeros(sol.source.shape, dtype = constants.complexType)
 	wf = gas.preExpFact * np.exp(gas.actEnergy / temp)
 	
-	# to avoid recalculating
-	rhoY = massFracs * rho[:, np.newaxis]
+	rhoY = massFracs * sol.solCons[:,[0]]
 
 	for specIdx in range(gas.numSpecies):
 		if (gas.nuArr[specIdx] != 0.0):
@@ -288,14 +286,7 @@ def calcSource(solPrim, rho, params: parameters, gas: gasProps):
 
 	# TODO: could vectorize this I think
 	for specIdx in range(gas.numSpecies):
-		sourceTerm[:,3+specIdx] = -gas.molWeightNu[specIdx] * wf
-
-	# TODO: implicit implementation
-	if (params.timeType == "implicit"):
-		return sourceTerm
-	elif (params.timeType == "explicit"):
-		return sourceTerm
-
+		sol.source[:,specIdx] = -gas.molWeightNu[specIdx] * wf
 
 def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: gasProps):
     

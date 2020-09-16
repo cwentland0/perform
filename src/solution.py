@@ -18,6 +18,7 @@ class solutionPhys:
 		# solution and mixture properties
 		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# solution in primitive variables
 		self.solCons	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# solution in conservative variables
+		self.source 	= np.zeros((numCells, gas.numSpecies), dtype = constants.realType)	# reaction source term
 		self.RHS 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# RHS function
 		self.mwMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture molecular weight
 		self.RMix		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture specific gas constant
@@ -38,6 +39,7 @@ class solutionPhys:
 		if params.consOut: 
 			self.consSnap = np.zeros((numCells, gas.numEqs, params.numSnaps+1), dtype = constants.realType)
 			self.consSnap[:,:,0] = solConsIn.copy()
+		if params.sourceOut: self.sourceSnap = np.zeros((numCells, gas.numSpecies, params.numSnaps+1), dtype = constants.realType)
 		if params.RHSOut:  self.RHSSnap  = np.zeros((numCells, gas.numEqs, params.numSnaps), dtype = constants.realType)
 
 		# TODO: initialize thermo properties at initialization too (might be problematic for BC state)

@@ -66,6 +66,8 @@ def setupPlotAxes(params: parameters):
 			axLabels.append("Temperature (K)")
 		elif (varStr == "species"):
 			axLabels.append("Species Mass Fraction")
+		elif (varStr == "source"):
+			axLabels.append("Reaction Source Term")
 		elif (varStr == "density"):
 			axLabels.append("Density (kg/m^3)")
 		elif (varStr == "momentum"):
@@ -109,6 +111,8 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 				field = sol.solPrim[:,2]
 			elif (varStr == "species"):
 				field = sol.solPrim[:,3]
+			elif (varStr == "source"):
+				field = sol.source[:,0]
 			elif (varStr == "density"):
 				field = sol.solCons[:,0]
 			elif (varStr == "momentum"):
@@ -149,6 +153,8 @@ def updateProbe(sol: solutionPhys, params: parameters, probeVals, probeIdx, tSte
 			probe = sol.solPrim[probeIdx,2]
 		elif (varStr == "species"):
 			probe = sol.solPrim[probeIdx,3]
+		elif (varStr == "source"):
+			probe = sol.source[probeIdx,0]
 		elif (varStr == "density"):
 			probe = sol.solCons[probeIdx,0]
 		elif (varStr == "momentum"):
@@ -202,6 +208,9 @@ def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
 	if params.consOut:
 		solConsFile = os.path.join(params.unsOutDir, "solCons_"+params.simType+".npy")
 		np.save(solConsFile, sol.consSnap) 
+	if params.sourceOut:
+		sourceFile = os.path.join(params.unsOutDir, "source_"+params.simType+".npy")
+		np.save(sourceFile, sol.sourceSnap)
 	if params.RHSOut:
 		solRHSFile = os.path.join(params.unsOutDir, "solRHS_"+params.simType+".npy")
 		np.save(solRHSFile, sol.RHSSnap) 

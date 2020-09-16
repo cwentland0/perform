@@ -73,6 +73,7 @@ class parameters:
 		self.outInterval	= catchInput(paramDict, "outInterval", 1) 		# iteration interval to save data (int)
 		self.primOut		= catchInput(paramDict, "primOut", True)		# whether to save the primitive variables
 		self.consOut 		= catchInput(paramDict, "consOut", False) 		# whether to save the conservative variables
+		self.sourceOut 		= catchInput(paramDict, "sourceOut", False) 	# whether to save the species source term
 		self.RHSOut 		= catchInput(paramDict, "RHSOut", False)		# whether to save the RHS vector
 		self.numSnaps 		= int(self.numSteps / self.outInterval)
 
