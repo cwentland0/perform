@@ -3,7 +3,7 @@ from romClasses import solutionROM
 from classDefs import parameters, geometry, gasProps
 from spaceSchemes import calcRHS
 from boundaryFuncs import calcBoundaries
-from Jacobians import calc_dresdsolPrim, calc_dresdsolPrim_imag, calc_dsolConsdsolPrim_imag, vec_assemble
+from Jacobians import calc_dresdsolPrim, calc_dresdsolPrim_imag, calc_dsolConsdsolPrim_imag
 import constants
 from scipy.sparse.linalg import spsolve
 import numpy as np
@@ -99,21 +99,21 @@ def advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=False):
 	dtau_inv = 1./params.dtau
 
 	# compute Jacobian or residual
-	resJacob = calc_dresdsolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
+	resJacob_sparse = calc_dresdsolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
 	
 	# Comparing with numerical jacobians
 	# diff = calc_dresdsolPrim_imag(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
 	# print(diff)
 
 	# solve linear system 
-	resJacob_sparse = vec_assemble(resJacob)
 	dSol = spsolve(resJacob_sparse, (res.flatten('F')))
 
 	# update state
 	sol.solPrim += dSol.reshape((geom.numCells, gas.numEqs), order='F')
 	sol.updateState(gas, fromCons = False)
 	
-	res = dSol.reshape((geom.numCells, gas.numEqs), order = 'F')
+	#res = dSol.reshape((geom.numCells, gas.numEqs), order = 'F')
+	res = resJacob_sparse @ dSol - (res.flatten('F'))
 	
 	return sol_mat, res
 

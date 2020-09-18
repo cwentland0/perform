@@ -36,8 +36,8 @@ class parameters:
 
 		if (self.timeScheme in ["bdf","pTime"]):
 			self.timeType 		= "implicit"
-			self.numSubIters 	= catchInput(paramDict, "numSubIters", 20)	# maximum number of subiterations for iterative solver
-			self.resTol 		= catchInput(paramDict, "resTol", 1e-10)	# residual tolerance for iterative solver 
+			self.numSubIters 	= catchInput(paramDict, "numSubIters", 50)	# maximum number of subiterations for iterative solver
+			self.resTol 		= catchInput(paramDict, "resTol", 1e-12)	# residual tolerance for iterative solver 
 		elif (self.timeScheme == "rk"):
 			self.timeType 		= "explicit"
 			self.numSubIters 	= self.timeOrder

@@ -145,7 +145,7 @@ def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, par
 				sol_mat, res = advancedual(sol, sol_mat, bounds, params, geom, gas)
 				sol_mat[0] = sol.solCons.copy()     
        			 
-			# print(np.linalg.norm(res, ord=2)) # printing sub-iterations convergence
+			print(np.linalg.norm(res, ord=2)) # printing sub-iterations convergence
 			if (np.linalg.norm(res,ord=2) < params.resTol): 
 				break
 

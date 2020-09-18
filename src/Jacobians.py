@@ -342,7 +342,7 @@ def calc_dSourcedsolPrim_imag(sol, gas: gasProps, geom: geometry, params: parame
 
 
 # compute flux Jacobians   
-def calc_Ap(solPrim, rho, h0, gas):
+def calc_Ap(solPrim, rho, cp, h0, gas, bounds):
 	
 	Ap = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
 	
@@ -399,6 +399,26 @@ def calc_Ap(solPrim, rho, h0, gas):
 			for j in range(3,gas.numEqs):
 				Ap[i,j,:] = u * ((i==j) * rho + Y * rhoY[:])
 			
+    #Adding the viscous flux jacobian terms
+	Ap[1,1,:] = Ap[1,1,:] - (4.0 / 3.0) * gas.muRef[:-1]
+
+	Ap[2,1,:] = Ap[2,1,:] - u * (4.0 / 3.0) * gas.muRef[:-1]
+
+	Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
+	Ap[2,2,:] = Ap[2,2,:] - Ck
+
+	T = solPrim[:,2]
+	if (gas.numSpecies > 0):
+		Cd = gas.muRef[:-1] / gas.Sc[0] / rho      
+		rhoCd = rho * Cd    
+		hY = gas.enthRefDiffs + (T - gas.tempRef) * gas.CpDiffs
+        
+		for i in range(3,gas.numEqs):
+			
+			Ap[2,i,:] = Ap[2,i,:] - rhoCd * hY 
+			Ap[i,i,:] = Ap[i,i,:] - rhoCd
+
+
 	return Ap
 
 
@@ -432,35 +452,25 @@ def calc_dFluxdsolPrim(solConsL, solPrimL, solConsR, solPrimR,
 	
 	ci = np.sqrt(gammai * Ri * Qp_i[:,2])
 	
-	M_ROE = calcRoeDissipation_alt(Qp_i, rhoi, Hi, ci, Ri, Cpi, gas)
-	dFluxdQp_l = 0.5 * (calc_Ap(solPrimL, solConsL[:,0], HL, gas)) + 0.5 * M_ROE
-	dFluxdQp_r = 0.5 * (calc_Ap(solPrimR, solConsR[:,0], HR, gas)) - 0.5 * M_ROE
-	
+	M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Ri, Cpi, gas), axes=(1,2,0))
 
-	cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis=0)
-	Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
-	dFluxdQp_l[1,1,:] = dFluxdQp_l[1,1,:] + (4.0/3.0) * gas.muRef[:-1]  / geom.dx
-	dFluxdQp_r[1,1,:] = dFluxdQp_r[1,1,:] - (4.0/3.0) * gas.muRef[:-1]  / geom.dx
+	cp_l = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix), axis=0)
+	cp_r = np.concatenate((sol.CpMix, bounds.outlet.sol.CpMix), axis=0)
+
+	Ap_l = (calc_Ap(solPrimL, solConsL[:,0], cp_l, HL, gas, bounds))
+	Ap_r = (calc_Ap(solPrimR, solConsR[:,0], cp_r, HL, gas, bounds))
+
+    #Jacobian wrt current cell
+	dFluxdQp = ((0.5*Ap_l[:,:,1:] + 0.5*M_ROE[:,:,1:]) + (-0.5*Ap_r[:,:,:-1] + 0.5*M_ROE[:,:,1:])) / geom.dx
+    
+    #Jacobian wrt left neighbour
+	dFluxdQp_l = (-0.5*Ap_l[:,:,1:-1] - 0.5*M_ROE[:,:,:-2]) / geom.dx
+    
+    #Jacobian wrt right neighbour
+	dFluxdQp_r = (0.5*Ap_r[:,:,1:-1] - 0.5*M_ROE[:,:,2:]) / geom.dx    
+    
 	
-	dFluxdQp_l[2,2,:] = dFluxdQp_l[2,2,:] + Ck[:-1] / geom.dx
-	dFluxdQp_r[2,2,:] = dFluxdQp_r[2,2,:] - Ck[1:] / geom.dx
-	
-	rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
-	T = np.concatenate((bounds.inlet.sol.solPrim[[0],2], sol.solPrim[:,2], bounds.outlet.sol.solPrim[[0],2]), axis = 0)
-	if (gas.numSpecies > 0):
-		Cd = gas.muRef[:-1] / gas.Sc[0] / rho
-		rhoCd_dx = rho * Cd / geom.dx
-		hY = gas.enthRefDiffs + (T - gas.tempRef) * gas.CpDiffs
-		
-		for i in range(3,gas.numEqs):
-			
-			dFluxdQp_l[2,i,:] = dFluxdQp_l[2,i,:] + rhoCd_dx[:-1] * hY[:-1]
-			dFluxdQp_r[2,i,:] = dFluxdQp_r[2,i,:] - rhoCd_dx[1:] * hY[1:]
-			
-			dFluxdQp_l[i,i,:] = dFluxdQp_l[i,i,:] + rhoCd_dx[:-1]
-			dFluxdQp_r[i,i,:] = dFluxdQp_r[i,i,:] - rhoCd_dx[1:]
-	
-	return dFluxdQp_l, dFluxdQp_r
+	return dFluxdQp, dFluxdQp_l, dFluxdQp_r
 
 
 # compute Jacobian of the RHS function (i.e. fluxes, sources, body forces)    
@@ -481,12 +491,12 @@ def calc_dresdsolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: 
 	else:
 		raise ValueError("Higher-Order fluxes not implemented yet")
 		
-	dFdQp_l,dFdQp_r = calc_dFluxdsolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, bounds, geom, gas)
+	dFdQp, dFdQp_l, dFdQp_r = calc_dFluxdsolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, bounds, geom, gas)
 
-	dFdQp = (dFdQp_l[:,:,1:]-dFdQp_r[:,:,:-1]) / geom.dx
-	
-	dRdQp = gamma_matrix * dtau_inv + gamma_matrix * dt_inv - dSdQp + dFdQp 
+	dRdQp = gamma_matrix * dtau_inv + gamma_matrix * dt_inv - dSdQp 
 							
+	dRdQp = vecAssemble(dRdQp, dFdQp, dFdQp_l, dFdQp_r)
+
 	return dRdQp
 
 
@@ -500,7 +510,7 @@ def calc_dresdsolPrim_imag(sol: solutionPhys, gas: gasProps, geom: geometry, par
 	neq = gas.numEqs
 	gamma_matrix = calc_dsolConsdsolPrim_imag(sol_curr.solCons, sol_curr.solPrim, gas)
 	dRdQp_an = calc_dresdsolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
-	dRdQp = np.zeros((neq,neq,nsamp))
+	dRdQp = np.zeros((nsamp,neq,neq,nsamp))
 	
 	for i in range(nsamp):
 		for j in range(neq):
@@ -516,10 +526,10 @@ def calc_dresdsolPrim_imag(sol: solutionPhys, gas: gasProps, geom: geometry, par
 			Jac = sol_curr.RHS
 			Jac = Jac.imag/h
 			
-			dRdQp[:,j,i] = gamma_matrix[:,j,i] * dtau_inv + dt_inv * gamma_matrix[:,j,i] - Jac[i,:]
+			dRdQp[:,:,j,i] = gamma_matrix[:,j,i] * dtau_inv + dt_inv * gamma_matrix[:,j,i] - Jac[i,:]
 		
 		
-	diff = calc_RAE(dRdQp_an.ravel(), dRdQp.ravel())
+	diff = calc_RAE(dRdQp_an.toarray().ravel(), dRdQp.ravel())
 	
 	return diff
 
@@ -538,10 +548,18 @@ def calc_RAE(truth,pred):
 
 # reassemble residual Jacobian into a 2D array
 # TODO: massive overhaul for this function, this is the single most expensive operation in the implicit solve
-def vec_assemble(mat):
+
+def vecAssemble(mat1, mat2, mat3, mat4):
 	
-	numEqs = mat.shape[0]
-	numsamps = mat.shape[2]
+	'''
+    Stacking block diagonal forms of mat1 and block tri-diagonal form of mat2
+    mat1 : 3-D Form of Gamma*(1/dt) + Gamma*(1/dtau) - dS/dQp
+    mat2 : 3-D Form of (dF/dQp)_i
+    mat3 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbour)
+    mat4 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbour)
+	'''
+
+	numEqs = mat1.shape[0]
 	
 	if numEqs > 4:
 		
@@ -550,24 +568,26 @@ def vec_assemble(mat):
 		for j in range(numEqs):
 			
 			if j==0:
-				row_curr.append(np.diag(mat[0,j,:], k=0))
-				row_curr.append(np.diag(mat[1,j,:], k=0))
-				row_curr.append(np.diag(mat[2,j,:], k=0))
-				row_curr.append(np.diag(mat[3,j,:], k=0))
+				##              (  Diagonal form of mat1  )   (                   Tri-Diagonal form of mat 2,3,4                               )
+				row_curr.append((np.diag(mat1[0,j,:], k=0)) + (np.diag(mat2[0,j,:],k=0) + np.diag(mat3[0,j,:],k=-1) + np.diag(mat4[0,j,:],k=1)))
+				row_curr.append((np.diag(mat1[1,j,:], k=0)) + (np.diag(mat2[1,j,:],k=0) + np.diag(mat3[1,j,:],k=-1) + np.diag(mat4[1,j,:],k=1)))
+				row_curr.append((np.diag(mat1[2,j,:], k=0)) + (np.diag(mat2[2,j,:],k=0) + np.diag(mat3[2,j,:],k=-1) + np.diag(mat4[2,j,:],k=1)))
+				row_curr.append((np.diag(mat1[3,j,:], k=0)) + (np.diag(mat2[3,j,:],k=0) + np.diag(mat3[3,j,:],k=-1) + np.diag(mat4[3,j,:],k=1)))
 				
 				if numEqs > 4:
 					for k in range(4-numEqs):
-						row_curr.append(np.diag(mat[4+k,j,:], k=0))
+						row_curr.append((np.diag(mat1[4+k,j,:], k=0)) + (np.diag(mat2[4+k,j,:],k=0) + np.diag(mat3[4+k,j,:],k=-1) + np.diag(mat4[4+k,j,:],k=1)))
 						
 			else:
-				row_curr[0] = np.hstack((row_curr[0], np.diag(mat[0,j,:], k=0)))
-				row_curr[1] = np.hstack((row_curr[1], np.diag(mat[1,j,:], k=0)))
-				row_curr[2] = np.hstack((row_curr[2], np.diag(mat[2,j,:], k=0)))
-				row_curr[3] = np.hstack((row_curr[3], np.diag(mat[3,j,:], k=0)))
+				##                                    (  Diagonal form of mat1  )   (                   Tri-Diagonal form of mat 2,3,4                                   )
+				row_curr[0] = np.hstack((row_curr[0], (np.diag(mat1[0,j,:], k=0)) + (np.diag(mat2[0,j,:],k=0) + np.diag(mat3[0,j,:],k=-1) + np.diag(mat4[0,j,:],k=1))))
+				row_curr[1] = np.hstack((row_curr[1], (np.diag(mat1[1,j,:], k=0)) + (np.diag(mat2[1,j,:],k=0) + np.diag(mat3[1,j,:],k=-1) + np.diag(mat4[1,j,:],k=1))))
+				row_curr[2] = np.hstack((row_curr[2], (np.diag(mat1[2,j,:], k=0)) + (np.diag(mat2[2,j,:],k=0) + np.diag(mat3[2,j,:],k=-1) + np.diag(mat4[2,j,:],k=1))))
+				row_curr[3] = np.hstack((row_curr[3], (np.diag(mat1[3,j,:], k=0)) + (np.diag(mat2[3,j,:],k=0) + np.diag(mat3[3,j,:],k=-1) + np.diag(mat4[3,j,:],k=1))))
 				
 				if numEqs > 4:
 					for k in range(4-numEqs):
-						row_curr[4+k] = np.hstack((row_curr[4+k], np.diag(mat[4+k,j,:],k=0)))
+						row_curr[4+k] = np.hstack((row_curr[4+k], (np.diag(mat1[4+k,j,:],k=0)) + (np.diag(mat2[4+k,j,:],k=0) + np.diag(mat3[4+k,j,:],k=-1) + np.diag(mat4[4+k,j,:],k=1))))
 						
 		column_curr = np.vstack((row_curr[0], row_curr[1], row_curr[2], row_curr[3]))
 	
@@ -576,23 +596,28 @@ def vec_assemble(mat):
 				column_curr = np.vstack((column_curr, row_curr[4+k]))
 		
 	else:
-		column_curr = np.vstack((np.hstack((np.diag(mat[0,0,:],k=0), 
-											np.diag(mat[0,1,:],k=0),
-											np.diag(mat[0,2,:],k=0),
-											np.diag(mat[0,3,:],k=0))),
-								 np.hstack((np.diag(mat[1,0,:],k=0),
-								 			np.diag(mat[1,1,:],k=0),
-											np.diag(mat[1,2,:],k=0),
-											np.diag(mat[1,3,:],k=0))),
-								 np.hstack((np.diag(mat[2,0,:],k=0),
-								 			np.diag(mat[2,1,:],k=0),
-											np.diag(mat[2,2,:],k=0),
-											np.diag(mat[2,3,:],k=0))),
-								 np.hstack((np.diag(mat[3,0,:],k=0),
-								 			np.diag(mat[3,1,:],k=0),
-											np.diag(mat[3,2,:],k=0),
-											np.diag(mat[3,3,:],k=0)))))
+
+		##                                  (  Diagonal form of mat1 )   (                   Tri-Diagonal form of mat2,3,4                               )
+		column_curr = np.vstack((np.hstack(((np.diag(mat1[0,0,:],k=0)) + (np.diag(mat2[0,0,:],k=0) + np.diag(mat3[0,0,:],k=-1) + np.diag(mat4[0,0,:],k=1)) , 
+											             (np.diag(mat1[0,1,:],k=0)) + (np.diag(mat2[0,1,:],k=0) + np.diag(mat3[0,1,:],k=-1) + np.diag(mat4[0,1,:],k=1)) ,
+											             (np.diag(mat1[0,2,:],k=0)) + (np.diag(mat2[0,2,:],k=0) + np.diag(mat3[0,2,:],k=-1) + np.diag(mat4[0,2,:],k=1)) ,
+											             (np.diag(mat1[0,3,:],k=0)) + (np.diag(mat2[0,3,:],k=0) + np.diag(mat3[0,3,:],k=-1) + np.diag(mat4[0,3,:],k=1)))) ,
+								         np.hstack(((np.diag(mat1[1,0,:],k=0)) + (np.diag(mat2[1,0,:],k=0) + np.diag(mat3[1,0,:],k=-1) + np.diag(mat4[1,0,:],k=1)) ,
+								 			             (np.diag(mat1[1,1,:],k=0)) + (np.diag(mat2[1,1,:],k=0) + np.diag(mat3[1,1,:],k=-1) + np.diag(mat4[1,1,:],k=1)) ,
+											             (np.diag(mat1[1,2,:],k=0)) + (np.diag(mat2[1,2,:],k=0) + np.diag(mat3[1,2,:],k=-1) + np.diag(mat4[1,2,:],k=1)) ,
+											             (np.diag(mat1[1,3,:],k=0)) + (np.diag(mat2[1,3,:],k=0) + np.diag(mat3[1,3,:],k=-1) + np.diag(mat4[1,3,:],k=1)))) ,
+								         np.hstack(((np.diag(mat1[2,0,:],k=0)) + (np.diag(mat2[2,0,:],k=0) + np.diag(mat3[2,0,:],k=-1) + np.diag(mat4[2,0,:],k=1)) ,
+								 			             (np.diag(mat1[2,1,:],k=0)) + (np.diag(mat2[2,1,:],k=0) + np.diag(mat3[2,1,:],k=-1) + np.diag(mat4[2,1,:],k=1)) ,
+											             (np.diag(mat1[2,2,:],k=0)) + (np.diag(mat2[2,2,:],k=0) + np.diag(mat3[2,2,:],k=-1) + np.diag(mat4[2,2,:],k=1)) ,
+											             (np.diag(mat1[2,3,:],k=0)) + (np.diag(mat2[2,3,:],k=0) + np.diag(mat3[2,3,:],k=-1) + np.diag(mat4[2,3,:],k=1)))) ,
+								         np.hstack(((np.diag(mat1[3,0,:],k=0)) + (np.diag(mat2[3,0,:],k=0) + np.diag(mat3[3,0,:],k=-1) + np.diag(mat4[3,0,:],k=1)) ,
+								 			             (np.diag(mat1[3,1,:],k=0)) + (np.diag(mat2[3,1,:],k=0) + np.diag(mat3[3,1,:],k=-1) + np.diag(mat4[3,1,:],k=1)) ,
+										              	(np.diag(mat1[3,2,:],k=0)) + (np.diag(mat2[3,2,:],k=0) + np.diag(mat3[3,2,:],k=-1) + np.diag(mat4[3,2,:],k=1)) ,
+										             	(np.diag(mat1[3,3,:],k=0)) + (np.diag(mat2[3,3,:],k=0) + np.diag(mat3[3,3,:],k=-1) + np.diag(mat4[3,3,:],k=1))))))
 	
 	column_curr = csc_matrix(column_curr)
 
 	return column_curr
+
+
+
