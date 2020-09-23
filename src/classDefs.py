@@ -111,7 +111,7 @@ class gasProps:
 		gasDict = readInputFile(gasFile)
 
 		# gas composition
-		self.numSpecies_full 	= int(gasDict["numSpecies"])				# total number of species in case
+		self.numSpeciesFull 	= int(gasDict["numSpecies"])				# total number of species in case
 		self.molWeights 		= gasDict["molWeights"].astype(realType)	# molecular weights, g/mol
 		self.enthRef 			= gasDict["enthRef"].astype(realType) 		# reference enthalpy, J/kg
 		self.tempRef 			= gasDict["tempRef"]						# reference temperature, K
@@ -129,7 +129,7 @@ class gasProps:
 
 		# misc calculations
 		self.RGas 				= RUniv / self.molWeights 			# specific gas constant, J/(K*kg)
-		self.numSpecies 		= self.numSpecies_full - 1			# last species is not directly solved for
+		self.numSpecies 		= self.numSpeciesFull - 1			# last species is not directly solved for
 		self.numEqs 			= self.numSpecies + 3				# pressure, velocity, temperature, and species transport
 		self.molWeightNu 		= self.molWeights * self.nu 
 		self.mwDiffs 			= (1.0 / self.molWeights[:-1]) - (1.0 / self.molWeights[-1]) 
