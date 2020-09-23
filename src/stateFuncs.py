@@ -269,7 +269,7 @@ def calcHzf(solPrim, gas: gasProps):
 
 def hif(solPrim, gas: gasProps):
 
-	hif = np.zeros(gas.numSpecies_full, dtype=realType)
+	hif = np.zeros(gas.numSpeciesFull, dtype=realType)
 
 	# perfect gas
 	hif = gas.enthRef + gas.Cp * (solPrim[2] - constants.enthRefTemp)
@@ -279,7 +279,7 @@ def hif(solPrim, gas: gasProps):
 # derivative of enthalpy with respect to pressure
 def calcHpif(solPrim, gas: gasProps):
 
-	hpif = np.zeros(gas.numSpecies_full, dtype=realType)
+	hpif = np.zeros(gas.numSpeciesFull, dtype=realType)
 
 	# perfect gas
 	hpif = 0.0
@@ -289,7 +289,7 @@ def calcHpif(solPrim, gas: gasProps):
 # derivative of enthalpy with respect to temperature
 def calcHtif(solPrim, gas: gasProps):
 
-	htif = np.zeros(gas.numSpecies_full, dtype=realType)
+	htif = np.zeros(gas.numSpeciesFull, dtype=realType)
 
 	# perfect gas
 	htif = gas.Cp
@@ -299,7 +299,7 @@ def calcHtif(solPrim, gas: gasProps):
 # threshold species mass fractions between 0 and 1
 def calcYif(solPrim, gas: gasProps):
 
-	yif = np.zeros(gas.numSpecies_full, dtype=realType)
+	yif = np.zeros(gas.numSpeciesFull, dtype=realType)
 	
 	yif[:-1] = np.amin(np.amax(0.0, solPrim[3:]), 1.0)
 	yif[-1] = 1.0 - np.sum(yif[:-1])

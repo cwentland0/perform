@@ -3,7 +3,7 @@ from romClasses import solutionROM
 from classDefs import parameters, geometry, gasProps
 from spaceSchemes import calcRHS
 from boundaryFuncs import calcBoundaries
-from Jacobians import calc_dresdsolPrim, calc_dresdsolPrim_imag, calc_dsolConsdsolPrim_imag, vec_assemble
+from Jacobians import calcDResDSolPrim, calcDResDSolPrimImag
 import constants
 from scipy.sparse.linalg import spsolve
 import numpy as np
@@ -57,17 +57,13 @@ def calcImplicitRes(sol: solutionPhys, sol_mat, bounds: boundaries, params: para
 	return res
 
 # explicit time integrator, one subiteration
-def advanceexplicit(sol: solutionPhys, rom: solutionROM, 
+def advanceExplicit(sol: solutionPhys, rom: solutionROM, 
 					bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, 
 					subiter, solOuter):
 	
 	
 	#compute RHS function
 	calcRHS(sol, bounds, params, geom, gas)
-	
-	# if solPrim, calculate d(solPrim)/dt
-	# if params.solforPrim:
-	# 	sol.RHS = calc_dsolPrim(sol, gas) 
 		
 	# compute change in solution/code, advance solution/code
 	if (params.calcROM):
@@ -76,10 +72,6 @@ def advanceexplicit(sol: solutionPhys, rom: solutionROM,
 		rom.advanceSubiter(sol, params, subiter, solOuter)
 	else:
 		dSol = params.dt * params.subIterCoeffs[subiter] * sol.RHS
-		# if params.solforPrim:
-		# 	sol.solPrim = solOuter + dSol
-		# 	sol.updateState(gas, fromCons = False)  
-		# else:
 		sol.solCons = solOuter + dSol
 
 	sol.updateState(gas)
@@ -87,9 +79,8 @@ def advanceexplicit(sol: solutionPhys, rom: solutionROM,
 	return sol
    
 # implicit pseudo-time integrator, one subiteration
-def advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=False):
+def advanceDual(sol, sol_mat, bounds, params, geom, gas, colstrt=False):
 	
-
 	# compute residual
 	res = calcImplicitRes(sol, sol_mat, bounds, params, geom, gas, colstrt)
 	
@@ -99,21 +90,21 @@ def advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=False):
 	dtau_inv = 1./params.dtau
 
 	# compute Jacobian or residual
-	resJacob = calc_dresdsolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
+	resJacob = calcDResDSolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
 	
 	# Comparing with numerical jacobians
-	# diff = calc_dresdsolPrim_imag(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
+	# diff = calcDResDSolPrimImag(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
 	# print(diff)
 
 	# solve linear system 
-	resJacob_sparse = vec_assemble(resJacob)
-	dSol = spsolve(resJacob_sparse, (res.flatten('F')))
+	dSol = spsolve(resJacob, res.flatten('C'))
 
 	# update state
-	sol.solPrim += dSol.reshape((geom.numCells, gas.numEqs), order='F')
+	sol.solPrim += dSol.reshape((geom.numCells, gas.numEqs), order='C')
 	sol.updateState(gas, fromCons = False)
-	
-	res = dSol.reshape((geom.numCells, gas.numEqs), order = 'F')
+
+	# compute linear solve residual	
+	res = resJacob @ dSol - res.flatten('C')
 	
 	return sol_mat, res
 
