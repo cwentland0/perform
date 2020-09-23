@@ -1,10 +1,11 @@
 import numpy as np
 from solution import solutionPhys, boundaries
 from classDefs import parameters, geometry, gasProps
-from scipy.sparse import csc_matrix
+from scipy.sparse import csc_matrix, bsr_matrix, block_diag
 from stateFuncs import calcCpMixture, calcGasConstantMixture, calcStateFromPrim, calcGammaMixture
 import constants
 from spaceSchemes import calcInvFlux, calcViscFlux, calcSource, reconstruct_2nd, calcRoeDissipation, calcRHS
+from matplotlib.pyplot import spy
 import copy
 import pdb
 
@@ -243,7 +244,7 @@ def calc_dsolConsdsolPrim_imag(solCons, solPrim, gas: gasProps):
 			#Unperturbing
 			solPrim_curr[i,j] = solPrim_curr[i,j] - complex(0, h)
 	
-	#diff = calc_RAE(gamma_matrix.ravel(), gamma_matrix_an.ravel())
+	#diff = calcRAE(gamma_matrix.ravel(), gamma_matrix_an.ravel())
 	
 	return gamma_matrix
 	
@@ -335,7 +336,7 @@ def calc_dSourcedsolPrim_imag(sol, gas: gasProps, geom: geometry, params: parame
 			#Unperturbing
 			solprim_curr[i,j] = solprim_curr[i,j] - complex(0, h)
 			
-	diff = calc_RAE(dSdQp_an.ravel(), dSdQp.ravel())
+	diff = calcRAE(dSdQp_an.ravel(), dSdQp.ravel())
 	
 	return diff
 		
@@ -423,6 +424,8 @@ def calc_Ap(solPrim, rho, cp, h0, gas, bounds):
 
 
 # compute the gradient of the inviscid and viscous fluxes with respect to the PRIMITIVE variables
+# TODO: get rid of the left and right dichotomy, just use slices of solCons and solPrim
+# 	Redundant Ap calculations are EXPENSIVE
 def calc_dFluxdsolPrim(solConsL, solPrimL, solConsR, solPrimR, 
 						sol: solutionPhys, bounds: boundaries, geom: geometry, gas: gasProps):
 		
@@ -473,8 +476,8 @@ def calc_dFluxdsolPrim(solConsL, solPrimL, solConsR, solPrimR,
 	return dFluxdQp, dFluxdQp_l, dFluxdQp_r
 
 
-# compute Jacobian of the RHS function (i.e. fluxes, sources, body forces)    
-def calc_dresdsolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries, 
+# compute Jacobian of the RHS function (i.e. fluxes, sources, body forces)  
+def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries, 
 						dt_inv, dtau_inv):
 		
 	dSdQp = calc_dSourcedsolPrim(sol, gas, geom, params.dt)
@@ -495,13 +498,13 @@ def calc_dresdsolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: 
 
 	dRdQp = gamma_matrix * dtau_inv + gamma_matrix * dt_inv - dSdQp 
 							
-	dRdQp = vecAssemble(dRdQp, dFdQp, dFdQp_l, dFdQp_r)
+	dRdQp = resJacobAssemble(dRdQp, dFdQp, dFdQp_l, dFdQp_r)
 
 	return dRdQp
 
 
 # compute numerical RHS Jacobian, using complex step
-def calc_dresdsolPrim_imag(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries, dt_inv, dtau_inv):
+def calcDResDSolPrimImag(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries, dt_inv, dtau_inv):
 	
 	sol_curr = copy.deepcopy(sol)
 	h = 1e-25
@@ -510,7 +513,7 @@ def calc_dresdsolPrim_imag(sol: solutionPhys, gas: gasProps, geom: geometry, par
 	neq = gas.numEqs
 	gamma_matrix = calc_dsolConsdsolPrim_imag(sol_curr.solCons, sol_curr.solPrim, gas)
 	dRdQp_an = calc_dresdsolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
-	dRdQp = np.zeros((nsamp,neq,neq,nsamp))
+	dRdQp = np.zeros((nsamp, neq, neq, nsamp))
 	
 	for i in range(nsamp):
 		for j in range(neq):
@@ -524,12 +527,12 @@ def calc_dresdsolPrim_imag(sol: solutionPhys, gas: gasProps, geom: geometry, par
 			calcRHS(sol_curr, bounds, params, geom, gas)
 			
 			Jac = sol_curr.RHS
-			Jac = Jac.imag/h
+			Jac = Jac.imag / h
 			
 			dRdQp[:,:,j,i] = gamma_matrix[:,j,i] * dtau_inv + dt_inv * gamma_matrix[:,j,i] - Jac[i,:]
 		
 		
-	diff = calc_RAE(dRdQp_an.toarray().ravel(), dRdQp.ravel())
+	diff = calcRAE(dRdQp_an.toarray().ravel(), dRdQp.ravel())
 	
 	return diff
 
@@ -540,84 +543,50 @@ def calc_dresdsolPrim_imag(sol: solutionPhys, gas: gasProps, geom: geometry, par
 
 # compute relative absolute error (RAE)
 # TODO: is this actually the relative absolute error?
-def calc_RAE(truth,pred):
+def calcRAE(truth,pred):
 	
 	RAE = np.mean(np.abs(truth - pred)) / np.max(np.abs(truth))
 	
 	return RAE
 
-# reassemble residual Jacobian into a 2D array
-# TODO: massive overhaul for this function, this is the single most expensive operation in the implicit solve
-
-def vecAssemble(mat1, mat2, mat3, mat4):
+# reassemble residual Jacobian into a 2D array for linear solve
+def resJacobAssemble(mat1, mat2, mat3, mat4):
 	
 	'''
-    Stacking block diagonal forms of mat1 and block tri-diagonal form of mat2
-    mat1 : 3-D Form of Gamma*(1/dt) + Gamma*(1/dtau) - dS/dQp
-    mat2 : 3-D Form of (dF/dQp)_i
-    mat3 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbour)
-    mat4 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbour)
+	Stacking block diagonal forms of mat1 and block tri-diagonal form of mat2
+	mat1 : 3-D Form of Gamma*(1/dt) + Gamma*(1/dtau) - dS/dQp
+	mat2 : 3-D Form of (dF/dQp)_i
+	mat3 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbour)
+	mat4 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbour)
 	'''
 
-	numEqs = mat1.shape[0]
-	
-	if numEqs > 4:
-		
-		row_curr = []
-		
-		for j in range(numEqs):
-			
-			if j==0:
-				##              (  Diagonal form of mat1  )   (                   Tri-Diagonal form of mat 2,3,4                               )
-				row_curr.append((np.diag(mat1[0,j,:], k=0)) + (np.diag(mat2[0,j,:],k=0) + np.diag(mat3[0,j,:],k=-1) + np.diag(mat4[0,j,:],k=1)))
-				row_curr.append((np.diag(mat1[1,j,:], k=0)) + (np.diag(mat2[1,j,:],k=0) + np.diag(mat3[1,j,:],k=-1) + np.diag(mat4[1,j,:],k=1)))
-				row_curr.append((np.diag(mat1[2,j,:], k=0)) + (np.diag(mat2[2,j,:],k=0) + np.diag(mat3[2,j,:],k=-1) + np.diag(mat4[2,j,:],k=1)))
-				row_curr.append((np.diag(mat1[3,j,:], k=0)) + (np.diag(mat2[3,j,:],k=0) + np.diag(mat3[3,j,:],k=-1) + np.diag(mat4[3,j,:],k=1)))
-				
-				if numEqs > 4:
-					for k in range(4-numEqs):
-						row_curr.append((np.diag(mat1[4+k,j,:], k=0)) + (np.diag(mat2[4+k,j,:],k=0) + np.diag(mat3[4+k,j,:],k=-1) + np.diag(mat4[4+k,j,:],k=1)))
-						
-			else:
-				##                                    (  Diagonal form of mat1  )   (                   Tri-Diagonal form of mat 2,3,4                                   )
-				row_curr[0] = np.hstack((row_curr[0], (np.diag(mat1[0,j,:], k=0)) + (np.diag(mat2[0,j,:],k=0) + np.diag(mat3[0,j,:],k=-1) + np.diag(mat4[0,j,:],k=1))))
-				row_curr[1] = np.hstack((row_curr[1], (np.diag(mat1[1,j,:], k=0)) + (np.diag(mat2[1,j,:],k=0) + np.diag(mat3[1,j,:],k=-1) + np.diag(mat4[1,j,:],k=1))))
-				row_curr[2] = np.hstack((row_curr[2], (np.diag(mat1[2,j,:], k=0)) + (np.diag(mat2[2,j,:],k=0) + np.diag(mat3[2,j,:],k=-1) + np.diag(mat4[2,j,:],k=1))))
-				row_curr[3] = np.hstack((row_curr[3], (np.diag(mat1[3,j,:], k=0)) + (np.diag(mat2[3,j,:],k=0) + np.diag(mat3[3,j,:],k=-1) + np.diag(mat4[3,j,:],k=1))))
-				
-				if numEqs > 4:
-					for k in range(4-numEqs):
-						row_curr[4+k] = np.hstack((row_curr[4+k], (np.diag(mat1[4+k,j,:],k=0)) + (np.diag(mat2[4+k,j,:],k=0) + np.diag(mat3[4+k,j,:],k=-1) + np.diag(mat4[4+k,j,:],k=1))))
-						
-		column_curr = np.vstack((row_curr[0], row_curr[1], row_curr[2], row_curr[3]))
-	
-		if numEqs > 4:
-			for k in range(4-numEqs):
-				column_curr = np.vstack((column_curr, row_curr[4+k]))
-		
-	else:
+	numEqs, _, numCells = mat1.shape
+	 
+	# put arrays in proper format for use with bsr_matrix
+	# zeroPad is because I don't know how to indicate that a row should have no blocks added when using bsr_matrix
+	zeroPad = np.zeros((1,numEqs,numEqs), dtype = constants.realType)
+	center = np.transpose(mat1 + mat2, (2,0,1))
+	lower = np.concatenate((zeroPad, np.transpose(mat3, (2,0,1))), axis=0) 
+	upper = np.concatenate((np.transpose(mat4, (2,0,1)), zeroPad), axis=0)
 
-		##                                  (  Diagonal form of mat1 )   (                   Tri-Diagonal form of mat2,3,4                               )
-		column_curr = np.vstack((np.hstack(((np.diag(mat1[0,0,:],k=0)) + (np.diag(mat2[0,0,:],k=0) + np.diag(mat3[0,0,:],k=-1) + np.diag(mat4[0,0,:],k=1)) , 
-											             (np.diag(mat1[0,1,:],k=0)) + (np.diag(mat2[0,1,:],k=0) + np.diag(mat3[0,1,:],k=-1) + np.diag(mat4[0,1,:],k=1)) ,
-											             (np.diag(mat1[0,2,:],k=0)) + (np.diag(mat2[0,2,:],k=0) + np.diag(mat3[0,2,:],k=-1) + np.diag(mat4[0,2,:],k=1)) ,
-											             (np.diag(mat1[0,3,:],k=0)) + (np.diag(mat2[0,3,:],k=0) + np.diag(mat3[0,3,:],k=-1) + np.diag(mat4[0,3,:],k=1)))) ,
-								         np.hstack(((np.diag(mat1[1,0,:],k=0)) + (np.diag(mat2[1,0,:],k=0) + np.diag(mat3[1,0,:],k=-1) + np.diag(mat4[1,0,:],k=1)) ,
-								 			             (np.diag(mat1[1,1,:],k=0)) + (np.diag(mat2[1,1,:],k=0) + np.diag(mat3[1,1,:],k=-1) + np.diag(mat4[1,1,:],k=1)) ,
-											             (np.diag(mat1[1,2,:],k=0)) + (np.diag(mat2[1,2,:],k=0) + np.diag(mat3[1,2,:],k=-1) + np.diag(mat4[1,2,:],k=1)) ,
-											             (np.diag(mat1[1,3,:],k=0)) + (np.diag(mat2[1,3,:],k=0) + np.diag(mat3[1,3,:],k=-1) + np.diag(mat4[1,3,:],k=1)))) ,
-								         np.hstack(((np.diag(mat1[2,0,:],k=0)) + (np.diag(mat2[2,0,:],k=0) + np.diag(mat3[2,0,:],k=-1) + np.diag(mat4[2,0,:],k=1)) ,
-								 			             (np.diag(mat1[2,1,:],k=0)) + (np.diag(mat2[2,1,:],k=0) + np.diag(mat3[2,1,:],k=-1) + np.diag(mat4[2,1,:],k=1)) ,
-											             (np.diag(mat1[2,2,:],k=0)) + (np.diag(mat2[2,2,:],k=0) + np.diag(mat3[2,2,:],k=-1) + np.diag(mat4[2,2,:],k=1)) ,
-											             (np.diag(mat1[2,3,:],k=0)) + (np.diag(mat2[2,3,:],k=0) + np.diag(mat3[2,3,:],k=-1) + np.diag(mat4[2,3,:],k=1)))) ,
-								         np.hstack(((np.diag(mat1[3,0,:],k=0)) + (np.diag(mat2[3,0,:],k=0) + np.diag(mat3[3,0,:],k=-1) + np.diag(mat4[3,0,:],k=1)) ,
-								 			             (np.diag(mat1[3,1,:],k=0)) + (np.diag(mat2[3,1,:],k=0) + np.diag(mat3[3,1,:],k=-1) + np.diag(mat4[3,1,:],k=1)) ,
-										              	(np.diag(mat1[3,2,:],k=0)) + (np.diag(mat2[3,2,:],k=0) + np.diag(mat3[3,2,:],k=-1) + np.diag(mat4[3,2,:],k=1)) ,
-										             	(np.diag(mat1[3,3,:],k=0)) + (np.diag(mat2[3,3,:],k=0) + np.diag(mat3[3,3,:],k=-1) + np.diag(mat4[3,3,:],k=1))))))
-	
-	column_curr = csc_matrix(column_curr)
+	# BSR format indices and indices pointers
+	indptr = np.arange(numCells+1)
+	indices_center = np.arange(numCells)
+	indices_lower = np.arange(numCells)
+	indices_lower[1:] -= 1
+	indices_upper = np.arange(1,numCells+1)
+	indices_upper[-1] -= 1
 
-	return column_curr
+	# format center, lower, and upper block diagonals
+	jacDim = numEqs * numCells
+	center_sparse = bsr_matrix((center, indices_center, indptr), shape=(jacDim, jacDim))
+	lower_sparse  = bsr_matrix((lower, indices_lower, indptr), shape=(jacDim, jacDim))
+	upper_sparse  = bsr_matrix((upper, indices_upper, indptr), shape=(jacDim, jacDim))
+
+	# assemble full matrix
+	resJacob  = center_sparse + lower_sparse + upper_sparse 
+
+	return resJacob
 
 
 

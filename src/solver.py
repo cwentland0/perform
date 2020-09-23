@@ -7,7 +7,7 @@ from solution import solutionPhys, boundaries, genInitialCondition
 from spaceSchemes import calcRHS
 from stateFuncs import calcStateFromPrim
 from romClasses import solutionROM
-from timeSchemes import advanceexplicit, advancedual, initSolMat, updateSolMat
+from timeSchemes import advanceExplicit, advanceDual, initSolMat, updateSolMat
 from inputFuncs import readRestartFile
 import outputFuncs
 import constants
@@ -133,16 +133,16 @@ def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, par
 	for subiter in range(params.numSubIters):
               
 		if (params.timeType == "explicit"):  
-   			sol = advanceexplicit(sol, rom, bounds, params, geom, gas, subiter, solOuter)
+   			sol = advanceExplicit(sol, rom, bounds, params, geom, gas, subiter, solOuter)
                        
 		else:  
 
 			# TODO: definitely a better way to work the cold start, gotta make operable with timeOrder > 2
 			if (params.solTime <= params.timeOrder*params.dt): 
-				sol_mat, res = advancedual(sol, sol_mat, bounds, params, geom, gas, colstrt=True) # cold-start
+				sol_mat, res = advanceDual(sol, sol_mat, bounds, params, geom, gas, colstrt=True) # cold-start
 				sol_mat[0] = sol.solCons.copy()           
 			else:
-				sol_mat, res = advancedual(sol, sol_mat, bounds, params, geom, gas)
+				sol_mat, res = advanceDual(sol, sol_mat, bounds, params, geom, gas)
 				sol_mat[0] = sol.solCons.copy()     
        			 
 			print(np.linalg.norm(res, ord=2)) # printing sub-iterations convergence
