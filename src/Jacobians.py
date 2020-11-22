@@ -376,7 +376,7 @@ def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 		solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
 		solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)
 	elif (params.spaceOrder == 2):
-		[solPrimL, solConsL, solPrimR, solConsR, phi] = reconstruct_2nd(sol, bounds, geom, gas)
+		[solPrimL, solConsL, solPrimR, solConsR, faceVals] = reconstruct_2nd(sol, bounds, geom, gas)
 	else:
 		raise ValueError("Higher-Order fluxes not implemented yet")
 		

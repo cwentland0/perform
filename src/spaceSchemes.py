@@ -29,9 +29,11 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 			solConsL = sol.solCons[:-1, :]
 			solPrimR = sol.solPrim[1:, :]
 			solConsR = sol.solCons[1:, :]
+            
+		faceVals = None
+
 	elif (params.spaceOrder == 2):
-		raise ValueError("2nd Order non-functional right now.")
-		# [solPrimL,solConsL,solPrimR,solConsR,phi] = reconstruct_2nd(sol,bounds,geom,gas)  
+		[solPrimL, solConsL, solPrimR, solConsR, faceVals] = reconstruct_2nd(sol,bounds,geom,gas)  
 	else:
 		raise ValueError("Higher-order fluxes not implemented yet")
 
@@ -44,7 +46,7 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 	# compute fluxes
 	flux = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, gas)
 	if (params.viscScheme == 1):
-		flux -= calcViscFlux(sol, bounds, params, gas, geom)
+		flux -= calcViscFlux(sol, bounds, params, gas, geom, faceVals)
 
 	# compute source term
 	calcSource(sol, params, gas)
@@ -211,7 +213,7 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 	return dissMat
 
 # compute viscous fluxes
-def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry):
+def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry, faceVals):
 
 	# for weak BCs, viscous effects are ignored
 	if params.weakBCs:
@@ -220,9 +222,17 @@ def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas:
 		cp = sol.CpMix
 
 	else:
-		solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
-		rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
-		cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis = 0)
+		if (params.spaceOrder == 1):
+			solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
+			rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
+			cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis = 0)
+
+		elif (params.spaceOrder == 2):
+			solPrim = faceVals[0]
+			solConsFace = faceVals[1]
+			rho = solConsFace[:,0]
+			cp = faceVals[2]
+
 	
 	# solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
 	# rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
@@ -235,9 +245,15 @@ def calcViscFlux(sol: solutionPhys, bounds: boundaries, params: parameters, gas:
 	solPrimGrad = np.zeros(solPrim.shape, dtype = constants.realType)
 	if (solPrim.dtype == constants.complexType):
 		solPrimGrad = np.zeros(solPrim.shape, dtype = constants.complexType)        
-	solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (solPrim[2:, :] - solPrim[:-2, :]) 
-	solPrimGrad[0,:] = (solPrim[1,:] - solPrim[0,:]) / geom.dx
-	solPrimGrad[-1,:] = (solPrim[-1,:] - solPrim[-2,:]) / geom.dx 
+
+	if (params.spaceOrder == 1):
+		solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (solPrim[2:, :] - solPrim[:-2, :])        
+		solPrimGrad[0,:] = (solPrim[1,:] - solPrim[0,:]) / geom.dx       
+		solPrimGrad[-1,:] = (solPrim[-1,:] - solPrim[-2,:]) / geom.dx         
+
+	elif (params.spaceOrder == 2):
+		solPrimGrad = faceVals[3]      
+
 
 	Fv = np.zeros(solPrim.shape, dtype = constants.realType)
 	if (sol.solPrim.dtype == constants.complexType):
@@ -290,65 +306,69 @@ def calcSource(sol: solutionPhys, params: parameters, gas: gasProps):
 
 def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: gasProps):
     
+        
+    #Gradients at all cell centres (including ghost) 
+    Q = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim),axis=0)
+    gradQ = np.zeros(Q.shape)
+    gradQ[1:-1, :] =    (0.5 / geom.dx) * (Q[2:, :] - Q[:-2, :]) 
+    gradQ[0, :]    =    (Q[1,:] - Q[0,:]) / geom.dx
+    gradQ[-1,:]    =    (Q[-1,:] - Q[-2,:]) / geom.dx
+    delQ           =    gradQ * (geom.dx / 2) #(grad * dx / 2) 
     
-    solPrimL = np.zeros((geom.numCells+1,4))
-    solPrimR = np.zeros((geom.numCells+1,4))
-    phi_col = np.zeros((geom.numCells+2,4))
+    #Max and min wrt neightbours at each cell
+    Qln = np.concatenate(([Q[0, :]], Q[:-1, :]))
+    Qm = Q
+    Qrn = np.concatenate((Q[1:, :], [Q[-1, :]]))
     
-    for i in range(4):
-        
-        #gradients at all cell centres (including ghost) (grad*dx)
-        Q = np.concatenate((bounds.inlet.sol.solPrim[:,i], sol.solPrim[:,i], bounds.outlet.sol.solPrim[:,i]),axis=0)
-        delQ = getA(geom.numCells+2) @ Q
-        delQ = delQ/2 #(grad*dx/2)
-        
-        #max and min wrt neighbours at each cell 
-        Ql = np.concatenate(([Q[0]],Q[:geom.numCells+1]))
-        Qm = Q
-        Qr = np.concatenate((Q[1:],[Q[geom.numCells+1]]))
-        
-        Qmax = np.amax(np.array([Ql,Qm,Qr]),axis=0)
-        Qmin = np.amin(np.array([Ql,Qm,Qr]),axis=0)
+    Qmax = np.amax(np.stack((Qln, Qm, Qrn),axis=1), axis=(0,1))
+    Qmin = np.amin(np.stack((Qln, Qm, Qrn),axis=1), axis=(0,1))
     
-        #unconstrained reconstruction at each face
-        Ql = Qm - delQ
-        Qr = Qm + delQ
-        
-        #gradient limiting
-        phil = np.ones(geom.numCells+2)
-        phir = np.ones(geom.numCells+2)
-        
-        phil[(Ql-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) > 0],((Qmax-Qm)[(Ql-Qm) > 0]/(Ql-Qm)[(Ql-Qm) > 0])]),axis=0)
-        phir[(Qr-Qm) > 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) > 0],((Qmax-Qm)[(Qr-Qm) > 0]/(Qr-Qm)[(Qr-Qm) > 0])]),axis=0)
+    #Unconstrained reconstruction at each face
+    Ql = Qm - delQ
+    Qr = Qm + delQ
     
-        phil[(Ql-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Ql-Qm) < 0],((Qmin-Qm)[(Ql-Qm) < 0]/(Ql-Qm)[(Ql-Qm) < 0])]),axis=0)
-        phir[(Qr-Qm) < 0] = np.amin(np.array([np.ones(geom.numCells+2)[(Qr-Qm) < 0],((Qmin-Qm)[(Qr-Qm) < 0]/(Qr-Qm)[(Qr-Qm) < 0])]),axis=0)
+    #Gradient Limiting
+    phil = np.ones(Q.shape)
+    phir = np.ones(Q.shape)
+    
+    cond1l = (Ql - Qm > 0)
+    cond1r = (Qr - Qm > 0)
+    cond2l = (Ql - Qm < 0)
+    cond2r = (Qr - Qm < 0)
+    
+    onesProf = np.ones(Q.shape)
+    
+    Qmax = Qmax * np.ones(Q.shape)
+    Qmin = Qmin * np.ones(Q.shape)
+    
+    phil[cond1l] = np.minimum(onesProf[cond1l], (Qmax[cond1l] - Qm[cond1l]) / (Ql[cond1l] - Qm[cond1l]))
+    phir[cond1r] = np.minimum(onesProf[cond1r], (Qmax[cond1r] - Qm[cond1r]) / (Qr[cond1r] - Qm[cond1r]))
+    
+    phil[cond2l] = np.minimum(onesProf[cond2l], (Qmin[cond2l] - Qm[cond2l]) / (Ql[cond2l] - Qm[cond2l]))
+    phir[cond2r] = np.minimum(onesProf[cond2r], (Qmin[cond2r] - Qm[cond2r]) / (Qr[cond2r] - Qm[cond2r]))
 
-        phi = np.amin(np.array([phil,phir]),axis=0)
-        
-        Ql = Qm - phi*delQ
-        Qr = Qr + phi*delQ
-        
-        solPrimL[:,i] = Ql[:geom.numCells+1]
-        solPrimR[:,i] = Qr[1:]
-        
-        phi_col[:,i] = phi
-        
-    [solConsL, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimL,gas)
-    [solConsR, RMix, enthRefMix, CpMix] = calcStateFromPrim(solPrimR,gas)
+    phi = np.minimum(phil, phir)
     
-    return solPrimL,solConsL,solPrimR,solConsR,phi_col
-        
-def getA(nx):
+    Ql = Qm - phi * delQ
+    Qr = Qm + phi * delQ
     
-    A = (np.diag(np.ones(nx-1),k=1) + np.diag(-1*np.ones(nx-1),k=-1))/2 #second-order stencil for interior
-    #first-order stencil for ghost cells
-    A[0,1] = 1 #forward
-    A[0,0] = -1
-    A[nx-1,nx-1] = 1 #backward
-    A[nx-1,nx-2] = -1
+    solPrimL = Qr[:-1, :]
+    solPrimR = Ql[1:, :]
+    [solConsL, RMix, enthRefMix, CpMixL] = calcStateFromPrim(solPrimL, gas)
+    [solConsR, RMix, enthRefMix, CpMixR] = calcStateFromPrim(solPrimR, gas)
     
-    return A
+    #Storing the face values
+    solPrimFace = np.concatenate((solPrimL, solPrimR[[-1],:]), axis=0)
+    solConsFace = np.concatenate((solConsL, solConsR[[-1],:]), axis=0)
+    CpMixFace   = np.concatenate((CpMixL, CpMixR[[-1]]), axis=0)
+    
+    faceVals = []
+    faceVals.append(solPrimFace)
+    faceVals.append(solConsFace)
+    faceVals.append(CpMixFace)
+    faceVals.append(gradQ)
+    
+    return solPrimL, solConsL, solPrimR, solConsR, faceVals
     
 
     
