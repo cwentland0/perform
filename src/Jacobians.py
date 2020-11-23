@@ -350,7 +350,7 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR,
 	M_ROE[:,:,:] *= (0.5 / geom.dx)
 
     #Jacobian wrt current cell
-	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,1:])
+	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,-1:])
     
     #Jacobian wrt left neighbour
 	dFluxdQp_l = (-Ap_l[:,:,1:-1] - M_ROE[:,:,:-2])

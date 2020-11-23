@@ -11,6 +11,9 @@ q0 			= 6.93e6
 
 tinyNum 	= 1.0e-25 	# small number for thresholding non-positive numbers to a small positive numbers
 
+# "steady" state residual normalization defaults
+steadyNormPrimDefault = [1.0e5, 10.0, 300.0, 1.0]
+
 # time integration coefficients
 rkCoeffs = np.array([0.25, 1.0/3.0, 0.5, 1.0], dtype = realType)
 

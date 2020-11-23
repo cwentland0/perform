@@ -26,6 +26,30 @@ class solutionPhys:
 		self.enthRefMix = np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture reference enthalpy
 		self.CpMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture specific heat at constant pressure
 
+		# residual, time history, residual normalization for implicit methods
+		if (params.timeType == "implicit"):
+			self.res 			= np.zeros((numCells, gas.numEqs), dtype = constants.realType)
+			self.solHistCons 	= [np.zeros((numCells, gas.numEqs), dtype = constants.realType)]*(params.timeOrder+1)
+			self.solHistPrim 	= [np.zeros((numCells, gas.numEqs), dtype = constants.realType)]*(params.timeOrder+1)
+
+			# normalizations for "steady" solution residual norms
+			if (params.runSteady):
+				self.resOutL2 = 0.0
+				self.resOutL1 = 0.0
+
+				# if nothing was provided
+				if ((len(params.steadyNormPrim) == 1) and (params.steadyNormPrim[0] == None)):
+					params.steadyNormPrim = [None]*gas.numEqs
+				# check user input
+				else:
+					assert(len(params.steadyNormPrim) == gas.numEqs)
+
+				# replace any None's with defaults
+				for varIdx in range(gas.numEqs):
+					if (params.steadyNormPrim[varIdx] == None):
+						# 0: pressure, 1: velocity, 2: temperature, >=3: species
+						params.steadyNormPrim[varIdx] = constants.steadyNormPrimDefault[min(varIdx,3)]
+
 		# load initial condition and check size
 		assert(solPrimIn.shape == (numCells, gas.numEqs))
 		assert(solConsIn.shape == (numCells, gas.numEqs))
@@ -44,6 +68,18 @@ class solutionPhys:
 
 		# TODO: initialize thermo properties at initialization too (might be problematic for BC state)
 
+	# initialize time history of solution
+	def initSolHist(self, params: parameters):
+		
+		for i in range(params.timeOrder+1):
+			self.solHistCons[i] = self.solCons.copy()
+			self.solHistPrim[i] = self.solPrim.copy()
+	
+	# update time history of solution for implicit time integration
+	def updateSolHist(self):
+		self.solHistCons[1:] = self.solHistCons[:-1]
+		self.solHistPrim[1:] = self.solHistPrim[:-1]
+			
 	# update solution after a time step 
 	# TODO: convert to using class methods
 	def updateState(self, gas, fromCons: bool = True):
@@ -52,6 +88,32 @@ class solutionPhys:
 			self.solPrim, self.RMix, self.enthRefMix, self.CpMix = stateFuncs.calcStateFromCons(self.solCons, gas)
 		else:
 			self.solCons, self.RMix, self.enthRefMix, self.CpMix = stateFuncs.calcStateFromPrim(self.solPrim, gas)
+
+	# print residual norms
+	# TODO: do some decent formatting on output, depending on resType
+	def resOutput(self, params: parameters):
+
+		dSol = self.solHistPrim[1] - self.solHistPrim[2]
+
+		# L2 norm
+		resSumL2 = np.sum(np.square(np.abs(dSol)), axis=0) 		# sum of squares
+		resSumL2[:] /= dSol.shape[0]   							# divide by number of cells
+		resSumL2 /= np.square(params.steadyNormPrim) 			# divide by square of normalization constants
+		resSumL2 = np.sqrt(resSumL2) 		 					# square root
+		resSumL2 = np.log10(resSumL2) 							# get exponent
+		resOutL2 = np.mean(resSumL2)
+			
+		# L1 norm
+		resOutL1 = np.sum(np.abs(dSol), axis=0) 				# sum of absolute values
+		resOutL1[:] /= dSol.shape[0]   							# divide by number of cells
+		resOutL1 /= params.steadyNormPrim 						# divide by normalization constants
+		resOutL1 = np.log10(resOutL1) 							# get exponent
+		resOutL1 = np.mean(resOutL1)
+
+		print("L2 norm: "+str(resOutL2)+",\tL1 norm:"+str(resOutL1))
+
+		self.resOutL2 = resOutL2 
+		self.resOutL1 = resOutL1
 
 # grouping class for boundaries
 class boundaries:

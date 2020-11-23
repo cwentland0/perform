@@ -7,7 +7,7 @@ from solution import solutionPhys, boundaries, genInitialCondition
 from spaceSchemes import calcRHS
 from stateFuncs import calcStateFromPrim
 from romClasses import solutionROM
-from timeSchemes import advanceExplicit, advanceDual, initSolMat, updateSolMat
+from timeSchemes import advanceExplicit, advanceDual
 from inputFuncs import readRestartFile
 import outputFuncs
 import constants
@@ -74,17 +74,16 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	else:
 		fieldImgDir = None
 
-	# initializing time-memory
-	# TODO: just make this part of solutionPhys class
-	sol_mat = initSolMat(sol, bounds, params, gas) 
+	# initializing time history for implicit schemes
+	if (params.timeType == "implicit"): sol.initSolHist(params) 
 
 	# loop over time iterations
 	for tStep in range(params.numSteps):
 		
-		print("Iteration "+str(tStep+1))
+		if (not params.runSteady): print("Iteration "+str(tStep+1))
 
 		# time integration scheme, advance one physical time step
-		advanceSolution(sol, rom, bounds, params, geom, gas, sol_mat)
+		advanceSolution(sol, rom, bounds, params, geom, gas)
 
 		params.solTime += params.dt
 
@@ -93,11 +92,17 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 			if ( ((tStep+1) % params.restartInterval) == 0):
 				outputFuncs.writeRestartFile(sol, params, tStep)	 
 
-		# write unsteady output
-		if ( ((tStep+1) % params.outInterval) == 0):
-			outputFuncs.storeFieldData(sol, params, tStep)
+		# write output
+		if ( (((tStep+1) % params.outInterval) == 0) ):
+			outputFuncs.storeFieldDataUnsteady(sol, params, tStep)
+			if (params.runSteady): outputFuncs.writeDataSteady(sol, params)
+		
 		outputFuncs.updateProbe(sol, params, probeVals, probeIdx, tStep)
-
+		if (params.runSteady): 
+			outputFuncs.updateResOut(sol, params, tStep)
+			if (sol.resOutL2 < params.steadyThresh): 
+				print("Steady residual criterion met, terminating run...")
+				break 	# quit if steady residual threshold met
 
 		# draw visualization plots
 		if ( ((tStep+1) % params.visInterval) == 0):
@@ -110,7 +115,8 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 	print("Solve finished, writing to disk!")
 
 	# write data to disk
-	outputFuncs.writeData(sol, params, probeVals, tVals)
+	outputFuncs.writeDataUnsteady(sol, params, probeVals, tVals)
+	outputFuncs.writeDataSteady(sol, params)
 
 	# draw images, save to disk
 	if ((params.visType == "probe") and params.visSave): 
@@ -119,10 +125,10 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 
 
 # numerically integrate ODE forward one physical time step
-def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, sol_mat):
+def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
     
 	# explicit time integrator is low-mem, only uses outer loop
-	# TODO: just make explicit integrator interoperable with sol_mat
+	# TODO: just make explicit integrator interoperable with solHist
 	if (params.timeType == "explicit"): 
 		if (params.calcROM):
 			solOuter = rom.getCode()
@@ -139,16 +145,20 @@ def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, par
 
 			# TODO: definitely a better way to work the cold start, gotta make operable with timeOrder > 2
 			if (params.solTime <= params.timeOrder*params.dt): 
-				sol_mat, res = advanceDual(sol, sol_mat, bounds, params, geom, gas, colstrt=True) # cold-start
-				sol_mat[0] = sol.solCons.copy()           
+				advanceDual(sol, bounds, params, geom, gas, colstrt=True) # cold-start          
 			else:
-				sol_mat, res = advanceDual(sol, sol_mat, bounds, params, geom, gas)
-				sol_mat[0] = sol.solCons.copy()     
+				advanceDual(sol, bounds, params, geom, gas)
        			 
-			print(np.linalg.norm(res, ord=2)) # printing sub-iterations convergence
-			if (np.linalg.norm(res,ord=2) < params.resTol): 
-				break
-
+			# checking sub-iterations convergence
+			resNorm = np.linalg.norm(sol.res, ord=2)
+			if (not params.runSteady): print(resNorm)
+			if (resNorm < params.resTol): break
 
 	if (params.timeType == "implicit"):
-		sol_mat = updateSolMat(sol_mat) # updating time history
+		# updating time history
+		sol.updateSolHist() 
+
+		# print norm of change in solution
+		if (params.runSteady):
+			sol.resOutput(params)
+		

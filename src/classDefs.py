@@ -27,6 +27,7 @@ class parameters:
 		self.restOutDir 	= os.path.join(workdir, constants.restartOutputDir)
 
 		# temporal discretization parameters
+		self.runSteady 		= catchInput(paramDict, "runSteady", False)  # whether to run "steady" simulation, just reporting solution change norm
 		self.dt 			= float(paramDict["dt"])		# physical time step
 		self.dtau 			= 1e-5#float(paramDict["dt"]*1e-4)		# psuedo time step
 		self.numSteps 		= int(paramDict["numSteps"])	# total number of physical time iterations
@@ -36,9 +37,11 @@ class parameters:
 
 		if (self.timeScheme in ["bdf","pTime"]):
 			self.timeType 		= "implicit"
+			if self.runSteady: self.steadyThresh = catchInput(paramDict, "steadyThresh", -10.0) # exponent threshold on steady residual
 			self.numSubIters 	= catchInput(paramDict, "numSubIters", 50)	# maximum number of subiterations for iterative solver
 			self.resTol 		= catchInput(paramDict, "resTol", 1e-12)	# residual tolerance for iterative solver 
 		elif (self.timeScheme == "rk"):
+			if (self.runSteady): raise ValueError("Cannot run steady-state solution with explicit time integrator!")
 			self.timeType 		= "explicit"
 			self.numSubIters 	= self.timeOrder
 			self.subIterCoeffs 	= constants.rkCoeffs[-self.timeOrder:]
@@ -51,6 +54,7 @@ class parameters:
 
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
+		self.steadyNormPrim		= catchInput(paramDict, "steadyNorm", [None])
 
 		# Solving for Primitive Variables
 		self.solforPrim 		= catchInput(paramDict, "solforPrim", False)
