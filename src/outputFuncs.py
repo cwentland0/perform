@@ -25,7 +25,7 @@ mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 # TODO: better automatic formatting of images? Ultimately real plotting will be un utils, might now be worth the time
 
 # store snapshots of field data
-def storeFieldData(sol: solutionPhys, params:parameters, tStep):
+def storeFieldDataUnsteady(sol: solutionPhys, params:parameters, tStep):
 
 	storeIdx = int(tStep / params.outInterval) + 1
 
@@ -197,9 +197,8 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 	plt.show(block=False)
 	plt.pause(0.001)
 
-
 # write snapshot matrices and point monitors to disk
-def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
+def writeDataUnsteady(sol: solutionPhys, params: parameters, probeVals, tVals):
 
 	# save snapshot matrices to disk
 	if params.primOut:
@@ -223,6 +222,25 @@ def writeData(sol: solutionPhys, params: parameters, probeVals, tVals):
 	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,params.numVis)), axis=1) 	# TODO: add third reshape dimensions for multiple probes
 	np.save(probeFile, probeSave)
 
+# update residual output and "steady" solution
+def writeDataSteady(sol: solutionPhys, params: parameters):
+
+	# write field data
+	solPrimFile = os.path.join(params.unsOutDir, "solPrim_steady.npy")
+	np.save(solPrimFile, sol.solPrim)
+	solConsFile = os.path.join(params.unsOutDir, "solCons_steady.npy")
+	np.save(solConsFile, sol.solCons)
+
+# append residual to residual file
+def updateResOut(sol: solutionPhys, params: parameters, tStep):
+
+	resFile = os.path.join(params.unsOutDir, "steadyResOut.dat")
+	if (tStep == 0):
+		f = open(resFile,"w")
+	else:
+		f = open(resFile, "a")
+	f.write(str(tStep+1)+"\t"+str(sol.resOutL2)+"\t"+str(sol.resOutL1)+"\n")
+	f.close()
 
 # write restart files containing primitive and conservative fields, plus physical time 
 def writeRestartFile(sol: solutionPhys, params: parameters, tStep):
