@@ -1,6 +1,7 @@
 import numpy as np
 from solution import solutionPhys, boundaries
 from classDefs import parameters, geometry, gasProps
+import scipy
 from scipy.sparse import csc_matrix, bsr_matrix, block_diag
 from stateFuncs import calcCpMixture, calcGasConstantMixture, calcStateFromPrim, calcGammaMixture
 import constants
@@ -102,7 +103,7 @@ def calcDSolConsDSolPrim(solCons, solPrim, gas: gasProps):
 	
 	if (gas.numSpecies > 0):
 		#rhoY = -(rho**2)*(constants.RUniv * T/p)*(1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies])
-		rhoY = -np.square(rho) * (constants.RUniv * T / p * gas.mwDiffs)
+		rhoY = -np.square(rho) * (constants.RUniv * T / p * gas.mwInvDiffs)
 		hY = gas.enthRefDiffs + (T - gas.tempRef) * (gas.Cp[0] - gas.Cp[gas.numSpecies])
 		
 	
@@ -161,7 +162,7 @@ def calcDSolConsDSolPrimImag(solCons, solPrim, gas: gasProps):
 	return gammaMatrix
 	
 
-# compute Jacobian of source term
+# compute Jacobian of source term 
 def calcDSourceDSolPrim(sol, gas: gasProps, geom: geometry, dt):
 	
 	dSdQp = np.zeros((gas.numEqs, gas.numEqs, geom.numCells))
@@ -184,7 +185,7 @@ def calcDSourceDSolPrim(sol, gas: gasProps, geom: geometry, dt):
 	rhoT = -rho/T
 	
 	#rhoY = -(rho*rho) * (constants.RUniv*T/p) * (1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies])
-	rhoY = -np.square(rho) * (constants.RUniv * T / p * gas.mwDiffs)
+	rhoY = -np.square(rho) * (constants.RUniv * T / p * gas.mwInvDiffs)
 	
 	wf_rho = 0
 	
@@ -243,7 +244,7 @@ def calcAp(solPrim, rho, cp, h0, gas, bounds):
 	Ri = calcGasConstantMixture(massFracs, gas)
 	Cpi = calcCpMixture(massFracs, gas)
 	#rhoY = -(rho*rho)*(constants.RUniv*T/p)*(1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies])
-	rhoY = -np.square(rho) * (constants.RUniv * T / p * gas.mwDiffs)
+	rhoY = -np.square(rho) * (constants.RUniv * T / p * gas.mwInvDiffs)
 	hY = gas.enthRefDiffs + (T-gas.tempRef)*(gas.CpDiffs)
 	
 	rhop = 1 / (Ri * T)
@@ -363,13 +364,15 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR,
 
 
 # compute Jacobian of the RHS function (i.e. fluxes, sources, body forces)  
-def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries, 
-						dtInv, dtauInv):
+def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries):
 		
+	# contribution to main block diagonal from source term Jacobian
 	dSdQp = calcDSourceDSolPrim(sol, gas, geom, params.dt)
 	
+	# contribution to main block diagonal from physical/dual time solution Jacobian
 	gammaMatrix = calcDSolConsDSolPrim(sol.solCons, sol.solPrim, gas)
 		
+	# contribution from inviscid and viscous flux Jacobians
 	if (params.spaceOrder == 1):
 		solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
 		solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
@@ -380,14 +383,42 @@ def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 	else:
 		raise ValueError("Higher-Order fluxes not implemented yet")
 		
+	# *_l is contribution to lower block diagonal, *_r is to upper block diagonal
 	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, bounds, geom, gas)
 
-	dRdQp = gammaMatrix * dtauInv + gammaMatrix * dtInv - dSdQp 
+	# compute time step factors
+	dtInv = constants.bdfCoeffs[params.timeOrder-1]/params.dt
+	if (params.adaptDTau):
+		dtauInv = calcAdaptiveDTau(sol, gas, geom, params, gammaMatrix)
+	else:
+		dtauInv = 1./params.dtau
+
+	# compute main block diagonal
+	dRdQp = gammaMatrix * (dtauInv + dtInv) - dSdQp + dFdQp
 							
-	dRdQp = resJacobAssemble(dRdQp, dFdQp, dFdQp_l, dFdQp_r)
+	# assemble sparse Jacobian from main, upper, and lower block diagonals
+	dRdQp = resJacobAssemble(dRdQp, dFdQp_l, dFdQp_r)
 
 	return dRdQp
 
+def calcAdaptiveDTau(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, gammaMatrix):
+
+	# compute initial dtau from input CFL and srf
+	# srf was computed in calcInvFlux
+	dtaum = 1.0/sol.srf
+	dtau = params.CFL*dtaum
+
+	# limit by von Neumann number
+	# TODO: THIS NU IS NOT CORRECT FOR A GENERAL MIXTURE
+	nu = gas.muRef[0] / sol.solCons[:,0]
+	dtau = np.minimum(dtau, params.VNN / nu)
+	dtaum = np.minimum(dtaum, 3.0 / nu)
+
+	# limit dtau
+	# TODO: implement entirety of solutionChangeLimitedTimeStep from gems_precon.f90
+	# TODO: might be cheaper to calculate gammaMatrixInv directly, instead of inverting gammaMatrix?
+	
+	return  1./dtau 
 
 # compute numerical RHS Jacobian, using complex step
 def calcDResDSolPrimImag(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries, dtInv, dtauInv):
@@ -435,14 +466,13 @@ def calcRAE(truth,pred):
 	return RAE
 
 # reassemble residual Jacobian into a 2D array for linear solve
-def resJacobAssemble(mat1, mat2, mat3, mat4):
+def resJacobAssemble(mat1, mat2, mat3):
 	
 	'''
 	Stacking block diagonal forms of mat1 and block tri-diagonal form of mat2
-	mat1 : 3-D Form of Gamma*(1/dt) + Gamma*(1/dtau) - dS/dQp
-	mat2 : 3-D Form of (dF/dQp)_i
-	mat3 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbour)
-	mat4 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbour)
+	mat1 : 3-D Form of Gamma*(1/dt) + Gamma*(1/dtau) - dS/dQp + (dF/dQp)_i
+	mat2 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbour)
+	mat3 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbour)
 	'''
 
 	numEqs, _, numCells = mat1.shape
@@ -450,9 +480,9 @@ def resJacobAssemble(mat1, mat2, mat3, mat4):
 	# put arrays in proper format for use with bsr_matrix
 	# zeroPad is because I don't know how to indicate that a row should have no blocks added when using bsr_matrix
 	zeroPad = np.zeros((1,numEqs,numEqs), dtype = constants.realType)
-	center = np.transpose(mat1 + mat2, (2,0,1))
-	lower = np.concatenate((zeroPad, np.transpose(mat3, (2,0,1))), axis=0) 
-	upper = np.concatenate((np.transpose(mat4, (2,0,1)), zeroPad), axis=0)
+	center = np.transpose(mat1, (2,0,1))
+	lower = np.concatenate((zeroPad, np.transpose(mat2, (2,0,1))), axis=0) 
+	upper = np.concatenate((np.transpose(mat3, (2,0,1)), zeroPad), axis=0)
 
 	# BSR format indices and indices pointers
 	indptr = np.arange(numCells+1)
@@ -469,7 +499,9 @@ def resJacobAssemble(mat1, mat2, mat3, mat4):
 	upperSparse  = bsr_matrix((upper, indicesUpper, indptr), shape=(jacDim, jacDim))
 
 	# assemble full matrix
+	# convert to csr because spsolve requires this
 	resJacob  = centerSparse + lowerSparse + upperSparse 
+	resJacob = resJacob.tocsr(copy=False)
 
 	return resJacob
 

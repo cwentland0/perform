@@ -6,7 +6,7 @@ import matplotlib.ticker as plticker
 import matplotlib.gridspec as gridspec
 import os
 from classDefs import parameters, geometry
-from solution import solutionPhys
+from solution import solutionPhys, boundaries
 import constants
 import time
 import pdb
@@ -127,6 +127,7 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 			axVar.set_xlim(params.visXBounds[linIdx])
 			axVar.set_ylabel(axLabels[linIdx])
 			axVar.set_xlabel("x (m)")
+			axVar.ticklabel_format(useOffset=False)
 
 	fig.tight_layout()
 	plt.show(block=False)
@@ -141,28 +142,43 @@ def writeFieldImg(fig: plt.Figure, params: parameters, tStep, fieldImgDir):
 	fig.savefig(figFile)
 
 # update probeVals, as this happens every time iteration
-def updateProbe(sol: solutionPhys, params: parameters, probeVals, probeIdx, tStep):
+def updateProbe(sol: solutionPhys, params: parameters, bounds: boundaries, probeVals, probeIdx, tStep):
 
 	for visIdx in range(params.numVis):
 		varStr = params.visVar[visIdx]
-		if (varStr == "pressure"):
-			probe = sol.solPrim[probeIdx,0]
-		elif (varStr == "velocity"):
-			probe = sol.solPrim[probeIdx,1]
-		elif (varStr == "temperature"):
-			probe = sol.solPrim[probeIdx,2]
-		elif (varStr == "species"):
-			probe = sol.solPrim[probeIdx,3]
-		elif (varStr == "source"):
-			probe = sol.source[probeIdx,0]
-		elif (varStr == "density"):
-			probe = sol.solCons[probeIdx,0]
-		elif (varStr == "momentum"):
-			probe = sol.solCons[probeIdx,1]
-		elif (varStr == "energy"):
-			probe = sol.solCons[probeIdx,2]
+		if (params.probeSec == "inlet"):
+			solPrimProbe = bounds.inlet.sol.solPrim[0,:]
+			solConsProbe = bounds.inlet.sol.solCons[0,:]
+
+		elif (params.probeSec == "outlet"):
+			solPrimProbe = bounds.outlet.sol.solPrim[0,:]
+			solConsProbe = bounds.outlet.sol.solCons[0,:]
+
 		else:
-			raise ValueError("Invalid field visualization variable:"+str(params.visVar))
+			solPrimProbe = sol.solPrim[probeIdx,:]
+			solConsProbe = sol.solCons[probeIdx,:]
+			solSourceProbe = sol.source[probeIdx,:]
+
+		try:
+			if (varStr == "pressure"):
+				probe = solPrimProbe[0]
+			elif (varStr == "velocity"):
+				probe = solPrimProbe[1]
+			elif (varStr == "temperature"):
+				probe = solPrimProbe[2]
+			elif (varStr == "species"):
+				probe = solPrimProbe[3]
+			elif (varStr == "source"):
+				probe = solSourceProbe[0]
+			elif (varStr == "density"):
+				probe = solConsProbe[0]
+			elif (varStr == "momentum"):
+				probe = solConsProbe[1]
+			elif (varStr == "energy"):
+				probe = solConsProbe[2]
+		except:
+			raise ValueError("Invalid field visualization variable "+str(params.visVar)+" for probe at "+params.probeSec)
+		
 
 		probeVals[tStep, visIdx] = probe 
 
@@ -192,6 +208,8 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 			axVar.set_xlim(params.visXBounds[linIdx])
 			axVar.set_ylabel(axLabels[linIdx])
 			axVar.set_xlabel("t (s)")
+			axVar.ticklabel_format(axis='both',useOffset=False)
+			axVar.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 
 	fig.tight_layout()
 	plt.show(block=False)

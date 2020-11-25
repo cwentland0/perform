@@ -65,9 +65,9 @@ def calcStateFromPrim(solPrim, gas: gasProps):
 # compute mixture specific gas constant
 def calcGasConstantMixture(massFracs, gas: gasProps):
 	if (gas.numSpecies > 1):
-		RMix = RUniv * ( (1.0 / gas.molWeights[-1]) + np.sum(massFracs * gas.mwDiffs, axis = 1) )
+		RMix = RUniv * ( (1.0 / gas.molWeights[-1]) + np.sum(massFracs * gas.mwInvDiffs, axis = 1) )
 	else:
-		RMix = RUniv * ( (1.0 / gas.molWeights[-1]) + massFracs * gas.mwDiffs[0] )
+		RMix = RUniv * ( (1.0 / gas.molWeights[-1]) + massFracs * gas.mwInvDiffs[0] )
 	return RMix
 
 # compute mixture ratio of specific heats

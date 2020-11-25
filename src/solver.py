@@ -56,7 +56,14 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 
 	# prep probe
 	# TODO: expand to multiple probe locations
-	probeIdx = np.absolute(geom.x_cell - params.probeLoc).argmin()
+	probeIdx = 0
+	if (params.probeLoc > geom.xR):
+		params.probeSec = "outlet"
+	elif (params.probeLoc < geom.xL):
+		params.probeSec = "inlet"
+	else:
+		params.probeSec = "interior"
+		probeIdx = np.absolute(geom.x_cell - params.probeLoc).argmin()
 	probeVals = np.zeros((params.numSteps, params.numVis), dtype = constants.realType)
 
 	# prep visualization
@@ -85,6 +92,14 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		# time integration scheme, advance one physical time step
 		advanceSolution(sol, rom, bounds, params, geom, gas)
 
+		if (params.timeType == "implicit"):
+			# updating time history
+			sol.updateSolHist() 
+
+			# print norm of change in solution
+			if (params.runSteady):
+				sol.resOutput(params, tStep)
+
 		params.solTime += params.dt
 
 		# write restart files
@@ -97,7 +112,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 			outputFuncs.storeFieldDataUnsteady(sol, params, tStep)
 			if (params.runSteady): outputFuncs.writeDataSteady(sol, params)
 		
-		outputFuncs.updateProbe(sol, params, probeVals, probeIdx, tStep)
+		outputFuncs.updateProbe(sol, params, bounds, probeVals, probeIdx, tStep)
 		if (params.runSteady): 
 			outputFuncs.updateResOut(sol, params, tStep)
 			if (sol.resOutL2 < params.steadyThresh): 
@@ -153,12 +168,4 @@ def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, par
 			resNorm = np.linalg.norm(sol.res, ord=2)
 			if (not params.runSteady): print(resNorm)
 			if (resNorm < params.resTol): break
-
-	if (params.timeType == "implicit"):
-		# updating time history
-		sol.updateSolHist() 
-
-		# print norm of change in solution
-		if (params.runSteady):
-			sol.resOutput(params)
 		

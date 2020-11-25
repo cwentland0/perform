@@ -8,7 +8,7 @@ from constants import realType
 import pdb
 
 
-# compute boundary ghost cell state (strong BCs) or flux (weak BCs)
+# compute boundary ghost cell state
 def calcBoundaries(sol, bounds: boundaries, params, gas):
 
 	calcInlet(sol, bounds.inlet, params, gas)
@@ -80,19 +80,11 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		cBound 		= sqrt(gamma * RMix * tempBound)
 		velBound 	= machBound * cBound
 
-		# TODO: move this either to end of function, or make more portable to be used for outlet, too
-		# calculate flux
-		if params.weakBCs:
-			rhoBound 	= pressBound / (RMix * tempBound) 
-			rhoEnergyBound = rhoBound * ( inlet.enthRefMix[0] + inlet.CpMix[0] * (tempBound - gas.tempRef) + velBound**2 / 2.0 ) - pressBound
-			calcInviscidFlux(inlet, rhoBound, pressBound, velBound, rhoEnergyBound, inlet.massFrac[:-1], gas)
-
 		# calculate ghost cell state
-		else:
-			inlet.sol.solPrim[0,0] = pressBound
-			inlet.sol.solPrim[0,1] = velBound
-			inlet.sol.solPrim[0,2] = tempBound
-			inlet.sol.updateState(gas, fromCons = False)
+		inlet.sol.solPrim[0,0] = pressBound
+		inlet.sol.solPrim[0,1] = velBound
+		inlet.sol.solPrim[0,2] = tempBound
+		inlet.sol.updateState(gas, fromCons = False)
 
 	# full state specification
 	# mostly just for perturbing inlet state to check for outlet reflections
@@ -108,18 +100,11 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		elif (inlet.pertType == "pressure"):
 			pressBound *= (1.0 + inlet.calcPert(params.solTime))
 
-		# compute boundary flux
-		if params.weakBCs:
-			rhoBound = pressBound / (inlet.RMix[0] * tempBound)
-			rhoEnergyBound = rhoBound * ( inlet.enthRefMix[0] + inlet.CpMix[0] * (tempBound - gas.tempRef) + velBound**2 / 2.0 ) - pressBound 
-			calcInviscidFlux(inlet, rhoBound, pressBound, velBound, rhoEnergyBound, inlet.massFrac[:-1], gas)
-
 		# compute ghost cell state
-		else:
-			inlet.sol.solPrim[0,0] = pressBound
-			inlet.sol.solPrim[0,1] = velBound
-			inlet.sol.solPrim[0,2] = tempBound
-			inlet.sol.updateState(gas, fromCons = False)
+		inlet.sol.solPrim[0,0] = pressBound
+		inlet.sol.solPrim[0,1] = velBound
+		inlet.sol.solPrim[0,2] = tempBound
+		inlet.sol.updateState(gas, fromCons = False)
 
 	# non-reflective boundary, unsteady solution is perturbation about mean flow solution
 	# refer to documentation for derivation
@@ -156,22 +141,38 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		velBound 	= (pressUp - pressBound) / rhoCMean 
 		tempBound 	= tempUp + (pressBound - pressUp) / rhoCpMean
 		massFracBound = massFracUp 
-		
-		# compute boundary fluxes
-		if params.weakBCs:
-			RMix 			= inlet.RMix[0]
-			rhoBound 		= pressBound / (RMix * tempBound) 
-			rhoEnergyBound 	= rhoBound * ( inlet.enthRefMix + inlet.CpMix * (tempBound - gas.tempRef) + velBound**2 / 2.0 ) - pressBound
-			calcInviscidFlux(inlet, rhoBound, pressBound, velBound, rhoEnergyBound, massFracBound, gas)
 
 		# set ghost cell state
+		inlet.sol.solPrim[0,0] 	= pressBound
+		inlet.sol.solPrim[0,1] 	= velBound
+		inlet.sol.solPrim[0,2] 	= tempBound
+		inlet.sol.solPrim[0,3:] = massFracBound
+		inlet.sol.updateState(gas, fromCons = False)
+
+	elif (inlet.type == "specTU"):
+		tempUp 		= inlet.temp
+		velUp 		= inlet.vel 
+		massFracUp	= inlet.massFrac[:-1]
+		rhoCMean 	= inlet.rho 
+
+		pressIn 	= sol.solPrim[:2,0]
+		velIn 		= sol.solPrim[:2,1]
+
+		w3In 	= velIn - pressIn / rhoCMean 
+		if (params.spaceOrder == 1):
+			w3Bound = w3In[0]
+		elif (params.spaceOrder == 2):
+			w3Bound = 2.0*w3In[0] - w3In[1]
 		else:
-			inlet.sol.solPrim[0,0] 	= pressBound
-			inlet.sol.solPrim[0,1] 	= velBound
-			inlet.sol.solPrim[0,2] 	= tempBound
-			inlet.sol.solPrim[0,3:] = massFracBound
-			inlet.sol.updateState(gas, fromCons = False)
-			# pdb.set_trace()
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(params.spaceOrder))
+
+		pressBound = rhoCMean * (velUp - w3Bound)
+		
+		inlet.sol.solPrim[0,0] = pressBound 
+		inlet.sol.solPrim[0,1] = velUp 
+		inlet.sol.solPrim[0,2] = tempUp 
+		inlet.sol.solPrim[0,3] = massFracUp
+		inlet.sol.updateState(gas, fromCons = False)
 
 	else:
 		raise ValueError("Invalid inlet boundary condition choice: "+inlet.type)
@@ -224,17 +225,11 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		velBound 	= J - 2.0 * cBound / gammaM1
 		tempBound 	= pressBound / (RMix * rhoBound)		
 
-		# calculate flux
-		if params.weakBCs:
-			rhoEnergyBound = rhoBound * ( outlet.enthRefMix + outlet.CpMix * (tempBound - gas.tempRef) + velBound**2 / 2.0 ) - pressBound
-			calcInviscidFlux(outlet, rhoBound, pressBound, velBound, rhoEnergyBound, outlet.massFrac[:-1], gas)
-
 		# calculate ghost cell state
-		else:
-			outlet.sol.solPrim[0,0] = pressBound
-			outlet.sol.solPrim[0,1] = velBound
-			outlet.sol.solPrim[0,2] = tempBound
-			outlet.sol.updateState(gas, fromCons = False)
+		outlet.sol.solPrim[0,0] = pressBound
+		outlet.sol.solPrim[0,1] = velBound
+		outlet.sol.solPrim[0,2] = tempBound
+		outlet.sol.updateState(gas, fromCons = False)
 
 	# non-reflective boundary, unsteady solution is perturbation about mean flow solution
 	# refer to documentation for derivation
@@ -277,44 +272,13 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		tempBound 	= w1Bound + pressBound / rhoCpMean 
 		massFracBound = w4Bound 
 
-		# compute inviscid fluxes directly
-		if params.weakBCs:
-			RMix 			= outlet.RMix[0]
-			rhoBound 		= pressBound / (RMix * tempBound) 
-			rhoEnergyBound 	= rhoBound * ( outlet.enthRefMix + outlet.CpMix * (tempBound - gas.tempRef) + velBound**2 / 2.0 ) - pressBound
-			calcInviscidFlux(outlet, rhoBound, pressBound, velBound, rhoEnergyBound, massFracBound, gas)
-
 		# set ghost cell state
-		else:
-			outlet.sol.solPrim[0,0] = pressBound
-			outlet.sol.solPrim[0,1] = velBound
-			outlet.sol.solPrim[0,2] = tempBound
-			outlet.sol.solPrim[0,3:] = massFracBound
-			outlet.sol.updateState(gas, fromCons = False)
-
-	elif (outlet.type == "interp"):
-
-		outlet.sol.solPrim[0,:] = 2.0*sol.solPrim[-1,:] - sol.solPrim[-2,:]
+		outlet.sol.solPrim[0,0] = pressBound
+		outlet.sol.solPrim[0,1] = velBound
+		outlet.sol.solPrim[0,2] = tempBound
+		outlet.sol.solPrim[0,3:] = massFracBound
 		outlet.sol.updateState(gas, fromCons = False)
-
-		if params.weakBCs:
-			rhoBound 	= outlet.sol.solCons[0,0]
-			pressBound 	= outlet.sol.solPrim[0,0]
-			velBound 	= outlet.sol.solPrim[0,1]
-			tempBound 	= outlet.sol.solPrim[0,2]
-			massFracBound = outlet.sol.solPrim[0,3:]
-			rhoEnergyBound 	= rhoBound * ( outlet.enthRefMix + outlet.CpMix * (tempBound - gas.tempRef) + velBound**2 / 2.0 ) - pressBound
-
-			calcInviscidFlux(outlet, rhoBound, pressBound, velBound, rhoEnergyBound, massFracBound, gas)
 			
 
 	else:
 		raise ValueError("Invalid outlet boundary condition choice: "+outler.type)
-
-# compute inviscid fluxes 
-def calcInviscidFlux(bound: boundary, rho, press, vel, rhoEnergy, massFrac, gas: gasProps):
-
-	bound.flux[0] = rho * vel 						
-	bound.flux[1] = rho * np.square(vel) + press
-	bound.flux[2] = vel * (rhoEnergy + press)		# vel * rho * enthalpy
-	bound.flux[3:] = rho * vel * massFrac

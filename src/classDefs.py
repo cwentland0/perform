@@ -27,13 +27,20 @@ class parameters:
 		self.restOutDir 	= os.path.join(workdir, constants.restartOutputDir)
 
 		# temporal discretization parameters
-		self.runSteady 		= catchInput(paramDict, "runSteady", False)  # whether to run "steady" simulation, just reporting solution change norm
-		self.dt 			= float(paramDict["dt"])		# physical time step
-		self.dtau 			= 1e-5#float(paramDict["dt"]*1e-4)		# psuedo time step
+		self.runSteady 		= catchInput(paramDict, "runSteady", False) # whether to run "steady" simulation, just reporting solution change norm
+		self.dt 			= float(paramDict["dt"])					# physical time step
+		self.dtau 			= catchInput(paramDict, "dtau", 1.e-5)		# psuedo time step
 		self.numSteps 		= int(paramDict["numSteps"])	# total number of physical time iterations
 		self.timeScheme 	= str(paramDict["timeScheme"]) 	# time integration scheme (string)
 		self.timeOrder 		= int(paramDict["timeOrder"])	# time integration order of accuracy (int)
 		self.solTime 		= 0.0
+
+		# robustness controls
+		self.adaptDTau 		= catchInput(paramDict, "adaptDTau", False)	# whether to compute adaptive pseudo time step
+		self.CFL 			= catchInput(paramDict, "CFL", 10) 			# reference CFL for advective control of dtau
+		self.VNN 			= catchInput(paramDict, "VNN", 20) 			# von Neumann number for diffusion control of dtau
+		self.refConst 		= catchInput(paramDict, "refConst", [None])  	# constants for limiting dtau	
+		self.relaxConst 	= catchInput(paramDict, "relaxConst", [None]) 	#
 
 		if (self.timeScheme in ["bdf","pTime"]):
 			self.timeType 		= "implicit"
@@ -50,7 +57,6 @@ class parameters:
 		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)
 		self.spaceOrder 	= catchInput(paramDict, "spaceOrder", 1)		# spatial discretization order of accuracy (int)
 		self.viscScheme 	= catchInput(paramDict, "viscScheme", 0)		# 0 for inviscid, 1 for viscous
-		self.weakBCs 		= catchInput(paramDict, "weakBCs", False)
 
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
@@ -97,6 +103,7 @@ class parameters:
 
 		# TODO: account for 0, 2+ probes
 		self.probeLoc 		= float(paramDict["probeLoc"])						# point monitor location (will reference closest cell)
+		self.probeSec 		= "interior"										# "interior", "inlet", or "outlet", changes later depending on probeLoc
 		numImgs 			= int(self.numSteps / self.visInterval)
 		self.imgString 		= '%0'+str(floor(log(numImgs, 10))+1)+'d'	# TODO: this fails if numSteps is less than visInterval
 
@@ -137,7 +144,7 @@ class gasProps:
 		self.numSpecies 		= self.numSpeciesFull - 1			# last species is not directly solved for
 		self.numEqs 			= self.numSpecies + 3				# pressure, velocity, temperature, and species transport
 		self.molWeightNu 		= self.molWeights * self.nu 
-		self.mwDiffs 			= (1.0 / self.molWeights[:-1]) - (1.0 / self.molWeights[-1]) 
+		self.mwInvDiffs 			= (1.0 / self.molWeights[:-1]) - (1.0 / self.molWeights[-1]) 
 		self.CpDiffs 			= self.Cp[:-1] - self.Cp[-1]
 		self.enthRefDiffs 		= self.enthRef[:-1] - self.enthRef[-1]
 
@@ -150,12 +157,12 @@ class geometry:
 		meshDict = readInputFile(meshFile)
 
 		# domain definition
-		xL 				= float(meshDict["xL"])
-		xR 				= float(meshDict["xR"])
+		self.xL 				= float(meshDict["xL"])
+		self.xR 				= float(meshDict["xR"])
 		self.numCells 	= int(meshDict["numCells"])
 
 		# mesh coordinates
-		self.x_node 	= np.linspace(xL, xR, self.numCells + 1, dtype = realType)
+		self.x_node 	= np.linspace(self.xL, self.xR, self.numCells + 1, dtype = realType)
 		self.x_cell 	= (self.x_node[1:] + self.x_node[:-1]) / 2.0
 		self.dx 		= self.x_node[1] - self.x_node[0]
 		self.numNodes 	= self.numCells + 1

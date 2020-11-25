@@ -5,6 +5,7 @@ from spaceSchemes import calcRHS
 from boundaryFuncs import calcBoundaries
 from Jacobians import calcDResDSolPrim, calcDResDSolPrimImag
 import constants
+import time
 from scipy.sparse.linalg import spsolve
 import numpy as np
 import pdb
@@ -62,14 +63,9 @@ def advanceDual(sol, bounds, params, geom, gas, colstrt=False):
 	
 	# compute residual
 	calcImplicitRes(sol, bounds, params, geom, gas, colstrt)
-	
-	# compute time/pseudo-time factors
-	# TODO: add dynamic settings for this (i.e. robustness controls)
-	dt_inv = constants.bdfCoeffs[params.timeOrder-1]/params.dt
-	dtau_inv = 1./params.dtau
 
 	# compute Jacobian or residual
-	resJacob = calcDResDSolPrim(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
+	resJacob = calcDResDSolPrim(sol, gas, geom, params, bounds)
 	
 	# Comparing with numerical jacobians
 	# diff = calcDResDSolPrimImag(sol, gas, geom, params, bounds, dt_inv, dtau_inv)

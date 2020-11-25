@@ -26,6 +26,9 @@ class solutionPhys:
 		self.enthRefMix = np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture reference enthalpy
 		self.CpMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture specific heat at constant pressure
 
+		if (params.adaptDTau):
+			self.srf 	= np.zeros(numCells, dtype = constants.realType)
+
 		# residual, time history, residual normalization for implicit methods
 		if (params.timeType == "implicit"):
 			self.res 			= np.zeros((numCells, gas.numEqs), dtype = constants.realType)
@@ -91,26 +94,27 @@ class solutionPhys:
 
 	# print residual norms
 	# TODO: do some decent formatting on output, depending on resType
-	def resOutput(self, params: parameters):
+	def resOutput(self, params: parameters, tStep):
 
 		dSol = self.solHistPrim[1] - self.solHistPrim[2]
+		dSolAbs = np.abs(dSol)
 
 		# L2 norm
-		resSumL2 = np.sum(np.square(np.abs(dSol)), axis=0) 		# sum of squares
+		resSumL2 = np.sum(np.square(dSolAbs), axis=0) 		# sum of squares
 		resSumL2[:] /= dSol.shape[0]   							# divide by number of cells
 		resSumL2 /= np.square(params.steadyNormPrim) 			# divide by square of normalization constants
 		resSumL2 = np.sqrt(resSumL2) 		 					# square root
-		resSumL2 = np.log10(resSumL2) 							# get exponent
-		resOutL2 = np.mean(resSumL2)
+		resLogL2 = np.log10(resSumL2) 							# get exponent
+		resOutL2 = np.mean(resLogL2)
 			
 		# L1 norm
-		resOutL1 = np.sum(np.abs(dSol), axis=0) 				# sum of absolute values
-		resOutL1[:] /= dSol.shape[0]   							# divide by number of cells
-		resOutL1 /= params.steadyNormPrim 						# divide by normalization constants
-		resOutL1 = np.log10(resOutL1) 							# get exponent
-		resOutL1 = np.mean(resOutL1)
+		resSumL1 = np.sum(dSolAbs, axis=0) 				# sum of absolute values
+		resSumL1[:] /= dSol.shape[0]   							# divide by number of cells
+		resSumL1 /= params.steadyNormPrim 						# divide by normalization constants
+		resLogL1 = np.log10(resSumL1) 							# get exponent
+		resOutL1 = np.mean(resLogL1)
 
-		print("L2 norm: "+str(resOutL2)+",\tL1 norm:"+str(resOutL1))
+		print(str(tStep+1)+":\tL2 norm: "+str(resOutL2)+",\tL1 norm:"+str(resOutL1))
 
 		self.resOutL2 = resOutL2 
 		self.resOutL1 = resOutL1
@@ -148,15 +152,10 @@ class boundary:
 		self.gamma 		= stateFuncs.calcGammaMixture(self.RMix, self.CpMix)
 		self.enthRefMix = stateFuncs.calcEnthRefMixture(self.massFrac[:-1], gas)
 
-		# boundary flux for weak BCs
-		if params.weakBCs:
-			self.flux 		= np.zeros(gas.numEqs, dtype = constants.realType)
-		
-		# unsteady ghost cell state for strong BCs
-		else:
-			solDummy 		= np.zeros((1, gas.numEqs), dtype = constants.realType)
-			self.sol 		= solutionPhys(1, solDummy, solDummy, gas, params)
-			self.sol.solPrim[0,3:] = self.massFrac[:-1]
+		# ghost cell 
+		solDummy 		= np.zeros((1, gas.numEqs), dtype = constants.realType)
+		self.sol 		= solutionPhys(1, solDummy, solDummy, gas, params)
+		self.sol.solPrim[0,3:] = self.massFrac[:-1]
 
 		self.pertType 	= pertType 
 		self.pertPerc 	= pertPerc 
