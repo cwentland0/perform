@@ -10,6 +10,8 @@ import pdb
 class parameters:
 
 	def __init__(self, workdir, paramFile):
+		self.workdir = workdir
+
 		paramDict = readInputFile(paramFile)
 		self.paramDict = paramDict
 
@@ -60,7 +62,8 @@ class parameters:
 
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
-		self.steadyNormPrim		= catchInput(paramDict, "steadyNorm", [None])
+		self.steadyNormPrim	= catchInput(paramDict, "steadyNorm", [None])
+		self.sourceOn 		= catchInput(paramDict, "sourceOn", True)
 
 		# Solving for Primitive Variables
 		self.solforPrim 		= catchInput(paramDict, "solforPrim", False)
@@ -144,7 +147,7 @@ class gasProps:
 		self.numSpecies 		= self.numSpeciesFull - 1			# last species is not directly solved for
 		self.numEqs 			= self.numSpecies + 3				# pressure, velocity, temperature, and species transport
 		self.molWeightNu 		= self.molWeights * self.nu 
-		self.mwInvDiffs 			= (1.0 / self.molWeights[:-1]) - (1.0 / self.molWeights[-1]) 
+		self.mwInvDiffs 		= (1.0 / self.molWeights[:-1]) - (1.0 / self.molWeights[-1]) 
 		self.CpDiffs 			= self.Cp[:-1] - self.Cp[-1]
 		self.enthRefDiffs 		= self.enthRef[:-1] - self.enthRef[-1]
 
@@ -162,9 +165,9 @@ class geometry:
 		self.numCells 	= int(meshDict["numCells"])
 
 		# mesh coordinates
-		self.x_node 	= np.linspace(self.xL, self.xR, self.numCells + 1, dtype = realType)
-		self.x_cell 	= (self.x_node[1:] + self.x_node[:-1]) / 2.0
-		self.dx 		= self.x_node[1] - self.x_node[0]
+		self.xFace 	= np.linspace(self.xL, self.xR, self.numCells + 1, dtype = realType)
+		self.xCell 	= (self.xFace[1:] + self.xFace[:-1]) / 2.0
+		self.dx 		= self.xFace[1] - self.xFace[0]
 		self.numNodes 	= self.numCells + 1
 
 # assign default values if user does not provide a certain input

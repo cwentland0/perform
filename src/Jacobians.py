@@ -226,7 +226,7 @@ def calcDSourceDSolPrim(sol, gas: gasProps, geom: geometry, dt):
 	
 
 # compute flux Jacobians   
-def calcAp(solPrim, rho, cp, h0, gas, bounds):
+def calcAp(solPrim, rho, cp, h0, params: parameters, gas: gasProps, bounds: boundaries):
 	
 	Ap = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
 	
@@ -284,23 +284,24 @@ def calcAp(solPrim, rho, cp, h0, gas, bounds):
 				Ap[i,j,:] = u * ((i==j) * rho + Y * rhoY[:])
 			
     #Adding the viscous flux jacobian terms
-	Ap[1,1,:] = Ap[1,1,:] - (4.0 / 3.0) * gas.muRef[:-1]
+	if (params.viscScheme > 0):
+		Ap[1,1,:] = Ap[1,1,:] - (4.0 / 3.0) * gas.muRef[:-1]
 
-	Ap[2,1,:] = Ap[2,1,:] - u * (4.0 / 3.0) * gas.muRef[:-1]
+		Ap[2,1,:] = Ap[2,1,:] - u * (4.0 / 3.0) * gas.muRef[:-1]
 
-	Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
-	Ap[2,2,:] = Ap[2,2,:] - Ck
+		Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
+		Ap[2,2,:] = Ap[2,2,:] - Ck
 
-	T = solPrim[:,2]
-	if (gas.numSpecies > 0):
-		Cd = gas.muRef[:-1] / gas.Sc[0] / rho      
-		rhoCd = rho * Cd    
-		hY = gas.enthRefDiffs + (T - gas.tempRef) * gas.CpDiffs
-        
-		for i in range(3,gas.numEqs):
+		T = solPrim[:,2]
+		if (gas.numSpecies > 0):
+			Cd = gas.muRef[:-1] / gas.Sc[0] / rho      
+			rhoCd = rho * Cd    
+			hY = gas.enthRefDiffs + (T - gas.tempRef) * gas.CpDiffs
 			
-			Ap[2,i,:] = Ap[2,i,:] - rhoCd * hY 
-			Ap[i,i,:] = Ap[i,i,:] - rhoCd
+			for i in range(3,gas.numEqs):
+				
+				Ap[2,i,:] = Ap[2,i,:] - rhoCd * hY 
+				Ap[i,i,:] = Ap[i,i,:] - rhoCd
 
 
 	return Ap
@@ -310,7 +311,7 @@ def calcAp(solPrim, rho, cp, h0, gas, bounds):
 # TODO: get rid of the left and right dichotomy, just use slices of solCons and solPrim
 # 	Redundant Ap calculations are EXPENSIVE
 def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, 
-						sol: solutionPhys, bounds: boundaries, geom: geometry, gas: gasProps):
+						sol: solutionPhys, params: parameters, bounds: boundaries, geom: geometry, gas: gasProps):
 		
 	rHL = solConsL[:,[2]] + solPrimL[:,[0]]
 	HL = rHL / solConsL[:,[0]]
@@ -343,15 +344,15 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR,
 	cp_l = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix), axis=0)
 	cp_r = np.concatenate((sol.CpMix, bounds.outlet.sol.CpMix), axis=0)
 
-	Ap_l = (calcAp(solPrimL, solConsL[:,0], cp_l, HL, gas, bounds))
-	Ap_r = (calcAp(solPrimR, solConsR[:,0], cp_r, HL, gas, bounds))
+	Ap_l = (calcAp(solPrimL, solConsL[:,0], cp_l, HL, params, gas, bounds))
+	Ap_r = (calcAp(solPrimR, solConsR[:,0], cp_r, HR, params, gas, bounds))
 
 	Ap_l[:,:,:]  *= (0.5 / geom.dx)
 	Ap_r[:,:,:]  *= (0.5 / geom.dx)
 	M_ROE[:,:,:] *= (0.5 / geom.dx)
 
     #Jacobian wrt current cell
-	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,-1:])
+	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,:-1])
     
     #Jacobian wrt left neighbour
 	dFluxdQp_l = (-Ap_l[:,:,1:-1] - M_ROE[:,:,:-2])
@@ -367,7 +368,9 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR,
 def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries):
 		
 	# contribution to main block diagonal from source term Jacobian
-	dSdQp = calcDSourceDSolPrim(sol, gas, geom, params.dt)
+	dSdQp = np.zeros((gas.numEqs, gas.numEqs, geom.numCells), dtype=constants.realType)
+	if params.sourceOn:
+		dSdQp = calcDSourceDSolPrim(sol, gas, geom, params.dt)
 	
 	# contribution to main block diagonal from physical/dual time solution Jacobian
 	gammaMatrix = calcDSolConsDSolPrim(sol.solCons, sol.solPrim, gas)
@@ -384,7 +387,7 @@ def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 		raise ValueError("Higher-Order fluxes not implemented yet")
 		
 	# *_l is contribution to lower block diagonal, *_r is to upper block diagonal
-	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, bounds, geom, gas)
+	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, params, bounds, geom, gas)
 
 	# compute time step factors
 	dtInv = constants.bdfCoeffs[params.timeOrder-1]/params.dt
@@ -403,8 +406,8 @@ def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 
 def calcAdaptiveDTau(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, gammaMatrix):
 
-	# compute initial dtau from input CFL and srf
-	# srf was computed in calcInvFlux
+	# compute initial dtau from input CFL and srf (max characteristic speed)
+	# srf is computed in calcInvFlux
 	dtaum = 1.0/sol.srf
 	dtau = params.CFL*dtaum
 

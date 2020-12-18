@@ -182,7 +182,7 @@ def genInitialCondition(params: parameters, gas: gasProps, geom: geometry):
 
 	icDict 	= readInputFile(params.icParamsFile)
 
-	splitIdx 	= np.absolute(geom.x_cell - icDict["xSplit"]).argmin()
+	splitIdx 	= np.absolute(geom.xCell - icDict["xSplit"]).argmin()
 	solPrim 	= np.zeros((geom.numCells, gas.numEqs), dtype = constants.realType)
 
 	# left state

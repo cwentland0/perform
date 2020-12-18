@@ -122,7 +122,7 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 			else:
 				raise ValueError("Invalid field visualization variable:"+str(varStr))
 
-			axVar.plot(geom.x_cell, field)
+			axVar.plot(geom.xCell, field)
 			axVar.set_ylim(params.visYBounds[linIdx])
 			axVar.set_xlim(params.visXBounds[linIdx])
 			axVar.set_ylabel(axLabels[linIdx])

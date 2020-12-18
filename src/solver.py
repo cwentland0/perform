@@ -63,7 +63,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 		params.probeSec = "inlet"
 	else:
 		params.probeSec = "interior"
-		probeIdx = np.absolute(geom.x_cell - params.probeLoc).argmin()
+		probeIdx = np.absolute(geom.xCell - params.probeLoc).argmin()
 	probeVals = np.zeros((params.numSteps, params.numVis), dtype = constants.realType)
 
 	# prep visualization

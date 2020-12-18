@@ -4,12 +4,13 @@ import numpy as np
 realType 	= np.float64 			# precision of real numbers
 complexType = np.complex128 		# precision of complex numbers
 
-RUniv 		= 8314.0    # universal gas constant, J/(K*kmol)
+RUniv 		= 8314.4621    # universal gas constant, J/(K*kmol)
 enthRefTemp = 298.0 	# temperature at which reference enthalpy is measured
 						# TODO: make this the default, but make it possible to accept different values in parameters
 q0 			= 6.93e6
 
-tinyNum 	= 1.0e-25 	# small number for thresholding non-positive numbers to a small positive numbers
+tinyNum 	= 1.0e-25 	# very small number
+hugeNum 	= 1.0e25	# very large number
 
 # "steady" state residual normalization defaults
 steadyNormPrimDefault = [1.0e5, 10.0, 300.0, 1.0]
