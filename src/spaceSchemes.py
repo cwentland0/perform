@@ -43,64 +43,10 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 		solConsL = solConsL.astype(dtype=constants.complexType)
 		solConsR = solConsR.astype(dtype=constants.complexType)
 
-	# validate 
-	fValid = open(os.path.join(params.workdir,"pyGEMSValOut.bin"),'wb')
-	writeToFile(fValid, geom.xFace)
-	writeToFile(fValid, solPrimL) 	# primitive state
-	writeToFile(fValid, solPrimR)
-	writeToFile(fValid, solPrimL) 	# this needs to be edited to output the higher-order version vs first order component
-	writeToFile(fValid, solPrimR)
-	writeToFile(fValid, solConsL[:,0]) # density
-	writeToFile(fValid, solConsR[:,0])
-
-	hYL = gas.enthRef + (np.repeat(solPrimL[:,[2]],2,axis=1) - gas.tempRef) * gas.Cp
-	hYR = gas.enthRef + (np.repeat(solPrimR[:,[2]],2,axis=1) - gas.tempRef) * gas.Cp
-	writeToFile(fValid, hYL)
-	writeToFile(fValid, hYR)
-
-	h0L = (solConsL[:,2] + solPrimL[:,0]) / solConsL[:,0]
-	h0R = (solConsR[:,2] + solPrimR[:,0]) / solConsR[:,0]
-	writeToFile(fValid, h0L)
-	writeToFile(fValid, h0R)
-
-	RL = stateFuncs.calcGasConstantMixture(solPrimL[:,3:], gas) # gas constant mixture
-	RR = stateFuncs.calcGasConstantMixture(solPrimR[:,3:], gas)
-	CpL = stateFuncs.calcCpMixture(solPrimL[:,3:], gas)
-	CpR = stateFuncs.calcCpMixture(solPrimR[:,3:], gas)
-	gammaL = stateFuncs.calcGammaMixture(RL, CpL)
-	gammaR = stateFuncs.calcGammaMixture(RR, CpR)
-	writeToFile(fValid, gammaL)
-	writeToFile(fValid, gammaR)
-	writeToFile(fValid, RL)
-	writeToFile(fValid, RR)
-
-	cL = np.sqrt(gammaL * RL * solPrimL[:,[2]])
-	cR = np.sqrt(gammaR * RR * solPrimR[:,[2]])
-	writeToFile(fValid, cL)
-	writeToFile(fValid, cR)
-
-	muL = gas.muRef[:-1] * np.ones(geom.numCells+1, dtype=np.float64)
-	muR = gas.muRef[:-1] * np.ones(geom.numCells+1, dtype=np.float64)
-	writeToFile(fValid, muL)
-	writeToFile(fValid, muR)
-
-	lambdaL = gas.muRef[:-1] * CpL / gas.Pr[:-1]
-	lambdaR = gas.muRef[:-1] * CpR / gas.Pr[:-1]
-	writeToFile(fValid, lambdaL)
-	writeToFile(fValid, lambdaR)
-
-	mdiL = gas.muRef / gas.Sc * np.ones((geom.numCells+1, gas.numSpeciesFull), dtype=np.float64)
-	mdiR = gas.muRef / gas.Sc * np.ones((geom.numCells+1, gas.numSpeciesFull), dtype=np.float64)
-	writeToFile(fValid, mdiL)
-	writeToFile(fValid, mdiR)
-
 	# compute fluxes
-	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, params, gas, fValid)
+	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, params, gas)
 	if (params.viscScheme > 0):
-		flux -= calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, params, gas, geom, faceVals, fValid)
-
-	fValid.close()
-	# pdb.set_trace()
+		flux -= calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, params, gas, geom, faceVals)
 
 	# compute RHS
 	sol.RHS = flux[:-1,:] - flux[1:,:]
@@ -115,7 +61,7 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 # TODO: expand beyond Roe flux
 # TODO: better naming conventions
 # TODO: entropy fix
-def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, params: parameters, gas: gasProps, fValid):
+def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, params: parameters, gas: gasProps):
 
 	# TODO: check for non-physical cells
 	matShape = solPrimL.shape
@@ -167,30 +113,6 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, param
 
 	# complete Roe flux
 	flux = 0.5 * (EL + ER) - dissTerm 
-
-	# validate
-	writeToFile(fValid, solPrimAve) 	
-	writeToFile(fValid, solConsAve[:,0])
-
-	hYAve = gas.enthRef + (np.repeat(solPrimAve[:,[2]],2,axis=1) - gas.tempRef) * gas.Cp
-	writeToFile(fValid, hYAve)
-
-	h0Ave = (solConsAve[:,2] + solPrimAve[:,0]) / solConsAve[:,0]
-	writeToFile(fValid, h0Ave)
-	writeToFile(fValid, gammaAve)
-	writeToFile(fValid, RAve)
-	writeToFile(fValid, cAve)
-
-	muAve = gas.muRef[:-1] * np.ones(EL.shape[0], dtype=np.float64)
-	writeToFile(fValid, muAve)
-
-	lambdaAve = gas.muRef[:-1] * CpAve / gas.Pr[:-1]
-	writeToFile(fValid, lambdaAve)
-
-	mdiAve = gas.muRef / gas.Sc * np.ones((EL.shape[0], gas.numSpeciesFull), dtype=np.float64)
-	writeToFile(fValid, mdiAve)
-
-	writeToFile(fValid, flux) 	# faceflux
 
 	return flux, solPrimAve, solConsAve, CpAve
 
@@ -284,7 +206,7 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 	return dissMat
 
 # compute viscous fluxes
-def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry, faceVals, fValid):
+def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry, faceVals):
 
 	# compute state gradients
 	solPrimGrad = np.zeros((geom.numCells+1, gas.numEqs), dtype = constants.realType)
@@ -308,10 +230,6 @@ def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: bound
 	else:
 		Fv[:,2] = Fv[:,2] + diff_rhoY * hY
 		Fv[:,3] = Fv[:,3] + diff_rhoY
-
-	# validate
-	writeToFile(fValid, solPrimGrad)
-	writeToFile(fValid, Fv)
 
 	return Fv
 
