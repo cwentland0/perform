@@ -135,7 +135,7 @@ def calcDensity(solPrim, gas: gasProps, RMix=None):
 # compute individual enthalpies for each species
 def calcSpeciesEnthalpies(temperature, gas: gasProps):
 
-	speciesEnth = gas.Cp * np.repeat(np.reshape(temperature, (-1,1)), 2, axis=1) + gas.enthRef
+	speciesEnth = gas.Cp * (np.repeat(np.reshape(temperature, (-1,1)), 2, axis=1) - gas.tempRef) + gas.enthRef
 
 	return speciesEnth
 
@@ -165,6 +165,44 @@ def calcMolWeightMixture(massFracs, gas: gasProps):
 
 	return mixMolWeight
 
+# compute individual dynamic viscosities from Sutherland's law
+# def calcSpeciesDynamicVisc(gas: gasProps, moleFrac=None, massFrac=None, mixMolWeight=None):
+
+# compute mixture dynamic viscosity from mixing law
+# def calcMixtureDynamicVisc():
+
+# compute sound speed
+def calcSoundSpeed(temperature, RMix=None, gammaMix=None, gas: gasProps=None, massFracs=None, CpMix=None):
+
+	# calculate mixture gas constant if not provided
+	massFracsSet = False
+	if (RMix is None):
+		assert (gas is not None), "Must provide gas properties to calculate mixture gas constant..."
+		assert (massFracs is not None), "Must provide mass fractions to calculate mixture gas constant..."
+		massFracs = getMassFracArray(gas, massFracs=massFracs)
+		massFracsSet = True
+		RMix = calcGasConstantMixture(massFracs, gas)
+	else:
+		RMix = np.squeeze(RMix)
+		
+	# calculate ratio of specific heats if not provided
+	if (gammaMix is None):
+		if (CpMix is None):
+			assert (massFracs is not None), "Must provide mass fractions to calculate mixture Cp..."
+			if (not massFracsSet): 
+				massFracs = getMassFracArray(gas, massFracs=massFracs)
+			CpMix = calcCpMixture(massFracs, gas)
+		else:
+			CpMix = np.squeeze(CpMix)
+
+		gammaMix = calcGammaMixture(RMix, CpMix)
+	else:
+		gammaMix = np.squeeze(gammaMix)
+
+	soundSpeed = np.sqrt(gammaMix * RMix * temperature)
+
+	return soundSpeed
+
 # compute derivatives of density with respect to pressure, temperature, or species mass fraction
 def calcDensityDerivatives(density, 
 							wrtPress=False, pressure=None,
@@ -193,7 +231,7 @@ def calcDensityDerivatives(density,
 
 		DDensDSpec = np.zeros((density.shape[0], gas.numSpecies), dtype=constants.realType)
 		for specNum in range(gas.numSpecies):
-			DDensDSpec[:,specNum] = density * mixMolWeight * (gas.molWeights[-1] - gas.molWeights[specNum])
+			DDensDSpec[:,specNum] = density * mixMolWeight * (1.0/gas.molWeights[-1] - 1.0/gas.molWeights[specNum])
 		derivs = derivs + (DDensDSpec,)
 
 	return derivs
@@ -249,7 +287,7 @@ def calcStateFromRhoH0(solPrim, densFixed, stagEnthFixed, gas: gasProps):
 
 	iterCount = 0
 	onesVec = np.ones(solPrim.shape[0], dtype=constants.realType)
-	while ( np.any( (dPress / solPrim[:,0]) > 0.01 ) or np.any( (dTemp / solPrim[:,2]) > 0.01) or (iterCount == 20)):
+	while ( (np.any( np.absolute(dPress / solPrim[:,0]) > 0.01 ) or np.any( np.absolute(dTemp / solPrim[:,2]) > 0.01)) and (iterCount < 20)):
 
 		# compute density and stagnation enthalpy from current state
 		densCurr 		= calcDensity(solPrim, gas)

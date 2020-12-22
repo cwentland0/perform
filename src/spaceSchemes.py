@@ -11,11 +11,6 @@ import pdb
 # TODO: check for repeated calculations, just make a separate variable
 # TODO: check references to muRef, might be some broadcast issues
 
-def writeToFile(fid, array):
-	if (array.ndim > 1):
-		array = array.flatten(order="F")
-	fid.write(struct.pack('d'*array.shape[0], *(array)))
-
 # compute RHS function
 # @profile
 def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
@@ -43,69 +38,10 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 		solConsL = solConsL.astype(dtype=constants.complexType)
 		solConsR = solConsR.astype(dtype=constants.complexType)
 
-	# validate 
-	fValid = open(os.path.join(params.workdir,"pyGEMSValOut.bin"),'wb')
-	writeToFile(fValid, geom.xFace)
-	writeToFile(fValid, solPrimL) 	# primitive state
-	writeToFile(fValid, solPrimR)
-	writeToFile(fValid, solPrimL) 	# this needs to be edited to output the higher-order version vs first order component
-	writeToFile(fValid, solPrimR)
-	writeToFile(fValid, solConsL[:,0]) # density
-	writeToFile(fValid, solConsR[:,0])
-
-	hYL = gas.enthRef + (np.repeat(solPrimL[:,[2]],2,axis=1) - gas.tempRef) * gas.Cp
-	hYR = gas.enthRef + (np.repeat(solPrimR[:,[2]],2,axis=1) - gas.tempRef) * gas.Cp
-	writeToFile(fValid, hYL)
-	writeToFile(fValid, hYR)
-
-	h0L = (solConsL[:,2] + solPrimL[:,0]) / solConsL[:,0]
-	h0R = (solConsR[:,2] + solPrimR[:,0]) / solConsR[:,0]
-	writeToFile(fValid, h0L)
-	writeToFile(fValid, h0R)
-
-	# checkh0 = stateFuncs.calcStagnationEnthalpy(solPrimL, gas)
-
-	# massFracsFullL = np.concatenate((solPrimL[:,3:], 1.0-np.sum(solPrimL[:,3:],axis=1,keepdims=True)), axis=1)
-	# massFracsFullR = np.concatenate((solPrimR[:,3:], 1.0-np.sum(solPrimR[:,3:],axis=1,keepdims=True)), axis=1)
-
-	RL = stateFuncs.calcGasConstantMixture(solPrimL[:,3:], gas) # gas constant mixture
-	RR = stateFuncs.calcGasConstantMixture(solPrimR[:,3:], gas)
-	CpL = stateFuncs.calcCpMixture(solPrimL[:,3:], gas)
-	CpR = stateFuncs.calcCpMixture(solPrimR[:,3:], gas)
-	gammaL = stateFuncs.calcGammaMixture(RL, CpL)
-	gammaR = stateFuncs.calcGammaMixture(RR, CpR)
-	writeToFile(fValid, gammaL)
-	writeToFile(fValid, gammaR)
-	writeToFile(fValid, RL)
-	writeToFile(fValid, RR)
-
-	cL = np.sqrt(gammaL * RL * solPrimL[:,[2]])
-	cR = np.sqrt(gammaR * RR * solPrimR[:,[2]])
-	writeToFile(fValid, cL)
-	writeToFile(fValid, cR)
-
-	muL = gas.muRef[:-1] * np.ones(geom.numCells+1, dtype=np.float64)
-	muR = gas.muRef[:-1] * np.ones(geom.numCells+1, dtype=np.float64)
-	writeToFile(fValid, muL)
-	writeToFile(fValid, muR)
-
-	lambdaL = gas.muRef[:-1] * CpL / gas.Pr[:-1]
-	lambdaR = gas.muRef[:-1] * CpR / gas.Pr[:-1]
-	writeToFile(fValid, lambdaL)
-	writeToFile(fValid, lambdaR)
-
-	mdiL = gas.muRef / gas.Sc * np.ones((geom.numCells+1, gas.numSpeciesFull), dtype=np.float64)
-	mdiR = gas.muRef / gas.Sc * np.ones((geom.numCells+1, gas.numSpeciesFull), dtype=np.float64)
-	writeToFile(fValid, mdiL)
-	writeToFile(fValid, mdiR)
-
 	# compute fluxes
-	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, params, gas, fValid)
+	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, params, gas)
 	if (params.viscScheme > 0):
-		flux -= calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, params, gas, geom, faceVals, fValid)
-
-	fValid.close()
-	# pdb.set_trace()
+		flux -= calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, params, gas, geom, faceVals)
 
 	# compute RHS
 	sol.RHS = flux[:-1,:] - flux[1:,:]
@@ -114,13 +50,13 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 	# compute source term
 	if params.sourceOn:
 		calcSource(sol, params, gas)
-		sol.RHS[:,3:]  = sol.source + sol.RHS[:,3:]
+		sol.RHS[:,3:] += sol.source 
 
 # compute inviscid fluxes
 # TODO: expand beyond Roe flux
 # TODO: better naming conventions
 # TODO: entropy fix
-def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, params: parameters, gas: gasProps, fValid):
+def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, params: parameters, gas: gasProps):
 
 	# TODO: check for non-physical cells
 	matShape = solPrimL.shape
@@ -147,10 +83,8 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, param
 	solPrimAve = stateFuncs.calcStateFromRhoH0(solPrimAve, rhoAve, h0Ave, gas)
 
 	# compute Roe average state at faces, associated fluid properties
-	# solPrimAve = fac[:,None] * solPrimL + fac1[:,None] * solPrimR
 	solConsAve, RAve, enthRefAve, CpAve = stateFuncs.calcStateFromPrim(solPrimAve, gas)
 	gammaAve = stateFuncs.calcGammaMixture(RAve, CpAve)
-	# h0Ave = (solConsAve[:,2] + solPrimAve[:,0]) / solConsAve[:,0]
 	cAve = np.sqrt(gammaAve * RAve * solPrimAve[:,2])
 
 	# compute stagnation enthalpy
@@ -174,117 +108,50 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, param
 		sol.srf = np.maximum(srf[:-1], srf[1:])
 
 	# dissipation term
-	dQp = solPrimR - solPrimL
-	M_ROE = calcRoeDissipation(solPrimAve, solConsAve[:,0], h0Ave, cAve, RAve, CpAve, gas)
+	dQp = solPrimL - solPrimR
+	M_ROE = calcRoeDissipation(solPrimAve, solConsAve[:,0], h0Ave, cAve, CpAve, gas)
 	dissTerm = 0.5 * (M_ROE * np.expand_dims(dQp, -2)).sum(-1)
 
-	# # left flux
-	# rHL = solConsL[:,[2]] + solPrimL[:,[0]]
-	# HL = rHL / solConsL[:,[0]]								# stagnation enthalpy
-	# EL[:,0] = solConsL[:,1]
-	# EL[:,1] = solConsL[:,1] * solPrimL[:,1] + solPrimL[:,0]
-	# EL[:,[2]] = rHL * solPrimL[:,[1]]
-	# EL[:,3:] = solConsL[:,3:] * solPrimL[:,[1]]
-
-	# # right flux
-	# rHR = solConsR[:,[2]] + solPrimR[:,[0]]
-	# HR = rHR / solConsR[:,[0]]								# stagnation enthalpy
-	# ER[:,0] = solConsR[:,1]
-	# ER[:,1] = solConsR[:,1] * solPrimR[:,1] + solPrimR[:,0]
-	# ER[:,[2]] = rHR * solPrimR[:,[1]]
-	# ER[:,3:] = solConsR[:,3:] * solPrimR[:,[1]]
-
-
-	# rhoi = np.sqrt(solConsR[:,0] * solConsL[:,0]) 		# Roe average density
-	# di = np.sqrt(solConsR[:,[0]] / solConsL[:,[0]]) 	# sqrt density quotients
-	# dl = 1.0 / (1.0 + di) 								#
-
-	# solPrimRoe = (solPrimR * di + solPrimL) * dl 		# Roe average primitive state
-	# Hi = np.squeeze((HR * di + HL) * dl) 				# Roe average stagnation enthalpy
-
-	# if (gas.numSpecies > 1):
-	# 	massFracsRoe = solPrimRoe[:,3:]
-	# else:
-	# 	massFracsRoe = solPrimRoe[:,3]
-
-	# # Roe average state mixture gas properties
-	# Ri = stateFuncs.calcGasConstantMixture(massFracsRoe, gas) 		
-	# Cpi = stateFuncs.calcCpMixture(massFracsRoe, gas)
-	# gammai = stateFuncs.calcGammaMixture(Ri, Cpi)
-
-	# ci = np.sqrt(gammai * Ri * solPrimRoe[:,2])	# Roe average sound speed
-
-	# # if adapting pseudo time step later, compute maximum characteristic speed here
-	# if (params.adaptDTau):
-	# 	srf = np.maximum(solPrimRoe[:,1] + ci, solPrimRoe[:,1] - ci)
-	# 	sol.srf = np.maximum(srf[:-1], srf[1:])
-
-	# dissipation term
-	# dQp = solPrimR - solPrimL
-	# M_ROE = calcRoeDissipation(solPrimRoe, rhoi, Hi, ci, Ri, Cpi, gas)
-	# dissTerm = 0.5 * (M_ROE * np.expand_dims(dQp, -2)).sum(-1)
-
 	# complete Roe flux
-	flux = 0.5 * (EL + ER) - dissTerm 
-
-	# validate
-	writeToFile(fValid, solPrimAve) 	
-	writeToFile(fValid, solConsAve[:,0])
-
-	hYAve = gas.enthRef + (np.repeat(solPrimAve[:,[2]],2,axis=1) - gas.tempRef) * gas.Cp
-	writeToFile(fValid, hYAve)
-
-	h0Ave = (solConsAve[:,2] + solPrimAve[:,0]) / solConsAve[:,0]
-	writeToFile(fValid, h0Ave)
-	writeToFile(fValid, gammaAve)
-	writeToFile(fValid, RAve)
-	writeToFile(fValid, cAve)
-
-	muAve = gas.muRef[:-1] * np.ones(EL.shape[0], dtype=np.float64)
-	writeToFile(fValid, muAve)
-
-	lambdaAve = gas.muRef[:-1] * CpAve / gas.Pr[:-1]
-	writeToFile(fValid, lambdaAve)
-
-	mdiAve = gas.muRef / gas.Sc * np.ones((EL.shape[0], gas.numSpeciesFull), dtype=np.float64)
-	writeToFile(fValid, mdiAve)
-	# pdb.set_trace()
-
-	writeToFile(fValid, flux) 	# faceflux
+	flux = 0.5 * (EL + ER) + dissTerm 
 
 	return flux, solPrimAve, solConsAve, CpAve
 
 # compute dissipation term of Roe flux
 # inputs are all from Roe average state
-def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
+# TODO: a lot of these quantities need to be generalized for different gas models
+def calcRoeDissipation(solPrim, rho, h0, c, Cp, gas: gasProps):
 
 	# allocate
 	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.realType)
 	if (solPrim.dtype == constants.complexType):
 		dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.complexType)        
 	
-	# for clarity
+	# primitive variables for clarity
+	press = solPrim[:,0]
+	vel = solPrim[:,1]
 	temp = solPrim[:,2]
 	massFracs = solPrim[:,3:]
 
-	rhoY = -np.square(rho) * (constants.RUniv * temp / solPrim[:,0] * gas.mwInvDiffs)
+	rhoY = -np.square(rho) * (constants.RUniv * temp / press * gas.mwInvDiffs)
 	hY = gas.enthRefDiffs + (temp - gas.tempRef) * gas.CpDiffs
 
-	rhop = 1.0 / (R * temp) 			# derivative of density with respect to pressure
+	rhop = rho / press 					# derivative of density with respect to pressure
 	rhoT = -rho / temp 					# derivative of density with respect to temperature
-	hT = Cp
-	hp = 0.0
+	hT = Cp 							# derivative of enthalpy with respect to temperature
+	hp = 0.0 							# derivative of enthalpy with respect to pressure
 
+	# gamma terms for energy equation
 	Gp = rho * hp + rhop * h0 - 1.0
 	GT = rho *hT + rhoT * h0
-
 	GY = rho * hY + rhoY * h0
 
-	u = solPrim[:,1]
-	lambda1 = u + c
-	lambda2 = u - c
+	# characteristic speeds
+	lambda1 = vel + c
+	lambda2 = vel - c
 	lam1 = np.absolute(lambda1)
 	lam2 = np.absolute(lambda2)
+
 	R_roe = (lam2 - lam1) / (lambda2 - lambda1)
 	alpha = c * (lam1 + lam2) / (lambda1 - lambda2)
 	beta = np.power(c, 2.0) * (lam1 - lam2) / (lambda1 - lambda2)
@@ -293,14 +160,14 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 	eta = (1.0 - rho * hp) / hT
 	psi = eta * rhoT + rho * rhop
 
-	u_abs = np.absolute(solPrim[:,1])
+	u_abs = np.absolute(vel)
 
 	beta_star = beta * psi
 	beta_e = beta * (rho * Gp + GT * eta)
-	phi_star = rhop * phi + rhoT * eta * (phi - u_abs)
-	phi_e = Gp * phi + GT * eta * (phi - u_abs)
+	phi_star = rhop * phi + rhoT * eta * (phi - u_abs) / rho
+	phi_e = Gp * phi + GT * eta * (phi - u_abs) / rho
 	m = rho * alpha
-	e = rho * u * alpha
+	e = rho * vel * alpha
 
 	dissMat[:,0,0] = phi_star
 	dissMat[:,0,1] = beta_star
@@ -310,16 +177,16 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 		dissMat[:,0,3:] = u_abs * rhoY
 	else:
 		dissMat[:,0,3] = u_abs * rhoY
-	dissMat[:,1,0] = u * phi_star + R_roe
-	dissMat[:,1,1] = u * beta_star + m
-	dissMat[:,1,2] = u * u_abs * rhoT
+	dissMat[:,1,0] = vel * phi_star + R_roe
+	dissMat[:,1,1] = vel * beta_star + m
+	dissMat[:,1,2] = vel * u_abs * rhoT
 
 	if (gas.numSpecies > 1):
-		dissMat[:,1,3:] = u * u_abs * rhoY
+		dissMat[:,1,3:] = vel * u_abs * rhoY
 	else:
-		dissMat[:,1,3] = u * u_abs * rhoY
+		dissMat[:,1,3] = vel * u_abs * rhoY
 
-	dissMat[:,2,0] = phi_e + R_roe * u
+	dissMat[:,2,0] = phi_e + R_roe * vel
 	dissMat[:,2,1] = beta_e + e
 	dissMat[:,2,2] = GT * u_abs
 
@@ -344,96 +211,31 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 	return dissMat
 
 # compute viscous fluxes
-def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry, faceVals, fValid):
-
-	# match to GEMS
+def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry, faceVals):
 
 	solPrimGrad_GEMS = np.zeros((geom.numCells+1, gas.numEqs), dtype = constants.realType)
 	solPrimGrad_GEMS[1:-1,:] = (sol.solPrim[1:, :] - sol.solPrim[:-1, :]) / geom.dx
 	solPrimGrad_GEMS[0,:] 	= (sol.solPrim[0, :] - bounds.inlet.sol.solPrim) / geom.dx 
 	solPrimGrad_GEMS[-1,:] 	= (bounds.outlet.sol.solPrim - sol.solPrim[-1,:]) / geom.dx
-	Fv_GEMS = np.zeros((geom.numCells+1, gas.numEqs), dtype = constants.realType)
+	Fv = np.zeros((geom.numCells+1, gas.numEqs), dtype = constants.realType)
 
 	Ck = gas.muRef[:-1] * CpAve / gas.Pr[:-1]
 	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad_GEMS[:,1]
-	Fv_GEMS[:,1] = Fv_GEMS[:,1] + tau 
-	Fv_GEMS[:,2] = Fv_GEMS[:,2] + solPrimAve[:,1] * tau + Ck * solPrimGrad_GEMS[:,2]
+	Fv[:,1] = Fv[:,1] + tau 
+	Fv[:,2] = Fv[:,2] + solPrimAve[:,1] * tau + Ck * solPrimGrad_GEMS[:,2]
 
 	Cd = gas.muRef[:-1] / gas.Sc[:-1] / solConsAve[:,0]
 	diff_rhoY = solConsAve[:,0] * Cd * np.squeeze(solPrimGrad_GEMS[:,3:])
 	hY = gas.enthRefDiffs + (solPrimAve[:,2] - gas.tempRef) * gas.CpDiffs 
 
 	if (gas.numSpecies > 1):
-		Fv_GEMS[:,2] = Fv_GEMS[:,2] + np.sum(diff_rhoY * hY, axis = 1)
-		Fv_GEMS[:,3:] = Fv_GEMS[:,3:] + diff_rhoY 
-	else:
-		Fv_GEMS[:,2] = Fv_GEMS[:,2] + diff_rhoY * hY
-		Fv_GEMS[:,3] = Fv_GEMS[:,3] + diff_rhoY
-
-	# validate
-	writeToFile(fValid, solPrimGrad_GEMS)
-	writeToFile(fValid, Fv_GEMS)
-
-	# return Fv_GEMS
-
-	# full domain state, including ghost cells
-	if (params.spaceOrder == 1):
-		solPrim = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim), axis = 0)
-		rho = np.concatenate((bounds.inlet.sol.solCons[[0],0], sol.solCons[:,0], bounds.outlet.sol.solCons[[0],0]), axis = 0)
-		cp = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix, bounds.outlet.sol.CpMix), axis = 0)
-
-	elif (params.spaceOrder == 2):
-		solPrim = faceVals[0]
-		solConsFace = faceVals[1]
-		rho = solConsFace[:,0]
-		cp = faceVals[2]
-
-	# convert to complex for complex step
-	if (sol.solPrim.dtype == constants.complexType):
-		rho = rho.astype(dtype=constants.complexType)
-		cp = cp.astype(dtype=constants.complexType)
-
-
-	solPrimGrad = np.zeros(solPrim.shape, dtype = constants.realType)
-	if (solPrim.dtype == constants.complexType):
-		solPrimGrad = np.zeros(solPrim.shape, dtype = constants.complexType)        
-
-	# compute cell-centered gradients via finite difference stencil
-	if (params.spaceOrder == 1):
-		solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (solPrim[2:, :] - solPrim[:-2, :])  
-		solPrimGrad[0,:] = (solPrim[1,:] - solPrim[0,:]) / geom.dx       
-		solPrimGrad[-1,:] = (solPrim[-1,:] - solPrim[-2,:]) / geom.dx         
-
-	elif (params.spaceOrder == 2):
-		solPrimGrad = faceVals[3]      
-
-	# viscous flux vector
-	Fv = np.zeros(solPrim.shape, dtype = constants.realType)
-	if (sol.solPrim.dtype == constants.complexType):
-		Fv = Fv.astype(dtype=constants.complexType)
-
-	# compute mixture mass diffusivity, thermal conductivity, and viscosity at faces
-
-	Ck = gas.muRef[:-1] * cp / gas.Pr[:-1] 								# thermal conductivity
-	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[:,1] 					# viscous stress "tensor"
-	Fv[:,1] = Fv[:,1] + tau 											# finish momentum equation portion
-	Fv[:,2] = Fv[:,2] + solPrim[:,1] * tau + Ck * solPrimGrad[:,2] 		# stress tensor component and thermal conductivity component of energy portion
-
-	Cd = gas.muRef[:-1] / gas.Sc[:-1] / rho							# mass diffusivity, from Schmidt number
-	diff_rhoY = rho * Cd * np.squeeze(solPrimGrad[:,3:])  				
-	hY = gas.enthRefDiffs + (solPrim[:,2] - gas.tempRef) * gas.CpDiffs 	# enthalpy, by species	
- 
-	if (gas.numSpecies > 1):
-		Fv[:,2] = Fv[:,2] + np.sum(diff_rhoY * hY, axis = 1)			# complete mass diffusion component of viscous momentum flux 
-		Fv[:,3:] = Fv[:,3:] + diff_rhoY 								# viscous scalar transport flux
+		Fv[:,2] = Fv[:,2] + np.sum(diff_rhoY * hY, axis = 1)
+		Fv[:,3:] = Fv[:,3:] + diff_rhoY 
 	else:
 		Fv[:,2] = Fv[:,2] + diff_rhoY * hY
 		Fv[:,3] = Fv[:,3] + diff_rhoY
-   	
-	flux = 0.5 * (Fv[:-1,:] + Fv[1:,:]) 								# flux is average between adjacent cell centers?
-	
-	# pdb.set_trace()
-	return flux
+
+	return Fv
 
 
 # compute source term

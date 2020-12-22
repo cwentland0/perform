@@ -131,7 +131,7 @@ def solver(params: parameters, geom: geometry, gas: gasProps):
 
 	# write data to disk
 	outputFuncs.writeDataUnsteady(sol, params, probeVals, tVals)
-	outputFuncs.writeDataSteady(sol, params)
+	if (params.runSteady): outputFuncs.writeDataSteady(sol, params)
 
 	# draw images, save to disk
 	if ((params.visType == "probe") and params.visSave): 
