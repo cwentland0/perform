@@ -11,11 +11,6 @@ import pdb
 # TODO: check for repeated calculations, just make a separate variable
 # TODO: check references to muRef, might be some broadcast issues
 
-def writeToFile(fid, array):
-	if (array.ndim > 1):
-		array = array.flatten(order="F")
-	fid.write(struct.pack('d'*array.shape[0], *(array)))
-
 # compute RHS function
 # @profile
 def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
@@ -55,7 +50,7 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 	# compute source term
 	if params.sourceOn:
 		calcSource(sol, params, gas)
-		sol.RHS[:,3:]  = sol.source + sol.RHS[:,3:]
+		sol.RHS[:,3:] += sol.source 
 
 # compute inviscid fluxes
 # TODO: expand beyond Roe flux
@@ -107,46 +102,50 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, param
 		sol.srf = np.maximum(srf[:-1], srf[1:])
 
 	# dissipation term
-	dQp = solPrimR - solPrimL
-	M_ROE = calcRoeDissipation(solPrimAve, solConsAve[:,0], h0Ave, cAve, RAve, CpAve, gas)
+	dQp = solPrimL - solPrimR
+	M_ROE = calcRoeDissipation(solPrimAve, solConsAve[:,0], h0Ave, cAve, CpAve, gas)
 	dissTerm = 0.5 * (M_ROE * np.expand_dims(dQp, -2)).sum(-1)
 
 	# complete Roe flux
-	flux = 0.5 * (EL + ER) - dissTerm 
+	flux = 0.5 * (EL + ER) + dissTerm 
 
 	return flux, solPrimAve, solConsAve, CpAve
 
 # compute dissipation term of Roe flux
 # inputs are all from Roe average state
-def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
+# TODO: a lot of these quantities need to be generalized for different gas models
+def calcRoeDissipation(solPrim, rho, h0, c, Cp, gas: gasProps):
 
 	# allocate
 	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.realType)
 	if (solPrim.dtype == constants.complexType):
 		dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.complexType)        
 	
-	# for clarity
+	# primitive variables for clarity
+	press = solPrim[:,0]
+	vel = solPrim[:,1]
 	temp = solPrim[:,2]
 	massFracs = solPrim[:,3:]
 
-	rhoY = -np.square(rho) * (constants.RUniv * temp / solPrim[:,0] * gas.mwInvDiffs)
+	rhoY = -np.square(rho) * (constants.RUniv * temp / press * gas.mwInvDiffs)
 	hY = gas.enthRefDiffs + (temp - gas.tempRef) * gas.CpDiffs
 
-	rhop = 1.0 / (R * temp) 			# derivative of density with respect to pressure
+	rhop = rho / press 					# derivative of density with respect to pressure
 	rhoT = -rho / temp 					# derivative of density with respect to temperature
-	hT = Cp
-	hp = 0.0
+	hT = Cp 							# derivative of enthalpy with respect to temperature
+	hp = 0.0 							# derivative of enthalpy with respect to pressure
 
+	# gamma terms for energy equation
 	Gp = rho * hp + rhop * h0 - 1.0
 	GT = rho *hT + rhoT * h0
-
 	GY = rho * hY + rhoY * h0
 
-	u = solPrim[:,1]
-	lambda1 = u + c
-	lambda2 = u - c
+	# characteristic speeds
+	lambda1 = vel + c
+	lambda2 = vel - c
 	lam1 = np.absolute(lambda1)
 	lam2 = np.absolute(lambda2)
+
 	R_roe = (lam2 - lam1) / (lambda2 - lambda1)
 	alpha = c * (lam1 + lam2) / (lambda1 - lambda2)
 	beta = np.power(c, 2.0) * (lam1 - lam2) / (lambda1 - lambda2)
@@ -155,14 +154,14 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 	eta = (1.0 - rho * hp) / hT
 	psi = eta * rhoT + rho * rhop
 
-	u_abs = np.absolute(solPrim[:,1])
+	u_abs = np.absolute(vel)
 
 	beta_star = beta * psi
 	beta_e = beta * (rho * Gp + GT * eta)
-	phi_star = rhop * phi + rhoT * eta * (phi - u_abs)
-	phi_e = Gp * phi + GT * eta * (phi - u_abs)
+	phi_star = rhop * phi + rhoT * eta * (phi - u_abs) / rho
+	phi_e = Gp * phi + GT * eta * (phi - u_abs) / rho
 	m = rho * alpha
-	e = rho * u * alpha
+	e = rho * vel * alpha
 
 	dissMat[:,0,0] = phi_star
 	dissMat[:,0,1] = beta_star
@@ -172,16 +171,16 @@ def calcRoeDissipation(solPrim, rho, h0, c, R, Cp, gas: gasProps):
 		dissMat[:,0,3:] = u_abs * rhoY
 	else:
 		dissMat[:,0,3] = u_abs * rhoY
-	dissMat[:,1,0] = u * phi_star + R_roe
-	dissMat[:,1,1] = u * beta_star + m
-	dissMat[:,1,2] = u * u_abs * rhoT
+	dissMat[:,1,0] = vel * phi_star + R_roe
+	dissMat[:,1,1] = vel * beta_star + m
+	dissMat[:,1,2] = vel * u_abs * rhoT
 
 	if (gas.numSpecies > 1):
-		dissMat[:,1,3:] = u * u_abs * rhoY
+		dissMat[:,1,3:] = vel * u_abs * rhoY
 	else:
-		dissMat[:,1,3] = u * u_abs * rhoY
+		dissMat[:,1,3] = vel * u_abs * rhoY
 
-	dissMat[:,2,0] = phi_e + R_roe * u
+	dissMat[:,2,0] = phi_e + R_roe * vel
 	dissMat[:,2,1] = beta_e + e
 	dissMat[:,2,2] = GT * u_abs
 
@@ -217,9 +216,9 @@ def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: bound
 	Ck = gas.muRef[:-1] * CpAve / gas.Pr[:-1] 									# thermal conductivity
 	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[:,1] 							# stress "tensor"
 
-	Cd = gas.muRef[:-1] / gas.Sc[:-1] / solConsAve[:,0]						# mass diffusivity
-	diff_rhoY = solConsAve[:,0] * Cd * np.squeeze(solPrimGrad[:,3:])  		# 
-	hY = gas.enthRefDiffs + (solPrimAve[:,2] - gas.tempRef) * gas.CpDiffs 	# species enthalpies, TODO: replace with stateFuncs function
+	Cd = gas.muRef[:-1] / gas.Sc[:-1] / solConsAve[:,0]							# mass diffusivity
+	diff_rhoY = solConsAve[:,0] * Cd * np.squeeze(solPrimGrad[:,3:])  			# 
+	hY = gas.enthRefDiffs + (solPrimAve[:,2] - gas.tempRef) * gas.CpDiffs 		# species enthalpies, TODO: replace with stateFuncs function
 
 	Fv = np.zeros((geom.numCells+1, gas.numEqs), dtype = constants.realType)
 	Fv[:,1] = Fv[:,1] + tau 

@@ -8,6 +8,7 @@ RUniv 		= 8314.4621    # universal gas constant, J/(K*kmol)
 enthRefTemp = 298.0 	# temperature at which reference enthalpy is measured
 						# TODO: make this the default, but make it possible to accept different values in parameters
 q0 			= 6.93e6
+suthTemp 	= 110.4 	# Sutherland temperature
 
 tinyNum 	= 1.0e-25 	# very small number
 hugeNum 	= 1.0e25	# very large number

@@ -151,6 +151,17 @@ class gasProps:
 		self.CpDiffs 			= self.Cp[:-1] - self.Cp[-1]
 		self.enthRefDiffs 		= self.enthRef[:-1] - self.enthRef[-1]
 
+		# mass matrices for calculating viscosity and thermal conductivity mixing laws
+		self.mixMassMatrix 		= np.zeros((self.numSpeciesFull, self.numSpeciesFull), dtype=realType)
+		self.mixInvMassMatrix 	= np.zeros((self.numSpeciesFull, self.numSpeciesFull), dtype=realType)
+		self.precompMixMassMatrices()
+
+	def precompMixMassMatrices(self):
+
+		for specNum in range(self.numSpeciesFull):
+			self.mixMassMatrix[specNum, :] 		= np.power((self.molWeights / self.molWeights[specNum]), 0.25)
+			self.mixInvMassMatrix[specNum, :] 	= 1.0 / np.sqrt( 1.0 + self.molWeights[specNum] / self.molWeights)
+
 
 # mesh properties
 # TODO: could expand to non-uniform meshes
