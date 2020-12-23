@@ -5,7 +5,7 @@ import scipy
 from scipy.sparse import csc_matrix, bsr_matrix, block_diag
 from stateFuncs import calcCpMixture, calcGasConstantMixture, calcStateFromPrim, calcGammaMixture
 import constants
-from spaceSchemes import calcInvFlux, calcViscFlux, calcSource, reconstruct_2nd, calcRoeDissipation, calcRHS
+from spaceSchemes import calcInvFlux, calcViscFlux, calcSource, calcRoeDissipation, calcRHS
 from matplotlib.pyplot import spy
 import copy
 import pdb

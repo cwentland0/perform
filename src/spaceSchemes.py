@@ -16,32 +16,27 @@ import pdb
 def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
 
 	# compute ghost cell state or boundary fluxes
+	# TODO: update this after higher-order contribution
 	calcBoundaries(sol, bounds, params, gas)
 
-	# store left and right cell states
-	# TODO: this is memory-inefficient, left and right state are not mutations from the state vectors
-	if (params.spaceOrder == 1):
-		solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
-		solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
-		solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
-		solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)       
-		faceVals = None
+	# state at left and right of cell face
+	solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
+	solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
+	solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
+	solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)       
 
-	elif (params.spaceOrder == 2):
-		[solPrimL, solConsL, solPrimR, solConsR, faceVals] = reconstruct_2nd(sol,bounds,geom,gas)  
-	else:
-		raise ValueError("Higher-order fluxes not implemented yet")
-
-	if (sol.solPrim.dtype == constants.complexType):
-		solPrimL = solPrimL.astype(dtype=constants.complexType)
-		solPrimR = solPrimR.astype(dtype=constants.complexType)
-		solConsL = solConsL.astype(dtype=constants.complexType)
-		solConsR = solConsR.astype(dtype=constants.complexType)
+	# add higher-order contribution
+	if (params.spaceOrder > 1):
+		solPrimGrad = calcCellGradients(sol, params, bounds, geom, gas)
+		solPrimL[1:,:] 	-= (geom.dx / 2.0) * solPrimGrad 
+		solPrimR[:-1,:] += (geom.dx / 2.0) * solPrimGrad
+		solConsL[1:,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimL[1:,:], gas)
+		solConsR[:-1,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimR[:-1,:], gas)
 
 	# compute fluxes
 	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, params, gas)
 	if (params.viscScheme > 0):
-		flux -= calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, params, gas, geom, faceVals)
+		flux -= calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, params, gas, geom)
 
 	# compute RHS
 	sol.RHS = flux[:-1,:] - flux[1:,:]
@@ -63,11 +58,7 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, param
 
 	# inviscid flux vector
 	EL = np.zeros(matShape, dtype = constants.realType)
-	ER = np.zeros(matShape, dtype = constants.realType)
-
-	if (solPrimL.dtype == constants.complexType):
-		EL = np.zeros(matShape, dtype = constants.complexType)        
-		ER = np.zeros(matShape, dtype = constants.complexType)        
+	ER = np.zeros(matShape, dtype = constants.realType)     
 
 	# compute sqrhol, sqrhor, fac, and fac1
 	sqrhol = np.sqrt(solConsL[:, 0])
@@ -75,10 +66,13 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, param
 	fac = sqrhol / (sqrhol + sqrhor)
 	fac1 = 1.0 - fac
 
+	# Roe average stagnation enthalpy and density
 	h0L = stateFuncs.calcStagnationEnthalpy(solPrimL, gas)
 	h0R = stateFuncs.calcStagnationEnthalpy(solPrimR, gas) 
 	h0Ave = fac * h0L + fac1 * h0R 
 	rhoAve = sqrhol * sqrhor
+
+	# compute Roe average primitive state, adjust iteratively to conform to Roe average density and enthalpy
 	solPrimAve = fac[:,None] * solPrimL + fac1[:,None] * solPrimR
 	solPrimAve = stateFuncs.calcStateFromRhoH0(solPrimAve, rhoAve, h0Ave, gas)
 
@@ -97,6 +91,7 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, param
 	ER[:,2] = solConsR[:,0] * h0R * solPrimR[:,1]
 	ER[:,3:] = solConsR[:,3:] * solPrimR[:,[1]]
 
+	# maximum wave speed for adapting dtau, if needed
 	if (params.adaptDTau):
 		srf = np.maximum(solPrimAve[:,1] + cAve, solPrimAve[:,1] - cAve)
 		sol.srf = np.maximum(srf[:-1], srf[1:])
@@ -205,9 +200,9 @@ def calcRoeDissipation(solPrim, rho, h0, c, Cp, gas: gasProps):
 	return dissMat
 
 # compute viscous fluxes
-def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry, faceVals):
+def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: boundaries, params: parameters, gas: gasProps, geom: geometry):
 
-	# compute state gradients
+	# compute 2nd-order state gradients at face
 	solPrimGrad = np.zeros((geom.numCells+1, gas.numEqs), dtype = constants.realType)
 	solPrimGrad[1:-1,:] = (sol.solPrim[1:, :] - sol.solPrim[:-1, :]) / geom.dx
 	solPrimGrad[0,:] 	= (sol.solPrim[0, :] - bounds.inlet.sol.solPrim) / geom.dx 
@@ -231,7 +226,6 @@ def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: bound
 		Fv[:,3] = Fv[:,3] + diff_rhoY
 
 	return Fv
-
 
 # compute source term
 # TODO: bring in rho*Yi so it doesn't keep getting calculated
@@ -258,87 +252,89 @@ def calcSource(sol: solutionPhys, params: parameters, gas: gasProps):
 	for specIdx in range(gas.numSpecies):
 		sol.source[:,specIdx] = -gas.molWeightNu[specIdx] * wf
 
-def reconstruct_2nd(sol: solutionPhys, bounds: boundaries, geom: geometry, gas: gasProps):
+def calcCellGradients(sol: solutionPhys, params: parameters, bounds: boundaries, geom: geometry, gas: gasProps):
 	
-	#Gradients at all cell centres (including ghost) 
-	Q = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim, bounds.outlet.sol.solPrim),axis=0)
-	gradQ = np.zeros(Q.shape)
-	gradQ[1:-1, :] =    (0.5 / geom.dx) * (Q[2:, :] - Q[:-2, :]) 
-	gradQ[0, :]    =    (Q[1,:] - Q[0,:]) / geom.dx
-	gradQ[-1,:]    =    (Q[-1,:] - Q[-2,:]) / geom.dx
-	delQ           =    gradQ * (geom.dx / 2) #(grad * dx / 2) 
-	
-	#Max and min wrt neightbours at each cell
-	Qln = np.concatenate(([Q[0, :]], Q[:-1, :]))
-	Qm = Q
-	Qrn = np.concatenate((Q[1:, :], [Q[-1, :]]))
-	
-	Qstack = np.stack((Qln, Qm, Qrn), axis=1)
-	Qmax = np.amax(Qstack, axis=(0,1))
-	Qmin = np.amin(Qstack, axis=(0,1))
-	
-	#Unconstrained reconstruction at each face
-	Ql = Qm - delQ
-	Qr = Qm + delQ
-	
-	#Gradient Limiting
-	phil = np.ones(Q.shape)
-	phir = np.ones(Q.shape)
-	
-	cond1l = (Ql - Qm > 0)
-	cond1r = (Qr - Qm > 0)
-	cond2l = (Ql - Qm < 0)
-	cond2r = (Qr - Qm < 0)
-	
-	onesProf = np.ones(Q.shape)
-	
-	Qmax = Qmax * np.ones(Q.shape)
-	Qmin = Qmin * np.ones(Q.shape)
-	
-	phil[cond1l] = np.minimum(onesProf[cond1l], (Qmax[cond1l] - Qm[cond1l]) / (Ql[cond1l] - Qm[cond1l]))
-	phir[cond1r] = np.minimum(onesProf[cond1r], (Qmax[cond1r] - Qm[cond1r]) / (Qr[cond1r] - Qm[cond1r]))
-	
-	phil[cond2l] = np.minimum(onesProf[cond2l], (Qmin[cond2l] - Qm[cond2l]) / (Ql[cond2l] - Qm[cond2l]))
-	phir[cond2r] = np.minimum(onesProf[cond2r], (Qmin[cond2r] - Qm[cond2r]) / (Qr[cond2r] - Qm[cond2r]))
+	# compute gradients via a finite difference stencil
+	solPrimGrad = np.zeros(sol.solPrim.shape, dtype=constants.realType)
+	if (params.spaceOrder == 2):
+		solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (sol.solPrim[2:, :] - sol.solPrim[:-2, :]) 
+		solPrimGrad[0, :]    = (0.5 / geom.dx) * (sol.solPrim[1,:] - bounds.inlet.sol.solPrim)
+		solPrimGrad[-1,:]    = (0.5 / geom.dx) * (bounds.outlet.sol.solPrim - sol.solPrim[-2,:])
+	else:
+		raise ValueError("Order "+str(params.spaceOrder)+" gradient calculations not implemented...")
 
-	phi = np.minimum(phil, phir)
+	# compute gradient limiter and limit gradient, if necessary
+	if (params.gradLimiter > 0):
+
+		# Barth-Jespersen
+		if (params.gradLimiter == 1):
+			phi = limiterBarthJespersen(sol, bounds, geom, solPrimGrad)
+
+		else:
+			raise ValueError("Invalid input for params.limiter: "+str(params.gradLimiter))
 	
-	Ql = Qm - phi * delQ
-	Qr = Qm + phi * delQ
-	
-	solPrimL = Qr[:-1, :]
-	solPrimR = Ql[1:, :]
-	[solConsL, RMix, enthRefMix, CpMixL] = stateFuncs.calcStateFromPrim(solPrimL, gas)
-	[solConsR, RMix, enthRefMix, CpMixR] = stateFuncs.calcStateFromPrim(solPrimR, gas)
-	
-	#Storing the face values
-	solPrimFace = np.concatenate((solPrimL, solPrimR[[-1],:]), axis=0)
-	solConsFace = np.concatenate((solConsL, solConsR[[-1],:]), axis=0)
-	CpMixFace   = np.concatenate((CpMixL, CpMixR[[-1]]), axis=0)
-	
-	faceVals = []
-	faceVals.append(solPrimFace)
-	faceVals.append(solConsFace)
-	faceVals.append(CpMixFace)
-	faceVals.append(gradQ)
-	
-	return solPrimL, solConsL, solPrimR, solConsR, faceVals
-	
+		solPrimGrad *= phi	# limit gradient
 
 	
-		
+	return solPrimGrad
 	
-		
-		
+# find minimum and maximum of cell state and neighbor cell state
+def findNeighborMinMax(solInterior, solInlet=None, solOutlet=None):
+
+	# max and min of cell and neighbors
+	solMax = solInterior.copy()
+	solMin = solInterior.copy()
+
+	# first compare against right neighbor
+	solMax[:-1,:]  	= np.maximum(solInterior[:-1,:], solInterior[1:,:])
+	solMin[:-1,:]  	= np.minimum(solInterior[:-1,:], solInterior[1:,:])
+	if (solOutlet is not None):
+		solMax[-1,:]	= np.maximum(solInterior[-1,:], solOutlet[0,:])
+		solMin[-1,:]	= np.minimum(solInterior[-1,:], solOutlet[0,:])
+
+	# then compare agains left neighbor
+	solMax[1:,:] 	= np.maximum(solMax[1:,:], solInterior[:-1])
+	solMin[1:,:] 	= np.minimum(solMin[1:,:], solInterior[:-1])
+	if (solInlet is not None):
+		solMax[0,:] 	= np.maximum(solMax[0,:], solInlet[0,:])
+		solMin[0,:] 	= np.minimum(solMin[0,:], solInlet[0,:])
+
+	return solMin, solMax
+
+# Barth-Jespersen limiter
+# ensures that no new minima or maxima are introduced in reconstruction
+def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, geom: geometry, grad):
+
+	solPrim = sol.solPrim
+
+	# get min/max of cell and neighbors
+	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, bounds.inlet.sol.solPrim, bounds.outlet.sol.solPrim)
+
+	# unconstrained reconstruction at each face
+	delSolPrim 		= grad * (geom.dx / 2) 
+	solPrimL 		= solPrim - delSolPrim
+	solPrimR 		= solPrim + delSolPrim
 	
+	# limiter defaults to 1 for uniform regions
+	phiL = np.ones(solPrim.shape, dtype=constants.realType)
+	phiR = np.ones(solPrim.shape, dtype=constants.realType)
 	
+	# find indices where difference in reconstruction is either positive or negative
+	cond1L = ((solPrimL - solPrim) > 0)
+	cond1R = ((solPrimR - solPrim) > 0)
+	cond2L = ((solPrimL - solPrim) < 0)
+	cond2R = ((solPrimR - solPrim) < 0)
 	
+	# threshold limiter for left and right faces of each cell
+	# pdb.set_trace()
+	phiL[cond1L] = np.minimum(phiL[cond1L], (solPrimMax[cond1L] - solPrim[cond1L]) / (solPrimL[cond1L] - solPrim[cond1L]))
+	phiR[cond1R] = np.minimum(phiR[cond1R], (solPrimMax[cond1R] - solPrim[cond1R]) / (solPrimR[cond1R] - solPrim[cond1R]))
+	phiL[cond2L] = np.minimum(phiL[cond2L], (solPrimMin[cond2L] - solPrim[cond2L]) / (solPrimL[cond2L] - solPrim[cond2L]))
+	phiR[cond2R] = np.minimum(phiR[cond2R], (solPrimMin[cond2R] - solPrim[cond2R]) / (solPrimR[cond2R] - solPrim[cond2R]))
+
+	pdb.set_trace()
+	# take minimum limiter from left and right faces of each cell
+	phi = np.minimum(phiL, phiR)
 	
-	
-   
-	
-	
-	
-	
-	
-		
+	return phi
+

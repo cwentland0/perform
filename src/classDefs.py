@@ -58,6 +58,7 @@ class parameters:
 		# spatial discretization parameters
 		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)
 		self.spaceOrder 	= catchInput(paramDict, "spaceOrder", 1)		# spatial discretization order of accuracy (int)
+		self.gradLimiter 	= catchInput(paramDict, "gradLimiter", 0)		# gradient limiter for higher-order face reconstructions
 		self.viscScheme 	= catchInput(paramDict, "viscScheme", 0)		# 0 for inviscid, 1 for viscous
 
 		# misc
