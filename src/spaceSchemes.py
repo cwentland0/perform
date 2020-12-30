@@ -1,11 +1,11 @@
 import numpy as np 
 import constants
 import os
-import struct
 from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries
 import stateFuncs
 from boundaryFuncs import calcBoundaries
+from higherOrderFuncs import calcCellGradients
 import pdb	
 
 # TODO: check for repeated calculations, just make a separate variable
@@ -33,10 +33,9 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geo
 		solConsL[1:,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimL[1:,:], gas)
 		solConsR[:-1,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimR[:-1,:], gas)
 
-	pdb.set_trace()
-
 	# compute fluxes
 	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, params, gas)
+
 	if (params.viscScheme > 0):
 		flux -= calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, params, gas, geom)
 
@@ -254,132 +253,3 @@ def calcSource(sol: solutionPhys, params: parameters, gas: gasProps):
 	for specIdx in range(gas.numSpecies):
 		sol.source[:,specIdx] = -gas.molWeightNu[specIdx] * wf
 
-def calcCellGradients(sol: solutionPhys, params: parameters, bounds: boundaries, geom: geometry, gas: gasProps):
-	
-	# compute gradients via a finite difference stencil
-	solPrimGrad = np.zeros(sol.solPrim.shape, dtype=constants.realType)
-	if (params.spaceOrder == 2):
-		solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (sol.solPrim[2:, :] - sol.solPrim[:-2, :]) 
-		solPrimGrad[0, :]    = (0.5 / geom.dx) * (sol.solPrim[1,:] - bounds.inlet.sol.solPrim)
-		solPrimGrad[-1,:]    = (0.5 / geom.dx) * (bounds.outlet.sol.solPrim - sol.solPrim[-2,:])
-	else:
-		raise ValueError("Order "+str(params.spaceOrder)+" gradient calculations not implemented...")
-
-	# compute gradient limiter and limit gradient, if necessary
-	if (params.gradLimiter > 0):
-
-		# Barth-Jespersen
-		if (params.gradLimiter == 1):
-			phi = limiterBarthJespersen(sol, bounds, geom, solPrimGrad)
-
-		elif (params.gradLimiter == 2):
-			phi = limiterVenkatakrishnan(sol, bounds, geom, solPrimGrad)
-
-		else:
-			raise ValueError("Invalid input for params.limiter: "+str(params.gradLimiter))
-	
-		solPrimGrad = solPrimGrad * phi	# limit gradient
-
-	return solPrimGrad
-	
-# find minimum and maximum of cell state and neighbor cell state
-def findNeighborMinMax(solInterior, solInlet=None, solOutlet=None):
-
-	# max and min of cell and neighbors
-	solMax = solInterior.copy()
-	solMin = solInterior.copy()
-
-	# first compare against right neighbor
-	solMax[:-1,:]  	= np.maximum(solInterior[:-1,:], solInterior[1:,:])
-	solMin[:-1,:]  	= np.minimum(solInterior[:-1,:], solInterior[1:,:])
-	if (solOutlet is not None):
-		solMax[-1,:]	= np.maximum(solInterior[-1,:], solOutlet[0,:])
-		solMin[-1,:]	= np.minimum(solInterior[-1,:], solOutlet[0,:])
-
-	# then compare agains left neighbor
-	solMax[1:,:] 	= np.maximum(solMax[1:,:], solInterior[:-1])
-	solMin[1:,:] 	= np.minimum(solMin[1:,:], solInterior[:-1])
-	if (solInlet is not None):
-		solMax[0,:] 	= np.maximum(solMax[0,:], solInlet[0,:])
-		solMin[0,:] 	= np.minimum(solMin[0,:], solInlet[0,:])
-
-	return solMin, solMax
-
-# Barth-Jespersen limiter
-# ensures that no new minima or maxima are introduced in reconstruction
-def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, geom: geometry, grad):
-
-	solPrim = sol.solPrim
-
-	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, bounds.inlet.sol.solPrim, bounds.outlet.sol.solPrim)
-
-	# unconstrained reconstruction at each face
-	delSolPrim 		= grad * (geom.dx / 2) 
-	solPrimL 		= solPrim - delSolPrim
-	solPrimR 		= solPrim + delSolPrim
-	
-	# limiter defaults to 1
-	phiL = np.ones(solPrim.shape, dtype=constants.realType)
-	phiR = np.ones(solPrim.shape, dtype=constants.realType)
-	
-	# find indices where difference in reconstruction is either positive or negative
-	cond1L = ((solPrimL - solPrim) > 0)
-	cond1R = ((solPrimR - solPrim) > 0)
-	cond2L = ((solPrimL - solPrim) < 0)
-	cond2R = ((solPrimR - solPrim) < 0)
-
-	# threshold limiter for left and right faces of each cell
-	phiL[cond1L] = np.minimum(phiL[cond1L], (solPrimMax[cond1L] - solPrim[cond1L]) / (solPrimL[cond1L] - solPrim[cond1L]))
-	phiR[cond1R] = np.minimum(phiR[cond1R], (solPrimMax[cond1R] - solPrim[cond1R]) / (solPrimR[cond1R] - solPrim[cond1R]))
-	phiL[cond2L] = np.minimum(phiL[cond2L], (solPrimMin[cond2L] - solPrim[cond2L]) / (solPrimL[cond2L] - solPrim[cond2L]))
-	phiR[cond2R] = np.minimum(phiR[cond2R], (solPrimMin[cond2R] - solPrim[cond2R]) / (solPrimR[cond2R] - solPrim[cond2R]))
-
-	# pdb.set_trace()
-	# take minimum limiter from left and right faces of each cell
-	phi = np.minimum(phiL, phiR)
-	
-	return phi
-
-# Venkatakrishnan limiter
-# differentiable, but limits in uniform regions
-def limiterVenkatakrishnan(sol: solutionPhys, bounds: boundaries, geom: geometry, grad):
-
-	solPrim = sol.solPrim
-
-	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, bounds.inlet.sol.solPrim, bounds.outlet.sol.solPrim)
-
-	# unconstrained reconstruction at each face
-	delSolPrim 		= grad * (geom.dx / 2) 
-	solPrimL 		= solPrim - delSolPrim
-	solPrimR 		= solPrim + delSolPrim
-	
-	# limiter defaults to 1
-	phiL = np.ones(solPrim.shape, dtype=constants.realType)
-	phiR = np.ones(solPrim.shape, dtype=constants.realType)
-	
-	# find indices where difference in reconstruction is either positive or negative
-	cond1L = ((solPrimL - solPrim) > 0)
-	cond1R = ((solPrimR - solPrim) > 0)
-	cond2L = ((solPrimL - solPrim) < 0)
-	cond2R = ((solPrimR - solPrim) < 0)
-	
-	# (y^2 + 2y) / (y^2 + y + 2)
-	def venkatakrishnanFunction(maxVals, cellVals, faceVals):
-		frac = (maxVals - cellVals) / (faceVals - cellVals)
-		fracSq = np.square(frac)
-		venkVals = (fracSq + 2.0 * frac) / (fracSq + frac + 2.0)
-		return venkVals
-
-	# apply smooth Venkatakrishnan function
-	phiL[cond1L] = venkatakrishnanFunction(solPrimMax[cond1L], solPrim[cond1L], solPrimL[cond1L]) 
-	phiR[cond1R] = venkatakrishnanFunction(solPrimMax[cond1R], solPrim[cond1R], solPrimR[cond1R]) 
-	phiL[cond2L] = venkatakrishnanFunction(solPrimMin[cond2L], solPrim[cond2L], solPrimL[cond2L])
-	phiR[cond2R] = venkatakrishnanFunction(solPrimMin[cond2R], solPrim[cond2R], solPrimR[cond2R])
-
-	# take minimum limiter from left and right faces of each cell
-	phi = np.minimum(phiL, phiR)
-	# pdb.set_trace()
-
-	return phi
