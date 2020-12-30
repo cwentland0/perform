@@ -1,13 +1,11 @@
 import numpy as np
 from solution import solutionPhys, boundaries
 from classDefs import parameters, geometry, gasProps
-import scipy
-from scipy.sparse import csc_matrix, bsr_matrix, block_diag
+from scipy.sparse import bsr_matrix
 from stateFuncs import calcCpMixture, calcGasConstantMixture, calcStateFromPrim, calcGammaMixture
 import constants
-from spaceSchemes import calcInvFlux, calcViscFlux, calcSource, calcRoeDissipation, calcRHS
-from matplotlib.pyplot import spy
-import copy
+from spaceSchemes import calcRoeDissipation
+from higherOrderFuncs import calcCellGradients
 import pdb
 
 
@@ -136,31 +134,6 @@ def calcDSolConsDSolPrim(solCons, solPrim, gas: gasProps):
 				gammaMatrix[i,j,:] = (i==j) * rho + Y[:,i-3] * rhoY[:,j-3]
 				
 	return gammaMatrix
-
-# compute Gamma Jacobian numerically, via complex step
-def calcDSolConsDSolPrimImag(solCons, solPrim, gas: gasProps):
-	
-	gammaMatrix = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
-	h = 1e-25
-	
-	for i in range(solPrim.shape[0]):
-		for j in range(gas.numEqs):
-			
-			solPrimCurr = solPrim.copy()
-			solPrimCurr = solPrimCurr.astype(dtype=constants.complexType)
-			#adding complex perturbations
-			solPrimCurr[i,j] = solPrimCurr[i,j] + complex(0, h)
-			solConsCurr, RMix, enthRefMix, CpMix = calcStateFromPrim(solPrimCurr, gas)
-			
-			gammaMatrix[:,j,i] = solConsCurr[i,:].imag / h
-			
-			#Unperturbing
-			solPrimCurr[i,j] = solPrimCurr[i,j] - complex(0, h)
-	
-	#diff = calcRAE(gammaMatrix.ravel(), gammaMatrix.ravel())
-	
-	return gammaMatrix
-	
 
 # compute Jacobian of source term 
 def calcDSourceDSolPrim(sol, gas: gasProps, geom: geometry, dt):
@@ -339,13 +312,13 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR,
 	
 	ci = np.sqrt(gammai * Ri * Qp_i[:,2])
 	
-	M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Ri, Cpi, gas), axes=(1,2,0))
+	M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, gas), axes=(1,2,0))
 
 	cp_l = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix), axis=0)
 	cp_r = np.concatenate((sol.CpMix, bounds.outlet.sol.CpMix), axis=0)
 
-	Ap_l = (calcAp(solPrimL, solConsL[:,0], cp_l, HL, params, gas, bounds))
-	Ap_r = (calcAp(solPrimR, solConsR[:,0], cp_r, HR, params, gas, bounds))
+	Ap_l = calcAp(solPrimL, solConsL[:,0], cp_l, HL, params, gas, bounds)
+	Ap_r = calcAp(solPrimR, solConsR[:,0], cp_r, HR, params, gas, bounds)
 
 	Ap_l[:,:,:]  *= (0.5 / geom.dx)
 	Ap_r[:,:,:]  *= (0.5 / geom.dx)
@@ -376,21 +349,25 @@ def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 	gammaMatrix = calcDSolConsDSolPrim(sol.solCons, sol.solPrim, gas)
 		
 	# contribution from inviscid and viscous flux Jacobians
-	if (params.spaceOrder == 1):
-		solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
-		solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
-		solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
-		solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)
-	elif (params.spaceOrder == 2):
-		[solPrimL, solConsL, solPrimR, solConsR, faceVals] = reconstruct_2nd(sol, bounds, geom, gas)
-	else:
-		raise ValueError("Higher-Order fluxes not implemented yet")
+	# TODO: the face reconstruction should be held onto from the RHS calcs
+	solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
+	solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
+	solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
+	solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)       
+
+	# add higher-order contribution
+	if (params.spaceOrder > 1):
+		solPrimGrad = calcCellGradients(sol, params, bounds, geom, gas)
+		solPrimL[1:,:] 	+= (geom.dx / 2.0) * solPrimGrad 
+		solPrimR[:-1,:] -= (geom.dx / 2.0) * solPrimGrad
+		solConsL[1:,:], _, _ ,_ = calcStateFromPrim(solPrimL[1:,:], gas)
+		solConsR[:-1,:], _, _ ,_ = calcStateFromPrim(solPrimR[:-1,:], gas)
 		
 	# *_l is contribution to lower block diagonal, *_r is to upper block diagonal
 	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, params, bounds, geom, gas)
 
 	# compute time step factors
-	dtInv = constants.bdfCoeffs[params.timeOrder-1]/params.dt
+	dtInv = constants.bdfCoeffs[params.timeOrder - 1] / params.dt
 	if (params.adaptDTau):
 		dtauInv = calcAdaptiveDTau(sol, gas, geom, params, gammaMatrix)
 	else:
@@ -421,41 +398,7 @@ def calcAdaptiveDTau(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 	# TODO: implement entirety of solutionChangeLimitedTimeStep from gems_precon.f90
 	# TODO: might be cheaper to calculate gammaMatrixInv directly, instead of inverting gammaMatrix?
 	
-	return  1./dtau 
-
-# compute numerical RHS Jacobian, using complex step
-def calcDResDSolPrimImag(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries, dtInv, dtauInv):
-	
-	solCurr = copy.deepcopy(sol)
-	h = 1e-25
-	
-	nSamp = geom.numCells
-	nEq = gas.numEqs
-	gammaMatrix = calcDSolConsDSolPrimImag(solCurr.solCons, solCurr.solPrim, gas)
-	dRdQp_an = calcDResDSolPrim(sol, gas, geom, params, bounds, dtInv, dtauInv)
-	dRdQp = np.zeros((nsamp, neq, neq, nsamp))
-	
-	for i in range(nsamp):
-		for j in range(neq):
-			
-			solCurr = copy.deepcopy(sol)
-			
-			solCurr.solPrim = solCurr.solPrim.astype(dtype = constants.complexType)
-			#adding complex perturbations
-			solCurr.solPrim[i,j] = solCurr.solPrim[i,j] + complex(0, h)
-			[solCurr.solCons, RMix, enthRefMix, CpMix] = calcStateFromPrim(solCurr.solPrim, gas)
-			calcRHS(solCurr, bounds, params, geom, gas)
-			
-			Jac = solCurr.RHS
-			Jac = Jac.imag / h
-			
-			dRdQp[:,:,j,i] = gammaMatrix[:,j,i] * dtauInv + dtInv * gammaMatrix[:,j,i] - Jac[i,:]
-		
-		
-	diff = calcRAE(dRdQp_an.toarray().ravel(), dRdQp.ravel())
-	
-	return diff
-
+	return  1.0 / dtau 
 
 ### Miscellaneous ###   
 # TODO: move these a different module

@@ -12,7 +12,6 @@ import pdb
 # TODO: check references to muRef, might be some broadcast issues
 
 # compute RHS function
-# @profile
 def calcRHS(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps):
 
 	# compute ghost cell state or boundary fluxes

@@ -2,10 +2,8 @@ from solution import solutionPhys, boundaries
 from romClasses import solutionROM
 from classDefs import parameters, geometry, gasProps
 from spaceSchemes import calcRHS
-from boundaryFuncs import calcBoundaries
-from Jacobians import calcDResDSolPrim, calcDResDSolPrimImag
+from Jacobians import calcDResDSolPrim
 import constants
-import time
 from scipy.sparse.linalg import spsolve
 import numpy as np
 import pdb
@@ -13,9 +11,7 @@ import pdb
 # compute fully-discrete residual
 # TODO: cold start is not valid for timeOrder > 2
 def calcImplicitRes(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, colstrt):
-	
-	t_or = params.timeOrder
-	
+		
 	if (colstrt): # cold start
 		params.timeOrder = 1 
 	
@@ -33,7 +29,6 @@ def calcImplicitRes(sol: solutionPhys, bounds: boundaries, params: parameters, g
 		raise ValueError("Implicit Schemes higher than BDF4 not-implemented")
 	
 	sol.res = -sol.res + sol.RHS
-	params.timeOrder = t_or
 	
 	
 # explicit time integrator, one subiteration
@@ -66,10 +61,6 @@ def advanceDual(sol, bounds, params, geom, gas, colstrt=False):
 
 	# compute Jacobian or residual
 	resJacob = calcDResDSolPrim(sol, gas, geom, params, bounds)
-	
-	# Comparing with numerical jacobians
-	# diff = calcDResDSolPrimImag(sol, gas, geom, params, bounds, dt_inv, dtau_inv)
-	# print(diff)
 
 	# solve linear system 
 	dSol = spsolve(resJacob, sol.res.flatten('C'))
