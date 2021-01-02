@@ -1,13 +1,11 @@
+import constants
+from solution import solutionPhys, boundaries
 import numpy as np
 import matplotlib as mpl
-# mpl.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 import matplotlib.gridspec as gridspec
 import os
-from solution import solutionPhys, boundaries
-import constants
-import time
 import pdb
 
 mpl.rc('font', family='serif',size='10')

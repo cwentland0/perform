@@ -1,15 +1,16 @@
-import numpy as np
-from solution import solutionPhys, boundaries
 import constants
+from solution import solutionPhys, boundaries
+import numpy as np
 
 def calcCellGradients(sol: solutionPhys, bounds: boundaries, solver):
 	
 	# compute gradients via a finite difference stencil
 	solPrimGrad = np.zeros(sol.solPrim.shape, dtype=constants.realType)
+	# TODO: this is not valid on a non-uniform grid
 	if (solver.spaceOrder == 2):
-		solPrimGrad[1:-1, :] = (0.5 / solver.mesh.dx) * (sol.solPrim[2:, :] - sol.solPrim[:-2, :]) 
-		solPrimGrad[0, :]    = (0.5 / solver.mesh.dx) * (sol.solPrim[1,:] - bounds.inlet.sol.solPrim)
-		solPrimGrad[-1,:]    = (0.5 / solver.mesh.dx) * (bounds.outlet.sol.solPrim - sol.solPrim[-2,:])
+		solPrimGrad[1:-1, :] = (0.5 / solver.mesh.dx[1:-1,:]) * (sol.solPrim[2:, :] - sol.solPrim[:-2, :]) 
+		solPrimGrad[0, :]    = (0.5 / solver.mesh.dx[0,:]) * (sol.solPrim[1,:] - bounds.inlet.sol.solPrim)
+		solPrimGrad[-1,:]    = (0.5 / solver.mesh.dx[-1,:]) * (bounds.outlet.sol.solPrim - sol.solPrim[-2,:])
 	else:
 		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented...")
 

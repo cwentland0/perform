@@ -22,6 +22,8 @@ resNormPrimDefault = [1.0e5, 10.0, 300.0, 1.0]
 subiterMaxImpDefault 	= 50
 l2ResTolDefault 		= 1.0e-12
 dtauDefault 			= 1.0e-5
+CFLDefault 				= 1.0
+VNNDefault 				= 20.0
 
 # output directory names
 unsteadyOutputDirName   = "UnsteadyFieldResults"

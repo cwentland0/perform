@@ -1,9 +1,9 @@
-import numpy as np 
 import constants
 from inputFuncs import readInputFile, catchInput, catchList
 import timeIntegrator
 import gasModel
 import mesh
+import numpy as np 
 from math import floor, log
 import os
 import pdb
@@ -33,11 +33,13 @@ class systemSolver:
 		# spatial domain
 		meshFile 	= str(paramDict["meshFile"]) 		# mesh properties file (string)
 		meshDict 	= readInputFile(meshFile)
-		meshType 	= str(meshDict["meshType"])
-		if (meshType == "uniform"):
-			self.mesh 	= mesh.uniformMesh(meshDict)
-		else:
-			raise ValueError("Invalid choice of meshType: " + meshType)
+		self.mesh 	= mesh.mesh(meshDict)
+		# TODO: selection for different meshes, when implemented
+		# meshType 	= str(meshDict["meshType"])
+		# if (meshType == "uniform"):
+		# 	self.mesh 	= mesh.uniformMesh(meshDict)
+		# else:
+		# 	raise ValueError("Invalid choice of meshType: " + meshType)
 
 		# initial condition file
 		try:
@@ -46,7 +48,7 @@ class systemSolver:
 			self.initFile 	= None
 
 		# temporal discretization
-		timeScheme 			= str(paramDict["timeScheme"]) 				# time integration scheme
+		timeScheme 			= str(paramDict["timeScheme"])
 		self.solTime 		= 0.0
 
 		if (timeScheme == "bdf"):
@@ -61,14 +63,7 @@ class systemSolver:
 				self.steadyThresh = catchInput(paramDict, "steadyThresh", -10.0) # exponent threshold on steady residual
 			else:
 				raise ValueError("Cannot run steady-state solution with explicit time integrator!")
-
-		# robustness controls
-		# TODO: move this into implicitIntegrator
-		self.adaptDTau 		= catchInput(paramDict, "adaptDTau", False)	# whether to compute adaptive pseudo time step
-		self.CFL 			= catchInput(paramDict, "CFL", 10) 			# reference CFL for advective control of dtau
-		self.VNN 			= catchInput(paramDict, "VNN", 20) 			# von Neumann number for diffusion control of dtau
-		self.refConst 		= catchInput(paramDict, "refConst", [None])  	# constants for limiting dtau	
-		self.relaxConst 	= catchInput(paramDict, "relaxConst", [None]) 	#
+		
 
 		# spatial discretization parameters
 		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)

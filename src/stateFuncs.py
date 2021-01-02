@@ -1,7 +1,6 @@
-import numpy as np
 from gasModel import gasModel
-import constants
-from constants import realType, RUniv
+from constants import realType, hugeNum, RUniv
+import numpy as np
 import pdb
 
 # TODO: could possibly convert these to solution methods
@@ -11,7 +10,7 @@ import pdb
 def calcStateFromCons(solCons, gas: gasModel):
 
 	# pressure, velocity, temperature, mass fraction
-	solPrim = np.zeros(solCons.shape, dtype = realType)
+	solPrim = np.zeros(solCons.shape, dtype=realType)
 
 	solPrim[:,3:] 	= solCons[:,3:] / solCons[:,[0]] 
 	massFracs = getMassFracArray(gas, solPrim=solPrim)
@@ -32,10 +31,7 @@ def calcStateFromCons(solCons, gas: gasModel):
 def calcStateFromPrim(solPrim, gas: gasModel):
 
 	# density, momentum, energy, density-weighted mass fraction
-	solCons = np.zeros(solPrim.shape, dtype = realType)
-
-	if (solPrim.dtype==constants.complexType): #for complex step jacobian
-		solCons = np.zeros(solPrim.shape, dtype = constants.complexType)
+	solCons = np.zeros(solPrim.shape, dtype=realType)
 
 	massFracs = getMassFracArray(gas, solPrim=solPrim)
 
@@ -109,7 +105,7 @@ def getMassFracArray(gas: gasModel, solPrim=None, massFracs=None):
 def calcAllMassFracs(massFracsNS):
 
 	numCells, numSpecies = massFracsNS.shape
-	massFracs = np.zeros((numCells, numSpecies+1), dtype=constants.realType)
+	massFracs = np.zeros((numCells, numSpecies+1), dtype=realType)
 
 	massFracs[:, :-1] 	= np.maximum(0.0, np.minimum(1.0, massFracsNS))
 	massFracs[:, -1] 	= 1.0 - np.sum(massFracs[:, :-1], axis=1)
@@ -227,7 +223,7 @@ def calcDensityDerivatives(density,
 			assert (massFracs is not None), "Must provide mass fractions to calculate mixture mol weight..."
 			mixMolWeight = calcMolWeightMixture(massFracs, gas)
 
-		DDensDSpec = np.zeros((density.shape[0], gas.numSpecies), dtype=constants.realType)
+		DDensDSpec = np.zeros((density.shape[0], gas.numSpecies), dtype=realType)
 		for specNum in range(gas.numSpecies):
 			DDensDSpec[:,specNum] = density * mixMolWeight * (1.0/gas.molWeights[-1] - 1.0/gas.molWeights[specNum])
 		derivs = derivs + (DDensDSpec,)
@@ -264,7 +260,7 @@ def calcStagEnthalpyDerivatives(wrtPress=False,
 			assert (temperature is not None), "Must provide temperature if not providing species enthalpies..."
 			speciesEnth = calcSpeciesEnthalpies(temperature, gas)
 		
-		DStagEnthDSpec = np.zeros((speciesEnth.shape[0], gas.numSpecies), dtype=constants.realType)
+		DStagEnthDSpec = np.zeros((speciesEnth.shape[0], gas.numSpecies), dtype=realType)
 		for specNum in range(gas.numSpecies):
 			DStagEnthDSpec[:,specNum] = speciesEnth[:,-1] - speciesEnth[:,specNum]
 		derivs = derivs + (DStagEnthDSpec,)
@@ -278,13 +274,13 @@ def calcStateFromRhoH0(solPrim, densFixed, stagEnthFixed, gas: gasModel):
 	densFixed 		= np.squeeze(densFixed)
 	stagEnthFixed 	= np.squeeze(stagEnthFixed)
 
-	dPress 		= constants.hugeNum * np.ones(solPrim.shape[0], dtype=np.float64)
-	dTemp 		= constants.hugeNum * np.ones(solPrim.shape[0], dtype=np.float64)
+	dPress 		= hugeNum * np.ones(solPrim.shape[0], dtype=np.float64)
+	dTemp 		= hugeNum * np.ones(solPrim.shape[0], dtype=np.float64)
 
 	pressCurr 		= solPrim[:,0]
 
 	iterCount = 0
-	onesVec = np.ones(solPrim.shape[0], dtype=constants.realType)
+	onesVec = np.ones(solPrim.shape[0], dtype=realType)
 	while ( (np.any( np.absolute(dPress / solPrim[:,0]) > 0.01 ) or np.any( np.absolute(dTemp / solPrim[:,2]) > 0.01)) and (iterCount < 20)):
 
 		# compute density and stagnation enthalpy from current state

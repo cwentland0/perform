@@ -1,10 +1,9 @@
-import numpy as np
-from math import sin, pi, floor
-import constants
+from constants import realType, resNormPrimDefault
 from gasModel import gasModel
 from inputFuncs import parseBC, readInputFile
 import stateFuncs
-import os
+import numpy as np
+from math import sin, pi
 import pdb
 
 # TODO error checking on initial solution load
@@ -18,26 +17,26 @@ class solutionPhys:
 		timeInt 	= solver.timeIntegrator
 
 		# solution and mixture properties
-		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# solution in primitive variables
-		self.solCons	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# solution in conservative variables
-		self.source 	= np.zeros((numCells, gas.numSpecies), dtype = constants.realType)	# reaction source term
-		self.RHS 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# RHS function
-		self.mwMix 		= np.zeros(numCells, dtype = constants.realType)					# mixture molecular weight
-		self.RMix		= np.zeros(numCells, dtype = constants.realType)					# mixture specific gas constant
-		self.gammaMix 	= np.zeros(numCells, dtype = constants.realType)					# mixture ratio of specific heats
-		self.enthRefMix = np.zeros(numCells, dtype = constants.realType)					# mixture reference enthalpy
-		self.CpMix 		= np.zeros(numCells, dtype = constants.realType)					# mixture specific heat at constant pressure
+		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype=realType)		# solution in primitive variables
+		self.solCons	= np.zeros((numCells, gas.numEqs), dtype=realType)		# solution in conservative variables
+		self.source 	= np.zeros((numCells, gas.numSpecies), dtype=realType)	# reaction source term
+		self.RHS 		= np.zeros((numCells, gas.numEqs), dtype=realType)		# RHS function
+		self.mwMix 		= np.zeros(numCells, dtype=realType)					# mixture molecular weight
+		self.RMix		= np.zeros(numCells, dtype=realType)					# mixture specific gas constant
+		self.gammaMix 	= np.zeros(numCells, dtype=realType)					# mixture ratio of specific heats
+		self.enthRefMix = np.zeros(numCells, dtype=realType)					# mixture reference enthalpy
+		self.CpMix 		= np.zeros(numCells, dtype=realType)					# mixture specific heat at constant pressure
 
 
 		# residual, time history, residual normalization for implicit methods
 		if (timeInt.timeType == "implicit"):
 
-			if ((timeInt.dualTime) and (solver.adaptDTau)):
-				self.srf 	= np.zeros(numCells, dtype = constants.realType)
+			if ((timeInt.dualTime) and (timeInt.adaptDTau)):
+				self.srf 	= np.zeros(numCells, dtype=realType)
 
-			self.res 			= np.zeros((numCells, gas.numEqs), dtype = constants.realType)
-			self.solHistCons 	= [np.zeros((numCells, gas.numEqs), dtype = constants.realType)]*(timeInt.timeOrder+1)
-			self.solHistPrim 	= [np.zeros((numCells, gas.numEqs), dtype = constants.realType)]*(timeInt.timeOrder+1)
+			self.res 			= np.zeros((numCells, gas.numEqs), dtype=realType)
+			self.solHistCons 	= [np.zeros((numCells, gas.numEqs), dtype=realType)]*(timeInt.timeOrder+1)
+			self.solHistPrim 	= [np.zeros((numCells, gas.numEqs), dtype=realType)]*(timeInt.timeOrder+1)
 
 			# normalizations for "steady" solution residual norms
 			self.resNormL2 = 0.0
@@ -54,7 +53,7 @@ class solutionPhys:
 			for varIdx in range(gas.numEqs):
 				if (solver.resNormPrim[varIdx] == None):
 					# 0: pressure, 1: velocity, 2: temperature, >=3: species
-					solver.resNormPrim[varIdx] = constants.resNormPrimDefault[min(varIdx,3)]
+					solver.resNormPrim[varIdx] = resNormPrimDefault[min(varIdx,3)]
 
 		# load initial condition and check size
 		assert(solPrimIn.shape == (numCells, gas.numEqs))
@@ -73,13 +72,13 @@ class solutionPhys:
 
 		# snapshot storage matrices, store initial condition
 		if solver.primOut: 
-			self.primSnap = np.zeros((numCells, gas.numEqs, solver.numSnaps+1), dtype = constants.realType)
+			self.primSnap = np.zeros((numCells, gas.numEqs, solver.numSnaps+1), dtype=realType)
 			self.primSnap[:,:,0] = solPrimIn.copy()
 		if solver.consOut: 
-			self.consSnap = np.zeros((numCells, gas.numEqs, solver.numSnaps+1), dtype = constants.realType)
+			self.consSnap = np.zeros((numCells, gas.numEqs, solver.numSnaps+1), dtype=realType)
 			self.consSnap[:,:,0] = solConsIn.copy()
-		if solver.sourceOut: self.sourceSnap = np.zeros((numCells, gas.numSpecies, solver.numSnaps+1), dtype = constants.realType)
-		if solver.RHSOut:  self.RHSSnap  = np.zeros((numCells, gas.numEqs, solver.numSnaps), dtype = constants.realType)
+		if solver.sourceOut: self.sourceSnap = np.zeros((numCells, gas.numSpecies, solver.numSnaps+1), dtype=realType)
+		if solver.RHSOut:  self.RHSSnap  = np.zeros((numCells, gas.numEqs, solver.numSnaps), dtype=realType)
 
 		# TODO: initialize thermo properties at initialization too (might be problematic for BC state)
 
@@ -183,7 +182,7 @@ class boundary:
 		self.enthRefMix = stateFuncs.calcEnthRefMixture(self.massFrac[:-1], gas)
 
 		# ghost cell 
-		solDummy 		= np.ones((1, gas.numEqs), dtype = constants.realType)
+		solDummy 		= np.ones((1, gas.numEqs), dtype=realType)
 		self.sol 		= solutionPhys(solDummy, solDummy, 1, solver) 			# TODO: this throws a divide-by-zero warning
 		self.sol.solPrim[0,3:] = self.massFrac[:-1]
 

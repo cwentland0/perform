@@ -1,10 +1,10 @@
-import numpy as np
-from solution import solutionPhys, boundaries
-from scipy.sparse import bsr_matrix
-from stateFuncs import calcCpMixture, calcGasConstantMixture, calcStateFromPrim, calcGammaMixture
 import constants
+from solution import solutionPhys, boundaries
+from stateFuncs import calcCpMixture, calcGasConstantMixture, calcStateFromPrim, calcGammaMixture
 from spaceSchemes import calcRoeDissipation
 from higherOrderFuncs import calcCellGradients
+import numpy as np
+from scipy.sparse import bsr_matrix
 import pdb
 
 
@@ -372,7 +372,7 @@ def calcDResDSolPrim(sol: solutionPhys, bounds: boundaries, solver):
 	# TODO: make this specific for each implicitIntegrator
 	dtCoeffIdx = min(solver.timeIntegrator.iter, solver.timeIntegrator.timeOrder) - 1
 	dtInv = solver.timeIntegrator.coeffs[dtCoeffIdx][0] / solver.timeIntegrator.dt
-	if (solver.adaptDTau):
+	if (solver.timeIntegrator.adaptDTau):
 		dtauInv = calcAdaptiveDTau(sol, gammaMatrix, solver)
 	else:
 		dtauInv = 1./solver.timeIntegrator.dtau
@@ -390,12 +390,12 @@ def calcAdaptiveDTau(sol: solutionPhys, gammaMatrix, solver):
 	# compute initial dtau from input CFL and srf (max characteristic speed)
 	# srf is computed in calcInvFlux
 	dtaum = 1.0/sol.srf
-	dtau = solver.CFL*dtaum
+	dtau = solver.timeIntegrator.CFL*dtaum
 
 	# limit by von Neumann number
 	# TODO: THIS NU IS NOT CORRECT FOR A GENERAL MIXTURE
 	nu = solver.gasModel.muRef[0] / sol.solCons[:,0]
-	dtau = np.minimum(dtau, solver.VNN / nu)
+	dtau = np.minimum(dtau, solver.timeIntegrator.VNN / nu)
 	dtaum = np.minimum(dtaum, 3.0 / nu)
 
 	# limit dtau

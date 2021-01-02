@@ -1,5 +1,5 @@
 import numpy as np 
-import constants
+from constants import realType, RUniv
 import os
 from solution import solutionPhys, boundaries
 import stateFuncs
@@ -29,8 +29,8 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, solver):
 		solPrimGrad = calcCellGradients(sol, bounds, solver)
 		solPrimL[1:,:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
 		solPrimR[:-1,:] -= (solver.mesh.dx / 2.0) * solPrimGrad
-		solConsL[1:,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimL[1:,:], gas)
-		solConsR[:-1,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimR[:-1,:], gas)
+		solConsL[1:,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimL[1:,:], solver.gasModel)
+		solConsR[:-1,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimR[:-1,:], solver.gasModel)
 
 	# compute fluxes
 	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, solver)
@@ -54,12 +54,9 @@ def calcRHS(sol: solutionPhys, bounds: boundaries, solver):
 # TODO: entropy fix
 def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, solver):
 
-	# TODO: check for non-physical cells
-	matShape = solPrimL.shape
-
 	# inviscid flux vector
-	EL = np.zeros(matShape, dtype = constants.realType)
-	ER = np.zeros(matShape, dtype = constants.realType)     
+	EL = np.zeros(solPrimL.shape, dtype=realType)
+	ER = np.zeros(solPrimR.shape, dtype=realType)     
 
 	# compute sqrhol, sqrhor, fac, and fac1
 	sqrhol = np.sqrt(solConsL[:, 0])
@@ -93,7 +90,7 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, solve
 	ER[:,3:] = solConsR[:,3:] * solPrimR[:,[1]]
 
 	# maximum wave speed for adapting dtau, if needed
-	if (solver.adaptDTau):
+	if (solver.timeIntegrator.adaptDTau):
 		srf = np.maximum(solPrimAve[:,1] + cAve, solPrimAve[:,1] - cAve)
 		sol.srf = np.maximum(srf[:-1], srf[1:])
 
@@ -113,9 +110,7 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, solve
 def calcRoeDissipation(solPrim, rho, h0, c, Cp, gas):
 
 	# allocate
-	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.realType)
-	if (solPrim.dtype == constants.complexType):
-		dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype = constants.complexType)        
+	dissMat = np.zeros((solPrim.shape[0], gas.numEqs, gas.numEqs), dtype=realType)        
 	
 	# primitive variables for clarity
 	press = solPrim[:,0]
@@ -123,7 +118,7 @@ def calcRoeDissipation(solPrim, rho, h0, c, Cp, gas):
 	temp = solPrim[:,2]
 	massFracs = solPrim[:,3:]
 
-	rhoY = -np.square(rho) * (constants.RUniv * temp / press * gas.mwInvDiffs)
+	rhoY = -np.square(rho) * (RUniv * temp / press * gas.mwInvDiffs)
 	hY = gas.enthRefDiffs + (temp - gas.tempRef) * gas.CpDiffs
 
 	rhop = rho / press 					# derivative of density with respect to pressure
@@ -207,7 +202,7 @@ def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: bound
 	mesh 	= solver.mesh
 
 	# compute 2nd-order state gradients at face
-	solPrimGrad = np.zeros((mesh.numCells+1, gas.numEqs), dtype = constants.realType)
+	solPrimGrad = np.zeros((mesh.numCells+1, gas.numEqs), dtype=realType)
 	solPrimGrad[1:-1,:] = (sol.solPrim[1:,:] - sol.solPrim[:-1,:]) / mesh.dCellCent[1:-1,:]
 	solPrimGrad[0,:] 	= (sol.solPrim[0,:] - bounds.inlet.sol.solPrim) / mesh.dCellCent[0,:]
 	solPrimGrad[-1,:] 	= (bounds.outlet.sol.solPrim - sol.solPrim[-1,:]) / mesh.dCellCent[-1,:]
@@ -219,7 +214,7 @@ def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: bound
 	diff_rhoY = solConsAve[:,0] * Cd * np.squeeze(solPrimGrad[:,3:])  			# 
 	hY = gas.enthRefDiffs + (solPrimAve[:,2] - gas.tempRef) * gas.CpDiffs 		# species enthalpies, TODO: replace with stateFuncs function
 
-	Fv = np.zeros((mesh.numCells+1, gas.numEqs), dtype = constants.realType)
+	Fv = np.zeros((mesh.numCells+1, gas.numEqs), dtype=realType)
 	Fv[:,1] = Fv[:,1] + tau 
 	Fv[:,2] = Fv[:,2] + solPrimAve[:,1] * tau + Ck * solPrimGrad[:,2]
 	if (gas.numSpecies > 1):

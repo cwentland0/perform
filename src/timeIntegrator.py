@@ -8,9 +8,6 @@ import numpy as np
 from scipy.sparse.linalg import spsolve
 import pdb
 
-# TODO: could have another level of hierarchy for explicit, implicit, and implicit+dual integrators
-
-
 class timeIntegrator:
 	"""
 	Base class for time integrators
@@ -53,6 +50,9 @@ class explicitIntegrator(timeIntegrator):
 		super().__init__(paramDict)
 		self.timeType = "explicit"
 
+		self.dualTime 	= False
+		self.adaptDTau 	= False
+
 	def advanceSubiter(self, solPhys: solutionPhys, solROM: solutionROM, bounds: boundaries, solver):
 
 		calcRHS(solPhys, bounds, solver)
@@ -77,11 +77,20 @@ class implicitIntegrator(timeIntegrator):
 	def __init__(self, paramDict):
 		super().__init__(paramDict)
 		self.timeType 		= "implicit"
-		self.dualTime 		= catchInput(paramDict, "dualTime", True)
 		self.subiterMax		= catchInput(paramDict, "subiterMax", constants.subiterMaxImpDefault)
 		self.resTol 		= catchInput(paramDict, "resTol", constants.l2ResTolDefault)
-		self.dtau 			= catchInput(paramDict, "dtau", constants.dtauDefault)
 
+		# dual time-stepping, robustness controls
+		self.dualTime 		= catchInput(paramDict, "dualTime", True)
+		self.dtau 			= catchInput(paramDict, "dtau", constants.dtauDefault)
+		if (self.dualTime):
+			self.adaptDTau 	= catchInput(paramDict, "adaptDTau", False)
+		else:
+			self.adaptDTau 	= False
+		self.CFL 			= catchInput(paramDict, "CFL", constants.CFLDefault) 	# reference CFL for advective control of dtau
+		self.VNN 			= catchInput(paramDict, "VNN", constants.VNNDefault) 	# von Neumann number for diffusion control of dtau
+		self.refConst 		= catchInput(paramDict, "refConst", [None])  			# constants for limiting dtau	
+		self.relaxConst 	= catchInput(paramDict, "relaxConst", [None]) 			#
 
 	def advanceSubiter(self, solPhys: solutionPhys, solROM: solutionROM, bounds: boundaries, solver):
 
@@ -91,6 +100,7 @@ class implicitIntegrator(timeIntegrator):
 		solPhys.res = self.calcResidual(solPhys.solHistCons, solPhys.RHS)
 
 		# compute Jacobian of residual
+		# TODO: new Jacobians, state update for non-dual time 
 		resJacob = calcDResDSolPrim(solPhys, bounds, solver)
 
 		# solve linear system 

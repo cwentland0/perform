@@ -1,3 +1,5 @@
+import constants
+import os
 import struct
 
 def writeToFile(fid, array, order='F'):
@@ -35,3 +37,10 @@ def writeToFile(fid, array, order='F'):
 		raise ValueError ("Did not recognize array type "+dtype)
 
 	fid.write(struct.pack(typeStr*array.shape[0], *(array)))
+
+
+def mkdirInWorkdir(dirName):
+
+	newDir = os.path.join(constants.workingDir, dirName)
+	if not os.path.isdir(newDir): os.mkdir(newDir)
+	return newDir

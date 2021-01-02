@@ -1,12 +1,13 @@
-import argparse
-import constants
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2" # don't print all the TensorFlow warnings
+import constants
 from systemSolver import systemSolver
 from solution import solutionPhys, boundaries
 from inputFuncs import getInitialConditions
+from miscFuncs import mkdirInWorkdir
 import outputFuncs
 import numpy as np
+import argparse
 import traceback
 import pdb
 
@@ -25,17 +26,13 @@ def main():
 	args = parser.parse_args()
 	constants.workingDir = args.workingDir
 	constants.workingDir = os.path.expanduser(constants.workingDir)
+	assert (os.path.isdir(constants.workingDir)), "Given working directory does not exist"
 
 	# make output directories
-	# TODO: shove this into a function
-	constants.unsteadyOutputDir = os.path.join(constants.workingDir, constants.unsteadyOutputDirName)
-	if not os.path.isdir(constants.unsteadyOutputDir): 	os.mkdir(constants.unsteadyOutputDir)
-	constants.probeOutputDir = os.path.join(constants.workingDir, constants.probeOutputDirName)
-	if not os.path.isdir(constants.probeOutputDir): 	os.mkdir(constants.probeOutputDir)
-	constants.imageOutputDir = os.path.join(constants.workingDir, constants.imageOutputDirName)
-	if not os.path.isdir(constants.imageOutputDir): 	os.mkdir(constants.imageOutputDir)
-	constants.restartOutputDir = os.path.join(constants.workingDir, constants.restartOutputDirName)
-	if not os.path.isdir(constants.restartOutputDir): 	os.mkdir(constants.restartOutputDir)
+	constants.unsteadyOutputDir = mkdirInWorkdir(constants.unsteadyOutputDirName)
+	constants.probeOutputDir = mkdirInWorkdir(constants.probeOutputDirName)
+	constants.imageOutputDir = mkdirInWorkdir(constants.imageOutputDirName)
+	constants.restartOutputDir = mkdirInWorkdir(constants.restartOutputDirName)
 
 	# setup solver(s)
 	# TODO: multi-domain solvers
