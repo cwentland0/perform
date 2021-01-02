@@ -23,9 +23,9 @@ mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 # TODO: better automatic formatting of images? Ultimately real plotting will be un utils, might now be worth the time
 
 # store snapshots of field data
-def storeFieldDataUnsteady(sol: solutionPhys, solver, tStep):
+def storeFieldDataUnsteady(sol: solutionPhys, solver):
 
-	storeIdx = int(tStep / solver.outInterval) + 1
+	storeIdx = int((solver.timeIntegrator.iter - 1) / solver.outInterval) + 1
 
 	if solver.primOut: sol.primSnap[:,:,storeIdx] = sol.solPrim
 	if solver.consOut: sol.consSnap[:,:,storeIdx] = sol.solCons
@@ -132,15 +132,15 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver
 	plt.pause(0.001)
 
 # write field plot image to disk
-def writeFieldImg(fig: plt.Figure, solver, tStep, fieldImgDir):
+def writeFieldImg(fig: plt.Figure, solver, fieldImgDir):
 
-	visIdx 	= int((tStep+1) / solver.visInterval)
+	visIdx 	= int(solver.timeIntegrator.iter / solver.visInterval)
 	figNum 	= solver.imgString % visIdx
 	figFile = os.path.join(fieldImgDir, "fig_"+figNum+".png")
 	fig.savefig(figFile)
 
 # update probeVals, as this happens every time iteration
-def updateProbe(sol: solutionPhys, solver, bounds: boundaries, probeVals, probeIdx, tStep):
+def updateProbe(sol: solutionPhys, solver, bounds: boundaries, probeVals, probeIdx):
 
 	for visIdx in range(solver.numVis):
 		varStr = solver.visVar[visIdx]
@@ -178,10 +178,10 @@ def updateProbe(sol: solutionPhys, solver, bounds: boundaries, probeVals, probeI
 			raise ValueError("Invalid field visualization variable "+str(solver.visVar)+" for probe at "+solver.probeSec)
 		
 
-		probeVals[tStep, visIdx] = probe 
+		probeVals[solver.timeIntegrator.iter-1, visIdx] = probe 
 
 # plot probeVals at specied visInterval
-def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver, probeVals, tStep, tVals):
+def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver, probeVals, tVals):
 
 	if (type(ax) != np.ndarray): 
 		axList = [ax]
@@ -201,7 +201,7 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver
 				axVar.axis("off")
 				break
 
-			axVar.plot(tVals[:tStep+1], probeVals[:tStep+1, linIdx])
+			axVar.plot(tVals[:solver.timeIntegrator.iter], probeVals[:solver.timeIntegrator.iter, linIdx])
 			axVar.set_ylim(solver.visYBounds[linIdx])
 			axVar.set_xlim(solver.visXBounds[linIdx])
 			axVar.set_ylabel(axLabels[linIdx])
@@ -248,18 +248,18 @@ def writeDataSteady(sol: solutionPhys, solver):
 	np.save(solConsFile, sol.solCons)
 
 # append residual to residual file
-def updateResOut(sol: solutionPhys, solver, tStep):
+def updateResOut(sol: solutionPhys, solver):
 
 	resFile = os.path.join(constants.unsteadyOutputDir, "steadyResOut.dat")
-	if (tStep == 0):
+	if (solver.timeIntegrator.iter == 1):
 		f = open(resFile,"w")
 	else:
 		f = open(resFile, "a")
-	f.write(str(tStep+1)+"\t"+str(sol.resOutL2)+"\t"+str(sol.resOutL1)+"\n")
+	f.write(str(solver.timeIntegrator.iter)+"\t"+str(sol.resOutL2)+"\t"+str(sol.resOutL1)+"\n")
 	f.close()
 
 # write restart files containing primitive and conservative fields, plus physical time 
-def writeRestartFile(sol: solutionPhys, solver, tStep):
+def writeRestartFile(sol: solutionPhys, solver):
 
 	# write restart file to zipped file
 	restartFile = os.path.join(constants.restartOutputDir, "restartFile_"+str(solver.restartIter)+".npz")
@@ -272,7 +272,7 @@ def writeRestartFile(sol: solutionPhys, solver, tStep):
 
 	restartPhysIterFile = os.path.join(constants.restartOutputDir, "restartIter_"+str(solver.restartIter)+".dat")
 	with open(restartPhysIterFile, "w") as f:
-		f.write(str(tStep+1)+"\n")
+		f.write(str(solver.timeIntegrator.iter)+"\n")
 
 	# iterate file count
 	if (solver.restartIter < solver.numRestarts):

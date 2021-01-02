@@ -22,11 +22,11 @@ class solutionPhys:
 		self.solCons	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# solution in conservative variables
 		self.source 	= np.zeros((numCells, gas.numSpecies), dtype = constants.realType)	# reaction source term
 		self.RHS 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# RHS function
-		self.mwMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture molecular weight
-		self.RMix		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture specific gas constant
-		self.gammaMix 	= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture ratio of specific heats
-		self.enthRefMix = np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture reference enthalpy
-		self.CpMix 		= np.zeros((numCells, gas.numEqs), dtype = constants.realType)		# mixture specific heat at constant pressure
+		self.mwMix 		= np.zeros(numCells, dtype = constants.realType)					# mixture molecular weight
+		self.RMix		= np.zeros(numCells, dtype = constants.realType)					# mixture specific gas constant
+		self.gammaMix 	= np.zeros(numCells, dtype = constants.realType)					# mixture ratio of specific heats
+		self.enthRefMix = np.zeros(numCells, dtype = constants.realType)					# mixture reference enthalpy
+		self.CpMix 		= np.zeros(numCells, dtype = constants.realType)					# mixture specific heat at constant pressure
 
 
 		# residual, time history, residual normalization for implicit methods
@@ -40,22 +40,21 @@ class solutionPhys:
 			self.solHistPrim 	= [np.zeros((numCells, gas.numEqs), dtype = constants.realType)]*(timeInt.timeOrder+1)
 
 			# normalizations for "steady" solution residual norms
-			if (solver.runSteady):
-				self.resOutL2 = 0.0
-				self.resOutL1 = 0.0
+			self.resNormL2 = 0.0
+			self.resNormL1 = 0.0
 
-				# if nothing was provided
-				if ((len(solver.steadyNormPrim) == 1) and (solver.steadyNormPrim[0] == None)):
-					solver.steadyNormPrim = [None]*gas.numEqs
-				# check user input
-				else:
-					assert(len(solver.steadyNormPrim) == gas.numEqs)
+			# if nothing was provided
+			if ((len(solver.resNormPrim) == 1) and (solver.resNormPrim[0] == None)):
+				solver.resNormPrim = [None]*gas.numEqs
+			# check user input
+			else:
+				assert(len(solver.resNormPrim) == gas.numEqs)
 
-				# replace any None's with defaults
-				for varIdx in range(gas.numEqs):
-					if (solver.steadyNormPrim[varIdx] == None):
-						# 0: pressure, 1: velocity, 2: temperature, >=3: species
-						solver.steadyNormPrim[varIdx] = constants.steadyNormPrimDefault[min(varIdx,3)]
+			# replace any None's with defaults
+			for varIdx in range(gas.numEqs):
+				if (solver.resNormPrim[varIdx] == None):
+					# 0: pressure, 1: velocity, 2: temperature, >=3: species
+					solver.resNormPrim[varIdx] = constants.resNormPrimDefault[min(varIdx,3)]
 
 		# load initial condition and check size
 		assert(solPrimIn.shape == (numCells, gas.numEqs))
@@ -66,7 +65,8 @@ class solutionPhys:
 		# add bulk velocity if required
 		if (solver.velAdd != 0.0):
 			self.solPrim[:,1] += solver.velAdd
-			self.solCons, _, _ ,_ = stateFuncs.calcStateFromPrim(self.solPrim, gas)
+		
+		self.updateState(gas, fromCons=False)
 
 		# initializing time history
 		self.initSolHist(timeInt)
@@ -105,32 +105,47 @@ class solutionPhys:
 		else:
 			self.solCons, self.RMix, self.enthRefMix, self.CpMix = stateFuncs.calcStateFromPrim(self.solPrim, gas)
 
-	# print residual norms
-	# TODO: do some decent formatting on output, depending on resType
-	def resOutput(self, solver, tStep):
+	
+	def resOutput(self, solver):
+		"""
+		Calculate and print meaningful residual norms
+		For unsteady implicit solve, this is the linear solve residual
+		For "steady" solve, this is the change in solution between outer iterations
+		"""
 
-		dSol = self.solHistPrim[1] - self.solHistPrim[2]
-		dSolAbs = np.abs(dSol)
+		# TODO: do some decent formatting on output
+
+		if (solver.timeIntegrator.runSteady):
+			if (solver.timeIntegrator.subiter == 1):
+				res = self.solHistPrim[1] - self.solHistPrim[2]
+				iterOut = solver.timeIntegrator.timeIter
+			else:
+				return
+		else:
+			res = self.res
+			iterOut = solver.timeIntegrator.subiter
+		
+		resAbs = np.abs(res)
 
 		# L2 norm
-		resSumL2 = np.sum(np.square(dSolAbs), axis=0) 		# sum of squares
-		resSumL2[:] /= dSol.shape[0]   							# divide by number of cells
-		resSumL2 /= np.square(solver.steadyNormPrim) 			# divide by square of normalization constants
-		resSumL2 = np.sqrt(resSumL2) 		 					# square root
-		resLogL2 = np.log10(resSumL2) 							# get exponent
-		resOutL2 = np.mean(resLogL2)
+		resNormL2 = np.sum(np.square(resAbs), axis=0)
+		resNormL2[:] /= res.shape[0]
+		resNormL2 /= np.square(solver.resNormPrim)
+		resNormL2 = np.sqrt(resNormL2)
+		resNormL2 = np.mean(resNormL2)
+		resOutL2 = np.log10(resNormL2)
 			
 		# L1 norm
-		resSumL1 = np.sum(dSolAbs, axis=0) 				# sum of absolute values
-		resSumL1[:] /= dSol.shape[0]   							# divide by number of cells
-		resSumL1 /= solver.steadyNormPrim 						# divide by normalization constants
-		resLogL1 = np.log10(resSumL1) 							# get exponent
-		resOutL1 = np.mean(resLogL1)
+		resNormL1 = np.sum(resAbs, axis=0)
+		resNormL1[:] /= res.shape[0]
+		resNormL1 /= solver.resNormPrim
+		resNormL1 = np.mean(resNormL1)
+		resOutL1 = np.log10(resNormL1)
 
-		print(str(tStep+1)+":\tL2 norm: "+str(resOutL2)+",\tL1 norm:"+str(resOutL1))
+		print(str(iterOut)+":\tL2 norm: "+str(resOutL2)+",\tL1 norm:"+str(resOutL1))
 
-		self.resOutL2 = resOutL2 
-		self.resOutL1 = resOutL1
+		self.resNormL2 = resNormL2
+		self.resNormL1 = resNormL1
 
 # grouping class for boundaries
 class boundaries:
@@ -168,8 +183,8 @@ class boundary:
 		self.enthRefMix = stateFuncs.calcEnthRefMixture(self.massFrac[:-1], gas)
 
 		# ghost cell 
-		solDummy 		= np.zeros((1, gas.numEqs), dtype = constants.realType)
-		self.sol 		= solutionPhys(solDummy, solDummy, 1, solver)
+		solDummy 		= np.ones((1, gas.numEqs), dtype = constants.realType)
+		self.sol 		= solutionPhys(solDummy, solDummy, 1, solver) 			# TODO: this throws a divide-by-zero warning
 		self.sol.solPrim[0,3:] = self.massFrac[:-1]
 
 		self.pertType 	= pertType 

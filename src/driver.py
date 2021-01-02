@@ -93,42 +93,39 @@ def main():
 	##### START UNSTEADY SOLUTION #####
 
 	# loop over time iterations
-	for tStep in range(solver.timeIntegrator.numSteps):
+	for solver.timeIntegrator.iter in range(1,solver.timeIntegrator.numSteps+1):
 		
-		if (not solver.timeIntegrator.runSteady): print("Iteration "+str(tStep+1))
-
 		# advance one physical time step
 		solver.timeIntegrator.advanceIter(sol, rom, bounds, solver)
 		solver.solTime += solver.timeIntegrator.dt
 
-		# print norm of change in solution
-		if (solver.timeIntegrator.runSteady):
-			sol.resOutput(solver, tStep)
-
 		# write restart files
 		if solver.saveRestarts: 
-			if ( ((tStep+1) % solver.restartInterval) == 0):
-				outputFuncs.writeRestartFile(sol, solver, tStep)	 
+			if ( (solver.timeIntegrator.iter % solver.restartInterval) == 0):
+				outputFuncs.writeRestartFile(sol, solver)	 
 
 		# write output
-		if ( (((tStep+1) % solver.outInterval) == 0) ):
-			outputFuncs.storeFieldDataUnsteady(sol, solver, tStep)
-			if (solver.timeIntegrator.runSteady): outputFuncs.writeDataSteady(sol, solver)
-		
-		outputFuncs.updateProbe(sol, solver, bounds, probeVals, probeIdx, tStep)
-		if (solver.timeIntegrator.runSteady): 
-			outputFuncs.updateResOut(sol, solver, tStep)
+		if (( solver.timeIntegrator.iter % solver.outInterval) == 0):
+			outputFuncs.storeFieldDataUnsteady(sol, solver)
+		outputFuncs.updateProbe(sol, solver, bounds, probeVals, probeIdx)
+
+		# "steady" solver processing
+		if (solver.timeIntegrator.runSteady):
+			sol.resOutput(solver)
+			if ((solver.timeIntegrator.iter % solver.outInterval) == 0): 
+				outputFuncs.writeDataSteady(sol, solver)
+			outputFuncs.updateResOut(sol, solver)
 			if (sol.resOutL2 < solver.steadyThresh): 
 				print("Steady residual criterion met, terminating run...")
 				break 	# quit if steady residual threshold met
 
 		# draw visualization plots
-		if ( ((tStep+1) % solver.visInterval) == 0):
+		if ( (solver.timeIntegrator.iter % solver.visInterval) == 0):
 			if (solver.visType == "field"): 
 				outputFuncs.plotField(fig, ax, axLabels, sol, solver)
-				if solver.visSave: outputFuncs.writeFieldImg(fig, solver, tStep, fieldImgDir)
+				if solver.visSave: outputFuncs.writeFieldImg(fig, solver, fieldImgDir)
 			elif (solver.visType == "probe"): 
-				outputFuncs.plotProbe(fig, ax, axLabels, sol, solver, probeVals, tStep, tVals)
+				outputFuncs.plotProbe(fig, ax, axLabels, sol, solver, probeVals, tVals)
 			
 	print("Solve finished, writing to disk!")
 
@@ -145,28 +142,7 @@ def main():
 		figFile = os.path.join(solver.imgOutDir,"probe"+visName+".png")
 		fig.savefig(figFile)
 
-	##### END POST-PROCESSING
-
-	# numerically integrate ODE forward one physical time step
-	# def advanceSolution(sol: solutionPhys, rom: solutionROM, bounds: boundaries, solver: solver):
-		
-	# 	# explicit time integrator is low-mem, only uses outer loop
-	# 	# TODO: just make explicit integrator interoperable with solHist
-		
-						
-	# 		else:  
-
-	# 			# TODO: definitely a better way to work the cold start, gotta make operable with timeOrder > 2
-	# 			if (solver.solTime <= solver.timeIntegrator.timeOrder*solver.timeIntegrator.dt): 
-	# 				advanceDual(sol, bounds, params, geom, gas, subiter, colstrt=True) # cold-start          
-	# 			else:
-	# 				advanceDual(sol, bounds, params, geom, gas, subiter)
-					
-	# 			# checking sub-iterations convergence
-	# 			resNorm = np.linalg.norm(sol.res, ord=2)
-	# 			if (not params.runSteady): print(resNorm)
-	# 			if (resNorm < params.resTol): break
-
+	##### END POST-PROCESSING #####
 
 if __name__ == "__main__":
 	try:

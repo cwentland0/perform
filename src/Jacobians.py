@@ -1,6 +1,5 @@
 import numpy as np
 from solution import solutionPhys, boundaries
-from classDefs import parameters, geometry, gasProps
 from scipy.sparse import bsr_matrix
 from stateFuncs import calcCpMixture, calcGasConstantMixture, calcStateFromPrim, calcGammaMixture
 import constants
@@ -10,7 +9,7 @@ import pdb
 
 
 ### Gamma Inverse ###
-def calcDSolPrimDSolCons(solCons, solPrim, gas: gasProps):
+def calcDSolPrimDSolCons(solCons, solPrim, gas):
 	
 	gammaMatrixInv = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
 	
@@ -73,7 +72,7 @@ def calcDSolPrimDSolCons(solCons, solPrim, gas: gasProps):
 
 
 # compute gradient of conservative variable solution w/r/t the primitive variable solution
-def calcDSolConsDSolPrim(solCons, solPrim, gas: gasProps):
+def calcDSolConsDSolPrim(solCons, solPrim, gas):
 	
 	gammaMatrix = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
 	rho = solCons[:,0]
@@ -136,9 +135,9 @@ def calcDSolConsDSolPrim(solCons, solPrim, gas: gasProps):
 	return gammaMatrix
 
 # compute Jacobian of source term 
-def calcDSourceDSolPrim(sol, gas: gasProps, geom: geometry, dt):
+def calcDSourceDSolPrim(sol, gas, mesh, dt):
 	
-	dSdQp = np.zeros((gas.numEqs, gas.numEqs, geom.numCells))
+	dSdQp = np.zeros((gas.numEqs, gas.numEqs, mesh.numCells))
 
 	rho = sol.solCons[:,0]
 	p = sol.solPrim[:,0]
@@ -199,8 +198,10 @@ def calcDSourceDSolPrim(sol, gas: gasProps, geom: geometry, dt):
 	
 
 # compute flux Jacobians   
-def calcAp(solPrim, rho, cp, h0, params: parameters, gas: gasProps, bounds: boundaries):
+def calcAp(solPrim, rho, cp, h0, bounds: boundaries, solver):
 	
+	gas = solver.gasModel
+
 	Ap = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
 	
 	p = solPrim[:,0]
@@ -257,7 +258,7 @@ def calcAp(solPrim, rho, cp, h0, params: parameters, gas: gasProps, bounds: boun
 				Ap[i,j,:] = u * ((i==j) * rho + Y * rhoY[:])
 			
     #Adding the viscous flux jacobian terms
-	if (params.viscScheme > 0):
+	if (solver.viscScheme > 0):
 		Ap[1,1,:] = Ap[1,1,:] - (4.0 / 3.0) * gas.muRef[:-1]
 
 		Ap[2,1,:] = Ap[2,1,:] - u * (4.0 / 3.0) * gas.muRef[:-1]
@@ -284,7 +285,7 @@ def calcAp(solPrim, rho, cp, h0, params: parameters, gas: gasProps, bounds: boun
 # TODO: get rid of the left and right dichotomy, just use slices of solCons and solPrim
 # 	Redundant Ap calculations are EXPENSIVE
 def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, 
-						sol: solutionPhys, params: parameters, bounds: boundaries, geom: geometry, gas: gasProps):
+						sol: solutionPhys, bounds: boundaries, solver):
 		
 	rHL = solConsL[:,[2]] + solPrimL[:,[0]]
 	HL = rHL / solConsL[:,[0]]
@@ -301,28 +302,30 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR,
 	
 	Hi = np.squeeze((di * HR + HL) * dl)
 	
-	if (gas.numSpecies > 1):
+	if (solver.gasModel.numSpecies > 1):
 		massFracsRoe = Qp_i[:,3:]
 	else:
 		massFracsRoe = Qp_i[:,3]
 		
-	Ri = calcGasConstantMixture(massFracsRoe, gas)
-	Cpi = calcCpMixture(massFracsRoe, gas)
+	Ri = calcGasConstantMixture(massFracsRoe, solver.gasModel)
+	Cpi = calcCpMixture(massFracsRoe, solver.gasModel)
 	gammai = calcGammaMixture(Ri, Cpi)
 	
 	ci = np.sqrt(gammai * Ri * Qp_i[:,2])
 	
-	M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, gas), axes=(1,2,0))
+	M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solver.gasModel), axes=(1,2,0))
 
-	cp_l = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix), axis=0)
-	cp_r = np.concatenate((sol.CpMix, bounds.outlet.sol.CpMix), axis=0)
+	# pdb.set_trace()
 
-	Ap_l = calcAp(solPrimL, solConsL[:,0], cp_l, HL, params, gas, bounds)
-	Ap_r = calcAp(solPrimR, solConsR[:,0], cp_r, HR, params, gas, bounds)
+	cp_l = np.concatenate((bounds.inlet.sol.CpMix, sol.CpMix))
+	cp_r = np.concatenate((sol.CpMix, bounds.outlet.sol.CpMix))
 
-	Ap_l[:,:,:]  *= (0.5 / geom.dx)
-	Ap_r[:,:,:]  *= (0.5 / geom.dx)
-	M_ROE[:,:,:] *= (0.5 / geom.dx)
+	Ap_l = calcAp(solPrimL, solConsL[:,0], cp_l, HL, bounds, solver)
+	Ap_r = calcAp(solPrimR, solConsR[:,0], cp_r, HR, bounds, solver)
+
+	Ap_l[:,:,:]  *= (0.5 / solver.mesh.dx[0,:])
+	Ap_r[:,:,:]  *= (0.5 / solver.mesh.dx[0,:])
+	M_ROE[:,:,:] *= (0.5 / solver.mesh.dx[0,:])
 
     #Jacobian wrt current cell
 	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,:-1])
@@ -333,20 +336,19 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR,
     #Jacobian wrt right neighbour
 	dFluxdQp_r = (Ap_r[:,:,1:-1] - M_ROE[:,:,2:]) 
     
-	
 	return dFluxdQp, dFluxdQp_l, dFluxdQp_r
 
 
 # compute Jacobian of the RHS function (i.e. fluxes, sources, body forces)  
-def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, bounds: boundaries):
+def calcDResDSolPrim(sol: solutionPhys, bounds: boundaries, solver):
 		
 	# contribution to main block diagonal from source term Jacobian
-	dSdQp = np.zeros((gas.numEqs, gas.numEqs, geom.numCells), dtype=constants.realType)
-	if params.sourceOn:
-		dSdQp = calcDSourceDSolPrim(sol, gas, geom, params.dt)
+	dSdQp = np.zeros((solver.gasModel.numEqs, solver.gasModel.numEqs, solver.mesh.numCells), dtype=constants.realType)
+	if solver.sourceOn:
+		dSdQp = calcDSourceDSolPrim(sol, solver.gasModel, solver.mesh, solver.timeIntegrator.dt)
 	
 	# contribution to main block diagonal from physical/dual time solution Jacobian
-	gammaMatrix = calcDSolConsDSolPrim(sol.solCons, sol.solPrim, gas)
+	gammaMatrix = calcDSolConsDSolPrim(sol.solCons, sol.solPrim, solver.gasModel)
 		
 	# contribution from inviscid and viscous flux Jacobians
 	# TODO: the face reconstruction should be held onto from the RHS calcs
@@ -356,22 +358,24 @@ def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 	solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)       
 
 	# add higher-order contribution
-	if (params.spaceOrder > 1):
-		solPrimGrad = calcCellGradients(sol, params, bounds, geom, gas)
-		solPrimL[1:,:] 	+= (geom.dx / 2.0) * solPrimGrad 
-		solPrimR[:-1,:] -= (geom.dx / 2.0) * solPrimGrad
-		solConsL[1:,:], _, _ ,_ = calcStateFromPrim(solPrimL[1:,:], gas)
-		solConsR[:-1,:], _, _ ,_ = calcStateFromPrim(solPrimR[:-1,:], gas)
+	if (solver.spaceOrder > 1):
+		solPrimGrad = calcCellGradients(sol, bounds, solver)
+		solPrimL[1:,:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
+		solPrimR[:-1,:] -= (solver.mesh.dx / 2.0) * solPrimGrad
+		solConsL[1:,:], _, _ ,_ = calcStateFromPrim(solPrimL[1:,:], solver.gasModel)
+		solConsR[:-1,:], _, _ ,_ = calcStateFromPrim(solPrimR[:-1,:], solver.gasModel)
 		
 	# *_l is contribution to lower block diagonal, *_r is to upper block diagonal
-	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, params, bounds, geom, gas)
+	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, sol, bounds, solver)
 
 	# compute time step factors
-	dtInv = constants.bdfCoeffs[params.timeOrder - 1] / params.dt
-	if (params.adaptDTau):
-		dtauInv = calcAdaptiveDTau(sol, gas, geom, params, gammaMatrix)
+	# TODO: make this specific for each implicitIntegrator
+	dtCoeffIdx = min(solver.timeIntegrator.iter, solver.timeIntegrator.timeOrder) - 1
+	dtInv = solver.timeIntegrator.coeffs[dtCoeffIdx][0] / solver.timeIntegrator.dt
+	if (solver.adaptDTau):
+		dtauInv = calcAdaptiveDTau(sol, gammaMatrix, solver)
 	else:
-		dtauInv = 1./params.dtau
+		dtauInv = 1./solver.timeIntegrator.dtau
 
 	# compute main block diagonal
 	dRdQp = gammaMatrix * (dtauInv + dtInv) - dSdQp + dFdQp
@@ -381,17 +385,17 @@ def calcDResDSolPrim(sol: solutionPhys, gas: gasProps, geom: geometry, params: p
 
 	return dRdQp
 
-def calcAdaptiveDTau(sol: solutionPhys, gas: gasProps, geom: geometry, params: parameters, gammaMatrix):
+def calcAdaptiveDTau(sol: solutionPhys, gammaMatrix, solver):
 
 	# compute initial dtau from input CFL and srf (max characteristic speed)
 	# srf is computed in calcInvFlux
 	dtaum = 1.0/sol.srf
-	dtau = params.CFL*dtaum
+	dtau = solver.CFL*dtaum
 
 	# limit by von Neumann number
 	# TODO: THIS NU IS NOT CORRECT FOR A GENERAL MIXTURE
-	nu = gas.muRef[0] / sol.solCons[:,0]
-	dtau = np.minimum(dtau, params.VNN / nu)
+	nu = solver.gasModel.muRef[0] / sol.solCons[:,0]
+	dtau = np.minimum(dtau, solver.VNN / nu)
 	dtaum = np.minimum(dtaum, 3.0 / nu)
 
 	# limit dtau

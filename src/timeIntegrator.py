@@ -1,9 +1,11 @@
-import numpy as np
 import constants
 from inputFuncs import catchInput
 from solution import solutionPhys, boundaries
 from romClasses import solutionROM
 from spaceSchemes import calcRHS
+from Jacobians import calcDResDSolPrim
+import numpy as np
+from scipy.sparse.linalg import spsolve
 import pdb
 
 # TODO: could have another level of hierarchy for explicit, implicit, and implicit+dual integrators
@@ -29,25 +31,23 @@ class timeIntegrator:
 		self.timeIter 	= 1 	# physical time iteration number for restarted solutions
 		self.subiterMax = None	# maximum number of subiterations for multi-stage schemes
 
-	def updateSubiter(self):
-		if (self.subiter == self.subiterMax):
-			self.subiter = 1
-		else:
-			self.subiter += 1
-
-	def updateIter(self):
-		self.iter += 1
-		self.timeIter += 1
-
 	def advanceIter(self, solPhys: solutionPhys, solROM: solutionROM, bounds: boundaries, solver):
 
-		for subiter in range(self.subiterMax):	
+		if (not solver.timeIntegrator.runSteady): print("Iteration "+str(self.iter))
+
+		for self.subiter in range(1, self.subiterMax+1):	
 			self.advanceSubiter(solPhys, solROM, bounds, solver)
 
+			if (self.timeType == "implicit"):
+				solPhys.resOutput(solver)
+				if (solPhys.resNormL2 < self.resTol): break
+
 		solPhys.updateSolHist() 
-		self.updateIter()
 
 class explicitIntegrator(timeIntegrator):
+	"""
+	Base class for explicit time integrators
+	"""
 
 	def __init__(self, paramDict):
 		super().__init__(paramDict)
@@ -55,7 +55,6 @@ class explicitIntegrator(timeIntegrator):
 
 	def advanceSubiter(self, solPhys: solutionPhys, solROM: solutionROM, bounds: boundaries, solver):
 
-		# compute RHS function
 		calcRHS(solPhys, bounds, solver)
 
 		# compute change in solution/code, advance solution/code
@@ -66,13 +65,48 @@ class explicitIntegrator(timeIntegrator):
 		else:
 			dSol = self.solveSolChange(solPhys.RHS)
 			solPhys.solCons = solPhys.solHistCons[0] + dSol
-		
-		# pdb.set_trace()
-		
+				
 		solPhys.updateState(solver.gasModel)
-		self.updateSubiter()
 
-class RKExplicit(explicitIntegrator):
+class implicitIntegrator(timeIntegrator):
+	"""
+	Base class for implicit time integrators
+	Solves implicit system via Newton's method
+	"""
+
+	def __init__(self, paramDict):
+		super().__init__(paramDict)
+		self.timeType 		= "implicit"
+		self.dualTime 		= catchInput(paramDict, "dualTime", True)
+		self.subiterMax		= catchInput(paramDict, "subiterMax", constants.subiterMaxImpDefault)
+		self.resTol 		= catchInput(paramDict, "resTol", constants.l2ResTolDefault)
+		self.dtau 			= catchInput(paramDict, "dtau", constants.dtauDefault)
+
+
+	def advanceSubiter(self, solPhys: solutionPhys, solROM: solutionROM, bounds: boundaries, solver):
+
+		calcRHS(solPhys, bounds, solver) 
+
+		# compute discretized system residual
+		solPhys.res = self.calcResidual(solPhys.solHistCons, solPhys.RHS)
+
+		# compute Jacobian of residual
+		resJacob = calcDResDSolPrim(solPhys, bounds, solver)
+
+		# solve linear system 
+		dSol = spsolve(resJacob, solPhys.res.flatten('C'))
+
+		# update state
+		solPhys.solPrim += dSol.reshape((solver.mesh.numCells, solver.gasModel.numEqs), order='C')
+		solPhys.updateState(solver.gasModel, fromCons = False)
+		solPhys.solHistCons[0] = solPhys.solCons.copy() 
+		solPhys.solHistPrim[0] = solPhys.solPrim.copy() 
+
+		# borrow solPhys.res to store linear solve residual	
+		res = resJacob @ dSol - solPhys.res.flatten('C')
+		solPhys.res = np.reshape(res, (solver.mesh.numCells, solver.gasModel.numEqs), order='C')
+
+class rkExplicit(explicitIntegrator):
 	"""
 	Low-memory explicit Runge-Kutta scheme
 	"""
@@ -81,52 +115,38 @@ class RKExplicit(explicitIntegrator):
 		super().__init__(paramDict)
 		
 		self.subiterMax = self.timeOrder
-		self.coeffs = 1.0 / np.arange(1, self.timeOrder+1, dtype=constants.realType)[::-1]
+		self.coeffs = [1.0 / np.arange(1, self.timeOrder+1, dtype=constants.realType)[::-1]]
 
 
 	def solveSolChange(self, rhs):
-		dSol = self.dt * self.coeffs[self.subiter-1] * rhs
+		dSol = self.dt * self.coeffs[0][self.subiter-1] * rhs
 		return dSol
 
-# class LMSImplicitDual(timeIntegrator):
-# 	"""
-# 	Implicit linear multi-step scheme (backwards difference formula) with dual time stepping
-# 	"""
+class bdf(implicitIntegrator):
+	"""
+	Backwards difference formula (up to fourth-order)
+	"""
 
-# 	def __init__(self, paramDict):
-# 		super().__init__(paramDict)
+	def __init__(self, paramDict):
+		super().__init__(paramDict)
 
-# 		self.timeType 		= "implicit"
-# 		self.subiterMax		= catchInput(paramDict, "subiterMax", constants.subiterMaxImpDefault)
-# 		self.resTol 		= catchInput(paramDict, "resTol", constants.l2ResTolDefault)
-# 		self.dtau 			= catchInput(paramDict, "dtau", constants.dtauDefault)
+		self.coeffs = [None]*4
+		self.coeffs[0] = np.array([1.0, -1.0], dtype=constants.realType)
+		self.coeffs[1] = np.array([1.5, -2.0, 0.5], dtype=constants.realType)
+		self.coeffs[2] = np.array([11./16., -3.0, 1.5, -1./3.], dtype=constants.realType)
+		self.coeffs[3] = np.array([25./12., -4.0, 3.0, -4./3., 0.25], dtype=constants.realType)
+		assert (self.timeOrder <= 4), str(self.timeOrder)+"th-order accurate scheme not implemented for "+self.timeScheme+" scheme"
 
-# 	def calcResidual(self, solHist, rhs):
+	def calcResidual(self, solHist, rhs):
 		
-# 		# cold start 
-# 		if (self.iter < self.timeOrder):
-# 			timeOrder = self.iter
-# 		else:
-# 			timeOrder = self.timeOrder
+		timeOrder = min(self.iter, self.timeOrder) 	# cold start
+		coeffs = self.coeffs[timeOrder-1]
+
+		residual = coeffs[0] * solHist[0]
+		for iterIdx in range(1, timeOrder+1):
+			residual += coeffs[iterIdx] * solHist[iterIdx]
 		
-# 		if (timeOrder == 1):
-# 			residual = solHist[0] - solHist[1]
-# 		elif (timeOrder == 2):
-# 			residual = 1.5*solHist[0] - 2.*solHist[1] + 0.5*solHist[2]
-# 		elif (timeOrder == 3):
-# 			residual = 11./6.*solHist[0] - 3.*solHist[1] + 1.5*solHist[2] -1./3.*solHist[3]
-# 		elif (timeOrder == 4):
-# 			residual = 25./12.*solHist[0] - 4.*solHist[1] + 3.*solHist[2] -4./3.*solHist[3] + 0.25*solHist[4]
-# 		else:
-# 			raise ValueError(str(self.timeOrder)+"th-order accurate scheme not implemented for "+self.timeScheme+" scheme")
-		
-# 		residual = -(residual / self.dt) + rhs
+		residual = -(residual / self.dt) + rhs
 
-# 		return residual
-
-# class sspRKExplicit(timeIntegrator):
-
-# 	def __init__(self, params: parameters):
-
-# 		super().__init__(params)
+		return residual
 

@@ -16,11 +16,7 @@ tinyNum 	= 1.0e-25 	# very small number
 hugeNum 	= 1.0e25	# very large number
 
 # "steady" state residual normalization defaults
-steadyNormPrimDefault = [1.0e5, 10.0, 300.0, 1.0]
-
-
-# BDF co-efficients
-bdfCoeffs = np.array([1., 1.5, 11./6., 25./12.], dtype = realType)
+resNormPrimDefault = [1.0e5, 10.0, 300.0, 1.0]
 
 # implicit time integrator defaults
 subiterMaxImpDefault 	= 50

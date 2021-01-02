@@ -49,10 +49,10 @@ class systemSolver:
 		timeScheme 			= str(paramDict["timeScheme"]) 				# time integration scheme
 		self.solTime 		= 0.0
 
-		if (timeScheme == "lsmImpDual"):
-			self.timeIntegrator = timeIntegrator.LMSImplicit(paramDict)
+		if (timeScheme == "bdf"):
+			self.timeIntegrator = timeIntegrator.bdf(paramDict)
 		elif (timeScheme == "rkExp"):
-			self.timeIntegrator = timeIntegrator.RKExplicit(paramDict)
+			self.timeIntegrator = timeIntegrator.rkExplicit(paramDict)
 		else:
 			raise ValueError("Invalid choice of timeScheme: "+timeScheme)
 
@@ -63,6 +63,7 @@ class systemSolver:
 				raise ValueError("Cannot run steady-state solution with explicit time integrator!")
 
 		# robustness controls
+		# TODO: move this into implicitIntegrator
 		self.adaptDTau 		= catchInput(paramDict, "adaptDTau", False)	# whether to compute adaptive pseudo time step
 		self.CFL 			= catchInput(paramDict, "CFL", 10) 			# reference CFL for advective control of dtau
 		self.VNN 			= catchInput(paramDict, "VNN", 20) 			# von Neumann number for diffusion control of dtau
@@ -77,7 +78,7 @@ class systemSolver:
 
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
-		self.steadyNormPrim	= catchInput(paramDict, "steadyNorm", [None])
+		self.resNormPrim	= catchInput(paramDict, "steadyNorm", [None])
 		self.sourceOn 		= catchInput(paramDict, "sourceOn", True)
 
 		# restart files
