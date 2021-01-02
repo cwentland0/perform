@@ -1,7 +1,86 @@
+from constants import realType
+from stateFuncs import calcStateFromPrim
 import re 
 import numpy as np
 import os
 import pdb
+
+def catchInput(inDict, inKey, defaultVal):
+	"""
+	Assign default values if user does not provide a certain input
+	
+	Inputs
+	------
+	inDict : dict
+		Dictionary containing all input keys and values
+	inKey : str
+		Key to search inDict for
+	default : varies
+		Default value to assign if inKey is not found in inDict
+		Also implicitly defines type to interpret value associated with inKey as
+
+	Outputs
+	-------
+	outVal : varies
+		Either the input value associated with inKey or 
+	"""
+
+	# TODO: correct error handling if default type is not recognized
+	# TODO: instead of trusting user for NoneType, could also use NaN/Inf to indicate int/float defaults without passing a numerical default
+	# 		or could just pass the actual default type lol, that'd be easier
+
+	defaultType = type(defaultVal)
+	try:
+		# if NoneType passed as default, trust user
+		if (defaultType == type(None)):
+			outVal = inDict[inKey]
+		else:
+			outVal = defaultType(inDict[inKey])
+	except:
+		outVal = defaultVal
+
+	return outVal
+
+# input processor for reading lists or lists of lists
+# default defines length of lists at lowest level
+# TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
+def catchList(inDict, inKey, default, lenHighest=1):
+
+	listOfListsFlag = (type(default[0]) == list)
+	
+	try:
+		inList = inDict[inKey]
+
+		# list of lists
+		if listOfListsFlag:
+			typeDefault = type(default[0][0])
+			valList = []
+			for listIdx in range(lenHighest):
+				# if default type is NoneType, trust user
+				if (typeDefault == type(None)):
+					valList.append(inList[listIdx])
+				else:
+					castInList = [typeDefault(inVal) for inVal in inList[listIdx]]
+					valList.append(castInList)
+
+		# normal list
+		else:
+			typeDefault = type(default[0])
+			# if default type is NoneType, trust user 
+			if (typeDefault == type(None)):
+				valList = inList
+			else:
+				valList = [typeDefault(inVal) for inVal in inList]
+
+	except:
+		if listOfListsFlag:
+			valList = []
+			for listIdx in range(lenHighest):
+				valList.append(default[0])
+		else:
+			valList = default
+
+	return valList
 
 # parse read text value into dict value
 def parseValue(expr):
@@ -77,6 +156,65 @@ def parseBC(bcName, inDict):
 		pertFreq = None
 	
 	return press, vel, temp, massFrac, rho, pertType, pertPerc, pertFreq
+
+def getInitialConditions(solver):
+
+	# TODO: add an option to interpolate a solution onto the given mesh, if different
+
+	# intialize from restart file
+	if solver.initFromRestart:
+		solver.solTime, solPrim0 = readRestartFile(solver.restOutDir)
+		solCons0, _, _, _ = calcStateFromPrim(solPrim0, solver.gasModel)
+
+	# otherwise init from scratch IC or custom IC file 
+	else:
+		if (solver.initFile == None):
+			solPrim0, solCons0 = genPiecewiseUniformIC(solver)
+		else:
+			# TODO: change this to .npz format with physical time included
+			solPrim0 = np.load(solver.initFile)
+			solCons0, _, _, _ = calcStateFromPrim(solPrim0, gas)
+
+	return solPrim0, solCons0
+
+# generate "left" and "right" states
+# TODO: generalize to >2 uniform regions
+def genPiecewiseUniformIC(solver):
+	"""
+
+
+	Inputs
+	------
+
+	Output
+	------
+	
+
+	"""
+
+	if os.path.isfile(solver.icParamsFile):
+		icDict 	= readInputFile(solver.icParamsFile)
+	else:
+		raise ValueError("Could not find initial conditions file at "+solver.icParamsFile)
+
+	splitIdx 	= np.absolute(solver.mesh.xCell - icDict["xSplit"]).argmin()+1
+	solPrim 	= np.zeros((solver.mesh.numCells, solver.gasModel.numEqs), dtype=realType)
+
+	# left state
+	solPrim[:splitIdx,0] 	= icDict["pressLeft"]
+	solPrim[:splitIdx,1] 	= icDict["velLeft"]
+	solPrim[:splitIdx,2] 	= icDict["tempLeft"]
+	solPrim[:splitIdx,3:] 	= icDict["massFracLeft"][:-1]
+
+	# right state
+	solPrim[splitIdx:,0] 	= icDict["pressRight"]
+	solPrim[splitIdx:,1] 	= icDict["velRight"]
+	solPrim[splitIdx:,2] 	= icDict["tempRight"]
+	solPrim[splitIdx:,3:] 	= icDict["massFracRight"][:-1]
+	
+	solCons, _, _, _ = calcStateFromPrim(solPrim, solver.gasModel)
+
+	return solPrim, solCons
 
 # read solution state from restart file 
 def readRestartFile(restartDir):

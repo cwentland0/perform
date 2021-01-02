@@ -1,8 +1,25 @@
 import struct
 
-# write NumPy arrays to binary file
-# add new typeStr for different dtypes as needed
 def writeToFile(fid, array, order='F'):
+	"""
+	Write NumPy arrays to binary file using struct
+
+	Inputs
+	------
+	fid : file object
+		File opened with open(), in mode 'wb'
+	array : ndarray
+		Array to be written to fid
+	order (optional) : 'C' or 'F'
+		Order in which array will be flattened for output
+		'C' is row-major, 'F' is column-major
+
+	Outputs
+	-------
+	None
+
+	"""
+
 	if (array.ndim > 1):
 		array = array.flatten(order=order)
 	dtype = array.dtype 

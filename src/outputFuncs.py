@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 import matplotlib.gridspec as gridspec
 import os
-from classDefs import parameters, geometry
 from solution import solutionPhys, boundaries
 import constants
 import time
@@ -17,47 +16,46 @@ mpl.rc('figure', facecolor='w')
 mpl.rc('text', usetex=False)
 mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 
-# TODO: could go overboard an make a visualization class
+# TODO: make visualization classes for each type of plot
 # TODO: plot/save multiple variables for probe and field/probe images
-# TODO: add option to fix y-axis bounds?
 # TODO: add visualization for arbitrary species
 # TODO: move label selection to parameters
 # TODO: better automatic formatting of images? Ultimately real plotting will be un utils, might now be worth the time
 
 # store snapshots of field data
-def storeFieldDataUnsteady(sol: solutionPhys, params:parameters, tStep):
+def storeFieldDataUnsteady(sol: solutionPhys, solver, tStep):
 
-	storeIdx = int(tStep / params.outInterval) + 1
+	storeIdx = int(tStep / solver.outInterval) + 1
 
-	if params.primOut: sol.primSnap[:,:,storeIdx] = sol.solPrim
-	if params.consOut: sol.consSnap[:,:,storeIdx] = sol.solCons
-	if params.RHSOut:  sol.RHSSnap[:,:,storeIdx]  = sol.RHS
+	if solver.primOut: sol.primSnap[:,:,storeIdx] = sol.solPrim
+	if solver.consOut: sol.consSnap[:,:,storeIdx] = sol.solCons
+	if solver.RHSOut:  sol.RHSSnap[:,:,storeIdx]  = sol.RHS
 
 # get figure and axes handles for visualization
 # TODO: some way to generalize this for any number of visualization plots?
 # 	not even 9 variables to visualize right now
-def setupPlotAxes(params: parameters):
+def setupPlotAxes(solver):
 
-	if (params.numVis == 1):
-		params.visNRows = 1 
-		params.visNCols = 1
-	elif (params.numVis == 2):
-		params.visNRows = 2
-		params.visNCols = 1
-	elif (params.numVis <= 4):
-		params.visNRows = 2
-		params.visNCols = 2
-	elif (params.numVis <= 6):
-		params.visNRows = 3
-		params.visNCols = 2
-	elif (params.numVis <= 9):
-		params.visNRows = 3
-		params.visNCols = 3
+	if (solver.numVis == 1):
+		solver.visNRows = 1 
+		solver.visNCols = 1
+	elif (solver.numVis == 2):
+		solver.visNRows = 2
+		solver.visNCols = 1
+	elif (solver.numVis <= 4):
+		solver.visNRows = 2
+		solver.visNCols = 2
+	elif (solver.numVis <= 6):
+		solver.visNRows = 3
+		solver.visNCols = 2
+	elif (solver.numVis <= 9):
+		solver.visNRows = 3
+		solver.visNCols = 3
 
 	# axis labels
 	axLabels = []
-	for axIdx in range(params.numVis):
-		varStr = params.visVar[axIdx]
+	for axIdx in range(solver.numVis):
+		varStr = solver.visVar[axIdx]
 		if (varStr == "pressure"):
 			axLabels.append("Pressure (Pa)")
 		elif (varStr == "velocity"):
@@ -75,14 +73,14 @@ def setupPlotAxes(params: parameters):
 		elif (varStr == "energy"):
 			axLabels.append("Total Energy")
 		else:
-			raise ValueError("Invalid field visualization variable:"+str(params.visVar))
+			raise ValueError("Invalid field visualization variable:"+str(solver.visVar))
 
-	fig, ax = plt.subplots(nrows=params.visNRows, ncols=params.visNCols, figsize=(12,6))
+	fig, ax = plt.subplots(nrows=solver.visNRows, ncols=solver.visNCols, figsize=(12,6))
 
 	return fig, ax, axLabels
 
 # plot field line plots
-def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params: parameters, geom: geometry):
+def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver):
 
 	if (type(ax) != np.ndarray): 
 		axList = [ax]
@@ -97,12 +95,12 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 		for rowIdx, axVar in enumerate(colList):
 
 			axVar.cla()
-			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (params.visNRows, params.visNCols))[0]
-			if ((linIdx+1) > params.numVis): 
+			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (solver.visNRows, solver.visNCols))[0]
+			if ((linIdx+1) > solver.numVis): 
 				axVar.axis("off")
 				break
 
-			varStr = params.visVar[linIdx]
+			varStr = solver.visVar[linIdx]
 			if (varStr == "pressure"):
 				field = sol.solPrim[:,0]
 			elif (varStr == "velocity"):
@@ -122,9 +120,9 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 			else:
 				raise ValueError("Invalid field visualization variable:"+str(varStr))
 
-			axVar.plot(geom.xCell, field)
-			axVar.set_ylim(params.visYBounds[linIdx])
-			axVar.set_xlim(params.visXBounds[linIdx])
+			axVar.plot(solver.mesh.xCell, field)
+			axVar.set_ylim(solver.visYBounds[linIdx])
+			axVar.set_xlim(solver.visXBounds[linIdx])
 			axVar.set_ylabel(axLabels[linIdx])
 			axVar.set_xlabel("x (m)")
 			axVar.ticklabel_format(useOffset=False)
@@ -134,23 +132,23 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 	plt.pause(0.001)
 
 # write field plot image to disk
-def writeFieldImg(fig: plt.Figure, params: parameters, tStep, fieldImgDir):
+def writeFieldImg(fig: plt.Figure, solver, tStep, fieldImgDir):
 
-	visIdx 	= int((tStep+1) / params.visInterval)
-	figNum 	= params.imgString % visIdx
+	visIdx 	= int((tStep+1) / solver.visInterval)
+	figNum 	= solver.imgString % visIdx
 	figFile = os.path.join(fieldImgDir, "fig_"+figNum+".png")
 	fig.savefig(figFile)
 
 # update probeVals, as this happens every time iteration
-def updateProbe(sol: solutionPhys, params: parameters, bounds: boundaries, probeVals, probeIdx, tStep):
+def updateProbe(sol: solutionPhys, solver, bounds: boundaries, probeVals, probeIdx, tStep):
 
-	for visIdx in range(params.numVis):
-		varStr = params.visVar[visIdx]
-		if (params.probeSec == "inlet"):
+	for visIdx in range(solver.numVis):
+		varStr = solver.visVar[visIdx]
+		if (solver.probeSec == "inlet"):
 			solPrimProbe = bounds.inlet.sol.solPrim[0,:]
 			solConsProbe = bounds.inlet.sol.solCons[0,:]
 
-		elif (params.probeSec == "outlet"):
+		elif (solver.probeSec == "outlet"):
 			solPrimProbe = bounds.outlet.sol.solPrim[0,:]
 			solConsProbe = bounds.outlet.sol.solCons[0,:]
 
@@ -177,13 +175,13 @@ def updateProbe(sol: solutionPhys, params: parameters, bounds: boundaries, probe
 			elif (varStr == "energy"):
 				probe = solConsProbe[2]
 		except:
-			raise ValueError("Invalid field visualization variable "+str(params.visVar)+" for probe at "+params.probeSec)
+			raise ValueError("Invalid field visualization variable "+str(solver.visVar)+" for probe at "+solver.probeSec)
 		
 
 		probeVals[tStep, visIdx] = probe 
 
 # plot probeVals at specied visInterval
-def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params: parameters, probeVals, tStep, tVals):
+def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver, probeVals, tStep, tVals):
 
 	if (type(ax) != np.ndarray): 
 		axList = [ax]
@@ -198,14 +196,14 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 		for rowIdx, axVar in enumerate(colList):
 
 			axVar.cla()
-			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (params.visNRows, params.visNCols))[0]
-			if ((linIdx+1) > params.numVis): 
+			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (solver.visNRows, solver.visNCols))[0]
+			if ((linIdx+1) > solver.numVis): 
 				axVar.axis("off")
 				break
 
 			axVar.plot(tVals[:tStep+1], probeVals[:tStep+1, linIdx])
-			axVar.set_ylim(params.visYBounds[linIdx])
-			axVar.set_xlim(params.visXBounds[linIdx])
+			axVar.set_ylim(solver.visYBounds[linIdx])
+			axVar.set_xlim(solver.visXBounds[linIdx])
 			axVar.set_ylabel(axLabels[linIdx])
 			axVar.set_xlabel("t (s)")
 			axVar.ticklabel_format(axis='both',useOffset=False)
@@ -216,43 +214,43 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, params
 	plt.pause(0.001)
 
 # write snapshot matrices and point monitors to disk
-def writeDataUnsteady(sol: solutionPhys, params: parameters, probeVals, tVals):
+def writeDataUnsteady(sol: solutionPhys, solver, probeVals, tVals):
 
 	# save snapshot matrices to disk
-	if params.primOut:
-		solPrimFile = os.path.join(params.unsOutDir, "solPrim_"+params.simType+".npy")
+	if solver.primOut:
+		solPrimFile = os.path.join(constants.unsteadyOutputDir, "solPrim_"+solver.simType+".npy")
 		np.save(solPrimFile, sol.primSnap)
-	if params.consOut:
-		solConsFile = os.path.join(params.unsOutDir, "solCons_"+params.simType+".npy")
+	if solver.consOut:
+		solConsFile = os.path.join(constants.unsteadyOutputDir, "solCons_"+solver.simType+".npy")
 		np.save(solConsFile, sol.consSnap) 
-	if params.sourceOut:
-		sourceFile = os.path.join(params.unsOutDir, "source_"+params.simType+".npy")
+	if solver.sourceOut:
+		sourceFile = os.path.join(constants.unsteadyOutputDir, "source_"+solver.simType+".npy")
 		np.save(sourceFile, sol.sourceSnap)
-	if params.RHSOut:
-		solRHSFile = os.path.join(params.unsOutDir, "solRHS_"+params.simType+".npy")
+	if solver.RHSOut:
+		solRHSFile = os.path.join(constants.unsteadyOutputDir, "solRHS_"+solver.simType+".npy")
 		np.save(solRHSFile, sol.RHSSnap) 
 
 	# save point monitors to disk
 	probeFileName = "probe"
-	for visVar in params.visVar:
+	for visVar in solver.visVar:
 		probeFileName += "_"+visVar
-	probeFile = os.path.join(params.probeOutDir, probeFileName+"_"+params.simType+".npy")
-	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,params.numVis)), axis=1) 	# TODO: add third reshape dimensions for multiple probes
+	probeFile = os.path.join(constants.probeOutputDir, probeFileName+"_"+solver.simType+".npy")
+	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,solver.numVis)), axis=1) 	# TODO: add third reshape dimensions for multiple probes
 	np.save(probeFile, probeSave)
 
 # update residual output and "steady" solution
-def writeDataSteady(sol: solutionPhys, params: parameters):
+def writeDataSteady(sol: solutionPhys, solver):
 
 	# write field data
-	solPrimFile = os.path.join(params.unsOutDir, "solPrim_steady.npy")
+	solPrimFile = os.path.join(constants.unsteadyOutputDir, "solPrim_steady.npy")
 	np.save(solPrimFile, sol.solPrim)
-	solConsFile = os.path.join(params.unsOutDir, "solCons_steady.npy")
+	solConsFile = os.path.join(constants.unsteadyOutputDir, "solCons_steady.npy")
 	np.save(solConsFile, sol.solCons)
 
 # append residual to residual file
-def updateResOut(sol: solutionPhys, params: parameters, tStep):
+def updateResOut(sol: solutionPhys, solver, tStep):
 
-	resFile = os.path.join(params.unsOutDir, "steadyResOut.dat")
+	resFile = os.path.join(constants.unsteadyOutputDir, "steadyResOut.dat")
 	if (tStep == 0):
 		f = open(resFile,"w")
 	else:
@@ -261,23 +259,23 @@ def updateResOut(sol: solutionPhys, params: parameters, tStep):
 	f.close()
 
 # write restart files containing primitive and conservative fields, plus physical time 
-def writeRestartFile(sol: solutionPhys, params: parameters, tStep):
+def writeRestartFile(sol: solutionPhys, solver, tStep):
 
 	# write restart file to zipped file
-	restartFile = os.path.join(params.restOutDir, "restartFile_"+str(params.restartIter)+".npz")
-	np.savez(restartFile, solTime = params.solTime, solPrim = sol.solPrim, solCons = sol.solCons)
+	restartFile = os.path.join(constants.restartOutputDir, "restartFile_"+str(solver.restartIter)+".npz")
+	np.savez(restartFile, solTime = solver.solTime, solPrim = sol.solPrim, solCons = sol.solCons)
 
 	# write iteration number files
-	restartIterFile = os.path.join(params.restOutDir, "restartIter.dat")
+	restartIterFile = os.path.join(constants.restartOutputDir, "restartIter.dat")
 	with open(restartIterFile, "w") as f:
-		f.write(str(params.restartIter)+"\n")
+		f.write(str(solver.restartIter)+"\n")
 
-	restartPhysIterFile = os.path.join(params.restOutDir, "restartIter_"+str(params.restartIter)+".dat")
+	restartPhysIterFile = os.path.join(constants.restartOutputDir, "restartIter_"+str(solver.restartIter)+".dat")
 	with open(restartPhysIterFile, "w") as f:
 		f.write(str(tStep+1)+"\n")
 
 	# iterate file count
-	if (params.restartIter < params.numRestarts):
-		params.restartIter += 1
+	if (solver.restartIter < solver.numRestarts):
+		solver.restartIter += 1
 	else:
-		params.restartIter = 1
+		solver.restartIter = 1

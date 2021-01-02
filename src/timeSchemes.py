@@ -8,56 +8,15 @@ from scipy.sparse.linalg import spsolve
 import numpy as np
 import pdb
 
-# compute fully-discrete residual
-# TODO: cold start is not valid for timeOrder > 2
-def calcImplicitRes(sol: solutionPhys, bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, colstrt):
-		
-	if (colstrt): # cold start
-		params.timeOrder = 1 
-	
-	calcRHS(sol, bounds, params, geom, gas) # non-linear RHS of current solution
-	
-	if (params.timeOrder == 1):
-		sol.res = (sol.solCons - sol.solHistCons[1])/(params.dt)
-	elif (params.timeOrder == 2):
-		sol.res = (1.5*sol.solCons - 2.*sol.solHistCons[1] + 0.5*sol.solHistCons[2])/(params.dt)
-	elif (params.timeOrder == 3):
-		sol.res = (11./6.*sol.solCons - 3.*sol.solHistCons[1] + 1.5*sol.solHistCons[2] -1./3.*sol.solHistCons[3])/(params.dt)
-	elif (params.timeOrder == 4):
-		sol.res = (25./12.*sol.solCons - 4.*sol.solHistCons[1] + 3.*sol.solHistCons[2] -4./3.*sol.solHistCons[3] + 0.25*sol.solHistCons[4])/(params.dt)
-	else:
-		raise ValueError("Implicit Schemes higher than BDF4 not-implemented")
-	
-	sol.res = -sol.res + sol.RHS
-	
-	
-# explicit time integrator, one subiteration
-def advanceExplicit(sol: solutionPhys, rom: solutionROM, 
-					bounds: boundaries, params: parameters, geom: geometry, gas: gasProps, 
-					subiter, solOuter):
-	
-	
-	#compute RHS function
-	calcRHS(sol, bounds, params, geom, gas)
-		
-	# compute change in solution/code, advance solution/code
-	if (params.calcROM):
-		rom.mapRHSToModels(sol)
-		rom.calcRHSProjection()
-		rom.advanceSubiter(sol, params, subiter, solOuter)
-	else:
-		dSol = params.dt * params.subIterCoeffs[subiter] * sol.RHS
-		sol.solCons = solOuter + dSol
-
-	sol.updateState(gas)
-	
-	return sol
    
 # implicit pseudo-time integrator, one subiteration
-def advanceDual(sol, bounds, params, geom, gas, colstrt=False):
+def advanceDual(sol, bounds, params, geom, gas, subiter, colstrt=False):
 	
+	# non-linear RHS of current solution
+	calcRHS(sol, bounds, params, geom, gas, subiter) 
+
 	# compute residual
-	calcImplicitRes(sol, bounds, params, geom, gas, colstrt)
+	calcImplicitRes(sol, bounds, params, geom, gas, subiter, colstrt)
 
 	# compute Jacobian or residual
 	resJacob = calcDResDSolPrim(sol, gas, geom, params, bounds)

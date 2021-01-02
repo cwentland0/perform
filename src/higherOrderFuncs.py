@@ -1,32 +1,31 @@
 import numpy as np
 from solution import solutionPhys, boundaries
-from classDefs import parameters, geometry, gasProps
 import constants
 
-def calcCellGradients(sol: solutionPhys, params: parameters, bounds: boundaries, geom: geometry, gas: gasProps):
+def calcCellGradients(sol: solutionPhys, bounds: boundaries, solver):
 	
 	# compute gradients via a finite difference stencil
 	solPrimGrad = np.zeros(sol.solPrim.shape, dtype=constants.realType)
-	if (params.spaceOrder == 2):
-		solPrimGrad[1:-1, :] = (0.5 / geom.dx) * (sol.solPrim[2:, :] - sol.solPrim[:-2, :]) 
-		solPrimGrad[0, :]    = (0.5 / geom.dx) * (sol.solPrim[1,:] - bounds.inlet.sol.solPrim)
-		solPrimGrad[-1,:]    = (0.5 / geom.dx) * (bounds.outlet.sol.solPrim - sol.solPrim[-2,:])
+	if (solver.spaceOrder == 2):
+		solPrimGrad[1:-1, :] = (0.5 / solver.mesh.dx) * (sol.solPrim[2:, :] - sol.solPrim[:-2, :]) 
+		solPrimGrad[0, :]    = (0.5 / solver.mesh.dx) * (sol.solPrim[1,:] - bounds.inlet.sol.solPrim)
+		solPrimGrad[-1,:]    = (0.5 / solver.mesh.dx) * (bounds.outlet.sol.solPrim - sol.solPrim[-2,:])
 	else:
-		raise ValueError("Order "+str(params.spaceOrder)+" gradient calculations not implemented...")
+		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented...")
 
 	# compute gradient limiter and limit gradient, if necessary
-	if (params.gradLimiter > 0):
+	if (solver.gradLimiter > 0):
 
 		# Barth-Jespersen
-		if (params.gradLimiter == 1):
-			phi = limiterBarthJespersen(sol, bounds, geom, solPrimGrad)
+		if (solver.gradLimiter == 1):
+			phi = limiterBarthJespersen(sol, bounds, solPrimGrad, solver.mesh)
 
 		# Venkatakrishnan, no correction
-		elif (params.gradLimiter == 2):
-			phi = limiterVenkatakrishnan(sol, bounds, geom, solPrimGrad)
+		elif (solver.gradLimiter == 2):
+			phi = limiterVenkatakrishnan(sol, bounds, solPrimGrad, solver.mesh)
 
 		else:
-			raise ValueError("Invalid input for params.limiter: "+str(params.gradLimiter))
+			raise ValueError("Invalid input for gradLimiter: "+str(solver.gradLimiter))
 
 		solPrimGrad = solPrimGrad * phi	# limit gradient
 
@@ -57,7 +56,7 @@ def findNeighborMinMax(solInterior, solInlet=None, solOutlet=None):
 
 # Barth-Jespersen limiter
 # ensures that no new minima or maxima are introduced in reconstruction
-def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, geom: geometry, grad):
+def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, grad, mesh):
 
 	solPrim = sol.solPrim
 
@@ -65,7 +64,7 @@ def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, geom: geometry,
 	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, bounds.inlet.sol.solPrim, bounds.outlet.sol.solPrim)
 
 	# unconstrained reconstruction at neighboring cell centers
-	delSolPrim 		= grad * geom.dx
+	delSolPrim 		= grad * mesh.dx
 	solPrimL 		= solPrim - delSolPrim
 	solPrimR 		= solPrim + delSolPrim
 	
@@ -92,7 +91,7 @@ def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, geom: geometry,
 
 # Venkatakrishnan limiter
 # differentiable, but limits in uniform regions
-def limiterVenkatakrishnan(sol: solutionPhys, bounds: boundaries, geom: geometry, grad):
+def limiterVenkatakrishnan(sol: solutionPhys, bounds: boundaries, grad, mesh):
 
 	solPrim = sol.solPrim
 
@@ -100,7 +99,7 @@ def limiterVenkatakrishnan(sol: solutionPhys, bounds: boundaries, geom: geometry
 	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, bounds.inlet.sol.solPrim, bounds.outlet.sol.solPrim)
 
 	# unconstrained reconstruction at neighboring cell centers
-	delSolPrim 		= grad * geom.dx
+	delSolPrim 		= grad * mesh.dx
 	solPrimL 		= solPrim - delSolPrim
 	solPrimR 		= solPrim + delSolPrim
 	

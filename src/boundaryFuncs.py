@@ -2,21 +2,20 @@ import numpy as np
 from math import pow, sqrt
 import stateFuncs
 from stateFuncs import calcStateFromPrim, calcGammaMixture, calcGasConstantMixture, calcCpMixture
-from classDefs import parameters, geometry, gasProps
 from solution import solutionPhys, boundaries, boundary
 from constants import realType
 import pdb
 
 
 # compute boundary ghost cell state
-def calcBoundaries(sol, bounds: boundaries, params, gas):
+def calcBoundaries(sol, bounds: boundaries, solver):
 
-	calcInlet(sol, bounds.inlet, params, gas)
-	calcOutlet(sol, bounds.outlet, params, gas)
+	calcInlet(sol, bounds.inlet, solver)
+	calcOutlet(sol, bounds.outlet, solver)
 
 
 # compute inlet flux/state
-def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasProps):
+def calcInlet(sol: solutionPhys, inlet: boundary, solver):
 
 	# specify stagnation temperature and stagnation pressure
 	# this assumes negligible change in chemical composition across the boundary
@@ -39,12 +38,12 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		J2 = -velP2 - (2.0 * cP2) / gammaM1
 
 		# extrapolate to exterior
-		if (params.spaceOrder == 1):
+		if (solver.spaceOrder == 1):
 			J = J1
-		elif (params.spaceOrder == 2):
+		elif (solver.spaceOrder == 2):
 			J  = 2.0 * J1 - J2
 		else:
-			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(params.spaceOrder))
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
 
 		# quadratic form for exterior Mach number
 		c2 	 = gamma * RMix * inlet.temp
@@ -84,7 +83,7 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		inlet.sol.solPrim[0,0] = pressBound
 		inlet.sol.solPrim[0,1] = velBound
 		inlet.sol.solPrim[0,2] = tempBound
-		inlet.sol.updateState(gas, fromCons = False)
+		inlet.sol.updateState(solver.gasModel, fromCons = False)
 
 	# full state specification
 	# mostly just for perturbing inlet state to check for outlet reflections
@@ -96,15 +95,15 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 
 		# perturbation
 		if (inlet.pertType == "velocity"):
-			velBound *= (1.0 + inlet.calcPert(params.solTime))
+			velBound *= (1.0 + inlet.calcPert(solver.solTime))
 		elif (inlet.pertType == "pressure"):
-			pressBound *= (1.0 + inlet.calcPert(params.solTime))
+			pressBound *= (1.0 + inlet.calcPert(solver.solTime))
 
 		# compute ghost cell state
 		inlet.sol.solPrim[0,0] = pressBound
 		inlet.sol.solPrim[0,1] = velBound
 		inlet.sol.solPrim[0,2] = tempBound
-		inlet.sol.updateState(gas, fromCons = False)
+		inlet.sol.updateState(solver.gasModel, fromCons = False)
 
 	# non-reflective boundary, unsteady solution is perturbation about mean flow solution
 	# refer to documentation for derivation
@@ -118,7 +117,7 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		rhoCpMean 	= inlet.rho
 
 		if (inlet.pertType == "pressure"):
-			pressUp *= (1.0 + inlet.calcPert(params.solTime))
+			pressUp *= (1.0 + inlet.calcPert(solver.solTime))
 
 		# interior quantities
 		pressIn 	= sol.solPrim[:2,0]
@@ -129,12 +128,12 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		w3In 	= velIn - pressIn / rhoCMean  
 
 		# extrapolate to exterior
-		if (params.spaceOrder == 1):
+		if (solver.spaceOrder == 1):
 			w3Bound = w3In[0]
-		elif (params.spaceOrder == 2):
+		elif (solver.spaceOrder == 2):
 			w3Bound = 2.0*w3In[0] - w3In[1]
 		else:
-			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(params.spaceOrder))
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
 
 		# compute exterior state
 		pressBound 	= (pressUp - w3Bound * rhoCMean) / 2.0
@@ -147,7 +146,7 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		inlet.sol.solPrim[0,1] 	= velBound
 		inlet.sol.solPrim[0,2] 	= tempBound
 		inlet.sol.solPrim[0,3:] = massFracBound
-		inlet.sol.updateState(gas, fromCons = False)
+		inlet.sol.updateState(solver.gasModel, fromCons = False)
 
 	elif (inlet.type == "specTU"):
 		tempUp 		= inlet.temp
@@ -159,12 +158,12 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		velIn 		= sol.solPrim[:2,1]
 
 		w3In 	= velIn - pressIn / rhoCMean 
-		if (params.spaceOrder == 1):
+		if (solver.spaceOrder == 1):
 			w3Bound = w3In[0]
-		elif (params.spaceOrder == 2):
+		elif (solver.spaceOrder == 2):
 			w3Bound = 2.0*w3In[0] - w3In[1]
 		else:
-			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(params.spaceOrder))
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
 
 		pressBound = rhoCMean * (velUp - w3Bound)
 		
@@ -172,13 +171,13 @@ def calcInlet(sol: solutionPhys, inlet: boundary, params: parameters, gas: gasPr
 		inlet.sol.solPrim[0,1] = velUp 
 		inlet.sol.solPrim[0,2] = tempUp 
 		inlet.sol.solPrim[0,3] = massFracUp
-		inlet.sol.updateState(gas, fromCons = False)
+		inlet.sol.updateState(solver.gasModel, fromCons = False)
 
 	else:
 		raise ValueError("Invalid inlet boundary condition choice: "+inlet.type)
 
 # compute outlet flux/state
-def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gasProps):
+def calcOutlet(sol: solutionPhys, outlet: boundary, solver):
 
 	# subsonic outflow, specify outlet static pressure
 	# this assumes negligible change in chemical composition across boundary
@@ -186,7 +185,7 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 
 		pressBound = outlet.press
 		if (outlet.pertType == "pressure"):
-			pressBound *= (1.0 + outlet.calcPert(params.solTime))
+			pressBound *= (1.0 + outlet.calcPert(solver.solTime))
 
 		# chemical composition assumed constant near boundary
 		RMix 		= outlet.RMix[0]
@@ -210,14 +209,14 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		JP2			= velP2 + 2.0 * cP2 / gammaM1
 		
 		# extrapolate to exterior
-		if (params.spaceOrder == 1):
+		if (solver.spaceOrder == 1):
 			S = SP1
 			J = JP1
-		elif (params.spaceOrder == 2):
+		elif (solver.spaceOrder == 2):
 			S = 2.0 * SP1 - SP2
 			J = 2.0 * JP1 - JP2
 		else:
-			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(params.spaceOrder))
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
 
 		# compute exterior state
 		rhoBound 	= pow( (pressBound / S), (1.0/gamma) )
@@ -229,7 +228,7 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		outlet.sol.solPrim[0,0] = pressBound
 		outlet.sol.solPrim[0,1] = velBound
 		outlet.sol.solPrim[0,2] = tempBound
-		outlet.sol.updateState(gas, fromCons = False)
+		outlet.sol.updateState(solver.gasModel, fromCons = False)
 
 	# non-reflective boundary, unsteady solution is perturbation about mean flow solution
 	# refer to documentation for derivation
@@ -241,7 +240,7 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		pressBack 	= outlet.press 
 
 		if (outlet.pertType == "pressure"):
-			pressBack *= (1.0 + outlet.calcPert(params.solTime))
+			pressBack *= (1.0 + outlet.calcPert(solver.solTime))
 
 		# interior quantities
 		pressOut 	= sol.solPrim[-2:,0]
@@ -255,16 +254,16 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		w4Out 	= massFracOut 
 
 		# extrapolate to exterior
-		if (params.spaceOrder == 1):
+		if (solver.spaceOrder == 1):
 			w1Bound = w1Out[0]
 			w2Bound = w2Out[0]
 			w4Bound = w4Out[0,:]
-		elif (params.spaceOrder == 2):
+		elif (solver.spaceOrder == 2):
 			w1Bound = 2.0*w1Out[0] - w1Out[1]
 			w2Bound = 2.0*w2Out[0] - w2Out[1]
 			w4Bound = 2.0*w4Out[0,:] - w4Out[1,:]
 		else:
-			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(params.spaceOrder))
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
 
 		# compute exterior state
 		pressBound 	= (w2Bound * rhoCMean + pressBack) / 2.0
@@ -277,7 +276,7 @@ def calcOutlet(sol: solutionPhys, outlet: boundary, params: parameters, gas: gas
 		outlet.sol.solPrim[0,1] = velBound
 		outlet.sol.solPrim[0,2] = tempBound
 		outlet.sol.solPrim[0,3:] = massFracBound
-		outlet.sol.updateState(gas, fromCons = False)
+		outlet.sol.updateState(solver.gasModel, fromCons = False)
 			
 
 	else:

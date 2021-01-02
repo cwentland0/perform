@@ -1,6 +1,8 @@
 # useful constants used throughout the solver
 import numpy as np
 
+workingDir = None 	# working director, set at runtime
+
 realType 	= np.float64 			# precision of real numbers
 complexType = np.complex128 		# precision of complex numbers
 
@@ -16,17 +18,26 @@ hugeNum 	= 1.0e25	# very large number
 # "steady" state residual normalization defaults
 steadyNormPrimDefault = [1.0e5, 10.0, 300.0, 1.0]
 
-# time integration coefficients
-rkCoeffs = np.array([0.25, 1.0/3.0, 0.5, 1.0], dtype = realType)
 
 # BDF co-efficients
 bdfCoeffs = np.array([1., 1.5, 11./6., 25./12.], dtype = realType)
 
-# output directories
-unsteadyOutputDir   = "UnsteadyFieldResults"
-probeOutputDir 		= "ProbeResults"
-imageOutputDir 		= "ImageResults"
-restartOutputDir 	= "RestartFiles"
+# implicit time integrator defaults
+subiterMaxImpDefault 	= 50
+l2ResTolDefault 		= 1.0e-12
+dtauDefault 			= 1.0e-5
+
+# output directory names
+unsteadyOutputDirName   = "UnsteadyFieldResults"
+probeOutputDirName 		= "ProbeResults"
+imageOutputDirName 		= "ImageResults"
+restartOutputDirName 	= "RestartFiles"
+
+# working directory output directories, set at runtime
+unsteadyOutputDir 	= None 
+probeOutputDir 		= None 
+imageOutputDir 		= None 
+restartOutputDir 	= None
 
 # input files
 paramInputs 	= "solverParams.inp"

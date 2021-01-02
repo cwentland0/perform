@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from inputFuncs import readInputFile
-from classDefs import parameters, catchInput
+# from classDefs import parameters, catchInput
 from solution import solutionPhys
 import constants
 from constants import realType
@@ -17,7 +17,7 @@ import pdb
 # overarching class containing all info/objects/methods required to compute ROMs
 class solutionROM:
 
-	def __init__(self, romFile, sol: solutionPhys, params: parameters):
+	def __init__(self, romFile, sol: solutionPhys, params):
 
 		# read input parameters
 		romDict = readInputFile(romFile)
@@ -177,7 +177,7 @@ class solutionROM:
 
 	# advance solution forward one subiteration
 	# TODO: right now returning dSolCons, really should just return next time step but requires input of previous time step solution
-	def advanceSubiter(self, sol: solutionPhys, params: parameters, subiter, solOuter):
+	def advanceSubiter(self, sol: solutionPhys, params, subiter, solOuter):
 
 		# if linear, can just compute change in code, don't need to decenter
 		# dSolCons = np.zeros(self.solCons.shape, dtype=realType)
