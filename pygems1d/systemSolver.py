@@ -1,8 +1,10 @@
-import constants
-from inputFuncs import readInputFile, catchInput, catchList
-import timeIntegrator
-import gasModel
-import mesh
+import pygems1d.constants as const
+from pygems1d.inputFuncs import readInputFile, catchInput, catchList
+from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
+from pygems1d.timeIntegrator.implicitIntegrator import bdf
+from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
+import pygems1d.mesh as mesh
+
 import numpy as np 
 from math import floor, log
 import os
@@ -17,7 +19,7 @@ class systemSolver:
 	def __init__(self):
 
 		# input parameters from solverParams.inp
-		paramFile = os.path.join(constants.workingDir, constants.paramInputs)
+		paramFile = os.path.join(const.workingDir, const.paramInputs)
 		paramDict = readInputFile(paramFile)
 		self.paramDict = paramDict
 
@@ -26,7 +28,7 @@ class systemSolver:
 		gasDict = readInputFile(gasFile) 
 		gasType = catchInput(gasDict, "gasType", "cpg")
 		if (gasType == "cpg"):
-			self.gasModel = gasModel.caloricallyPerfectGas(gasDict)
+			self.gasModel = caloricallyPerfectGas(gasDict)
 		else:
 			raise ValueError("Ivalid choice of gasType: " + gasType)
 
@@ -52,9 +54,9 @@ class systemSolver:
 		self.solTime 		= 0.0
 
 		if (timeScheme == "bdf"):
-			self.timeIntegrator = timeIntegrator.bdf(paramDict)
+			self.timeIntegrator = bdf(paramDict)
 		elif (timeScheme == "rkExp"):
-			self.timeIntegrator = timeIntegrator.rkExplicit(paramDict)
+			self.timeIntegrator = rkExplicit(paramDict)
 		else:
 			raise ValueError("Invalid choice of timeScheme: "+timeScheme)
 
@@ -123,4 +125,4 @@ class systemSolver:
 		if not self.calcROM: 
 			self.simType = "FOM"
 		else:
-			self.romInputs = os.path.join(workdir, constants.romInputs)
+			self.romInputs = os.path.join(workdir, const.romInputs)

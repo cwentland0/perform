@@ -1,5 +1,4 @@
-import constants
-from solution import solutionPhys, boundaries
+import pygems1d.constants as const
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -21,13 +20,13 @@ mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 # TODO: better automatic formatting of images? Ultimately real plotting will be un utils, might now be worth the time
 
 # store snapshots of field data
-def storeFieldDataUnsteady(sol: solutionPhys, solver):
+def storeFieldDataUnsteady(solInt, solver):
 
 	storeIdx = int((solver.timeIntegrator.iter - 1) / solver.outInterval) + 1
 
-	if solver.primOut: sol.primSnap[:,:,storeIdx] = sol.solPrim
-	if solver.consOut: sol.consSnap[:,:,storeIdx] = sol.solCons
-	if solver.RHSOut:  sol.RHSSnap[:,:,storeIdx]  = sol.RHS
+	if solver.primOut: solInt.primSnap[:,:,storeIdx] = solInt.solPrim
+	if solver.consOut: solInt.consSnap[:,:,storeIdx] = solInt.solCons
+	if solver.RHSOut:  solInt.RHSSnap[:,:,storeIdx]  = solInt.RHS
 
 # get figure and axes handles for visualization
 # TODO: some way to generalize this for any number of visualization plots?
@@ -78,7 +77,7 @@ def setupPlotAxes(solver):
 	return fig, ax, axLabels
 
 # plot field line plots
-def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver):
+def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, solInt, solver):
 
 	if (type(ax) != np.ndarray): 
 		axList = [ax]
@@ -100,21 +99,21 @@ def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver
 
 			varStr = solver.visVar[linIdx]
 			if (varStr == "pressure"):
-				field = sol.solPrim[:,0]
+				field = solInt.solPrim[:,0]
 			elif (varStr == "velocity"):
-				field = sol.solPrim[:,1]
+				field = solInt.solPrim[:,1]
 			elif (varStr == "temperature"):
-				field = sol.solPrim[:,2]
+				field = solInt.solPrim[:,2]
 			elif (varStr == "species"):
-				field = sol.solPrim[:,3]
+				field = solInt.solPrim[:,3]
 			elif (varStr == "source"):
-				field = sol.source[:,0]
+				field = solInt.source[:,0]
 			elif (varStr == "density"):
-				field = sol.solCons[:,0]
+				field = solInt.solCons[:,0]
 			elif (varStr == "momentum"):
-				field = sol.solCons[:,1]
+				field = solInt.solCons[:,1]
 			elif (varStr == "energy"):
-				field = sol.solCons[:,2]
+				field = solInt.solCons[:,2]
 			else:
 				raise ValueError("Invalid field visualization variable:"+str(varStr))
 
@@ -138,22 +137,22 @@ def writeFieldImg(fig: plt.Figure, solver, fieldImgDir):
 	fig.savefig(figFile)
 
 # update probeVals, as this happens every time iteration
-def updateProbe(sol: solutionPhys, solver, bounds: boundaries, probeVals, probeIdx):
+def updateProbe(solDomain, solver, probeVals, probeIdx):
 
 	for visIdx in range(solver.numVis):
 		varStr = solver.visVar[visIdx]
 		if (solver.probeSec == "inlet"):
-			solPrimProbe = bounds.inlet.sol.solPrim[0,:]
-			solConsProbe = bounds.inlet.sol.solCons[0,:]
+			solPrimProbe = solDomain.solIn.solPrim[0,:]
+			solConsProbe = solDomain.solIn.solCons[0,:]
 
 		elif (solver.probeSec == "outlet"):
-			solPrimProbe = bounds.outlet.sol.solPrim[0,:]
-			solConsProbe = bounds.outlet.sol.solCons[0,:]
+			solPrimProbe = solDomain.solOut.solPrim[0,:]
+			solConsProbe = solDomain.solOut.solCons[0,:]
 
 		else:
-			solPrimProbe = sol.solPrim[probeIdx,:]
-			solConsProbe = sol.solCons[probeIdx,:]
-			solSourceProbe = sol.source[probeIdx,:]
+			solPrimProbe = solDomain.solInt.solPrim[probeIdx,:]
+			solConsProbe = solDomain.solInt.solCons[probeIdx,:]
+			solSourceProbe = solDomain.solInt.source[probeIdx,:]
 
 		try:
 			if (varStr == "pressure"):
@@ -179,7 +178,7 @@ def updateProbe(sol: solutionPhys, solver, bounds: boundaries, probeVals, probeI
 		probeVals[solver.timeIntegrator.iter-1, visIdx] = probe 
 
 # plot probeVals at specied visInterval
-def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver, probeVals, tVals):
+def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, solver, probeVals, tVals):
 
 	if (type(ax) != np.ndarray): 
 		axList = [ax]
@@ -212,63 +211,63 @@ def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, sol: solutionPhys, solver
 	plt.pause(0.001)
 
 # write snapshot matrices and point monitors to disk
-def writeDataUnsteady(sol: solutionPhys, solver, probeVals, tVals):
+def writeDataUnsteady(solInt, solver, probeVals, tVals):
 
 	# save snapshot matrices to disk
 	if solver.primOut:
-		solPrimFile = os.path.join(constants.unsteadyOutputDir, "solPrim_"+solver.simType+".npy")
-		np.save(solPrimFile, sol.primSnap)
+		solPrimFile = os.path.join(const.unsteadyOutputDir, "solPrim_"+solver.simType+".npy")
+		np.save(solPrimFile, solInt.primSnap)
 	if solver.consOut:
-		solConsFile = os.path.join(constants.unsteadyOutputDir, "solCons_"+solver.simType+".npy")
-		np.save(solConsFile, sol.consSnap) 
+		solConsFile = os.path.join(const.unsteadyOutputDir, "solCons_"+solver.simType+".npy")
+		np.save(solConsFile, solInt.consSnap) 
 	if solver.sourceOut:
-		sourceFile = os.path.join(constants.unsteadyOutputDir, "source_"+solver.simType+".npy")
-		np.save(sourceFile, sol.sourceSnap)
+		sourceFile = os.path.join(const.unsteadyOutputDir, "source_"+solver.simType+".npy")
+		np.save(sourceFile, solInt.sourceSnap)
 	if solver.RHSOut:
-		solRHSFile = os.path.join(constants.unsteadyOutputDir, "solRHS_"+solver.simType+".npy")
-		np.save(solRHSFile, sol.RHSSnap) 
+		solRHSFile = os.path.join(const.unsteadyOutputDir, "solRHS_"+solver.simType+".npy")
+		np.save(solRHSFile, solInt.RHSSnap) 
 
 	# save point monitors to disk
 	probeFileName = "probe"
 	for visVar in solver.visVar:
 		probeFileName += "_"+visVar
-	probeFile = os.path.join(constants.probeOutputDir, probeFileName+"_"+solver.simType+".npy")
+	probeFile = os.path.join(const.probeOutputDir, probeFileName+"_"+solver.simType+".npy")
 	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,solver.numVis)), axis=1) 	# TODO: add third reshape dimensions for multiple probes
 	np.save(probeFile, probeSave)
 
 # update residual output and "steady" solution
-def writeDataSteady(sol: solutionPhys, solver):
+def writeDataSteady(solInt, solver):
 
 	# write field data
-	solPrimFile = os.path.join(constants.unsteadyOutputDir, "solPrim_steady.npy")
-	np.save(solPrimFile, sol.solPrim)
-	solConsFile = os.path.join(constants.unsteadyOutputDir, "solCons_steady.npy")
-	np.save(solConsFile, sol.solCons)
+	solPrimFile = os.path.join(const.unsteadyOutputDir, "solPrim_steady.npy")
+	np.save(solPrimFile, solInt.solPrim)
+	solConsFile = os.path.join(const.unsteadyOutputDir, "solCons_steady.npy")
+	np.save(solConsFile, solInt.solCons)
 
 # append residual to residual file
-def updateResOut(sol: solutionPhys, solver):
+def updateResOut(solInt, solver):
 
-	resFile = os.path.join(constants.unsteadyOutputDir, "steadyResOut.dat")
+	resFile = os.path.join(const.unsteadyOutputDir, "steadyResOut.dat")
 	if (solver.timeIntegrator.iter == 1):
 		f = open(resFile,"w")
 	else:
 		f = open(resFile, "a")
-	f.write(str(solver.timeIntegrator.iter)+"\t"+str(sol.resOutL2)+"\t"+str(sol.resOutL1)+"\n")
+	f.write(str(solver.timeIntegrator.iter)+"\t"+str(solInt.resNormL2)+"\t"+str(solInt.resNormL1)+"\n")
 	f.close()
 
 # write restart files containing primitive and conservative fields, plus physical time 
-def writeRestartFile(sol: solutionPhys, solver):
+def writeRestartFile(solInt, solver):
 
 	# write restart file to zipped file
-	restartFile = os.path.join(constants.restartOutputDir, "restartFile_"+str(solver.restartIter)+".npz")
-	np.savez(restartFile, solTime = solver.solTime, solPrim = sol.solPrim, solCons = sol.solCons)
+	restartFile = os.path.join(const.restartOutputDir, "restartFile_"+str(solver.restartIter)+".npz")
+	np.savez(restartFile, solTime = solver.solTime, solPrim = solInt.solPrim, solCons = solInt.solCons)
 
 	# write iteration number files
-	restartIterFile = os.path.join(constants.restartOutputDir, "restartIter.dat")
+	restartIterFile = os.path.join(const.restartOutputDir, "restartIter.dat")
 	with open(restartIterFile, "w") as f:
 		f.write(str(solver.restartIter)+"\n")
 
-	restartPhysIterFile = os.path.join(constants.restartOutputDir, "restartIter_"+str(solver.restartIter)+".dat")
+	restartPhysIterFile = os.path.join(const.restartOutputDir, "restartIter_"+str(solver.restartIter)+".dat")
 	with open(restartPhysIterFile, "w") as f:
 		f.write(str(solver.timeIntegrator.iter)+"\n")
 

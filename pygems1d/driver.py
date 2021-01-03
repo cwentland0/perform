@@ -1,18 +1,16 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2" # don't print all the TensorFlow warnings
-import constants
-from systemSolver import systemSolver
-from solution import solutionPhys, boundaries
-from inputFuncs import getInitialConditions
-from miscFuncs import mkdirInWorkdir
-import outputFuncs
+import pygems1d.constants as const
+from pygems1d.systemSolver import systemSolver
+from pygems1d.solution.solutionDomain import solutionDomain
+from pygems1d.miscFuncs import mkdirInWorkdir
+import pygems1d.outputFuncs as outputFuncs
 import numpy as np
 import argparse
 import traceback
 import pdb
 
 # TODO: check for incorrect assignments that need a copy instead
-# TODO: rename sol variable used to represent full domain state, our boundary sol name. Is confusing
 # TODO: make code general for more than two species, array broadcasts are different for 2 vs 3+ species
 #		idea: custom iterators for species-related slicing, or just squeeze any massfrac references
 
@@ -24,15 +22,15 @@ def main():
 	parser = argparse.ArgumentParser(description = "Read working directory")
 	parser.add_argument('workingDir', type = str, default = "./", help="runtime working directory")
 	args = parser.parse_args()
-	constants.workingDir = args.workingDir
-	constants.workingDir = os.path.expanduser(constants.workingDir)
-	assert (os.path.isdir(constants.workingDir)), "Given working directory does not exist"
+	const.workingDir = args.workingDir
+	const.workingDir = os.path.expanduser(const.workingDir)
+	assert (os.path.isdir(const.workingDir)), "Given working directory does not exist"
 
 	# make output directories
-	constants.unsteadyOutputDir = mkdirInWorkdir(constants.unsteadyOutputDirName)
-	constants.probeOutputDir = mkdirInWorkdir(constants.probeOutputDirName)
-	constants.imageOutputDir = mkdirInWorkdir(constants.imageOutputDirName)
-	constants.restartOutputDir = mkdirInWorkdir(constants.restartOutputDirName)
+	const.unsteadyOutputDir = mkdirInWorkdir(const.unsteadyOutputDirName)
+	const.probeOutputDir = mkdirInWorkdir(const.probeOutputDirName)
+	const.imageOutputDir = mkdirInWorkdir(const.imageOutputDirName)
+	const.restartOutputDir = mkdirInWorkdir(const.restartOutputDirName)
 
 	# setup solver(s)
 	# TODO: multi-domain solvers
@@ -42,15 +40,15 @@ def main():
 
 	##### START SOLUTION INITIALIZATION #####
 
-	# initialize unsteady solution, boundary state, and ROM state
-	solPrim0, solCons0 = getInitialConditions(solver)
-	sol = solutionPhys(solPrim0, solCons0, solver.mesh.numCells, solver)
-	bounds = boundaries(sol, solver)
+	# initialize interior and boundary state, and ROM state
+	
+	solDomain = solutionDomain(solver)
+
 	if solver.calcROM: 
-		rom = solutionROM(solver.romInputs, sol, solver)
-		rom.initializeROMState(sol)
+		solROM = solutionROM(solver.romInputs, solDomain.solInt, solver)
+		solROM.initializeROMState(solDomain.solInt)
 	else:
-		rom = None
+		solROM = None
 
 	##### END SOLUTION INITIALIZATION #####
 
@@ -67,7 +65,7 @@ def main():
 	else:
 		solver.probeSec = "interior"
 		probeIdx = np.absolute(solver.mesh.xCell - solver.probeLoc).argmin()
-	probeVals = np.zeros((solver.timeIntegrator.numSteps, solver.numVis), dtype = constants.realType)
+	probeVals = np.zeros((solver.timeIntegrator.numSteps, solver.numVis), dtype = const.realType)
 
 	if (solver.visType != "None"): 
 		fig, ax, axLabels = outputFuncs.setupPlotAxes(solver)
@@ -78,7 +76,7 @@ def main():
 
 	tVals = np.linspace(solver.timeIntegrator.dt,
 						solver.timeIntegrator.dt*solver.timeIntegrator.numSteps, 
-						solver.timeIntegrator.numSteps, dtype = constants.realType)
+						solver.timeIntegrator.numSteps, dtype = const.realType)
 	if ((solver.visType == "field") and solver.visSave):
 		fieldImgDir = os.path.join(solver.imgOutDir, "field"+visName)
 		if not os.path.isdir(fieldImgDir): os.mkdir(fieldImgDir)
@@ -90,39 +88,38 @@ def main():
 	##### START UNSTEADY SOLUTION #####
 
 	# loop over time iterations
-	for solver.timeIntegrator.iter in range(1,solver.timeIntegrator.numSteps+1):
+	for solver.timeIntegrator.iter in range(1, solver.timeIntegrator.numSteps+1):
 		
 		# advance one physical time step
-		solver.timeIntegrator.advanceIter(sol, rom, bounds, solver)
+		solver.timeIntegrator.advanceIter(solDomain, solROM, solver)
 		solver.solTime += solver.timeIntegrator.dt
 
 		# write restart files
 		if solver.saveRestarts: 
 			if ( (solver.timeIntegrator.iter % solver.restartInterval) == 0):
-				outputFuncs.writeRestartFile(sol, solver)	 
+				outputFuncs.writeRestartFile(solDomain.solInt, solver)	 
 
 		# write output
 		if (( solver.timeIntegrator.iter % solver.outInterval) == 0):
-			outputFuncs.storeFieldDataUnsteady(sol, solver)
-		outputFuncs.updateProbe(sol, solver, bounds, probeVals, probeIdx)
+			outputFuncs.storeFieldDataUnsteady(solDomain.solInt, solver)
+		outputFuncs.updateProbe(solDomain, solver, probeVals, probeIdx)
 
 		# "steady" solver processing
 		if (solver.timeIntegrator.runSteady):
-			sol.resOutput(solver)
 			if ((solver.timeIntegrator.iter % solver.outInterval) == 0): 
-				outputFuncs.writeDataSteady(sol, solver)
-			outputFuncs.updateResOut(sol, solver)
-			if (sol.resOutL2 < solver.steadyThresh): 
-				print("Steady residual criterion met, terminating run...")
+				outputFuncs.writeDataSteady(solDomain.solInt, solver)
+			outputFuncs.updateResOut(solDomain.solInt, solver)
+			if (solDomain.solInt.resNormL2 < solver.steadyThresh): 
+				print("Steady residual criterion met, terminating run")
 				break 	# quit if steady residual threshold met
 
 		# draw visualization plots
 		if ( (solver.timeIntegrator.iter % solver.visInterval) == 0):
 			if (solver.visType == "field"): 
-				outputFuncs.plotField(fig, ax, axLabels, sol, solver)
+				outputFuncs.plotField(fig, ax, axLabels, solDomain.solInt, solver)
 				if solver.visSave: outputFuncs.writeFieldImg(fig, solver, fieldImgDir)
 			elif (solver.visType == "probe"): 
-				outputFuncs.plotProbe(fig, ax, axLabels, sol, solver, probeVals, tVals)
+				outputFuncs.plotProbe(fig, ax, axLabels, solver, probeVals, tVals)
 			
 	print("Solve finished, writing to disk!")
 
@@ -131,8 +128,9 @@ def main():
 	##### START POST-PROCESSING #####
 
 	# write data to disk
-	outputFuncs.writeDataUnsteady(sol, solver, probeVals, tVals)
-	if (solver.timeIntegrator.runSteady): outputFuncs.writeDataSteady(sol, solver)
+	outputFuncs.writeDataUnsteady(solDomain.solInt, solver, probeVals, tVals)
+	if (solver.timeIntegrator.runSteady): 
+		outputFuncs.writeDataSteady(solDomain.solInt, solver)
 
 	# draw final images, save to disk
 	if ((solver.visType == "probe") and solver.visSave): 

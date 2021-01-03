@@ -1,58 +1,63 @@
+
+from pygems1d.constants import realType, RUniv
+import pygems1d.stateFuncs as stateFuncs
+from pygems1d.higherOrderFuncs import calcCellGradients
+from pygems1d.miscFuncs import writeToFile
+
 import numpy as np 
-from constants import realType, RUniv
 import os
-from solution import solutionPhys, boundaries
-import stateFuncs
-from boundaryFuncs import calcBoundaries
-from higherOrderFuncs import calcCellGradients
-from miscFuncs import writeToFile
 import pdb	
 
 # TODO: check for repeated calculations, just make a separate variable
 # TODO: check references to muRef, might be some broadcast issues
 
 # compute RHS function
-def calcRHS(sol: solutionPhys, bounds: boundaries, solver):
+def calcRHS(solDomain, solver):
+
+	solInt = solDomain.solInt 
+	solIn  = solDomain.solIn 
+	solOut = solDomain.solOut
 
 	# compute ghost cell state or boundary fluxes
 	# TODO: update this after higher-order contribution?
-	calcBoundaries(sol, bounds, solver)
+	solDomain.calcBoundaryCells(solver)
 
-	# state at left and right of cell face
-	solPrimL = np.concatenate((bounds.inlet.sol.solPrim, sol.solPrim), axis=0)
-	solConsL = np.concatenate((bounds.inlet.sol.solCons, sol.solCons), axis=0)
-	solPrimR = np.concatenate((sol.solPrim, bounds.outlet.sol.solPrim), axis=0)
-	solConsR = np.concatenate((sol.solCons, bounds.outlet.sol.solCons), axis=0)       
+	# first-order approx at faces
+	# TODO: move face reconstruction into solDomain, avoid concatenations
+	solPrimL = np.concatenate((solIn.solPrim, solInt.solPrim), axis=0)
+	solConsL = np.concatenate((solIn.solCons, solInt.solCons), axis=0)
+	solPrimR = np.concatenate((solInt.solPrim, solOut.solPrim), axis=0)
+	solConsR = np.concatenate((solInt.solCons, solOut.solCons), axis=0)       
 
 	# add higher-order contribution
 	if (solver.spaceOrder > 1):
-		solPrimGrad = calcCellGradients(sol, bounds, solver)
+		solPrimGrad = calcCellGradients(solDomain, solver)
 		solPrimL[1:,:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
 		solPrimR[:-1,:] -= (solver.mesh.dx / 2.0) * solPrimGrad
 		solConsL[1:,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimL[1:,:], solver.gasModel)
 		solConsR[:-1,:], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimR[:-1,:], solver.gasModel)
 
 	# compute fluxes
-	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol, solver)
+	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, solInt, solver)
 
 	if (solver.viscScheme > 0):
-		viscFlux = calcViscFlux(sol, solPrimAve, solConsAve, CpAve, bounds, solver)
+		viscFlux = calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver)
 		flux -= viscFlux
 
 	# compute RHS
-	sol.RHS = flux[:-1,:] - flux[1:,:]
-	sol.RHS[:,:] /= solver.mesh.dx
+	solDomain.solInt.RHS = flux[:-1,:] - flux[1:,:]
+	solInt.RHS[:,:] /= solver.mesh.dx
 
 	# compute source term
 	if solver.sourceOn:
-		calcSource(sol, solver)
-		sol.RHS[:,3:] += sol.source 
+		calcSource(solInt, solver)
+		solInt.RHS[:,3:] += solInt.source 
 
 # compute inviscid fluxes
 # TODO: expand beyond Roe flux
 # TODO: better naming conventions
 # TODO: entropy fix
-def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, solver):
+def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, solInt, solver):
 
 	# inviscid flux vector
 	EL = np.zeros(solPrimL.shape, dtype=realType)
@@ -65,8 +70,8 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, solve
 	fac1 = 1.0 - fac
 
 	# Roe average stagnation enthalpy and density
-	h0L = stateFuncs.calcStagnationEnthalpy(solPrimL, solver.gasModel)
-	h0R = stateFuncs.calcStagnationEnthalpy(solPrimR, solver.gasModel) 
+	h0L = solver.gasModel.calcStagnationEnthalpy(solPrimL)
+	h0R = solver.gasModel.calcStagnationEnthalpy(solPrimR) 
 	h0Ave = fac * h0L + fac1 * h0R 
 	rhoAve = sqrhol * sqrhor
 
@@ -76,7 +81,7 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, solve
 
 	# compute Roe average state at faces, associated fluid properties
 	solConsAve, RAve, enthRefAve, CpAve = stateFuncs.calcStateFromPrim(solPrimAve, solver.gasModel)
-	gammaAve = stateFuncs.calcGammaMixture(RAve, CpAve)
+	gammaAve = solver.gasModel.calcMixGamma(RAve, CpAve)
 	cAve = np.sqrt(gammaAve * RAve * solPrimAve[:,2])
 
 	# compute inviscid flux vectors of left and right state
@@ -92,7 +97,7 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, sol: solutionPhys, solve
 	# maximum wave speed for adapting dtau, if needed
 	if (solver.timeIntegrator.adaptDTau):
 		srf = np.maximum(solPrimAve[:,1] + cAve, solPrimAve[:,1] - cAve)
-		sol.srf = np.maximum(srf[:-1], srf[1:])
+		solInt.srf = np.maximum(srf[:-1], srf[1:])
 
 	# dissipation term
 	dQp = solPrimL - solPrimR
@@ -196,23 +201,25 @@ def calcRoeDissipation(solPrim, rho, h0, c, Cp, gas):
 	return dissMat
 
 # compute viscous fluxes
-def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: boundaries, solver):
+def calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver):
 
 	gas 	= solver.gasModel 
 	mesh 	= solver.mesh
 
 	# compute 2nd-order state gradients at face
+	# TODO: not valid for non-uniform mesh
+	# TODO: move this calc to solutionDomain
 	solPrimGrad = np.zeros((mesh.numCells+1, gas.numEqs), dtype=realType)
-	solPrimGrad[1:-1,:] = (sol.solPrim[1:,:] - sol.solPrim[:-1,:]) / mesh.dCellCent[1:-1,:]
-	solPrimGrad[0,:] 	= (sol.solPrim[0,:] - bounds.inlet.sol.solPrim) / mesh.dCellCent[0,:]
-	solPrimGrad[-1,:] 	= (bounds.outlet.sol.solPrim - sol.solPrim[-1,:]) / mesh.dCellCent[-1,:]
+	solPrimGrad[1:-1,:] = (solDomain.solInt.solPrim[1:,:] - solDomain.solInt.solPrim[:-1,:]) / mesh.dCellCent[1:-1,:]
+	solPrimGrad[0,:] 	= (solDomain.solInt.solPrim[0,:] - solDomain.solIn.solPrim) / mesh.dCellCent[0,:]
+	solPrimGrad[-1,:] 	= (solDomain.solOut.solPrim - solDomain.solInt.solPrim[-1,:]) / mesh.dCellCent[-1,:]
 
 	Ck = gas.muRef[:-1] * CpAve / gas.Pr[:-1] 									# thermal conductivity
 	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[:,1] 							# stress "tensor"
 
 	Cd = gas.muRef[:-1] / gas.Sc[:-1] / solConsAve[:,0]							# mass diffusivity
 	diff_rhoY = solConsAve[:,0] * Cd * np.squeeze(solPrimGrad[:,3:])  			# 
-	hY = gas.enthRefDiffs + (solPrimAve[:,2] - gas.tempRef) * gas.CpDiffs 		# species enthalpies, TODO: replace with stateFuncs function
+	hY = gas.enthRefDiffs + (solPrimAve[:,2] - gas.tempRef) * gas.CpDiffs 		# species enthalpies, TODO: replace with gas model function
 
 	Fv = np.zeros((mesh.numCells+1, gas.numEqs), dtype=realType)
 	Fv[:,1] = Fv[:,1] + tau 
@@ -228,16 +235,16 @@ def calcViscFlux(sol: solutionPhys, solPrimAve, solConsAve, CpAve, bounds: bound
 
 # compute source term
 # TODO: bring in rho*Yi so it doesn't keep getting calculated
-def calcSource(sol: solutionPhys, solver):
+def calcSource(solInt, solver):
 
 	gas = solver.gasModel
 
-	temp = sol.solPrim[:,2]
-	massFracs = sol.solPrim[:,3:]
+	temp = solInt.solPrim[:,2]
+	massFracs = solInt.solPrim[:,3:]
 
 	wf = gas.preExpFact * np.exp(gas.actEnergy / temp)
 	
-	rhoY = massFracs * sol.solCons[:,[0]]
+	rhoY = massFracs * solInt.solCons[:,[0]]
 
 	for specIdx in range(gas.numSpecies):
 		if (gas.nuArr[specIdx] != 0.0):
@@ -250,5 +257,5 @@ def calcSource(sol: solutionPhys, solver):
 
 	# TODO: could vectorize this I think
 	for specIdx in range(gas.numSpecies):
-		sol.source[:,specIdx] = -gas.molWeightNu[specIdx] * wf
+		solInt.source[:,specIdx] = -gas.molWeightNu[specIdx] * wf
 

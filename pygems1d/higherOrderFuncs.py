@@ -1,16 +1,17 @@
-import constants
-from solution import solutionPhys, boundaries
+from pygems1d.constants import realType
+
 import numpy as np
 
-def calcCellGradients(sol: solutionPhys, bounds: boundaries, solver):
+def calcCellGradients(solDomain, solver):
 	
 	# compute gradients via a finite difference stencil
-	solPrimGrad = np.zeros(sol.solPrim.shape, dtype=constants.realType)
+	solPrimGrad = np.zeros(solDomain.solInt.solPrim.shape, dtype=realType)
 	# TODO: this is not valid on a non-uniform grid
+	# TODO: move this calculation to solutionDomain
 	if (solver.spaceOrder == 2):
-		solPrimGrad[1:-1, :] = (0.5 / solver.mesh.dx[1:-1,:]) * (sol.solPrim[2:, :] - sol.solPrim[:-2, :]) 
-		solPrimGrad[0, :]    = (0.5 / solver.mesh.dx[0,:]) * (sol.solPrim[1,:] - bounds.inlet.sol.solPrim)
-		solPrimGrad[-1,:]    = (0.5 / solver.mesh.dx[-1,:]) * (bounds.outlet.sol.solPrim - sol.solPrim[-2,:])
+		solPrimGrad[1:-1, :] = (0.5 / solver.mesh.dx[1:-1,:]) * (solDomain.solInt.solPrim[2:, :] - solDomain.solInt.solPrim[:-2, :]) 
+		solPrimGrad[0, :]    = (0.5 / solver.mesh.dx[0,:]) * (solDomain.solInt.solPrim[1,:] - solDomain.solIn.solPrim)
+		solPrimGrad[-1,:]    = (0.5 / solver.mesh.dx[-1,:]) * (solDomain.solOut.solPrim - solDomain.solInt.solPrim[-2,:])
 	else:
 		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented...")
 
@@ -19,11 +20,11 @@ def calcCellGradients(sol: solutionPhys, bounds: boundaries, solver):
 
 		# Barth-Jespersen
 		if (solver.gradLimiter == 1):
-			phi = limiterBarthJespersen(sol, bounds, solPrimGrad, solver.mesh)
+			phi = limiterBarthJespersen(solDomain, solPrimGrad, solver.mesh)
 
 		# Venkatakrishnan, no correction
 		elif (solver.gradLimiter == 2):
-			phi = limiterVenkatakrishnan(sol, bounds, solPrimGrad, solver.mesh)
+			phi = limiterVenkatakrishnan(solDomain, solPrimGrad, solver.mesh)
 
 		else:
 			raise ValueError("Invalid input for gradLimiter: "+str(solver.gradLimiter))
@@ -57,12 +58,12 @@ def findNeighborMinMax(solInterior, solInlet=None, solOutlet=None):
 
 # Barth-Jespersen limiter
 # ensures that no new minima or maxima are introduced in reconstruction
-def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, grad, mesh):
+def limiterBarthJespersen(solDomain, grad, mesh):
 
-	solPrim = sol.solPrim
+	solPrim = solDomain.solInt.solPrim
 
 	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, bounds.inlet.sol.solPrim, bounds.outlet.sol.solPrim)
+	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, solDomain.solIn.solPrim, solDomain.solOut.solPrim)
 
 	# unconstrained reconstruction at neighboring cell centers
 	delSolPrim 		= grad * mesh.dx
@@ -70,8 +71,8 @@ def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, grad, mesh):
 	solPrimR 		= solPrim + delSolPrim
 	
 	# limiter defaults to 1
-	phiL = np.ones(solPrim.shape, dtype=constants.realType)
-	phiR = np.ones(solPrim.shape, dtype=constants.realType)
+	phiL = np.ones(solPrim.shape, dtype=realType)
+	phiR = np.ones(solPrim.shape, dtype=realType)
 	
 	# find indices where difference in reconstruction is either positive or negative
 	cond1L = ((solPrimL - solPrim) > 0)
@@ -92,12 +93,12 @@ def limiterBarthJespersen(sol: solutionPhys, bounds: boundaries, grad, mesh):
 
 # Venkatakrishnan limiter
 # differentiable, but limits in uniform regions
-def limiterVenkatakrishnan(sol: solutionPhys, bounds: boundaries, grad, mesh):
+def limiterVenkatakrishnan(solDomain, grad, mesh):
 
-	solPrim = sol.solPrim
+	solPrim = solDomain.solInt.solPrim
 
 	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, bounds.inlet.sol.solPrim, bounds.outlet.sol.solPrim)
+	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, solDomain.solIn.solPrim, solDomain.solOut.solPrim)
 
 	# unconstrained reconstruction at neighboring cell centers
 	delSolPrim 		= grad * mesh.dx
@@ -105,8 +106,8 @@ def limiterVenkatakrishnan(sol: solutionPhys, bounds: boundaries, grad, mesh):
 	solPrimR 		= solPrim + delSolPrim
 	
 	# limiter defaults to 1
-	phiL = np.ones(solPrim.shape, dtype=constants.realType)
-	phiR = np.ones(solPrim.shape, dtype=constants.realType)
+	phiL = np.ones(solPrim.shape, dtype=realType)
+	phiR = np.ones(solPrim.shape, dtype=realType)
 	
 	# find indices where difference in reconstruction is either positive or negative
 	cond1L = ((solPrimL - solPrim) > 0)

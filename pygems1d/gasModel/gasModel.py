@@ -1,9 +1,14 @@
-from constants import realType, RUniv
+from pygems1d.constants import realType, RUniv
+
 import numpy as np
 
-# TODO: move stateFuncs concerning gas/transport properties here
+# TODO: some of the CPG functions can be generalized and placed here (e.g. calc sound speed in terms of enthalpy and density derivs) 
 
 class gasModel:
+	"""
+	Base class storing constant chemical properties of modeled species
+	Also includes universal gas methods (like calculating mixture molecular weight)
+	"""
 
 	def __init__(self, gasDict):
 
@@ -25,8 +30,7 @@ class gasModel:
 		self.preExpFact 		= float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
 
 		# misc calculations
-		# TODO: not valid for all gas models
-		self.RGas 				= RUniv / self.molWeights 			# specific gas constant, J/(K*kg)
+		self.RGas 				= RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)
 		self.numSpecies 		= self.numSpeciesFull - 1			# last species is not directly solved for
 		self.numEqs 			= self.numSpecies + 3				# pressure, velocity, temperature, and species transport
 		self.molWeightNu 		= self.molWeights * self.nu 
@@ -44,7 +48,52 @@ class gasModel:
 			self.mixMassMatrix[specNum, :] 		= np.power((self.molWeights / self.molWeights[specNum]), 0.25)
 			self.mixInvMassMatrix[specNum, :] 	= 1.0 / np.sqrt( 1.0 + self.molWeights[specNum] / self.molWeights)
 
-class caloricallyPerfectGas(gasModel):
+	def getMassFracArray(self, solPrim=None, massFracs=None):
+		"""
+		Helper function to handle array slicing to avoid weird NumPy array broadcasting issues
+		"""
 
-	def __init__(self, gasDict):
-		super().__init__(gasDict)
+		# get all but last mass fraction field
+		if (solPrim is None):
+			assert (massFracs is not None), "Must provide mass fractions if not providing primitive solution"
+			if (massFracs.ndim == 1):
+				massFracs = np.reshape(massFracs, (-1,1))
+			if (massFracs.shape[1] == self.numSpeciesFull):
+				massFracs = massFracs[:,:-1]
+		else:
+			massFracs = solPrim[:,3:]
+
+		# slice array appropriately
+		if (self.numSpecies > 1):
+			massFracs = massFracs[:,:-1]
+		else:
+			massFracs = massFracs[:,0]
+
+		return massFracs
+
+	def calcAllMassFracs(self, massFracsNS):
+		"""
+		Helper function to compute all numSpecies_full mass fraction fields from numSpecies fields
+		Thresholds all mass fraction fields between zero and unity 
+		"""
+
+		numCells, numSpecies = massFracsNS.shape
+		massFracs = np.zeros((numCells, numSpecies+1), dtype=realType)
+
+		massFracs[:, :-1] 	= np.maximum(0.0, np.minimum(1.0, massFracsNS))
+		massFracs[:, -1] 	= 1.0 - np.sum(massFracs[:, :-1], axis=1)
+		massFracs[:, -1] 	= np.maximum(0.0, np.minimum(1.0, massFracs[:, -1]))
+
+		return massFracs
+
+	def calcMixMolWeight(self, massFracs):
+		"""
+		Compute mixture molecular weight
+		"""
+
+		if (massFracs.shape[1] == self.numSpecies):
+			massFracs = calcAllMassFracs(massFracs)
+
+		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights, axis=1)
+
+		return mixMolWeight

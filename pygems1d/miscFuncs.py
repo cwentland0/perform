@@ -1,6 +1,8 @@
-import constants
+import pygems1d.constants as const
+
 import os
 import struct
+import pdb
 
 def writeToFile(fid, array, order='F'):
 	"""
@@ -41,6 +43,6 @@ def writeToFile(fid, array, order='F'):
 
 def mkdirInWorkdir(dirName):
 
-	newDir = os.path.join(constants.workingDir, dirName)
+	newDir = os.path.join(const.workingDir, dirName)
 	if not os.path.isdir(newDir): os.mkdir(newDir)
 	return newDir
