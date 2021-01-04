@@ -7,20 +7,31 @@ from math import floor, log
 import numpy as np
 import pdb
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import matplotlib.ticker as plticker
+import matplotlib.gridspec as gridspec
+mpl.rc('font', family='serif',size='8')
+mpl.rc('axes', labelsize='x-large')
+mpl.rc('figure', facecolor='w')
+mpl.rc('text', usetex=False)
+mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
+
 class fieldPlot(visualization):
 	"""
 	Class for field plot image
 	"""
 
-	def __init__(self, plotID, visInterval, solver):
+	def __init__(self, visID, visInterval, solver):
 
 		paramDict = solver.paramDict
 
 		self.visType 		= "field"
 		self.visInterval	= visInterval
+		self.visID 			= visID
 		
 		# check requested variables
-		self.visVar			= catchList(paramDict, "visVar"+str(plotID), [None])
+		self.visVar			= catchList(paramDict, "visVar"+str(visID), [None])
 		for visVar in self.visVar:
 			if (visVar in ["pressure","velocity","temperature","source","density","momentum","energy"]):
 				pass
@@ -36,12 +47,12 @@ class fieldPlot(visualization):
 				except:
 					raise ValueError("visVar entry" + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")
 			else:
-				raise ValueError("Invalid entry in visVar"+str(plotID))
+				raise ValueError("Invalid entry in visVar"+str(visID))
 
 
 		self.numSubplots 	= len(self.visVar)
-		self.visXBounds 	= catchList(paramDict, "visXBounds"+str(plotID), [[None,None]], lenHighest=self.numSubplots)
-		self.visYBounds 	= catchList(paramDict, "visYBounds"+str(plotID), [[None,None]], lenHighest=self.numSubplots)
+		self.visXBounds 	= catchList(paramDict, "visXBounds"+str(visID), [[None,None]], lenHighest=self.numSubplots)
+		self.visYBounds 	= catchList(paramDict, "visYBounds"+str(visID), [[None,None]], lenHighest=self.numSubplots)
 
 		self.numImgs 		= int(solver.timeIntegrator.numSteps / visInterval)
 		if (self.numImgs > 0):
@@ -64,6 +75,8 @@ class fieldPlot(visualization):
 		"""
 		Draw and display field line plot(s)
 		"""
+
+		plt.figure(self.visID)
 
 		if (type(self.ax) != np.ndarray):
 			axList = [self.ax]
@@ -94,6 +107,7 @@ class fieldPlot(visualization):
 				axVar.ticklabel_format(useOffset=False)
 
 		self.fig.tight_layout()
+		self.fig.canvas.draw_idle()
 
 	def save(self, solver):
 		"""

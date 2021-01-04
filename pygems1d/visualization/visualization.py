@@ -1,5 +1,3 @@
-from pygems1d.constants import figWidthDefault, figHeightDefault
-
 import matplotlib.pyplot as plt
 
 # TODO: this is kind of a mess
@@ -59,7 +57,7 @@ class visualization:
 				else:
 					raise ValueError("Invalid field visualization variable:"+str(solver.visVar))
 
-		self.fig, self.ax = plt.subplots(nrows=self.numRows, ncols=self.numCols, figsize=(figWidthDefault,figHeightDefault))
+		# self.fig, self.ax = plt.subplots(nrows=self.numRows, ncols=self.numCols, num=self.visID)
 
 
 
@@ -104,6 +102,8 @@ class visualization:
 			extrData = solCons[:,1]
 		elif (varStr == "energy"):
 			extrData = solCons[:,2]
+
+		# TODO: fails for last species
 		elif (varStr[:7] == "species"):
 			specIdx = int(varStr[7:])
 			extrData = solPrim[:,3+specIdx-1]
