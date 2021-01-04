@@ -1,5 +1,6 @@
-from constants import realType
-from stateFuncs import calcStateFromPrim
+import pygems1d.constants as const
+from pygems1d.stateFuncs import calcStateFromPrim
+
 import re 
 import numpy as np
 import os
@@ -164,7 +165,7 @@ def getInitialConditions(solver):
 
 	# intialize from restart file
 	if solver.initFromRestart:
-		solver.solTime, solPrim0 = readRestartFile(solver.restOutDir)
+		solver.solTime, solPrim0, solver.restartIter = readRestartFile()
 		solCons0, _, _, _ = calcStateFromPrim(solPrim0, solver.gasModel)
 
 	# otherwise init from scratch IC or custom IC file 
@@ -199,7 +200,7 @@ def genPiecewiseUniformIC(solver):
 		raise ValueError("Could not find initial conditions file at "+solver.icParamsFile)
 
 	splitIdx 	= np.absolute(solver.mesh.xCell - icDict["xSplit"]).argmin()+1
-	solPrim 	= np.zeros((solver.mesh.numCells, solver.gasModel.numEqs), dtype=realType)
+	solPrim 	= np.zeros((solver.mesh.numCells, solver.gasModel.numEqs), dtype=const.realType)
 
 	# left state
 	solPrim[:splitIdx,0] 	= icDict["pressLeft"]
@@ -218,17 +219,21 @@ def genPiecewiseUniformIC(solver):
 	return solPrim, solCons
 
 # read solution state from restart file 
-def readRestartFile(restartDir):
+def readRestartFile():
+
+	# TODO: if higher-order multistep scheme, load previous time steps to preserve time accuracy
 
 	# read text file for restart file iteration number
-	with open(os.path.join(restartDir, "restartIter.dat"), "r") as f:
-		iterNum = int(f.read())
+	with open(os.path.join(const.restartOutputDir, "restartIter.dat"), "r") as f:
+		restartIter = int(f.read())
 
 	# read solution
-	restartFile = os.path.join(restartDir, "restartFile_"+str(iterNum)+".npz")
+	restartFile = os.path.join(const.restartOutputDir, "restartFile_"+str(restartIter)+".npz")
 	restartIn = np.load(restartFile)
 
 	solTime = restartIn["solTime"].item() 	# convert array() to scalar
 	solPrim = restartIn["solPrim"]
 
-	return solTime, solPrim
+	restartIter += 1 # so this restart file doesn't get overwritten on next restart write
+
+	return solTime, solPrim, restartIter

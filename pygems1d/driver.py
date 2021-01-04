@@ -57,6 +57,8 @@ def main():
 		solver.timeIntegrator.advanceIter(solDomain, solROM, solver)
 		solver.solTime += solver.timeIntegrator.dt
 
+		solDomain.writeOutputs(solver)
+
 		# write restart files
 		# if solver.saveRestarts: 
 		# 	if ( (solver.timeIntegrator.iter % solver.restartInterval) == 0):

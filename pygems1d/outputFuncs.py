@@ -158,25 +158,3 @@ def updateResOut(solInt, solver):
 		f = open(resFile, "a")
 	f.write(str(solver.timeIntegrator.iter)+"\t"+str(solInt.resNormL2)+"\t"+str(solInt.resNormL1)+"\n")
 	f.close()
-
-# write restart files containing primitive and conservative fields, plus physical time 
-def writeRestartFile(solInt, solver):
-
-	# write restart file to zipped file
-	restartFile = os.path.join(const.restartOutputDir, "restartFile_"+str(solver.restartIter)+".npz")
-	np.savez(restartFile, solTime = solver.solTime, solPrim = solInt.solPrim, solCons = solInt.solCons)
-
-	# write iteration number files
-	restartIterFile = os.path.join(const.restartOutputDir, "restartIter.dat")
-	with open(restartIterFile, "w") as f:
-		f.write(str(solver.restartIter)+"\n")
-
-	restartPhysIterFile = os.path.join(const.restartOutputDir, "restartIter_"+str(solver.restartIter)+".dat")
-	with open(restartPhysIterFile, "w") as f:
-		f.write(str(solver.timeIntegrator.iter)+"\n")
-
-	# iterate file count
-	if (solver.restartIter < solver.numRestarts):
-		solver.restartIter += 1
-	else:
-		solver.restartIter = 1
