@@ -26,6 +26,7 @@ def catchInput(inDict, inKey, defaultVal):
 	"""
 
 	# TODO: correct error handling if default type is not recognized
+	# TODO: check against lowercase'd strings so that inputs are not case sensitive. Do this for True/False too
 	# TODO: instead of trusting user for NoneType, could also use NaN/Inf to indicate int/float defaults without passing a numerical default
 	# 		or could just pass the actual default type lol, that'd be easier
 

@@ -33,108 +33,12 @@ def storeFieldDataUnsteady(solInt, solver):
 # 	not even 9 variables to visualize right now
 def setupPlotAxes(solver):
 
-	if (solver.numVis == 1):
-		solver.visNRows = 1 
-		solver.visNCols = 1
-	elif (solver.numVis == 2):
-		solver.visNRows = 2
-		solver.visNCols = 1
-	elif (solver.numVis <= 4):
-		solver.visNRows = 2
-		solver.visNCols = 2
-	elif (solver.numVis <= 6):
-		solver.visNRows = 3
-		solver.visNCols = 2
-	elif (solver.numVis <= 9):
-		solver.visNRows = 3
-		solver.visNCols = 3
+	
 
-	# axis labels
-	axLabels = []
-	for axIdx in range(solver.numVis):
-		varStr = solver.visVar[axIdx]
-		if (varStr == "pressure"):
-			axLabels.append("Pressure (Pa)")
-		elif (varStr == "velocity"):
-			axLabels.append("Velocity (m/s)")
-		elif (varStr == "temperature"):
-			axLabels.append("Temperature (K)")
-		elif (varStr == "species"):
-			axLabels.append("Species Mass Fraction")
-		elif (varStr == "source"):
-			axLabels.append("Reaction Source Term")
-		elif (varStr == "density"):
-			axLabels.append("Density (kg/m^3)")
-		elif (varStr == "momentum"):
-			axLabels.append("Momentum (kg/s-m^2)")
-		elif (varStr == "energy"):
-			axLabels.append("Total Energy")
-		else:
-			raise ValueError("Invalid field visualization variable:"+str(solver.visVar))
-
-	fig, ax = plt.subplots(nrows=solver.visNRows, ncols=solver.visNCols, figsize=(12,6))
+	
 
 	return fig, ax, axLabels
 
-# plot field line plots
-def plotField(fig: plt.Figure, ax: plt.Axes, axLabels, solInt, solver):
-
-	if (type(ax) != np.ndarray): 
-		axList = [ax]
-	else:
-		axList = ax 
-
-	for colIdx, col in enumerate(axList):
-		if (type(col) != np.ndarray):
-			colList = [col]
-		else:
-			colList = col
-		for rowIdx, axVar in enumerate(colList):
-
-			axVar.cla()
-			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (solver.visNRows, solver.visNCols))[0]
-			if ((linIdx+1) > solver.numVis): 
-				axVar.axis("off")
-				break
-
-			varStr = solver.visVar[linIdx]
-			if (varStr == "pressure"):
-				field = solInt.solPrim[:,0]
-			elif (varStr == "velocity"):
-				field = solInt.solPrim[:,1]
-			elif (varStr == "temperature"):
-				field = solInt.solPrim[:,2]
-			elif (varStr == "species"):
-				field = solInt.solPrim[:,3]
-			elif (varStr == "source"):
-				field = solInt.source[:,0]
-			elif (varStr == "density"):
-				field = solInt.solCons[:,0]
-			elif (varStr == "momentum"):
-				field = solInt.solCons[:,1]
-			elif (varStr == "energy"):
-				field = solInt.solCons[:,2]
-			else:
-				raise ValueError("Invalid field visualization variable:"+str(varStr))
-
-			axVar.plot(solver.mesh.xCell, field)
-			axVar.set_ylim(solver.visYBounds[linIdx])
-			axVar.set_xlim(solver.visXBounds[linIdx])
-			axVar.set_ylabel(axLabels[linIdx])
-			axVar.set_xlabel("x (m)")
-			axVar.ticklabel_format(useOffset=False)
-
-	fig.tight_layout()
-	plt.show(block=False)
-	plt.pause(0.001)
-
-# write field plot image to disk
-def writeFieldImg(fig: plt.Figure, solver, fieldImgDir):
-
-	visIdx 	= int(solver.timeIntegrator.iter / solver.visInterval)
-	figNum 	= solver.imgString % visIdx
-	figFile = os.path.join(fieldImgDir, "fig_"+figNum+".png")
-	fig.savefig(figFile)
 
 # update probeVals, as this happens every time iteration
 def updateProbe(solDomain, solver, probeVals, probeIdx):
