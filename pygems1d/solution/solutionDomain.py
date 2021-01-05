@@ -118,7 +118,8 @@ class solutionDomain:
 		if (not solver.timeIntegrator.runSteady):		
 			self.solInt.writeSnapshots(solver)
 		
-		self.writeProbes(solver)
+		if (self.numProbes > 0):
+			self.writeProbes(solver)
 
 
 	def updateProbes(self, solver):

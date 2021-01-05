@@ -25,9 +25,7 @@ def main():
 	# read working directory input
 	parser = argparse.ArgumentParser(description = "Read working directory")
 	parser.add_argument('workingDir', type = str, default = "./", help="runtime working directory")
-	args = parser.parse_args()
-	const.workingDir = args.workingDir
-	const.workingDir = os.path.expanduser(const.workingDir)
+	const.workingDir = os.path.expanduser(parser.parse_args().workingDir)
 	assert (os.path.isdir(const.workingDir)), "Given working directory does not exist"
 
 	# make output directories
