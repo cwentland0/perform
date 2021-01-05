@@ -5,12 +5,15 @@ from pygems1d.systemSolver import systemSolver
 from pygems1d.solution.solutionDomain import solutionDomain
 from pygems1d.miscFuncs import mkdirInWorkdir
 from pygems1d.visualization.visualizationGroup import visualizationGroup
+
 import numpy as np
 import argparse
 import traceback
+import warnings
+warnings.filterwarnings("error")
 import pdb
 
-# TODO: check for incorrect assignments that need a copy instead
+# TODO: find some way to untangle circular dependencies in systemSolver 
 # TODO: make code general for more than two species, array broadcasts are different for 2 vs 3+ species
 #		idea: custom iterators for species-related slicing, or just squeeze any massfrac references
 
@@ -37,7 +40,7 @@ def main():
 
 	solDomain = solutionDomain(solver)	# physical solution
 
-	# ROM solution
+	# ROM definition and solution
 	if solver.calcROM: 
 		solROM = solutionROM(solver.romInputs, solDomain.solInt, solver)
 		solROM.initializeROMState(solDomain.solInt)
@@ -50,54 +53,36 @@ def main():
 
 	##### START UNSTEADY SOLUTION #####
 
-	# loop over time iterations
-	for solver.timeIntegrator.iter in range(1, solver.timeIntegrator.numSteps+1):
-		
-		# advance one physical time step
-		solver.timeIntegrator.advanceIter(solDomain, solROM, solver)
-		solver.solTime += solver.timeIntegrator.dt
-
-		solDomain.writeOutputs(solver)
-
-		# write restart files
-		# if solver.saveRestarts: 
-		# 	if ( (solver.timeIntegrator.iter % solver.restartInterval) == 0):
-		# 		outputFuncs.writeRestartFile(solDomain.solInt, solver)	 
-
-		# write output
-		# if (( solver.timeIntegrator.iter % solver.outInterval) == 0):
-		# 	outputFuncs.storeFieldDataUnsteady(solDomain.solInt, solver)
-		# outputFuncs.updateProbe(solDomain, solver, probeVals, probeIdx)
-
-		# "steady" solver processing
-		# if (solver.timeIntegrator.runSteady):
-		# 	if ((solver.timeIntegrator.iter % solver.outInterval) == 0): 
-		# 		outputFuncs.writeDataSteady(solDomain.solInt, solver)
-		# 	outputFuncs.updateResOut(solDomain.solInt, solver)
-		# 	if (solDomain.solInt.resNormL2 < solver.steadyThresh): 
-		# 		print("Steady residual criterion met, terminating run")
-		# 		break 	# quit if steady residual threshold met
-
-		# draw visualization plots
-		# if ( (solver.timeIntegrator.iter % solver.visInterval) == 0):
-		# 	if (solver.visType == "field"): 
-		# 		outputFuncs.plotField(fig, ax, axLabels, solDomain.solInt, solver)
-		# 		if solver.visSave: outputFuncs.writeFieldImg(fig, solver, fieldImgDir)
-		# 	elif (solver.visType == "probe"): 
-		# 		outputFuncs.plotProbe(fig, ax, axLabels, solver, probeVals, tVals)
-
-		visGroup.drawPlots(solDomain, solver)
+	try:
+		# loop over time iterations
+		for solver.timeIntegrator.iter in range(1, solver.timeIntegrator.numSteps+1):
 			
-	print("Solve finished, writing to disk!")
+			# advance one physical time step
+			solver.timeIntegrator.advanceIter(solDomain, solROM, solver)
+
+			# write unsteady solution outputs
+			solDomain.writeIterOutputs(solver)
+
+			# check "steady" solve
+			if (solver.timeIntegrator.runSteady):
+				breakFlag = solDomain.writeSteadyOutputs(solver)
+				if breakFlag: break
+
+			# visualization
+			visGroup.drawPlots(solDomain, solver)
+
+		print("Solve finished, writing to disk")
+
+	except RuntimeWarning:
+		solver.solveFailed = True
+		print(traceback.format_exc())
+		print("Solve failed, dumping solution so far to disk")
 
 	##### END UNSTEADY SOLUTION #####
 
 	##### START POST-PROCESSING #####
 
-	# # write data to disk
-	# outputFuncs.writeDataUnsteady(solDomain.solInt, solver, probeVals, tVals)
-	# if (solver.timeIntegrator.runSteady): 
-	# 	outputFuncs.writeDataSteady(solDomain.solInt, solver)
+	solDomain.writeFinalOutputs(solver)
 
 	# # draw final images, save to disk
 	# if ((solver.visType == "probe") and solver.visSave): 
@@ -109,7 +94,6 @@ def main():
 if __name__ == "__main__":
 	try:
 		main()
-		print("Run finished!")
 	except:
 		print(traceback.format_exc())
-		print("Run failed!")
+		print("Execution failed")

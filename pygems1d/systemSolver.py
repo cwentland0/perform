@@ -73,12 +73,8 @@ class systemSolver:
 		self.gradLimiter 	= catchInput(paramDict, "gradLimiter", 0)		# gradient limiter for higher-order face reconstructions
 		self.viscScheme 	= catchInput(paramDict, "viscScheme", 0)		# 0 for inviscid, 1 for viscous
 
-		# misc
-		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
-		self.resNormPrim	= catchInput(paramDict, "steadyNorm", [None])
-		self.sourceOn 		= catchInput(paramDict, "sourceOn", True)
-
 		# restart files
+		# TODO: could move this to solutionDomain, not terribly necessary
 		self.saveRestarts 	= catchInput(paramDict, "saveRestarts", False) 	# whether to save restart files
 		if self.saveRestarts:
 			self.restartInterval 	= catchInput(paramDict, "restartInterval", 100)	# number of steps between restart file saves
@@ -99,6 +95,12 @@ class systemSolver:
 		self.sourceOut 		= catchInput(paramDict, "sourceOut", False) 	# whether to save the species source term
 		self.RHSOut 		= catchInput(paramDict, "RHSOut", False)		# whether to save the RHS vector
 		self.numSnaps 		= int(self.timeIntegrator.numSteps / self.outInterval)
+
+		# misc
+		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)
+		self.resNormPrim	= catchInput(paramDict, "steadyNorm", [None])
+		self.sourceOn 		= catchInput(paramDict, "sourceOn", True)
+		self.solveFailed 	= False
 
 		# ROM flag
 		self.calcROM = catchInput(paramDict, "calcROM", False)

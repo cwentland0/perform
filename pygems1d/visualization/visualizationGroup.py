@@ -31,6 +31,7 @@ class visualizationGroup:
 			try:
 				keyName = "visType"+str(self.numVisPlots+1)
 				plotType = str(paramDict[keyName])
+				# TODO: should honestly just fail for incorrect input
 				assert (plotType in ["field", "probe", "residual"]), (keyName+" must be either \"field\", \"probe\", or \"residual\"")
 				self.numVisPlots += 1
 			except:

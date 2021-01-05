@@ -35,4 +35,6 @@ class timeIntegrator:
 				solDomain.solInt.resOutput(solver)
 				if (solDomain.solInt.resNormL2 < self.resTol): break
 
+		self.timeIter += 1
+		solver.solTime += solver.timeIntegrator.dt
 		solDomain.solInt.updateSolHist() 

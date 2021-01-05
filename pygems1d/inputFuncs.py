@@ -53,6 +53,9 @@ def catchList(inDict, inKey, default, lenHighest=1):
 	try:
 		inList = inDict[inKey]
 
+		if (len(inList) == 0):
+			raise ValueError
+
 		# list of lists
 		if listOfListsFlag:
 			typeDefault = type(default[0][0])

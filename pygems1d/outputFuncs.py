@@ -40,47 +40,6 @@ def setupPlotAxes(solver):
 	return fig, ax, axLabels
 
 
-# update probeVals, as this happens every time iteration
-def updateProbe(solDomain, solver, probeVals, probeIdx):
-
-	for visIdx in range(solver.numVis):
-		varStr = solver.visVar[visIdx]
-		if (solver.probeSec == "inlet"):
-			solPrimProbe = solDomain.solIn.solPrim[0,:]
-			solConsProbe = solDomain.solIn.solCons[0,:]
-
-		elif (solver.probeSec == "outlet"):
-			solPrimProbe = solDomain.solOut.solPrim[0,:]
-			solConsProbe = solDomain.solOut.solCons[0,:]
-
-		else:
-			solPrimProbe = solDomain.solInt.solPrim[probeIdx,:]
-			solConsProbe = solDomain.solInt.solCons[probeIdx,:]
-			solSourceProbe = solDomain.solInt.source[probeIdx,:]
-
-		try:
-			if (varStr == "pressure"):
-				probe = solPrimProbe[0]
-			elif (varStr == "velocity"):
-				probe = solPrimProbe[1]
-			elif (varStr == "temperature"):
-				probe = solPrimProbe[2]
-			elif (varStr == "species"):
-				probe = solPrimProbe[3]
-			elif (varStr == "source"):
-				probe = solSourceProbe[0]
-			elif (varStr == "density"):
-				probe = solConsProbe[0]
-			elif (varStr == "momentum"):
-				probe = solConsProbe[1]
-			elif (varStr == "energy"):
-				probe = solConsProbe[2]
-		except:
-			raise ValueError("Invalid field visualization variable "+str(solver.visVar)+" for probe at "+solver.probeSec)
-		
-
-		probeVals[solver.timeIntegrator.iter-1, visIdx] = probe 
-
 # plot probeVals at specied visInterval
 def plotProbe(fig: plt.Figure, ax: plt.Axes, axLabels, solver, probeVals, tVals):
 

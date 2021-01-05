@@ -27,7 +27,7 @@ class visualization:
 			raise ValueError("Cannot plot more than nine subplots in the same image")
 
 		# axis labels
-		# could change this to a dictionary reference
+		# TODO: could change this to a dictionary reference
 		self.axLabels = [None] * self.numSubplots
 		if (self.visType == "residual"):
 			self.axLabels[0] = "Residual History"
@@ -56,61 +56,3 @@ class visualization:
 					self.axLabels[axIdx] = "Density-weighted Species "+str(varStr[7:])+" Mass Fraction (kg/m^3)"
 				else:
 					raise ValueError("Invalid field visualization variable:"+str(solver.visVar))
-
-		# self.fig, self.ax = plt.subplots(nrows=self.numRows, ncols=self.numCols, num=self.visID)
-
-
-
-	def getFieldData(self, solDomain, varStr):
-		"""
-		Extract plotting data from flow field domain data
-		"""
-
-		if (self.visType == "field"):
-			solPrim = solDomain.solInt.solPrim
-			solCons = solDomain.solInt.solCons
-			source  = solDomain.solInt.source
-			rhs 	= solDomain.solInt.RHS
-		elif (self.visType == "probe"):
-			if (self.probeSec == "interior"):
-				solPrim = solDomain.solInt.solPrim[[self.probeIdx],:]
-				solCons = solDomain.solInt.solCons[[self.probeIdx],:]
-				source  = solDomain.solInt.source[[self.probeIdx],:]
-				rhs  	= solDomain.solInt.RHS[[self.probeIdx],:]
-			elif (self.probeSec == "inlet"):
-				solPrim = solDomain.solIn.solPrim[[0],:]
-				solCons = solDomain.solIn.solCons[[0],:]
-			elif (self.probeSec == "outlet"):
-				solPrim = solDomain.solOut.solPrim[[0],:]
-				solCons = solDomain.solOut.solCons[[0],:]
-			else:
-				raise ValueError("Invalid probeSec passed to getFieldData")
-		else:
-			raise ValueError("Invalid visType was passed to getFieldData")
-
-		if (varStr == "pressure"):
-			extrData = solPrim[:,0]
-		elif (varStr == "velocity"):
-			extrData = solPrim[:,1]
-		elif (varStr == "temperature"):
-			extrData = solPrim[:,2]
-		elif (varStr == "source"):
-			extrData = source[:,0]
-		elif (varStr == "density"):
-			extrData = solCons[:,0]
-		elif (varStr == "momentum"):
-			extrData = solCons[:,1]
-		elif (varStr == "energy"):
-			extrData = solCons[:,2]
-
-		# TODO: fails for last species
-		elif (varStr[:7] == "species"):
-			specIdx = int(varStr[7:])
-			extrData = solPrim[:,3+specIdx-1]
-		elif (varStr[:15] == "density-species"):
-			specIdx = int(varStr[15:])
-			extrData = solCons[:,3+specIdx-1]
-		else:
-			raise ValueError("Invalid field visualization variable:"+str(varStr))
-
-		return extrData

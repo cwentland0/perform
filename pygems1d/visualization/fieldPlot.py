@@ -109,6 +109,44 @@ class fieldPlot(visualization):
 		self.fig.tight_layout()
 		self.fig.canvas.draw_idle()
 
+	def getFieldData(self, solDomain, varStr):
+		"""
+		Extract plotting data from flow field domain data
+		"""
+
+		solPrim = solDomain.solInt.solPrim
+		solCons = solDomain.solInt.solCons
+		source  = solDomain.solInt.source
+		rhs 	= solDomain.solInt.RHS
+
+		try:
+			if (varStr == "pressure"):
+				extrData = solPrim[:,0]
+			elif (varStr == "velocity"):
+				extrData = solPrim[:,1]
+			elif (varStr == "temperature"):
+				extrData = solPrim[:,2]
+			elif (varStr == "source"):
+				extrData = source[:,0]
+			elif (varStr == "density"):
+				extrData = solCons[:,0]
+			elif (varStr == "momentum"):
+				extrData = solCons[:,1]
+			elif (varStr == "energy"):
+				extrData = solCons[:,2]
+
+			# TODO: fails for last species
+			elif (varStr[:7] == "species"):
+				specIdx = int(varStr[7:])
+				extrData = solPrim[:,3+specIdx-1]
+			elif (varStr[:15] == "density-species"):
+				specIdx = int(varStr[15:])
+				extrData = solCons[:,3+specIdx-1]
+		except:
+			raise ValueError("Invalid field visualization variable:"+str(varStr))
+
+		return extrData
+
 	def save(self, solver):
 		"""
 		Save plot to disk
