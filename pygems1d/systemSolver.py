@@ -61,10 +61,7 @@ class systemSolver:
 			raise ValueError("Invalid choice of timeScheme: "+timeScheme)
 
 		if self.timeIntegrator.runSteady:
-			if (self.timeIntegrator.timeType == "implicit"):
-				self.steadyThresh = catchInput(paramDict, "steadyThresh", -10.0) # exponent threshold on steady residual
-			else:
-				raise ValueError("Cannot run steady-state solution with explicit time integrator!")
+			self.steadyTol = catchInput(paramDict, "steadyTol", const.l2SteadyTolDefault) # threshold on convergence
 		
 
 		# spatial discretization parameters

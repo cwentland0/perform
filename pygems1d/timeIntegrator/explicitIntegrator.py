@@ -18,18 +18,20 @@ class explicitIntegrator(timeIntegrator):
 
 	def advanceSubiter(self, solDomain, solROM, solver):
 
+		solInt = solDomain.solInt
+
 		calcRHS(solDomain, solver)
 
 		# compute change in solution/code, advance solution/code
 		if (solver.calcROM):
-			solROM.mapRHSToModels(solDomain.solInt)
+			solROM.mapRHSToModels(solInt)
 			solROM.calcRHSProjection()
-			solROM.advanceSubiter(solDomain.solInt, solver)
+			solROM.advanceSubiter(solInt, solver)
 		else:
-			dSol = self.solveSolChange(solDomain.solInt.RHS)
-			solDomain.solInt.solCons = solDomain.solInt.solHistCons[0] + dSol
+			dSol = self.solveSolChange(solInt.RHS)
+			solInt.solCons = solInt.solHistCons[0] + dSol 	# TODO: only valid for single-stage schemes
 				
-		solDomain.solInt.updateState(solver.gasModel)
+		solInt.updateState(solver.gasModel)
 
 class rkExplicit(explicitIntegrator):
 	"""

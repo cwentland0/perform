@@ -14,12 +14,12 @@ suthTemp 	= 110.4 	# Sutherland temperature
 tinyNum 	= 1.0e-25 	# very small number
 hugeNum 	= 1.0e25	# very large number
 
-# "steady" state residual normalization defaults
-resNormPrimDefault = [1.0e5, 10.0, 300.0, 1.0]
 
-# implicit time integrator defaults
+# time integrator defaults
 subiterMaxImpDefault 	= 50
 l2ResTolDefault 		= 1.0e-12
+l2SteadyTolDefault 		= 1.0e-12
+resNormPrimDefault 		= [1.0e5, 10.0, 300.0, 1.0]
 dtauDefault 			= 1.0e-5
 CFLDefault 				= 1.0
 VNNDefault 				= 20.0

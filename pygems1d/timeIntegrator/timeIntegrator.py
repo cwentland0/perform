@@ -22,7 +22,7 @@ class timeIntegrator:
 		self.iter 		= 1 	# iteration number for current run
 		self.subiter 	= 1		# subiteration number for multi-stage schemes
 		self.timeIter 	= 1 	# physical time iteration number for restarted solutions
-		self.subiterMax = None	# maximum number of subiterations for multi-stage schemes
+		self.subiterMax = None	# maximum number of subiterations for multi-stage explicit or iterative schemes
 
 	def advanceIter(self, solDomain, solROM, solver):
 
@@ -31,10 +31,15 @@ class timeIntegrator:
 		for self.subiter in range(1, self.subiterMax+1):	
 			self.advanceSubiter(solDomain, solROM, solver)
 
+			# iterative solver convergence
 			if (self.timeType == "implicit"):
-				solDomain.solInt.resOutput(solver)
+				solDomain.solInt.calcResNorms(solver)
 				if (solDomain.solInt.resNormL2 < self.resTol): break
+
+		# "steady" convergence
+		if self.runSteady:
+			solDomain.solInt.calcDSolNorms(solver)
 
 		self.timeIter += 1
 		solver.solTime += solver.timeIntegrator.dt
-		solDomain.solInt.updateSolHist() 
+		solDomain.solInt.updateSolHist(solver) 

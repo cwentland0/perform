@@ -15,6 +15,8 @@ class solutionDomain:
 
 	def __init__(self, solver):
 
+		timeInt = solver.timeIntegrator
+
 		# solution
 		solPrim0, solCons0 	= getInitialConditions(solver)
 		self.solInt 		= solutionInterior(solPrim0, solCons0, solver)
@@ -28,7 +30,7 @@ class solutionDomain:
 		if ((self.probeLocs[0] is not None) and (self.probeVars[0] is not None)): 
 			self.numProbes 		= len(self.probeLocs)
 			self.numProbeVars 	= len(self.probeVars)
-			self.probeVals 		= np.zeros((self.numProbes, self.numProbeVars, solver.timeIntegrator.numSteps), dtype=const.realType)
+			self.probeVals 		= np.zeros((self.numProbes, self.numProbeVars, timeInt.numSteps), dtype=const.realType)
 
 			# get probe locations
 			self.probeIdxs = [None] * self.numProbes
@@ -49,6 +51,13 @@ class solutionDomain:
 		else:
 			self.numProbes = 0
 
+		# TODO: include initial conditions in probeVals, timeVals
+		self.timeVals = np.linspace(timeInt.dt * (timeInt.timeIter),
+								 	timeInt.dt * (timeInt.timeIter + solver.timeIntegrator.numSteps), 
+								 	timeInt.numSteps, dtype = const.realType)
+
+
+
 	def calcBoundaryCells(self, solver):
 		"""
 		Helper function to update boundary ghost cells
@@ -56,6 +65,7 @@ class solutionDomain:
 
 		self.solIn.calcBoundaryState(solver, solPrim=self.solInt.solPrim, solCons=self.solInt.solCons)
 		self.solOut.calcBoundaryState(solver, solPrim=self.solInt.solPrim, solCons=self.solInt.solCons)
+
 
 	def writeIterOutputs(self, solver):
 		"""
@@ -75,6 +85,7 @@ class solutionDomain:
 			if (( solver.timeIntegrator.iter % solver.outInterval) == 0):
 				self.solInt.updateSnapshots(solver)
 
+
 	def writeSteadyOutputs(self, solver):
 		"""
 		Helper function for write "steady" outputs and check "convergence" criterion
@@ -86,20 +97,24 @@ class solutionDomain:
 
 		# check for "convergence"
 		breakFlag = False
-		if (self.solInt.resNormL2 < solver.steadyThresh): 
+		if (self.solInt.dSolNormL2 < solver.steadyTol): 
 			print("Steady solution criterion met, terminating run")
 			breakFlag = True
 
 		return breakFlag
+
 
 	def writeFinalOutputs(self, solver):
 		"""
 		Helper function to write final field and probe data to disk
 		"""
 
-		self.solInt.writeSnapshots(solver)
-		# self.writeProbes(solver)
+		if solver.solveFailed: solver.simType += "_FAILED"
 
+		if (not solver.timeIntegrator.runSteady):		
+			self.solInt.writeSnapshots(solver)
+		
+		self.writeProbes(solver)
 
 
 	def updateProbes(self, solver):
@@ -152,12 +167,23 @@ class solutionDomain:
 			self.probeVals[probeIter, :, solver.timeIntegrator.iter-1] = probe
 		
 
-	# def writeProbes(self, solver):
+	def writeProbes(self, solver):
+		"""
+		Save probe data to disk
+		"""
 
-	# 	# save point monitors to disk
-	# 	probeFileName = "probe"
-	# 	for visVar in solver.visVar:
-	# 		probeFileName += "_"+visVar
-	# 	probeFile = os.path.join(const.probeOutputDir, probeFileName+"_"+solver.simType+".npy")
-	# 	probeSave = np.concatenate((tVals.reshape(-1,1), probeVals.reshape(-1,solver.numVis)), axis=1) 	# TODO: add third reshape dimensions for multiple probes
-	# 	np.save(probeFile, probeSave)
+		probeFileBaseName = "probe"
+		for visVar in self.probeVars:
+			probeFileBaseName += "_"+visVar		
+
+		for probeNum in range(self.numProbes):
+
+			# account for failed simulations
+			timeOut  = self.timeVals[:solver.timeIntegrator.iter]
+			probeOut = self.probeVals[probeNum,:,:solver.timeIntegrator.iter]
+
+			probeFileName = probeFileBaseName + "_" + str(probeNum+1) + "_" + solver.simType + ".npy"
+			probeFile = os.path.join(const.probeOutputDir, probeFileName)
+
+			probeSave = np.concatenate((timeOut[:,None], probeOut.T), axis=1) 
+			np.save(probeFile, probeSave)

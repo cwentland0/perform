@@ -11,6 +11,7 @@ import argparse
 import traceback
 import warnings
 warnings.filterwarnings("error")
+from time import time
 import pdb
 
 # TODO: find some way to untangle circular dependencies in systemSolver 
@@ -55,6 +56,7 @@ def main():
 
 	try:
 		# loop over time iterations
+		t1 = time()
 		for solver.timeIntegrator.iter in range(1, solver.timeIntegrator.numSteps+1):
 			
 			# advance one physical time step
@@ -71,7 +73,8 @@ def main():
 			# visualization
 			visGroup.drawPlots(solDomain, solver)
 
-		print("Solve finished, writing to disk")
+		runtime = time() - t1
+		print("Solve finished in %.8f seconds, writing to disk" % runtime)
 
 	except RuntimeWarning:
 		solver.solveFailed = True
@@ -83,6 +86,7 @@ def main():
 	##### START POST-PROCESSING #####
 
 	solDomain.writeFinalOutputs(solver)
+	# visGroup.savePlots(solver)
 
 	# # draw final images, save to disk
 	# if ((solver.visType == "probe") and solver.visSave): 

@@ -87,6 +87,11 @@ class visualizationGroup:
 				plt.show(block=False)
 				plt.pause(0.001)
 
+	# def savePlots(self, solver):
+	# 	"""
+	# 	Helper function to save displays for all plots
+	# 	"""
+
 	def movePlots(self):
 		"""
 		Resizes and moves plots to positions in the window for better viewing
@@ -194,18 +199,3 @@ class visualizationGroup:
 			elif (backend in ["Qt4Agg","Qt5Agg"]):
 				window.move(figX[visIdx], figY[visIdx])
 			
-
-
-	def updatePointData(self):
-		"""
-		Append data to point plots in visualization group
-		"""
-
-		pass
-
-	def updateResidualData(self):
-		"""
-		Append data to residual plots in visualization group
-		"""
-
-		pass
