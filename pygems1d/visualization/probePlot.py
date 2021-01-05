@@ -1,6 +1,9 @@
+import pygems1d.constants as const
 from pygems1d.visualization.visualization import visualization
 from pygems1d.inputFuncs import catchInput
 
+import os
+import matplotlib.pyplot as plt
 import numpy as np
 import pdb
 
@@ -20,44 +23,16 @@ class probePlot(visualization):
 
 		super().__init__(solver)
 
+		# image file on disk
+		visName = ""
+		for visVar in self.visVar:
+			visName += "_"+visVar
+		figName = "probe" + visName + "_" + str(self.probeNum) + "_" + solver.simType + ".png"
+		self.figFile = os.path.join(const.imageOutputDir, figName) 
+
 		# check that requested variables are being probed
 		for visVar in self.visVar:
 			assert (visVar in solver.probeVars), "Must probe "+visVar+" to plot it"
-
-	# TODO: can generalize this for visualization object, just make a getYVals and getXVals method in each plot class
-	# def plot(self):
-
-	# 	plt.figure(self.visID)
-
-	# 	if (type(self.ax) != np.ndarray): 
-	# 		axList = [self.ax]
-	# 	else:
-	# 		axList = self.ax 
-
-	# 	for colIdx, col in enumerate(axList):
-	# 		if (type(col) != np.ndarray):
-	# 			colList = [col]
-	# 		else:
-	# 			colList = col
-	# 		for rowIdx, axVar in enumerate(colList):
-
-	# 			axVar.cla()
-	# 			linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (self.numRows, solver.visNCols))[0]
-	# 			if ((linIdx+1) > solver.numVis): 
-	# 				axVar.axis("off")
-	# 				break
-
-	# 			axVar.plot(tVals[:solver.timeIntegrator.iter], probeVals[:solver.timeIntegrator.iter, linIdx])
-	# 			axVar.set_ylim(solver.visYBounds[linIdx])
-	# 			axVar.set_xlim(solver.visXBounds[linIdx])
-	# 			axVar.set_ylabel(axLabels[linIdx])
-	# 			axVar.set_xlabel()
-	# 			axVar.ticklabel_format(axis='both',useOffset=False)
-	# 			
-
-	# 	fig.tight_layout()
-	# 	plt.show(block=False)
-	# 	plt.pause(0.001)
 
 	def getYData(self, solDomain, varStr, solver):
 
@@ -72,7 +47,9 @@ class probePlot(visualization):
 		xData = solDomain.timeVals[:solver.timeIntegrator.iter]
 		return xData
 
+	def save(self, solver):
 
-	
+		plt.figure(self.visID)
+		self.fig.savefig(self.figFile)
 
 		

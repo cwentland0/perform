@@ -72,7 +72,7 @@ class visualizationGroup:
 
 	def drawPlots(self, solDomain, solver):
 		""" 
-		Helper function to draw, display, and save all plots
+		Helper function to draw, display, and save plots
 		"""
 
 		if (self.numVisPlots > 0):
@@ -86,11 +86,6 @@ class visualizationGroup:
 			if self.visShow:
 				plt.show(block=False)
 				plt.pause(0.001)
-
-	# def savePlots(self, solver):
-	# 	"""
-	# 	Helper function to save displays for all plots
-	# 	"""
 
 	def movePlots(self):
 		"""

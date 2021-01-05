@@ -1,6 +1,7 @@
 import pygems1d.constants as const
 from pygems1d.visualization.visualization import visualization
 
+import matplotlib.pyplot as plt
 import os
 from math import floor, log
 import pdb
@@ -84,7 +85,8 @@ class fieldPlot(visualization):
 		Save plot to disk
 		"""
 
+		plt.figure(self.visID)
 		visIdx 	= int(solver.timeIntegrator.iter / self.visInterval)
 		figNum 	= self.imgString % visIdx
 		figFile = os.path.join(self.imgDir, "fig_"+figNum+".png")
-		fig.savefig(figFile)
+		self.fig.savefig(figFile)

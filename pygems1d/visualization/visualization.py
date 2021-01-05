@@ -6,7 +6,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 import matplotlib.gridspec as gridspec
-mpl.rc('font', family='serif',size='8')
+mpl.rc('font', family='serif',size='8') 	# TODO: adapt axis label font size to number of subplots
 mpl.rc('axes', labelsize='x-large')
 mpl.rc('figure', facecolor='w')
 mpl.rc('text', usetex=False)
@@ -66,6 +66,7 @@ class visualization:
 			self.numRows = 3
 			self.numCols = 2
 		elif (self.numSubplots <= 9):
+			# TODO: an extra, empty subplot shows up with 7 subplots
 			self.numRows = 3
 			self.numCols = 3
 		else:
