@@ -1,6 +1,6 @@
 from pygems1d.constants import figWidthDefault, figHeightDefault
 from pygems1d.visualization.fieldPlot import fieldPlot
-# from pygems1d.visualization.probePlot import probePlot
+from pygems1d.visualization.probePlot import probePlot
 # from pygems1d.visualization.residualPlot import residualPlot
 from pygems1d.inputFuncs import catchInput
 
@@ -50,7 +50,7 @@ class visualizationGroup:
 			if (visType == "field"):
 				self.visList[visIdx-1] = fieldPlot(visIdx, self.visInterval, solver)
 			elif (visType == "probe"):
-				self.visList[visIdx-1] = probePlot()
+				self.visList[visIdx-1] = probePlot(visIdx, solver)
 			elif (visType == "residual"):
 				assert (solver.timeIntegrator.timeType == "implicit"), "Residual visualization is only available for implicit time integrators"
 				self.visList[visIdx-1] = residualPlot()

@@ -99,6 +99,10 @@ class systemSolver:
 		self.sourceOn 		= catchInput(paramDict, "sourceOn", True)
 		self.solveFailed 	= False
 
+		# visualization
+		self.numProbes = 0
+		self.probeVars = []
+
 		# ROM flag
 		self.calcROM = catchInput(paramDict, "calcROM", False)
 		if not self.calcROM: 

@@ -1,4 +1,16 @@
+from pygems1d.inputFuncs import catchList
+
+import numpy as np
+
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.ticker as plticker
+import matplotlib.gridspec as gridspec
+mpl.rc('font', family='serif',size='8')
+mpl.rc('axes', labelsize='x-large')
+mpl.rc('figure', facecolor='w')
+mpl.rc('text', usetex=False)
+mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 
 # TODO: this is kind of a mess
 # 	I'm struggling to write effective hierarchy for field, probe, and residual, as probe shares similarities with field and residual plots
@@ -6,7 +18,40 @@ import matplotlib.pyplot as plt
 
 class visualization:
 
-	def __init__(self, visType, solver):
+	def __init__(self, solver):
+
+		paramDict = solver.paramDict
+
+		if (self.visType in ["field","probe"]):
+
+			# check requested variables
+			self.visVar	= catchList(paramDict, "visVar"+str(self.visID), [None])
+			for visVar in self.visVar:
+				if (visVar in ["pressure","velocity","temperature","source","density","momentum","energy"]):
+					pass
+				elif ((visVar[:7] == "species") or (visVar[:15] == "density-species")):
+					try:
+						if (visVar[:7] == "species"):
+							speciesIdx = int(visVar[7:])
+						elif (visVar[:15] == "density-species"):
+							speciesIdx = int(visVar[15:])
+
+						assert ((speciesIdx > 0) and (speciesIdx <= solver.gasModel.numSpecies)), \
+							"Species number must be a positive integer less than or equal to the number of chemical species"
+					except:
+						raise ValueError("visVar entry" + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")
+				else:
+					raise ValueError("Invalid entry in visVar"+str(visID))
+
+			self.numSubplots = len(self.visVar)
+
+		# residual plot
+		else:
+			self.visVar = ["residual"]
+			self.numSubplots = 1
+
+		self.visXBounds 	= catchList(paramDict, "visXBounds"+str(self.visID), [[None,None]], lenHighest=self.numSubplots)
+		self.visYBounds 	= catchList(paramDict, "visYBounds"+str(self.visID), [[None,None]], lenHighest=self.numSubplots)
 
 		if (self.numSubplots == 1):
 			self.numRows = 1 
@@ -56,3 +101,46 @@ class visualization:
 					self.axLabels[axIdx] = "Density-weighted Species "+str(varStr[7:])+" Mass Fraction (kg/m^3)"
 				else:
 					raise ValueError("Invalid field visualization variable:"+str(solver.visVar))
+
+
+	def plot(self, solDomain, solver):
+		"""
+		Draw and display plot
+		"""
+
+		plt.figure(self.visID)
+
+		if (type(self.ax) != np.ndarray):
+			axList = [self.ax]
+		else:
+			axList = self.ax
+
+		for colIdx, col in enumerate(axList):
+			if (type(col) != np.ndarray):
+				colList = [col]
+			else:
+				colList = col
+			for rowIdx, axVar in enumerate(colList):
+
+				axVar.cla()
+				linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (self.numRows, self.numCols))[0]
+				if ((linIdx+1) > self.numSubplots): 
+					axVar.axis("off")
+					break
+
+				yData = self.getYData(solDomain, self.visVar[linIdx], solver)
+				xData = self.getXData(solDomain, solver)
+
+				axVar.plot(xData, yData)
+				axVar.set_ylim(self.visYBounds[linIdx])
+				axVar.set_xlim(self.visXBounds[linIdx])
+				axVar.set_ylabel(self.axLabels[linIdx])
+				axVar.set_xlabel(self.xLabel)
+				
+				if (self.visType == "field"):
+					axVar.ticklabel_format(useOffset=False)
+				else:
+					axVar.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+
+		self.fig.tight_layout()
+		self.fig.canvas.draw_idle()

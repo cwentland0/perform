@@ -1,21 +1,9 @@
 import pygems1d.constants as const
 from pygems1d.visualization.visualization import visualization
-from pygems1d.inputFuncs import catchList
 
 import os
 from math import floor, log
-import numpy as np
 import pdb
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.ticker as plticker
-import matplotlib.gridspec as gridspec
-mpl.rc('font', family='serif',size='8')
-mpl.rc('axes', labelsize='x-large')
-mpl.rc('figure', facecolor='w')
-mpl.rc('text', usetex=False)
-mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 
 class fieldPlot(visualization):
 	"""
@@ -29,30 +17,7 @@ class fieldPlot(visualization):
 		self.visType 		= "field"
 		self.visInterval	= visInterval
 		self.visID 			= visID
-		
-		# check requested variables
-		self.visVar			= catchList(paramDict, "visVar"+str(visID), [None])
-		for visVar in self.visVar:
-			if (visVar in ["pressure","velocity","temperature","source","density","momentum","energy"]):
-				pass
-			elif ((visVar[:7] == "species") or (visVar[:15] == "density-species")):
-				try:
-					if (visVar[:7] == "species"):
-						speciesIdx = int(visVar[7:])
-					elif (visVar[:15] == "density-species"):
-						speciesIdx = int(visVar[15:])
-
-					assert ((speciesIdx > 0) and (speciesIdx <= solver.gasModel.numSpecies)), \
-						"Species number must be a positive integer less than or equal to the number of chemical species"
-				except:
-					raise ValueError("visVar entry" + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")
-			else:
-				raise ValueError("Invalid entry in visVar"+str(visID))
-
-
-		self.numSubplots 	= len(self.visVar)
-		self.visXBounds 	= catchList(paramDict, "visXBounds"+str(visID), [[None,None]], lenHighest=self.numSubplots)
-		self.visYBounds 	= catchList(paramDict, "visYBounds"+str(visID), [[None,None]], lenHighest=self.numSubplots)
+		self.xLabel 		= "x (m)"
 
 		self.numImgs 		= int(solver.timeIntegrator.numSteps / visInterval)
 		if (self.numImgs > 0):
@@ -60,7 +25,7 @@ class fieldPlot(visualization):
 		else:
 			self.imgString 	= None
 
-		super().__init__(self.visType, solver)
+		super().__init__(solver)
 
 		# set up output directory
 		visName = ""
@@ -71,45 +36,7 @@ class fieldPlot(visualization):
 		if not os.path.isdir(self.imgDir): os.mkdir(self.imgDir)
 		
 
-	def plot(self, solDomain, solver):
-		"""
-		Draw and display field line plot(s)
-		"""
-
-		plt.figure(self.visID)
-
-		if (type(self.ax) != np.ndarray):
-			axList = [self.ax]
-		else:
-			axList = self.ax
-
-		for colIdx, col in enumerate(axList):
-			if (type(col) != np.ndarray):
-				colList = [col]
-			else:
-				colList = col
-			for rowIdx, axVar in enumerate(colList):
-
-				axVar.cla()
-				linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (self.numRows, self.numCols))[0]
-				if ((linIdx+1) > self.numSubplots): 
-					axVar.axis("off")
-					break
-
-				varStr = self.visVar[linIdx]
-				field = self.getFieldData(solDomain, varStr)
-
-				axVar.plot(solver.mesh.xCell, field)
-				axVar.set_ylim(self.visYBounds[linIdx])
-				axVar.set_xlim(self.visXBounds[linIdx])
-				axVar.set_ylabel(self.axLabels[linIdx])
-				axVar.set_xlabel("x (m)")
-				axVar.ticklabel_format(useOffset=False)
-
-		self.fig.tight_layout()
-		self.fig.canvas.draw_idle()
-
-	def getFieldData(self, solDomain, varStr):
+	def getYData(self, solDomain, varStr, solver):
 		"""
 		Extract plotting data from flow field domain data
 		"""
@@ -121,31 +48,36 @@ class fieldPlot(visualization):
 
 		try:
 			if (varStr == "pressure"):
-				extrData = solPrim[:,0]
+				yData = solPrim[:,0]
 			elif (varStr == "velocity"):
-				extrData = solPrim[:,1]
+				yData = solPrim[:,1]
 			elif (varStr == "temperature"):
-				extrData = solPrim[:,2]
+				yData = solPrim[:,2]
 			elif (varStr == "source"):
-				extrData = source[:,0]
+				yData = source[:,0]
 			elif (varStr == "density"):
-				extrData = solCons[:,0]
+				yData = solCons[:,0]
 			elif (varStr == "momentum"):
-				extrData = solCons[:,1]
+				yData = solCons[:,1]
 			elif (varStr == "energy"):
-				extrData = solCons[:,2]
+				yData = solCons[:,2]
 
 			# TODO: fails for last species
 			elif (varStr[:7] == "species"):
 				specIdx = int(varStr[7:])
-				extrData = solPrim[:,3+specIdx-1]
+				yData = solPrim[:,3+specIdx-1]
 			elif (varStr[:15] == "density-species"):
 				specIdx = int(varStr[15:])
-				extrData = solCons[:,3+specIdx-1]
+				yData = solCons[:,3+specIdx-1]
 		except:
 			raise ValueError("Invalid field visualization variable:"+str(varStr))
 
-		return extrData
+		return yData
+
+	def getXData(self, solDomain, solver):
+		
+		xData = solver.mesh.xCell
+		return xData
 
 	def save(self, solver):
 		"""

@@ -51,6 +51,10 @@ class solutionDomain:
 		else:
 			self.numProbes = 0
 
+		# copy this for use with plotting functions
+		solver.numProbes = self.numProbes
+		solver.probeVars = self.probeVars
+
 		# TODO: include initial conditions in probeVals, timeVals
 		self.timeVals = np.linspace(timeInt.dt * (timeInt.timeIter),
 								 	timeInt.dt * (timeInt.timeIter + solver.timeIntegrator.numSteps), 
