@@ -41,8 +41,9 @@ def main():
 
 	# ROM definition and solution
 	if solver.calcROM: 
-		solROM = solutionROM(solver.romInputs, solDomain.solInt, solver)
-		solROM.initializeROMState(solDomain.solInt)
+		raise ValueError("ROM not working right now, check back later")
+		# solROM = solutionROM(solver.romInputs, solDomain.solInt, solver)
+		# solROM.initializeROMState(solDomain.solInt)
 	else:
 		solROM = None
 
