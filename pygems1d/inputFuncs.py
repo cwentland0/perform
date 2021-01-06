@@ -203,19 +203,23 @@ def genPiecewiseUniformIC(solver):
 		raise ValueError("Could not find initial conditions file at "+solver.icParamsFile)
 
 	splitIdx 	= np.absolute(solver.mesh.xCell - icDict["xSplit"]).argmin()+1
-	solPrim 	= np.zeros((solver.mesh.numCells, solver.gasModel.numEqs), dtype=const.realType)
+	solPrim 	= np.zeros((solver.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
 
 	# left state
-	solPrim[:splitIdx,0] 	= icDict["pressLeft"]
-	solPrim[:splitIdx,1] 	= icDict["velLeft"]
-	solPrim[:splitIdx,2] 	= icDict["tempLeft"]
-	solPrim[:splitIdx,3:] 	= icDict["massFracLeft"][:-1]
+	solPrim[0,:splitIdx] 	= icDict["pressLeft"]
+	solPrim[1,:splitIdx] 	= icDict["velLeft"]
+	solPrim[2,:splitIdx] 	= icDict["tempLeft"]
+	massFracLeft 			= icDict["massFracLeft"]
+	assert(np.sum(massFracLeft) == 1.0), "massFracLeft must sum to 1.0"
+	solPrim[3:,:splitIdx] 	= icDict["massFracLeft"][:-1]
 
 	# right state
-	solPrim[splitIdx:,0] 	= icDict["pressRight"]
-	solPrim[splitIdx:,1] 	= icDict["velRight"]
-	solPrim[splitIdx:,2] 	= icDict["tempRight"]
-	solPrim[splitIdx:,3:] 	= icDict["massFracRight"][:-1]
+	solPrim[0,splitIdx:] 	= icDict["pressRight"]
+	solPrim[1,splitIdx:] 	= icDict["velRight"]
+	solPrim[2,splitIdx:] 	= icDict["tempRight"]
+	massFracRight 			= icDict["massFracRight"]
+	assert(np.sum(massFracRight) == 1.0), "massFracRight must sum to 1.0"
+	solPrim[3:,splitIdx:] 	= massFracRight[:-1]
 	
 	solCons, _, _, _ = calcStateFromPrim(solPrim, solver.gasModel)
 

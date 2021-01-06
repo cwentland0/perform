@@ -131,15 +131,15 @@ class solutionDomain:
 
 			probeSec = self.probeSecs[probeIter]
 			if (probeSec == "inlet"):
-				solPrimProbe = self.solIn.solPrim[0,:]
-				solConsProbe = self.solIn.solCons[0,:]
+				solPrimProbe = self.solIn.solPrim[:,0]
+				solConsProbe = self.solIn.solCons[:,0]
 			elif (probeSec == "outlet"):
-				solPrimProbe = self.solOut.solPrim[0,:]
-				solConsProbe = self.solOut.solCons[0,:]
+				solPrimProbe = self.solOut.solPrim[:,0]
+				solConsProbe = self.solOut.solCons[:,0]
 			else:
-				solPrimProbe = self.solInt.solPrim[probeIdx,:]
-				solConsProbe = self.solInt.solCons[probeIdx,:]
-				solSourceProbe = self.solInt.source[probeIdx,:]
+				solPrimProbe = self.solInt.solPrim[:,probeIdx]
+				solConsProbe = self.solInt.solCons[:,probeIdx]
+				solSourceProbe = self.solInt.source[:,probeIdx]
 
 			try:
 				probe = []

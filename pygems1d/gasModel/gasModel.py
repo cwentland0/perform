@@ -57,17 +57,17 @@ class gasModel:
 		if (solPrim is None):
 			assert (massFracs is not None), "Must provide mass fractions if not providing primitive solution"
 			if (massFracs.ndim == 1):
-				massFracs = np.reshape(massFracs, (-1,1))
+				massFracs = np.reshape(massFracs, (1,-1))
 			if (massFracs.shape[1] == self.numSpeciesFull):
-				massFracs = massFracs[:,:-1]
+				massFracs = massFracs[:-1,:]
 		else:
-			massFracs = solPrim[:,3:]
+			massFracs = solPrim[3:,:]
 
 		# slice array appropriately
 		if (self.numSpecies > 1):
-			massFracs = massFracs[:,:-1]
+			massFracs = massFracs[:-1, :]
 		else:
-			massFracs = massFracs[:,0]
+			massFracs = massFracs[0,:]
 
 		return massFracs
 
@@ -77,12 +77,12 @@ class gasModel:
 		Thresholds all mass fraction fields between zero and unity 
 		"""
 
-		numCells, numSpecies = massFracsNS.shape
-		massFracs = np.zeros((numCells, numSpecies+1), dtype=realType)
+		numSpecies, numCells = massFracsNS.shape
+		massFracs = np.zeros((numSpecies+1,numCells), dtype=realType)
 
-		massFracs[:, :-1] 	= np.maximum(0.0, np.minimum(1.0, massFracsNS))
-		massFracs[:, -1] 	= 1.0 - np.sum(massFracs[:, :-1], axis=1)
-		massFracs[:, -1] 	= np.maximum(0.0, np.minimum(1.0, massFracs[:, -1]))
+		massFracs[:-1,:] 	= np.maximum(0.0, np.minimum(1.0, massFracsNS))
+		massFracs[-1,:] 	= 1.0 - np.sum(massFracs[:-1,:], axis=0)
+		massFracs[-1,:] 	= np.maximum(0.0, np.minimum(1.0, massFracs[-1,:]))
 
 		return massFracs
 
@@ -91,9 +91,9 @@ class gasModel:
 		Compute mixture molecular weight
 		"""
 
-		if (massFracs.shape[1] == self.numSpecies):
+		if (massFracs.shape[0] == self.numSpecies):
 			massFracs = calcAllMassFracs(massFracs)
 
-		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights, axis=1)
+		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights, axis=0)
 
 		return mixMolWeight

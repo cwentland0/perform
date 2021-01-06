@@ -9,9 +9,9 @@ def calcCellGradients(solDomain, solver):
 	# TODO: this is not valid on a non-uniform grid
 	# TODO: move this calculation to solutionDomain
 	if (solver.spaceOrder == 2):
-		solPrimGrad[1:-1, :] = (0.5 / solver.mesh.dx[1:-1,:]) * (solDomain.solInt.solPrim[2:, :] - solDomain.solInt.solPrim[:-2, :]) 
-		solPrimGrad[0, :]    = (0.5 / solver.mesh.dx[0,:]) * (solDomain.solInt.solPrim[1,:] - solDomain.solIn.solPrim)
-		solPrimGrad[-1,:]    = (0.5 / solver.mesh.dx[-1,:]) * (solDomain.solOut.solPrim - solDomain.solInt.solPrim[-2,:])
+		solPrimGrad[:, 1:-1] = (0.5 / solver.mesh.dx[:,1:-1]) * (solDomain.solInt.solPrim[:,2:] - solDomain.solInt.solPrim[:,:-2]) 
+		solPrimGrad[:, 0]    = (0.5 / solver.mesh.dx[:,0]) * (solDomain.solInt.solPrim[:,1] - solDomain.solIn.solPrim)
+		solPrimGrad[:, -1]   = (0.5 / solver.mesh.dx[:,-1]) * (solDomain.solOut.solPrim - solDomain.solInt.solPrim[:,-2])
 	else:
 		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented...")
 
@@ -41,18 +41,18 @@ def findNeighborMinMax(solInterior, solInlet=None, solOutlet=None):
 	solMin = solInterior.copy()
 
 	# first compare against right neighbor
-	solMax[:-1,:]  	= np.maximum(solInterior[:-1,:], solInterior[1:,:])
-	solMin[:-1,:]  	= np.minimum(solInterior[:-1,:], solInterior[1:,:])
+	solMax[:,:-1]  	= np.maximum(solInterior[:,:-1], solInterior[:,1:])
+	solMin[:,:-1]  	= np.minimum(solInterior[:,:-1], solInterior[:,1:])
 	if (solOutlet is not None):
-		solMax[-1,:]	= np.maximum(solInterior[-1,:], solOutlet[0,:])
-		solMin[-1,:]	= np.minimum(solInterior[-1,:], solOutlet[0,:])
+		solMax[:,-1]	= np.maximum(solInterior[:,-1], solOutlet[:,0])
+		solMin[:,-1]	= np.minimum(solInterior[:,-1], solOutlet[:,0])
 
 	# then compare agains left neighbor
-	solMax[1:,:] 	= np.maximum(solMax[1:,:], solInterior[:-1])
-	solMin[1:,:] 	= np.minimum(solMin[1:,:], solInterior[:-1])
+	solMax[:,1:] 	= np.maximum(solMax[:,1:], solInterior[:,:-1])
+	solMin[:,1:] 	= np.minimum(solMin[:,1:], solInterior[:,:-1])
 	if (solInlet is not None):
-		solMax[0,:] 	= np.maximum(solMax[0,:], solInlet[0,:])
-		solMin[0,:] 	= np.minimum(solMin[0,:], solInlet[0,:])
+		solMax[:,0] 	= np.maximum(solMax[:,0], solInlet[:,0])
+		solMin[:,0] 	= np.minimum(solMin[:,0], solInlet[:,0])
 
 	return solMin, solMax
 

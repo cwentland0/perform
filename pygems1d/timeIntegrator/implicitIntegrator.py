@@ -6,6 +6,7 @@ from pygems1d.Jacobians import calcDResDSolPrim
 
 import numpy as np
 from scipy.sparse.linalg import spsolve
+import pdb
 
 class implicitIntegrator(timeIntegrator):
 	"""
@@ -45,17 +46,17 @@ class implicitIntegrator(timeIntegrator):
 		resJacob = calcDResDSolPrim(solDomain, solver)
 
 		# solve linear system 
-		dSol = spsolve(resJacob, solInt.res.flatten('C'))
+		dSol = spsolve(resJacob, solInt.res.flatten('F'))
 
 		# update state
-		solInt.solPrim += dSol.reshape((solver.mesh.numCells, solver.gasModel.numEqs), order='C')
+		solInt.solPrim += dSol.reshape((solver.gasModel.numEqs, solver.mesh.numCells), order='F')
 		solInt.updateState(solver.gasModel, fromCons = False)
 		solInt.solHistCons[0] = solInt.solCons.copy() 
 		solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
 		# borrow solInt.res to store linear solve residual	
-		res = resJacob @ dSol - solInt.res.flatten('C')
-		solInt.res = np.reshape(res, (solver.mesh.numCells, solver.gasModel.numEqs), order='C')
+		res = resJacob @ dSol - solInt.res.flatten('F')
+		solInt.res = np.reshape(res, (solver.gasModel.numEqs, solver.mesh.numCells), order='F')
 
 class bdf(implicitIntegrator):
 	"""

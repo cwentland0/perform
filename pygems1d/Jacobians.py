@@ -7,23 +7,24 @@ import numpy as np
 from scipy.sparse import bsr_matrix
 import pdb
 
+# TODO: A LOT of this needs to be converted to gasModel functions
 
 ### Gamma Inverse ###
 def calcDSolPrimDSolCons(solCons, solPrim, gas):
 	
 	gammaMatrixInv = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
 	
-	rho = solCons[:,0]
-	p = solPrim[:,0]
-	u = solPrim[:,1]
-	T = solPrim[:,2]
+	rho = solCons[0,:]
+	p = solPrim[0,:]
+	u = solPrim[1,:]
+	T = solPrim[2,:]
 	
 	if (gas.numSpecies > 1):
-		Y = solPrim[:,3:]
-		massFracs = solPrim[:,3:]
+		Y = solPrim[3:,:]
+		massFracs = solPrim[3:,:]
 	else:
-		Y = solPrim[:,3]
-		massFracs = solPrim[:,3]
+		Y = solPrim[3,:]
+		massFracs = solPrim[3,:]
 		
 	Ri = gas.calcMixGasConstant(massFracs)
 	Cpi = gas.calcMixCp(massFracs)
@@ -32,11 +33,10 @@ def calcDSolPrimDSolCons(solCons, solPrim, gas):
 	rhoT = -rho / T
 	hT = Cpi
 	d = rho * rhop * hT + rhoT
-	h0 = (solCons[:,2] + p) / rho
+	h0 = (solCons[2,:] + p) / rho
 	
 	if (gas.numSpecies == 0):
 		gamma11 = (rho * hT + rhoT * (h0 - (u * u))) / d
-		
 	else:
 		rhoY = -(rho * rho) * (const.RUniv * T / p) * (1 /gas.molWeights[0] - 1 /gas.molWeights[gas.numSpecies])
 		hY = gas.enthRefDiffs + (T - gas.tempRef) * (gas.Cp[0] - gas.Cp[gas.numSpecies])
@@ -66,7 +66,7 @@ def calcDSolPrimDSolCons(solCons, solPrim, gas):
 		gammaMatrixInv[3:,0,:] = -Y / rho
 		
 		for i in range(3,gas.numEqs):
-			gammaMatrixInv[i,i,:] = 1 / rho
+			gammaMatrixInv[i,i,:] = 1.0 / rho
 			
 	return gammaMatrixInv
 
@@ -74,20 +74,20 @@ def calcDSolPrimDSolCons(solCons, solPrim, gas):
 # compute gradient of conservative variable solution w/r/t the primitive variable solution
 def calcDSolConsDSolPrim(solPrim, solCons, gas):
 	
-	gammaMatrix = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
-	rho = solCons[:,0]
-	p = solPrim[:,0]
-	u = solPrim[:,1]
-	T = solPrim[:,2]
+	gammaMatrix = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[1]))
+	rho = solCons[0,:]
+	p   = solPrim[0,:]
+	u   = solPrim[1,:]
+	T   = solPrim[2,:]
 
-	if (gas.numSpecies > 1):
-		Y = solPrim[:,3:]
-		massFracs = solPrim[:,3:]
-	else:
-		Y = solPrim[:,3]
-		massFracs = solPrim[:,3]
+	# if (gas.numSpecies > 1):
+	Y = solPrim[3:,:]
+	massFracs = solPrim[3:,:]
+	# else:
+	# 	Y = solPrim[[3,:]
+	# 	massFracs = solPrim[3,:]
 		
-	Y = Y.reshape((Y.shape[0], gas.numSpecies))
+	# Y = Y.reshape((gas.numSpecies, Y.shape[1])) # TODO: what does this accomplish?
 	Ri = gas.calcMixGasConstant(massFracs)
 	Cpi = gas.calcMixCp(massFracs)
 	
@@ -96,7 +96,7 @@ def calcDSolConsDSolPrim(solPrim, solCons, gas):
 	hT = Cpi
 	d = rho * rhop * hT + rhoT 	# Ashish, this is unused?
 	hp = 0.0
-	h0 = (solCons[:,2] + p) / rho
+	h0 = (solCons[2,:] + p) / rho
 	
 	if (gas.numSpecies > 0):
 		#rhoY = -(rho**2)*(const.RUniv * T/p)*(1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies])
@@ -125,12 +125,12 @@ def calcDSolConsDSolPrim(solPrim, solCons, gas):
 		gammaMatrix[2,3:,:] = rhoY * h0 + rho * hY
 		
 		for i in range(3,gas.numEqs):
-			gammaMatrix[i,0,:] = Y[:,i-3] * rhop
-			gammaMatrix[i,2,:] = Y[:,i-3] * rhoT
+			gammaMatrix[i,0,:] = Y[i-3,:] * rhop
+			gammaMatrix[i,2,:] = Y[i-3,:] * rhoT
 			
 			for j in range(3,gas.numEqs):
 				rhoY = rhoY.reshape((rhoY.shape[0], gas.numSpecies))
-				gammaMatrix[i,j,:] = (i==j) * rho + Y[:,i-3] * rhoY[:,j-3]
+				gammaMatrix[i,j,:] = (i==j) * rho + Y[i-3,:] * rhoY[j-3,:]
 				
 	return gammaMatrix
 
@@ -139,22 +139,21 @@ def calcDSourceDSolPrim(solPrim, solCons, gas, mesh, dt):
 	
 	dSdQp = np.zeros((gas.numEqs, gas.numEqs, mesh.numCells))
 
-	rho = solCons[:,0]
-	p = solPrim[:,0]
-	T = solPrim[:,2]
+	rho = solCons[0,:]
+	p   = solPrim[0,:]
+	T   = solPrim[2,:]
 
-	
 	if (gas.numSpecies > 1):
-		Y = solPrim[:,3:]
-		massFracs = solPrim[:,3:]
+		Y = solPrim[3:,:]
+		massFracs = solPrim[3:,:]
 	else:
-		Y = (solPrim[:,3]).reshape((solPrim[:,3].shape[0],1))
-		massFracs = solPrim[:,3]
+		Y = solPrim[[3],:]
+		massFracs = solPrim[3,:]
 		
 	Ri = gas.calcMixGasConstant(massFracs)
 	
-	rhop = 1/(Ri*T)
-	rhoT = -rho/T
+	rhop = 1 / (Ri * T)
+	rhoT = -rho / T
 	
 	#rhoY = -(rho*rho) * (const.RUniv*T/p) * (1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies])
 	rhoY = -np.square(rho) * (const.RUniv * T / p * gas.mwInvDiffs)
@@ -167,7 +166,7 @@ def calcDSourceDSolPrim(solPrim, solCons, gas, mesh, dt):
 	for i in range(gas.numSpecies):
 		
 		if (gas.nuArr[i] != 0):
-			wf = wf * ((Y[:,i] * rho / gas.molWeights[i])**gas.nuArr[i])
+			wf = wf * ((Y[i,:] * rho / gas.molWeights[i])**gas.nuArr[i])
 			wf[Y[:,i] <= 0] = 0
 			
 	for i in range(gas.numSpecies):
@@ -186,9 +185,9 @@ def calcDSourceDSolPrim(solPrim, solCons, gas, mesh, dt):
 	
 	for i in range(gas.numSpecies):
 		
-		arr = (Y[:,i] > 0)
+		arr = (Y[i,:] > 0)
 		s = wf_Y[arr].shape[0]
-		wf_Y[arr] = wf_Y[arr] + wf[arr] * (gas.nuArr[i] / Y[arr,:]).reshape(s) 
+		wf_Y[arr] = wf_Y[arr] + wf[arr] * (gas.nuArr[i] / Y[:,arr]).reshape(s) 
 		dSdQp[3+i,0,:] = -gas.molWeightNu[i] * wf_p
 		dSdQp[3+i,2,:] = -gas.molWeightNu[i] * wf_T
 		dSdQp[3+i,3+i,:] = -gas.molWeightNu[i] * wf_Y
@@ -202,24 +201,25 @@ def calcAp(solPrim, rho, cp, h0, solver):
 	
 	gas = solver.gasModel
 
-	Ap = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
+	Ap = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[1]))
 	
-	p = solPrim[:,0]
-	u = solPrim[:,1]
-	T = solPrim[:,2]
+	p = solPrim[0,:]
+	u = solPrim[1,:]
+	T = solPrim[2,:]
 	
+	# TODO: what is the purpose of this?
 	if (gas.numSpecies > 1):
-		Y = solPrim[:,3:].reshape((solPrim.shape[0], gas.numSpecies))
-		massFracs = solPrim[:,3:]
+		Y = solPrim[3:,:]
+		massFracs = solPrim[3:,:]
 	else:
-		Y = solPrim[:,3]#.reshape((solPrim.shape[0],gas.numSpecies))
-		massFracs = solPrim[:,3]
+		Y = solPrim[3,:]
+		massFracs = solPrim[3,:]
 		
 	Ri = gas.calcMixGasConstant(massFracs)
 	Cpi = gas.calcMixCp(massFracs)
 	#rhoY = -(rho*rho)*(const.RUniv*T/p)*(1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies])
 	rhoY = -np.square(rho) * (const.RUniv * T / p * gas.mwInvDiffs)
-	hY = gas.enthRefDiffs + (T-gas.tempRef)*(gas.CpDiffs)
+	hY = gas.enthRefDiffs + (T - gas.tempRef) * (gas.CpDiffs)
 	
 	rhop = 1 / (Ri * T)
 	rhoT = -rho / T
@@ -255,7 +255,7 @@ def calcAp(solPrim, rho, cp, h0, solver):
 			Ap[i,2,:] = rhoT * u * Y
 			
 			for j in range(3,gas.numEqs):
-				Ap[i,j,:] = u * ((i==j) * rho + Y * rhoY[:])
+				Ap[i,j,:] = u * ((i==j) * rho + Y * rhoY[:]) # TODO: rhoY indexing might be wrong here
 			
     #Adding the viscous flux jacobian terms
 	if (solver.viscScheme > 0):
@@ -277,22 +277,21 @@ def calcAp(solPrim, rho, cp, h0, solver):
 				Ap[2,i,:] = Ap[2,i,:] - rhoCd * hY 
 				Ap[i,i,:] = Ap[i,i,:] - rhoCd
 
-
 	return Ap
 
 
 # compute the gradient of the inviscid and viscous fluxes with respect to the PRIMITIVE variables
 def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver):
 		
-	rHL = solConsL[:,[2]] + solPrimL[:,[0]]
-	HL = rHL / solConsL[:,[0]]
+	rHL = solConsL[[2],:] + solPrimL[[0],:]
+	HL = rHL / solConsL[[0],:]
 	
-	rHR = solConsR[:,[2]] + solPrimR[:,[0]]
-	HR = rHR/solConsR[:,[0]]
+	rHR = solConsR[[2],:] + solPrimR[[0],:]
+	HR = rHR/solConsR[[0],:]
 	
 	# Roe Average
-	rhoi = np.sqrt(solConsR[:,0] * solConsL[:,0])
-	di = np.sqrt(solConsR[:,[0]] / solConsL[:,[0]])
+	rhoi = np.sqrt(solConsR[0,:] * solConsL[0,:])
+	di = np.sqrt(solConsR[[0],:] / solConsL[[0],:])
 	dl = 1.0 / (1.0 + di)
 	
 	Qp_i = (solPrimR*di + solPrimL) * dl
@@ -300,27 +299,29 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
 	Hi = np.squeeze((di * HR + HL) * dl)
 	
 	if (solver.gasModel.numSpecies > 1):
-		massFracsRoe = Qp_i[:,3:]
+		massFracsRoe = Qp_i[3:,:]
 	else:
-		massFracsRoe = Qp_i[:,3]
+		massFracsRoe = Qp_i[3,:]
 		
 	Ri = solver.gasModel.calcMixGasConstant(massFracsRoe)
 	Cpi = solver.gasModel.calcMixCp(massFracsRoe)
 	gammai = solver.gasModel.calcMixGamma(Ri, Cpi)
 	
-	ci = np.sqrt(gammai * Ri * Qp_i[:,2])
+	ci = np.sqrt(gammai * Ri * Qp_i[2,:])
 	
-	M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solver.gasModel), axes=(1,2,0))
+	# M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solver.gasModel), axes=(1,2,0))
+	M_ROE = calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solver.gasModel)
 
 	cp_l = np.concatenate((solDomain.solIn.CpMix, solDomain.solInt.CpMix))
 	cp_r = np.concatenate((solDomain.solIn.CpMix, solDomain.solOut.CpMix))
 
-	Ap_l = calcAp(solPrimL, solConsL[:,0], cp_l, HL, solver)
-	Ap_r = calcAp(solPrimR, solConsR[:,0], cp_r, HR, solver)
+	Ap_l = calcAp(solPrimL, solConsL[0,:], cp_l, HL, solver)
+	Ap_r = calcAp(solPrimR, solConsR[0,:], cp_r, HR, solver)
 
-	Ap_l[:,:,:]  *= (0.5 / solver.mesh.dx[0,:])
-	Ap_r[:,:,:]  *= (0.5 / solver.mesh.dx[0,:])
-	M_ROE[:,:,:] *= (0.5 / solver.mesh.dx[0,:])
+	# TODO: not valid for non-uniform mesh
+	Ap_l[:,:,:]  *= (0.5 / solver.mesh.dx[:,0])
+	Ap_r[:,:,:]  *= (0.5 / solver.mesh.dx[:,0])
+	M_ROE[:,:,:] *= (0.5 / solver.mesh.dx[:,0])
 
     #Jacobian wrt current cell
 	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,:-1])
@@ -351,18 +352,18 @@ def calcDResDSolPrim(solDomain, solver):
 		
 	# contribution from inviscid and viscous flux Jacobians
 	# TODO: the face reconstruction should be held onto from the RHS calcs
-	solPrimL = np.concatenate((solIn.solPrim, solInt.solPrim), axis=0)
-	solConsL = np.concatenate((solIn.solCons, solInt.solCons), axis=0)
-	solPrimR = np.concatenate((solInt.solPrim, solOut.solPrim), axis=0)
-	solConsR = np.concatenate((solInt.solCons, solOut.solCons), axis=0)       
+	solPrimL = np.concatenate((solIn.solPrim, solInt.solPrim), axis=1)
+	solConsL = np.concatenate((solIn.solCons, solInt.solCons), axis=1)
+	solPrimR = np.concatenate((solInt.solPrim, solOut.solPrim), axis=1)
+	solConsR = np.concatenate((solInt.solCons, solOut.solCons), axis=1)       
 
 	# add higher-order contribution
 	if (solver.spaceOrder > 1):
 		solPrimGrad = calcCellGradients(solDomain, solver)
-		solPrimL[1:,:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
-		solPrimR[:-1,:] -= (solver.mesh.dx / 2.0) * solPrimGrad
-		solConsL[1:,:], _, _ ,_ = calcStateFromPrim(solPrimL[1:,:], solver.gasModel)
-		solConsR[:-1,:], _, _ ,_ = calcStateFromPrim(solPrimR[:-1,:], solver.gasModel)
+		solPrimL[:,1:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
+		solPrimR[:,:-1] -= (solver.mesh.dx / 2.0) * solPrimGrad
+		solConsL[:,1:], _, _ ,_ = calcStateFromPrim(solPrimL[:,1:], solver.gasModel)
+		solConsR[:,:-1], _, _ ,_ = calcStateFromPrim(solPrimR[:,:-1], solver.gasModel)
 		
 	# *_l is contribution to lower block diagonal, *_r is to upper block diagonal
 	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
@@ -394,7 +395,7 @@ def calcAdaptiveDTau(solInt, gammaMatrix, solver):
 
 	# limit by von Neumann number
 	# TODO: THIS NU IS NOT CORRECT FOR A GENERAL MIXTURE
-	nu = solver.gasModel.muRef[0] / solInt.solCons[:,0]
+	nu = solver.gasModel.muRef[0] / solInt.solCons[0,:]
 	dtau = np.minimum(dtau, solver.timeIntegrator.VNN / nu)
 	dtaum = np.minimum(dtaum, 3.0 / nu)
 

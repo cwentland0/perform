@@ -49,27 +49,27 @@ class fieldPlot(visualization):
 
 		try:
 			if (varStr == "pressure"):
-				yData = solPrim[:,0]
+				yData = solPrim[0,:]
 			elif (varStr == "velocity"):
-				yData = solPrim[:,1]
+				yData = solPrim[1,:]
 			elif (varStr == "temperature"):
-				yData = solPrim[:,2]
+				yData = solPrim[2,:]
 			elif (varStr == "source"):
-				yData = source[:,0]
+				yData = source[0,:]
 			elif (varStr == "density"):
-				yData = solCons[:,0]
+				yData = solCons[0,:]
 			elif (varStr == "momentum"):
-				yData = solCons[:,1]
+				yData = solCons[1,:]
 			elif (varStr == "energy"):
-				yData = solCons[:,2]
+				yData = solCons[2,:]
 
 			# TODO: fails for last species
 			elif (varStr[:7] == "species"):
 				specIdx = int(varStr[7:])
-				yData = solPrim[:,3+specIdx-1]
+				yData = solPrim[3+specIdx-1,:]
 			elif (varStr[:15] == "density-species"):
 				specIdx = int(varStr[15:])
-				yData = solCons[:,3+specIdx-1]
+				yData = solCons[3+specIdx-1,:]
 		except:
 			raise ValueError("Invalid field visualization variable:"+str(varStr))
 

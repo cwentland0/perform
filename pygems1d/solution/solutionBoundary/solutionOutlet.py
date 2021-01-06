@@ -39,18 +39,18 @@ class solutionOutlet(solutionBoundary):
 		gammaM1 	= gamma - 1.0
 
 		# calculate interior state
-		pressP1 	= solPrim[-1, 0]
-		pressP2 	= solPrim[-2, 0]
-		rhoP1 		= solCons[-1, 0]
-		rhoP2 		= solCons[-2, 0]
-		velP1 		= solPrim[-1, 1]
-		velP2 		= solPrim[-2, 1]
+		pressP1 	= solPrim[0, -1]
+		pressP2 	= solPrim[0, -2]
+		rhoP1 		= solCons[0, -1]
+		rhoP2 		= solCons[0, -2]
+		velP1 		= solPrim[1, -1]
+		velP2 		= solPrim[1, -2]
 
 		# outgoing characteristics information
 		SP1 		= pressP1 / pow(rhoP1, gamma) 				# entropy
 		SP2 		= pressP2 / pow(rhoP2, gamma)
-		cP1			= sqrt(gamma * RMix * solPrim[-1,2]) 	# sound speed
-		cP2			= sqrt(gamma * RMix * solPrim[-2,2])
+		cP1			= sqrt(gamma * RMix * solPrim[2,-1]) 	# sound speed
+		cP2			= sqrt(gamma * RMix * solPrim[2,-2])
 		JP1			= velP1 + 2.0 * cP1 / gammaM1				# u+c Riemann invariant
 		JP2			= velP2 + 2.0 * cP2 / gammaM1
 		
@@ -68,8 +68,8 @@ class solutionOutlet(solutionBoundary):
 		self.solPrim[0,0] 	= pressBound
 		rhoBound 			= pow( (pressBound / S), (1.0/gamma) )
 		cBound 				= sqrt(gamma * pressBound / rhoBound)
-		self.solPrim[0,1] 	= J - 2.0 * cBound / gammaM1
-		self.solPrim[0,2] 	= pressBound / (RMix * rhoBound)		
+		self.solPrim[1,0] 	= J - 2.0 * cBound / gammaM1
+		self.solPrim[2,0] 	= pressBound / (RMix * rhoBound)		
 
 	def calcMeanFlowBC(self, solver, solPrim=None, solCons=None):
 		"""
@@ -88,10 +88,10 @@ class solutionOutlet(solutionBoundary):
 			pressBack *= (1.0 + self.calcPert(solver.solTime))
 
 		# interior quantities
-		pressOut 	= solPrim[-2:,0]
-		velOut 		= solPrim[-2:,1]
-		tempOut 	= solPrim[-2:,2]
-		massFracOut = solPrim[-2:,3:]
+		pressOut 	= solPrim[0,-2:]
+		velOut 		= solPrim[1,-2:]
+		tempOut 	= solPrim[2,-2:]
+		massFracOut = solPrim[3:,-2:]
 
 		# characteristic variables
 		w1Out 	= tempOut - pressOut / rhoCpMean
@@ -102,17 +102,17 @@ class solutionOutlet(solutionBoundary):
 		if (solver.spaceOrder == 1):
 			w1Bound = w1Out[0]
 			w2Bound = w2Out[0]
-			w4Bound = w4Out[0,:]
+			w4Bound = w4Out[:,0]
 		elif (solver.spaceOrder == 2):
 			w1Bound = 2.0*w1Out[0] - w1Out[1]
 			w2Bound = 2.0*w2Out[0] - w2Out[1]
-			w4Bound = 2.0*w4Out[0,:] - w4Out[1,:]
+			w4Bound = 2.0*w4Out[:,0] - w4Out[:,0]
 		else:
 			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
 
 		# compute exterior state
 		pressBound 			= (w2Bound * rhoCMean + pressBack) / 2.0
 		self.solPrim[0,0] 	= pressBound
-		self.solPrim[0,1] 	= (pressBound - pressBack) / rhoCMean 
-		self.solPrim[0,2] 	= w1Bound + pressBound / rhoCpMean 
-		self.solPrim[0,3:] 	= w4Bound 
+		self.solPrim[1,0] 	= (pressBound - pressBack) / rhoCMean 
+		self.solPrim[2,0] 	= w1Bound + pressBound / rhoCpMean 
+		self.solPrim[3:,0] 	= w4Bound 

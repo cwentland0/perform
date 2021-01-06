@@ -86,11 +86,6 @@ def main():
 	solDomain.writeFinalOutputs(solver)
 	# visGroup.savePlots(solver)
 
-	# # draw final images, save to disk
-	# if ((solver.visType == "probe") and solver.visSave): 
-	# 	figFile = os.path.join(solver.imgOutDir,"probe"+visName+".png")
-	# 	fig.savefig(figFile)
-
 	##### END POST-PROCESSING #####
 
 if __name__ == "__main__":

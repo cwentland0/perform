@@ -52,7 +52,6 @@ class visualizationGroup:
 			elif (visType == "probe"):
 				self.visList[visIdx-1] = probePlot(visIdx, solver)
 			elif (visType == "residual"):
-				assert (solver.timeIntegrator.timeType == "implicit"), "Residual visualization is only available for implicit time integrators"
 				self.visList[visIdx-1] = residualPlot()
 			else:
 				raise ValueError("Invalid visualization selection: "+visType)

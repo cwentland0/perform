@@ -37,10 +37,10 @@ class solutionInlet(solutionBoundary):
 		gammaM1 = gamma - 1.0
 
 		# interior state
-		velP1 	= solPrim[0, 1]
+		velP1 	= solPrim[1, 0]
 		velP2 	= solPrim[1, 1]
-		cP1 	= sqrt(gamma * RMix * solPrim[0, 2])
-		cP2 	= sqrt(gamma * RMix * solPrim[1, 2])
+		cP1 	= sqrt(gamma * RMix * solPrim[2, 0])
+		cP2 	= sqrt(gamma * RMix * solPrim[2, 1])
 
 		# interpolate outgoing Riemann invariant
 		# negative sign on velocity is to account for flux/boundary normal directions
@@ -85,10 +85,10 @@ class solutionInlet(solutionBoundary):
 
 		# compute exterior state
 		tempBound 			= self.temp / (1.0 +  gammaM1 / 2.0 * machBound**2) 
-		self.solPrim[0,2] 	= tempBound
+		self.solPrim[2,0] 	= tempBound
 		self.solPrim[0,0] 	= self.press * pow(tempBound / self.temp, gamma / gammaM1) 
 		cBound 				= sqrt(gamma * RMix * tempBound)
-		self.solPrim[0,1] 	= machBound * cBound
+		self.solPrim[1,0] 	= machBound * cBound
 
 	def calcFullStateBC(self, solver, solPrim=None, solCons=None):
 		"""
@@ -111,8 +111,8 @@ class solutionInlet(solutionBoundary):
 
 		# compute ghost cell state
 		self.solPrim[0,0] = pressBound
-		self.solPrim[0,1] = velBound
-		self.solPrim[0,2] = tempBound
+		self.solPrim[1,0] = velBound
+		self.solPrim[2,0] = tempBound
 
 	def calcMeanFlowBC(self, solver, solPrim=None, solCons=None):
 		"""
@@ -133,8 +133,8 @@ class solutionInlet(solutionBoundary):
 			pressUp *= (1.0 + self.calcPert(solver.solTime))
 
 		# interior quantities
-		pressIn 	= solPrim[:2,0]
-		velIn 		= solPrim[:2,1]
+		pressIn 	= solPrim[0,:2]
+		velIn 		= solPrim[1,:2]
 
 		# characteristic variables
 		w3In 	= velIn - pressIn / rhoCMean  
@@ -150,5 +150,5 @@ class solutionInlet(solutionBoundary):
 		# compute exterior state
 		pressBound 			= (pressUp - w3Bound * rhoCMean) / 2.0
 		self.solPrim[0,0] 	= pressBound
-		self.solPrim[0,1] 	= (pressUp - pressBound) / rhoCMean 
-		self.solPrim[0,2] 	= tempUp + (pressBound - pressUp) / rhoCpMean
+		self.solPrim[1,0] 	= (pressUp - pressBound) / rhoCMean 
+		self.solPrim[2,0] 	= tempUp + (pressBound - pressUp) / rhoCpMean

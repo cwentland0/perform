@@ -15,7 +15,7 @@ class caloricallyPerfectGas(gasModel):
 
 	def calcMixGasConstant(self, massFracs):
 		if (self.numSpecies > 1):
-			RMix = RUniv * ( (1.0 / self.molWeights[-1]) + np.sum(massFracs * self.mwInvDiffs, axis = 1) )
+			RMix = RUniv * ( (1.0 / self.molWeights[-1]) + np.sum(massFracs * self.mwInvDiffs, axis=0) )
 		else:
 			RMix = RUniv * ( (1.0 / self.molWeights[-1]) + massFracs * self.mwInvDiffs[0] )
 		return RMix
@@ -28,7 +28,7 @@ class caloricallyPerfectGas(gasModel):
 	# compute mixture reference enthalpy
 	def calcMixEnthRef(self, massFracs):
 		if (self.numSpecies > 1):
-			enthRefMix = self.enthRef[-1] + np.sum(massFracs * self.enthRefDiffs, axis = 1)
+			enthRefMix = self.enthRef[-1] + np.sum(massFracs * self.enthRefDiffs, axis=0)
 		else:
 			enthRefMix = self.enthRef[-1] + massFracs * self.enthRefDiffs[0]
 		return enthRefMix
@@ -36,7 +36,7 @@ class caloricallyPerfectGas(gasModel):
 	# compute mixture specific heat at constant pressure
 	def calcMixCp(self, massFracs):
 		if (self.numSpecies > 1):
-			CpMix = self.Cp[-1] + np.sum(massFracs * self.CpDiffs, axis = 1)
+			CpMix = self.Cp[-1] + np.sum(massFracs * self.CpDiffs, axis=0)
 		else:
 			CpMix = self.Cp[-1] + massFracs * self.CpDiffs[0]
 		return CpMix
@@ -51,14 +51,14 @@ class caloricallyPerfectGas(gasModel):
 			RMix = self.calcMixGasConstant(massFracs)
 
 		# calculate directly from ideal gas
-		density = solPrim[:,0] / (RMix * solPrim[:,2])
+		density = solPrim[0,:] / (RMix * solPrim[2,:])
 
 		return density
 
 	# compute individual enthalpies for each species
 	def calcSpeciesEnthalpies(self, temperature):
 
-		speciesEnth = self.Cp * (np.repeat(np.reshape(temperature, (-1,1)), 2, axis=1) - self.tempRef) + self.enthRef
+		speciesEnth = self.Cp[:,None] * (np.repeat(np.reshape(temperature, (1,-1)), self.numSpeciesFull, axis=0) - self.tempRef) + self.enthRef[:,None]
 
 		return speciesEnth
 
@@ -124,9 +124,9 @@ class caloricallyPerfectGas(gasModel):
 				assert (massFracs is not None), "Must provide mass fractions to calculate mixture mol weight..."
 				mixMolWeight = self.calcMixMolWeight(massFracs)
 
-			DDensDSpec = np.zeros((density.shape[0], self.numSpecies), dtype=realType)
+			DDensDSpec = np.zeros((self.numSpecies, density.shape[0]), dtype=realType)
 			for specNum in range(self.numSpecies):
-				DDensDSpec[:,specNum] = density * mixMolWeight * (1.0 / self.molWeights[-1] - 1.0 / self.molWeights[specNum])
+				DDensDSpec[specNum, :] = density * mixMolWeight * (1.0 / self.molWeights[-1] - 1.0 / self.molWeights[specNum])
 			derivs = derivs + (DDensDSpec,)
 
 		return derivs
@@ -136,15 +136,14 @@ class caloricallyPerfectGas(gasModel):
 
 		# get the species enthalpies if not provided
 		if (speciesEnth is None):
-			speciesEnth = self.calcSpeciesEnthalpies(solPrim[:,2])
+			speciesEnth = self.calcSpeciesEnthalpies(solPrim[2,:])
 
 		# compute all mass fraction fields
-		massFracs = self.calcAllMassFracs(solPrim[:,3:])
+		massFracs = self.calcAllMassFracs(solPrim[3:,:])
 
-		# pdb.set_trace()
 		assert (massFracs.shape == speciesEnth.shape)
 
-		stagEnth = np.sum(speciesEnth * massFracs, axis=1) + 0.5 * np.square(solPrim[:,1])
+		stagEnth = np.sum(speciesEnth * massFracs, axis=0) + 0.5 * np.square(solPrim[1,:])
 
 		return stagEnth
 
@@ -178,9 +177,9 @@ class caloricallyPerfectGas(gasModel):
 				assert (temperature is not None), "Must provide temperature if not providing species enthalpies..."
 				speciesEnth = self.calcSpeciesEnthalpies(temperature)
 			
-			DStagEnthDSpec = np.zeros((speciesEnth.shape[0], self.numSpecies), dtype=realType)
+			DStagEnthDSpec = np.zeros((self.numSpecies, speciesEnth.shape[0]), dtype=realType)
 			for specNum in range(self.numSpecies):
-				DStagEnthDSpec[:,specNum] = speciesEnth[:,-1] - speciesEnth[:,specNum]
+				DStagEnthDSpec[specNum,:] = speciesEnth[-1,:] - speciesEnth[specNum,:]
 			derivs = derivs + (DStagEnthDSpec,)
 
 		return derivs

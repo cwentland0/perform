@@ -17,8 +17,8 @@ class solutionPhys:
 		timeInt 	= solver.timeIntegrator
 
 		# solution and mixture properties
-		self.solPrim	= np.zeros((numCells, gas.numEqs), dtype=realType)		# solution in primitive variables
-		self.solCons	= np.zeros((numCells, gas.numEqs), dtype=realType)		# solution in conservative variables
+		self.solPrim	= np.zeros((gas.numEqs, numCells), dtype=realType)		# solution in primitive variables
+		self.solCons	= np.zeros((gas.numEqs, numCells), dtype=realType)		# solution in conservative variables
 		self.mwMix 		= np.zeros(numCells, dtype=realType)					# mixture molecular weight
 		self.RMix		= np.zeros(numCells, dtype=realType)					# mixture specific gas constant
 		self.gammaMix 	= np.zeros(numCells, dtype=realType)					# mixture ratio of specific heats
@@ -26,8 +26,8 @@ class solutionPhys:
 		self.CpMix 		= np.zeros(numCells, dtype=realType)					# mixture specific heat at constant pressure
 
 		# load initial condition and check size
-		assert(solPrimIn.shape == (numCells, gas.numEqs))
-		assert(solConsIn.shape == (numCells, gas.numEqs))
+		assert(solPrimIn.shape == (gas.numEqs, numCells))
+		assert(solConsIn.shape == (gas.numEqs, numCells))
 		self.solPrim = solPrimIn.copy()
 		self.solCons = solConsIn.copy()
 

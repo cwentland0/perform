@@ -18,31 +18,31 @@ class solutionInterior(solutionPhys):
 		timeInt = solver.timeIntegrator
 		numCells = solver.mesh.numCells 
 
-		self.source = np.zeros((numCells, gas.numSpecies), dtype=realType)	# reaction source term
-		self.RHS 	= np.zeros((numCells, gas.numEqs), dtype=realType)		# RHS function
+		self.source = np.zeros((gas.numSpecies,numCells), dtype=realType)	# reaction source term
+		self.RHS 	= np.zeros((gas.numEqs,numCells), dtype=realType)		# RHS function
 
 		# add bulk velocity if required
 		if (solver.velAdd != 0.0):
-			self.solPrim[:,1] += solver.velAdd
+			self.solPrim[1,:] += solver.velAdd
 		
 		self.updateState(gas, fromCons=False)
 
 		# initializing time history
-		self.solHistCons = [self.solCons.copy()]*(timeInt.timeOrder+1)
-		self.solHistPrim = [self.solPrim.copy()]*(timeInt.timeOrder+1)
+		self.solHistCons = [self.solCons.copy()] * (timeInt.timeOrder+1)
+		self.solHistPrim = [self.solPrim.copy()] * (timeInt.timeOrder+1)
 
 		# snapshot storage matrices, store initial condition
 		if solver.primOut: 
-			self.primSnap = np.zeros((numCells, gas.numEqs, solver.numSnaps+1), dtype=realType)
+			self.primSnap = np.zeros((gas.numEqs, numCells, solver.numSnaps+1), dtype=realType)
 			self.primSnap[:,:,0] = solPrimIn.copy()
 		if solver.consOut: 
-			self.consSnap = np.zeros((numCells, gas.numEqs, solver.numSnaps+1), dtype=realType)
+			self.consSnap = np.zeros((gas.numEqs, numCells, solver.numSnaps+1), dtype=realType)
 			self.consSnap[:,:,0] = solConsIn.copy()
 
 		# these don't include the source/RHS associated with the final solution
 		# TODO: calculate at final solution? Doesn't really seem worth the bother to me
-		if solver.sourceOut: self.sourceSnap = np.zeros((numCells, gas.numSpecies, solver.numSnaps), dtype=realType)
-		if solver.RHSOut:  self.RHSSnap  = np.zeros((numCells, gas.numEqs, solver.numSnaps), dtype=realType)
+		if solver.sourceOut: self.sourceSnap = np.zeros((gas.numSpecies, numCells, solver.numSnaps), dtype=realType)
+		if solver.RHSOut:  self.RHSSnap  = np.zeros((gas.numEqs, numCells, solver.numSnaps), dtype=realType)
 
 		if ((timeInt.timeType == "implicit") or (timeInt.runSteady)):
 			# norm normalization constants
@@ -59,7 +59,7 @@ class solutionInterior(solutionPhys):
 			# residual norm storage
 			if (timeInt.timeType == "implicit"):
 
-				self.res 			= np.zeros((numCells, gas.numEqs), dtype=realType)
+				self.res 			= np.zeros((gas.numEqs,numCells), dtype=realType)
 				self.resNormL2 		= 0.0
 				self.resNormL1 		= 0.0
 				self.resNormHistory = np.zeros((solver.timeIntegrator.numSteps,2), dtype=realType) 
@@ -215,15 +215,15 @@ class solutionInterior(solutionPhys):
 		arrAbs = np.abs(arrIn)
 
 		# L2 norm
-		arrNormL2 = np.sum(np.square(arrAbs), axis=0)
-		arrNormL2[:] /= arrIn.shape[0] 					# TODO: change to shape[1] when switching dimension order
+		arrNormL2 = np.sum(np.square(arrAbs), axis=1)
+		arrNormL2[:] /= arrIn.shape[1] 					# TODO: change to shape[1] when switching dimension order
 		arrNormL2 /= np.square(normFacs)
 		arrNormL2 = np.sqrt(arrNormL2)
 		arrNormL2 = np.mean(arrNormL2)
 		
 		# L1 norm
-		arrNormL1 = np.sum(arrAbs, axis=0)
-		arrNormL1[:] /= arrIn.shape[0]					# TODO: same here
+		arrNormL1 = np.sum(arrAbs, axis=1)
+		arrNormL1[:] /= arrIn.shape[1]					# TODO: same here
 		arrNormL1 /= normFacs
 		arrNormL1 = np.mean(arrNormL1)
 		

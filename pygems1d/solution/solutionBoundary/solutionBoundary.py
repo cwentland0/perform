@@ -26,9 +26,9 @@ class solutionBoundary(solutionPhys):
 		self.enthRefMix = gas.calcMixEnthRef(self.massFrac[:-1])
 
 		# this will be updated at each iteration, just initializing now
-		solDummy = np.ones((1, gas.numEqs), dtype=realType)
+		solDummy = np.ones((gas.numEqs,1), dtype=realType)
 		super().__init__(solDummy, solDummy, 1, solver)
-		self.solPrim[0,3:] = self.massFrac[:-1]
+		self.solPrim[3:,0] = self.massFrac[:-1]
 
 	
 	def calcPert(self, t):
