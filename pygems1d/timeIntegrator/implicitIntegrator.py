@@ -46,7 +46,7 @@ class implicitIntegrator(timeIntegrator):
 		resJacob = calcDResDSolPrim(solDomain, solver)
 
 		# solve linear system 
-		dSol = spsolve(resJacob, solInt.res.flatten('F'))
+		dSol = spsolve(resJacob, solInt.res.ravel('F'))
 
 		# update state
 		solInt.solPrim += dSol.reshape((solver.gasModel.numEqs, solver.mesh.numCells), order='F')
@@ -55,7 +55,7 @@ class implicitIntegrator(timeIntegrator):
 		solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
 		# borrow solInt.res to store linear solve residual	
-		res = resJacob @ dSol - solInt.res.flatten('F')
+		res = resJacob @ dSol - solInt.res.ravel('F')
 		solInt.res = np.reshape(res, (solver.gasModel.numEqs, solver.mesh.numCells), order='F')
 
 class bdf(implicitIntegrator):

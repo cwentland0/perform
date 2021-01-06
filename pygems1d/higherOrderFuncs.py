@@ -1,6 +1,7 @@
 from pygems1d.constants import realType
 
 import numpy as np
+import pdb
 
 def calcCellGradients(solDomain, solver):
 	
@@ -10,8 +11,8 @@ def calcCellGradients(solDomain, solver):
 	# TODO: move this calculation to solutionDomain
 	if (solver.spaceOrder == 2):
 		solPrimGrad[:, 1:-1] = (0.5 / solver.mesh.dx[:,1:-1]) * (solDomain.solInt.solPrim[:,2:] - solDomain.solInt.solPrim[:,:-2]) 
-		solPrimGrad[:, 0]    = (0.5 / solver.mesh.dx[:,0]) * (solDomain.solInt.solPrim[:,1] - solDomain.solIn.solPrim)
-		solPrimGrad[:, -1]   = (0.5 / solver.mesh.dx[:,-1]) * (solDomain.solOut.solPrim - solDomain.solInt.solPrim[:,-2])
+		solPrimGrad[:, 0]    = (0.5 / solver.mesh.dx[:,0]) * (solDomain.solInt.solPrim[:,1] - solDomain.solIn.solPrim[:,0])
+		solPrimGrad[:, -1]   = (0.5 / solver.mesh.dx[:,-1]) * (solDomain.solOut.solPrim[:,0] - solDomain.solInt.solPrim[:,-2])
 	else:
 		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented...")
 
