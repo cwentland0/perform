@@ -15,3 +15,5 @@
 *.npy
 *.dat
 *.npz
+*.jpg
+*.h5
