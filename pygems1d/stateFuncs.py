@@ -1,4 +1,4 @@
-from constants import realType, hugeNum, RUniv
+from pygems1d.constants import realType, hugeNum, RUniv
 import numpy as np
 import pdb
 

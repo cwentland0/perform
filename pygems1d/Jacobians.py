@@ -167,12 +167,12 @@ def calcDSourceDSolPrim(solPrim, solCons, gas, mesh, dt):
 		
 		if (gas.nuArr[i] != 0):
 			wf = wf * ((Y[i,:] * rho / gas.molWeights[i])**gas.nuArr[i])
-			wf[Y[:,i] <= 0] = 0
+			wf[Y[i,:] <= 0] = 0
 			
 	for i in range(gas.numSpecies):
 		
 		if (gas.nuArr[i] != 0):
-			wf = np.minimum(wf, Y[:,i] / dt * rho)
+			wf = np.minimum(wf, Y[i,:] / dt * rho)
 	
 	for i in range(gas.numSpecies):
 		
@@ -266,14 +266,13 @@ def calcAp(solPrim, rho, cp, h0, solver):
 		Ck = gas.muRef[:-1] * cp / gas.Pr[:-1]
 		Ap[2,2,:] = Ap[2,2,:] - Ck
 
-		T = solPrim[:,2]
+		T = solPrim[2,:]
 		if (gas.numSpecies > 0):
 			Cd = gas.muRef[:-1] / gas.Sc[0] / rho      
 			rhoCd = rho * Cd    
 			hY = gas.enthRefDiffs + (T - gas.tempRef) * gas.CpDiffs
 			
 			for i in range(3,gas.numEqs):
-				
 				Ap[2,i,:] = Ap[2,i,:] - rhoCd * hY 
 				Ap[i,i,:] = Ap[i,i,:] - rhoCd
 
@@ -313,7 +312,7 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
 	M_ROE = calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solver.gasModel)
 
 	cp_l = np.concatenate((solDomain.solIn.CpMix, solDomain.solInt.CpMix))
-	cp_r = np.concatenate((solDomain.solIn.CpMix, solDomain.solOut.CpMix))
+	cp_r = np.concatenate((solDomain.solInt.CpMix, solDomain.solOut.CpMix))
 
 	Ap_l = calcAp(solPrimL, solConsL[0,:], cp_l, HL, solver)
 	Ap_r = calcAp(solPrimR, solConsR[0,:], cp_r, HR, solver)
@@ -379,7 +378,7 @@ def calcDResDSolPrim(solDomain, solver):
 
 	# compute main block diagonal
 	dRdQp = gammaMatrix * (dtauInv + dtInv) - dSdQp + dFdQp
-							
+
 	# assemble sparse Jacobian from main, upper, and lower block diagonals
 	dRdQp = resJacobAssemble(dRdQp, dFdQp_l, dFdQp_r)
 

@@ -211,8 +211,8 @@ def calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver):
 	# TODO: move this calc to solutionDomain
 	solPrimGrad = np.zeros((gas.numEqs,mesh.numCells+1), dtype=realType)
 	solPrimGrad[:,1:-1] = (solDomain.solInt.solPrim[:,1:] - solDomain.solInt.solPrim[:,:-1]) / mesh.dCellCent[:,1:-1]
-	solPrimGrad[:,0] 	= (solDomain.solInt.solPrim[:,0] - solDomain.solIn.solPrim) / mesh.dCellCent[:,0]
-	solPrimGrad[:,-1] 	= (solDomain.solOut.solPrim - solDomain.solInt.solPrim[:,-1]) / mesh.dCellCent[:,-1]
+	solPrimGrad[:,0] 	= (solDomain.solInt.solPrim[:,0] - solDomain.solIn.solPrim[:,0]) / mesh.dCellCent[:,0]
+	solPrimGrad[:,-1] 	= (solDomain.solOut.solPrim[:,0] - solDomain.solInt.solPrim[:,-1]) / mesh.dCellCent[:,-1]
 
 	Ck = gas.muRef[:-1] * CpAve / gas.Pr[:-1] 									# thermal conductivity
 	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[1,:] 							# stress "tensor"
@@ -223,7 +223,7 @@ def calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver):
 
 	Fv = np.zeros((gas.numEqs, mesh.numCells+1), dtype=realType)
 	Fv[1,:] = Fv[1,:] + tau 
-	Fv[2:,] = Fv[2,:] + solPrimAve[1,:] * tau + Ck * solPrimGrad[2,:]
+	Fv[2,:] = Fv[2,:] + solPrimAve[1,:] * tau + Ck * solPrimGrad[2,:]
 	if (gas.numSpecies > 1):
 		Fv[2,:] = Fv[2,:] + np.sum(diff_rhoY * hY, axis = 0)
 		Fv[3:,:] = Fv[3:,:] + diff_rhoY 
@@ -249,7 +249,7 @@ def calcSource(solInt, solver):
 	for specIdx in range(gas.numSpecies):
 		if (gas.nuArr[specIdx] != 0.0):
 			wf = wf * np.power((rhoY[specIdx,:] / gas.molWeights[specIdx]), gas.nuArr[specIdx])
-			wf[massFracs[:, specIdx] < 0.0] = 0.0
+			wf[massFracs[specIdx, :] < 0.0] = 0.0
 
 	for specIdx in range(gas.numSpecies):
 		if (gas.nuArr[specIdx] != 0.0):

@@ -178,7 +178,7 @@ def getInitialConditions(solver):
 		else:
 			# TODO: change this to .npz format with physical time included
 			solPrim0 = np.load(solver.initFile)
-			solCons0, _, _, _ = calcStateFromPrim(solPrim0, gas)
+			solCons0, _, _, _ = calcStateFromPrim(solPrim0, solver.gasModel)
 
 	return solPrim0, solCons0
 
