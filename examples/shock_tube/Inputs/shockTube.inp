@@ -1,0 +1,13 @@
+xSplit = 0.00501
+
+pressLeft 		= 1.0e6
+velLeft 		 0.0
+velLeft 		= 1.0e-25
+tempLeft 		= 300.0
+massFracLeft 	= [1.0, 0.0]
+
+pressRight       = 1.0e5
+velRight          0.0
+velRight         = 1.0e-25
+tempRight        = 300.0
+massFracRight    = [1.0, 0.0]

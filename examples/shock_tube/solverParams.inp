@@ -1,0 +1,83 @@
+# input files
+gasFile = "~/path/to/pygems/examples/shock_tube/Inputs/global1.chem"
+meshFile = "~/path/to/pygems/examples/shock_tube/Inputs/mesh_0to0.01_256c.inp"
+icParamsFile = "~/path/to/pygems/examples/shock_tube/Inputs/shockTube.inp"
+
+# time discretization
+dt = 1.0e-8
+numSteps = 700
+timeScheme = "rkExp"
+timeOrder = 3
+resTol = 1e-12
+runSteady = False
+steadyTol = 1e-12
+
+# robustness control
+dtau 		= 1 
+adaptDTau 	= True
+CFL 		= 1
+VNN 		= 20
+refConst	= [1.0e5, 200.0, 200.0, 300.0, 1.0]
+relaxConst 	= [0.1, 1.0, 0.1, 0.01]
+
+# space discretization
+spaceScheme = "roe"
+spaceOrder = 2
+gradLimiter = 1
+viscScheme = 0
+
+# inlet
+boundCond_inlet = "meanflow"
+press_inlet = 1000000.0
+temp_inlet = 300.0
+vel_inlet = 3383.9001510822663
+rho_inlet = 13148.444551359155
+massFrac_inlet = [1.0, 0.0]
+
+# outlet
+boundCond_outlet = "meanflow"
+press_outlet = 100000.0
+vel_outlet = 338.39001510822663
+rho_outlet = 1314.8444551359155
+massFrac_outlet = [1.0, 0.0]
+
+pertType_outlet = "pressure"
+pertPerc_outlet = 0.00
+pertFreq_outlet = [200000.0]
+
+# misc
+velAdd = 0.0
+sourceOn = False
+
+# restart files
+saveRestarts    = False
+restartInterval = 100
+numRestarts     = 20
+initFromRestart = False
+
+# field output
+outInterval = 1
+primOut = True
+consOut = True
+sourceOut = False
+RHSOut = False
+
+# probe output
+probeLocs = [0.004, 0.006]
+probeVars = ["pressure","density","temperature"]
+
+# visualization
+niceVis 	= False
+visShow 	= True
+visSave 	= True
+visInterval = 25
+
+visType1 	= "field"
+visVar1 	= ["density","velocity"]
+
+visType2 	= "probe"
+visVar2  	= ["pressure","density"]
+probeNum2   = 2
+
+# ROM params
+calcROM = False
