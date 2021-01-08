@@ -1,11 +1,16 @@
 import pygems1d.constants as const
 from pygems1d.inputFuncs import getInitialConditions, catchList
+from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
+from pygems1d.timeIntegrator.implicitIntegrator import bdf
 from pygems1d.solution.solutionInterior import solutionInterior
 from pygems1d.solution.solutionBoundary.solutionInlet import solutionInlet 
 from pygems1d.solution.solutionBoundary.solutionOutlet import solutionOutlet
+from pygems1d.spaceSchemes import calcRHS
+from pygems1d.Jacobians import calcDResDSolPrim
 
 import os
 import numpy as np
+from scipy.sparse.linalg import spsolve
 import pdb
 
 class solutionDomain:
@@ -15,22 +20,29 @@ class solutionDomain:
 
 	def __init__(self, solver):
 
-		timeInt = solver.timeIntegrator
+		paramDict = solver.paramDict
+
+		# time integrator
+		if (solver.timeScheme == "bdf"):
+			self.timeIntegrator = bdf(paramDict)
+		elif (solver.timeScheme == "rkExp"):
+			self.timeIntegrator = rkExplicit(paramDict)
+		else:
+			raise ValueError("Invalid choice of timeScheme: "+solver.timeScheme)
 
 		# solution
 		solPrim0, solCons0 	= getInitialConditions(solver)
-		self.solInt 		= solutionInterior(solPrim0, solCons0, solver)
+		self.solInt 		= solutionInterior(solPrim0, solCons0, solver, self.timeIntegrator)
 		self.solIn 			= solutionInlet(solver)
 		self.solOut 		= solutionOutlet(solver)
 
 		# probe storage (as this can include boundaries as well)
-		paramDict 			= solver.paramDict
 		self.probeLocs 		= catchList(paramDict, "probeLocs", [None])
 		self.probeVars 		= catchList(paramDict, "probeVars", [None])
 		if ((self.probeLocs[0] is not None) and (self.probeVars[0] is not None)): 
 			self.numProbes 		= len(self.probeLocs)
 			self.numProbeVars 	= len(self.probeVars)
-			self.probeVals 		= np.zeros((self.numProbes, self.numProbeVars, timeInt.numSteps), dtype=const.realType)
+			self.probeVals 		= np.zeros((self.numProbes, self.numProbeVars, solver.numSteps), dtype=const.realType)
 
 			# get probe locations
 			self.probeIdxs = [None] * self.numProbes
@@ -56,10 +68,63 @@ class solutionDomain:
 		solver.probeVars = self.probeVars
 
 		# TODO: include initial conditions in probeVals, timeVals
-		self.timeVals = np.linspace(timeInt.dt * (timeInt.timeIter),
-								 	timeInt.dt * (timeInt.timeIter + solver.timeIntegrator.numSteps), 
-								 	timeInt.numSteps, dtype = const.realType)
+		self.timeVals = np.linspace(solver.dt * (solver.timeIter),
+								 	solver.dt * (solver.timeIter + solver.numSteps), 
+								 	solver.numSteps, dtype = const.realType)
 
+
+	def advanceIter(self, solver):
+		"""
+		Advance physical solution forward one time iteration
+		"""
+
+		if (not solver.runSteady): print("Iteration "+str(solver.iter))
+
+		for self.timeIntegrator.subiter in range(1, self.timeIntegrator.subiterMax+1):
+				
+			self.advanceSubiter(solver)
+
+			# iterative solver convergence
+			if (self.timeIntegrator.timeType == "implicit"):
+				self.solInt.calcResNorms(solver, self.timeIntegrator.subiter)
+				if (self.solInt.resNormL2 < self.timeIntegrator.resTol): break
+
+		# "steady" convergence
+		if solver.runSteady:
+			self.solInt.calcDSolNorms(solver, self.timeIntegrator.timeType)
+
+		self.solInt.updateSolHist(solver) 
+
+
+	def advanceSubiter(self, solver):
+		"""
+		Advance physical solution forward one subiteration of time integrator
+		"""
+
+		calcRHS(self, solver) 	# TODO: space schemes need to be inserted into a class
+
+		solInt = self.solInt
+
+		if (self.timeIntegrator.timeType == "implicit"):
+
+			solInt.res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
+			resJacob = calcDResDSolPrim(self, solver) 	# TODO: new Jacobians, state update for non-dual time 
+			dSol = spsolve(resJacob, solInt.res.ravel('F'))
+
+			solInt.solPrim += dSol.reshape((solver.gasModel.numEqs, solver.mesh.numCells), order='F')
+			solInt.updateState(solver.gasModel, fromCons = False)
+			solInt.solHistCons[0] = solInt.solCons.copy() 
+			solInt.solHistPrim[0] = solInt.solPrim.copy() 
+
+			# borrow solInt.res to store linear solve residual	
+			res = resJacob @ dSol - solInt.res.ravel('F')
+			solInt.res = np.reshape(res, (solver.gasModel.numEqs, solver.mesh.numCells), order='F')
+
+		else:
+
+			dSol = self.timeIntegrator.solveSolChange(solInt.RHS)
+			solInt.solCons = solInt.solHistCons[0] + dSol 	# TODO: only valid for single-stage schemes
+			solInt.updateState(solver.gasModel)
 
 
 	def calcBoundaryCells(self, solver):
@@ -77,7 +142,7 @@ class solutionDomain:
 		"""
 
 		# write restart files
-		if (solver.saveRestarts and ((solver.timeIntegrator.iter % solver.restartInterval) == 0)): 
+		if (solver.saveRestarts and ((solver.iter % solver.restartInterval) == 0)): 
 			self.solInt.writeRestartFile(solver)	 
 
 		# update probe data
@@ -85,8 +150,8 @@ class solutionDomain:
 			self.updateProbes(solver)
 
 		# update snapshot data (not written if running steady)
-		if (not solver.timeIntegrator.runSteady):
-			if (( solver.timeIntegrator.iter % solver.outInterval) == 0):
+		if (not solver.runSteady):
+			if (( solver.iter % solver.outInterval) == 0):
 				self.solInt.updateSnapshots(solver)
 
 
@@ -96,7 +161,7 @@ class solutionDomain:
 		"""
 
 		# update convergence and field data file on disk
-		if ((solver.timeIntegrator.iter % solver.outInterval) == 0): 
+		if ((solver.iter % solver.outInterval) == 0): 
 			self.solInt.writeSteadyData(solver)
 
 		# check for "convergence"
@@ -115,7 +180,7 @@ class solutionDomain:
 
 		if solver.solveFailed: solver.simType += "_FAILED"
 
-		if (not solver.timeIntegrator.runSteady):		
+		if (not solver.runSteady):		
 			self.solInt.writeSnapshots(solver)
 		
 		if (self.numProbes > 0):
@@ -169,7 +234,7 @@ class solutionDomain:
 			except:
 				raise ValueError("Invalid probe variable "+str(varStr))
 			
-			self.probeVals[probeIter, :, solver.timeIntegrator.iter-1] = probe
+			self.probeVals[probeIter, :, solver.iter-1] = probe
 		
 
 	def writeProbes(self, solver):
@@ -184,8 +249,8 @@ class solutionDomain:
 		for probeNum in range(self.numProbes):
 
 			# account for failed simulations
-			timeOut  = self.timeVals[:solver.timeIntegrator.iter]
-			probeOut = self.probeVals[probeNum,:,:solver.timeIntegrator.iter]
+			timeOut  = self.timeVals[:solver.iter]
+			probeOut = self.probeVals[probeNum,:,:solver.iter]
 
 			probeFileName = probeFileBaseName + "_" + str(probeNum+1) + "_" + solver.simType + ".npy"
 			probeFile = os.path.join(const.probeOutputDir, probeFileName)

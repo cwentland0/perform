@@ -38,7 +38,7 @@ def calcRHS(solDomain, solver):
 		solConsR[:,:-1], _, _ ,_ = stateFuncs.calcStateFromPrim(solPrimR[:,:-1], solver.gasModel)
 
 	# compute fluxes
-	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, solInt, solver)
+	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, solDomain, solver)
 
 	if (solver.viscScheme > 0):
 		viscFlux = calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver)
@@ -57,7 +57,7 @@ def calcRHS(solDomain, solver):
 # TODO: expand beyond Roe flux
 # TODO: better naming conventions
 # TODO: entropy fix
-def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, solInt, solver):
+def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, solDomain, solver):
 
 	# inviscid flux vector
 	EL = np.zeros(solPrimL.shape, dtype=realType)
@@ -95,14 +95,14 @@ def calcInvFlux(solPrimL, solConsL, solPrimR, solConsR, solInt, solver):
 	ER[3:,:] = solConsR[3:,:] * solPrimR[[1],:]
 
 	# maximum wave speed for adapting dtau, if needed
-	if (solver.timeIntegrator.adaptDTau):
+	if (solDomain.timeIntegrator.adaptDTau):
 		srf = np.maximum(solPrimAve[1,:] + cAve, solPrimAve[1,:] - cAve)
-		solInt.srf = np.maximum(srf[:-1], srf[1:])
+		solDomain.solInt.srf = np.maximum(srf[:-1], srf[1:])
 
 	# dissipation term
 	dQp = solPrimL - solPrimR
 	M_ROE = calcRoeDissipation(solPrimAve, solConsAve[0,:], h0Ave, cAve, CpAve, solver.gasModel)
-	dissTerm = 0.5 * (M_ROE * np.expand_dims(dQp, 0)).sum(-2) 	# TODO: this might be wrong for c-contiguous
+	dissTerm = 0.5 * (M_ROE * np.expand_dims(dQp, 0)).sum(-2)
 
 	# complete Roe flux
 	flux = 0.5 * (EL + ER) + dissTerm 
@@ -253,7 +253,7 @@ def calcSource(solInt, solver):
 
 	for specIdx in range(gas.numSpecies):
 		if (gas.nuArr[specIdx] != 0.0):
-			wf = np.minimum(wf, rhoY[specIdx] / solver.timeIntegrator.dt)
+			wf = np.minimum(wf, rhoY[specIdx] / solver.dt)
 
 	# TODO: could vectorize this I think
 	for specIdx in range(gas.numSpecies):

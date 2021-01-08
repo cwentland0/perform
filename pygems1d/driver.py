@@ -3,8 +3,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2" # don't print all the TensorFlow warnin
 import pygems1d.constants as const
 from pygems1d.systemSolver import systemSolver
 from pygems1d.solution.solutionDomain import solutionDomain
-from pygems1d.miscFuncs import mkdirInWorkdir
 from pygems1d.visualization.visualizationGroup import visualizationGroup
+# from pygems1d.rom.rom import romSolver
+from pygems1d.miscFuncs import mkdirInWorkdir
 
 import numpy as np
 import argparse
@@ -41,11 +42,12 @@ def main():
 
 	# ROM definition and solution
 	if solver.calcROM: 
+		# rom = romSolver(solver)
 		raise ValueError("ROM not working right now, check back later")
 		# solROM = solutionROM(solver.romInputs, solDomain.solInt, solver)
 		# solROM.initializeROMState(solDomain.solInt)
 	else:
-		solROM = None
+		rom = None
 
 	visGroup = visualizationGroup(solver) # plots
 
@@ -56,16 +58,22 @@ def main():
 	try:
 		# loop over time iterations
 		t1 = time()
-		for solver.timeIntegrator.iter in range(1, solver.timeIntegrator.numSteps+1):
+		for solver.iter in range(1, solver.numSteps+1):
 			
+
 			# advance one physical time step
-			solver.timeIntegrator.advanceIter(solDomain, solROM, solver)
+			if (solver.calcROM):
+				romDomain.advanceIter(solver)
+			else:
+				solDomain.advanceIter(solver)
+			solver.timeIter += 1
+			solver.solTime  += solver.dt
 
 			# write unsteady solution outputs
 			solDomain.writeIterOutputs(solver)
 
 			# check "steady" solve
-			if (solver.timeIntegrator.runSteady):
+			if (solver.runSteady):
 				breakFlag = solDomain.writeSteadyOutputs(solver)
 				if breakFlag: break
 

@@ -75,7 +75,7 @@ class visualizationGroup:
 		"""
 
 		if (self.numVisPlots > 0):
-			if ((solver.timeIntegrator.iter % self.visInterval) != 0):
+			if ((solver.iter % self.visInterval) != 0):
 				return
 
 			for vis in self.visList:

@@ -13,8 +13,7 @@ class solutionPhys:
 
 	def __init__(self, solPrimIn, solConsIn, numCells, solver):
 		
-		gas 		= solver.gasModel
-		timeInt 	= solver.timeIntegrator
+		gas = solver.gasModel
 
 		# solution and mixture properties
 		self.solPrim	= np.zeros((gas.numEqs, numCells), dtype=realType)		# solution in primitive variables

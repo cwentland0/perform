@@ -344,7 +344,7 @@ def calcDResDSolPrim(solDomain, solver):
 	# contribution to main block diagonal from source term Jacobian
 	dSdQp = np.zeros((solver.gasModel.numEqs, solver.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
 	if solver.sourceOn:
-		dSdQp = calcDSourceDSolPrim(solInt.solPrim, solInt.solCons, solver.gasModel, solver.mesh, solver.timeIntegrator.dt)
+		dSdQp = calcDSourceDSolPrim(solInt.solPrim, solInt.solCons, solver.gasModel, solver.mesh, solDomain.timeIntegrator.dt)
 	
 	# contribution to main block diagonal from physical/dual time solution Jacobian
 	gammaMatrix = calcDSolConsDSolPrim(solInt.solPrim, solInt.solCons, solver.gasModel)
@@ -369,12 +369,12 @@ def calcDResDSolPrim(solDomain, solver):
 
 	# compute time step factors
 	# TODO: make this specific for each implicitIntegrator
-	dtCoeffIdx = min(solver.timeIntegrator.iter, solver.timeIntegrator.timeOrder) - 1
-	dtInv = solver.timeIntegrator.coeffs[dtCoeffIdx][0] / solver.timeIntegrator.dt
-	if (solver.timeIntegrator.adaptDTau):
-		dtauInv = calcAdaptiveDTau(solInt, gammaMatrix, solver)
+	dtCoeffIdx = min(solver.iter, solDomain.timeIntegrator.timeOrder) - 1
+	dtInv = solDomain.timeIntegrator.coeffs[dtCoeffIdx][0] / solDomain.timeIntegrator.dt
+	if (solDomain.timeIntegrator.adaptDTau):
+		dtauInv = calcAdaptiveDTau(solDomain, gammaMatrix, solver)
 	else:
-		dtauInv = 1./solver.timeIntegrator.dtau
+		dtauInv = 1./solDomain.timeIntegrator.dtau
 
 	# compute main block diagonal
 	dRdQp = gammaMatrix * (dtauInv + dtInv) - dSdQp + dFdQp
@@ -385,17 +385,17 @@ def calcDResDSolPrim(solDomain, solver):
 	return dRdQp
 
 # TODO: move this to implicitIntegrator
-def calcAdaptiveDTau(solInt, gammaMatrix, solver):
+def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 
 	# compute initial dtau from input CFL and srf (max characteristic speed)
 	# srf is computed in calcInvFlux
-	dtaum = 1.0/solInt.srf
-	dtau = solver.timeIntegrator.CFL*dtaum
+	dtaum = 1.0/solDomain.solInt.srf
+	dtau = solDomain.timeIntegrator.CFL*dtaum
 
 	# limit by von Neumann number
 	# TODO: THIS NU IS NOT CORRECT FOR A GENERAL MIXTURE
-	nu = solver.gasModel.muRef[0] / solInt.solCons[0,:]
-	dtau = np.minimum(dtau, solver.timeIntegrator.VNN / nu)
+	nu = solver.gasModel.muRef[0] / solDomain.solInt.solCons[0,:]
+	dtau = np.minimum(dtau, solDomain.timeIntegrator.VNN / nu)
 	dtaum = np.minimum(dtaum, 3.0 / nu)
 
 	# limit dtau

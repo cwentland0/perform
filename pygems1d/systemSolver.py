@@ -1,7 +1,5 @@
 import pygems1d.constants as const
 from pygems1d.inputFuncs import readInputFile, catchInput, catchList
-from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
-from pygems1d.timeIntegrator.implicitIntegrator import bdf
 from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
 import pygems1d.mesh as mesh
 
@@ -50,20 +48,17 @@ class systemSolver:
 			self.initFile 	= None
 
 		# temporal discretization
-		timeScheme 			= str(paramDict["timeScheme"])
-		self.solTime 		= 0.0
+		self.dt 			= float(paramDict["dt"])		# physical time step
+		self.timeScheme 	= str(paramDict["timeScheme"])
+		self.runSteady 		= catchInput(paramDict, "runSteady", False) # run "steady" simulation
+		self.numSteps 		= int(paramDict["numSteps"])	# total number of physical time iterations
+		self.iter 			= 1 							# iteration number for current run
+		self.solTime 		= 0.0							# physical time
+		self.timeIter 		= 1 							# physical time iteration number
 
-		if (timeScheme == "bdf"):
-			self.timeIntegrator = bdf(paramDict)
-		elif (timeScheme == "rkExp"):
-			self.timeIntegrator = rkExplicit(paramDict)
-		else:
-			raise ValueError("Invalid choice of timeScheme: "+timeScheme)
-
-		if self.timeIntegrator.runSteady:
+		if self.runSteady:
 			self.steadyTol = catchInput(paramDict, "steadyTol", const.l2SteadyTolDefault) # threshold on convergence
 		
-
 		# spatial discretization parameters
 		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)
 		self.spaceOrder 	= catchInput(paramDict, "spaceOrder", 1)		# spatial discretization order of accuracy (int)
@@ -91,7 +86,7 @@ class systemSolver:
 		self.consOut 		= catchInput(paramDict, "consOut", False) 		# whether to save the conservative variables
 		self.sourceOut 		= catchInput(paramDict, "sourceOut", False) 	# whether to save the species source term
 		self.RHSOut 		= catchInput(paramDict, "RHSOut", False)		# whether to save the RHS vector
-		self.numSnaps 		= int(self.timeIntegrator.numSteps / self.outInterval)
+		self.numSnaps 		= int(self.numSteps / self.outInterval)
 
 		# misc
 		self.velAdd 		= catchInput(paramDict, "velAdd", 0.0)

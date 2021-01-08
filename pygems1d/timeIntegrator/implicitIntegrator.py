@@ -5,7 +5,6 @@ from pygems1d.spaceSchemes import calcRHS
 from pygems1d.Jacobians import calcDResDSolPrim
 
 import numpy as np
-from scipy.sparse.linalg import spsolve
 import pdb
 
 class implicitIntegrator(timeIntegrator):
@@ -32,32 +31,6 @@ class implicitIntegrator(timeIntegrator):
 		self.refConst 		= catchInput(paramDict, "refConst", [None])  			# constants for limiting dtau	
 		self.relaxConst 	= catchInput(paramDict, "relaxConst", [None]) 			#
 
-	def advanceSubiter(self, solDomain, solROM, solver):
-
-		solInt = solDomain.solInt
-
-		calcRHS(solDomain, solver) 
-
-		# compute discretized system residual
-		solInt.res = self.calcResidual(solInt.solHistCons, solInt.RHS)
-
-		# compute Jacobian of residual
-		# TODO: new Jacobians, state update for non-dual time 
-		resJacob = calcDResDSolPrim(solDomain, solver)
-
-		# solve linear system 
-		dSol = spsolve(resJacob, solInt.res.ravel('F'))
-
-		# update state
-		solInt.solPrim += dSol.reshape((solver.gasModel.numEqs, solver.mesh.numCells), order='F')
-		solInt.updateState(solver.gasModel, fromCons = False)
-		solInt.solHistCons[0] = solInt.solCons.copy() 
-		solInt.solHistPrim[0] = solInt.solPrim.copy() 
-
-		# borrow solInt.res to store linear solve residual	
-		res = resJacob @ dSol - solInt.res.ravel('F')
-		solInt.res = np.reshape(res, (solver.gasModel.numEqs, solver.mesh.numCells), order='F')
-
 class bdf(implicitIntegrator):
 	"""
 	Backwards difference formula (up to fourth-order)
@@ -73,9 +46,9 @@ class bdf(implicitIntegrator):
 		self.coeffs[3] = np.array([25./12., -4.0, 3.0, -4./3., 0.25], dtype=const.realType)
 		assert (self.timeOrder <= 4), str(self.timeOrder)+"th-order accurate scheme not implemented for "+self.timeScheme+" scheme"
 
-	def calcResidual(self, solHist, rhs):
+	def calcResidual(self, solHist, rhs, solver):
 		
-		timeOrder = min(self.iter, self.timeOrder) 	# cold start
+		timeOrder = min(solver.iter, self.timeOrder) 	# cold start
 		coeffs = self.coeffs[timeOrder-1]
 
 		residual = coeffs[0] * solHist[0]

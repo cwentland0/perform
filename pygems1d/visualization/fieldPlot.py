@@ -20,7 +20,7 @@ class fieldPlot(visualization):
 		self.visID 			= visID
 		self.xLabel 		= "x (m)"
 
-		self.numImgs 		= int(solver.timeIntegrator.numSteps / visInterval)
+		self.numImgs 		= int(solver.numSteps / visInterval)
 		if (self.numImgs > 0):
 			self.imgString 	= '%0'+str(floor(log(self.numImgs, 10))+1)+'d'
 		else:
@@ -86,7 +86,7 @@ class fieldPlot(visualization):
 		"""
 
 		plt.figure(self.visID)
-		visIdx 	= int(solver.timeIntegrator.iter / self.visInterval)
+		visIdx 	= int(solver.iter / self.visInterval)
 		figNum 	= self.imgString % visIdx
 		figFile = os.path.join(self.imgDir, "fig_"+figNum+".png")
 		self.fig.savefig(figFile)

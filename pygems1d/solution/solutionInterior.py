@@ -11,11 +11,10 @@ class solutionInterior(solutionPhys):
 	Solution of interior domain
 	"""
 
-	def __init__(self, solPrimIn, solConsIn, solver):
+	def __init__(self, solPrimIn, solConsIn, solver, timeInt):
 		super().__init__(solPrimIn, solConsIn, solver.mesh.numCells, solver)
 
 		gas = solver.gasModel
-		timeInt = solver.timeIntegrator
 		numCells = solver.mesh.numCells 
 
 		self.source = np.zeros((gas.numSpecies,numCells), dtype=realType)	# reaction source term
@@ -44,7 +43,7 @@ class solutionInterior(solutionPhys):
 		if solver.sourceOut: self.sourceSnap = np.zeros((gas.numSpecies, numCells, solver.numSnaps), dtype=realType)
 		if solver.RHSOut:  self.RHSSnap  = np.zeros((gas.numEqs, numCells, solver.numSnaps), dtype=realType)
 
-		if ((timeInt.timeType == "implicit") or (timeInt.runSteady)):
+		if ((timeInt.timeType == "implicit") or (solver.runSteady)):
 			# norm normalization constants
 			# TODO: will need a normalization constant for conservative residual when it's implemented
 			if ((len(solver.resNormPrim) == 1) and (solver.resNormPrim[0] == None)):
@@ -62,17 +61,17 @@ class solutionInterior(solutionPhys):
 				self.res 			= np.zeros((gas.numEqs,numCells), dtype=realType)
 				self.resNormL2 		= 0.0
 				self.resNormL1 		= 0.0
-				self.resNormHistory = np.zeros((solver.timeIntegrator.numSteps,2), dtype=realType) 
+				self.resNormHistory = np.zeros((solver.numSteps,2), dtype=realType) 
 
 				if ((timeInt.dualTime) and (timeInt.adaptDTau)):
 					self.srf 	= np.zeros(numCells, dtype=realType)
 
 			# "steady" convergence measures
-			if timeInt.runSteady:
+			if solver.runSteady:
 
 				self.dSolNormL2 		= 0.0
 				self.dSolNormL1 		= 0.0
-				self.dSolNormHistory 	= np.zeros((solver.timeIntegrator.numSteps,2), dtype=realType)
+				self.dSolNormHistory 	= np.zeros((solver.numSteps,2), dtype=realType)
 		
 	
 	def updateSolHist(self, solver):
@@ -88,7 +87,7 @@ class solutionInterior(solutionPhys):
 
 	def updateSnapshots(self, solver):
 
-		storeIdx = int((solver.timeIntegrator.iter - 1) / solver.outInterval) + 1
+		storeIdx = int((solver.iter - 1) / solver.outInterval) + 1
 
 		if solver.primOut: 		self.primSnap[:,:,storeIdx] 	= self.solPrim
 		if solver.consOut: 		self.consSnap[:,:,storeIdx] 	= self.solCons
@@ -101,7 +100,7 @@ class solutionInterior(solutionPhys):
 		Save snapshot matrices to disk
 		"""
 
-		finalIdx = int((solver.timeIntegrator.iter - 1) / solver.outInterval) + 1 # accounts for failed simulation dump
+		finalIdx = int((solver.iter - 1) / solver.outInterval) + 1 # accounts for failed simulation dump
 
 		if solver.primOut:
 			solPrimFile = os.path.join(const.unsteadyOutputDir, "solPrim_"+solver.simType+".npy")
@@ -135,7 +134,7 @@ class solutionInterior(solutionPhys):
 
 		restartPhysIterFile = os.path.join(const.restartOutputDir, "restartIter_"+str(solver.restartIter)+".dat")
 		with open(restartPhysIterFile, "w") as f:
-			f.write(str(solver.timeIntegrator.iter)+"\n")
+			f.write(str(solver.iter)+"\n")
 
 		# iterate file count
 		if (solver.restartIter < solver.numRestarts):
@@ -148,11 +147,11 @@ class solutionInterior(solutionPhys):
 
 		# write norm data to ASCII file
 		steadyFile = os.path.join(const.unsteadyOutputDir, "steadyConvergence.dat")
-		if (solver.timeIntegrator.iter == 1):
+		if (solver.iter == 1):
 			f = open(steadyFile,"w")
 		else:
 			f = open(steadyFile, "a")
-		outString = ("%8i %18.14f %18.14f\n") % (solver.timeIntegrator.timeIter-1, self.dSolNormL2, self.dSolNormL1)
+		outString = ("%8i %18.14f %18.14f\n") % (solver.timeIter-1, self.dSolNormL2, self.dSolNormL1)
 		f.write(outString)
 		f.close()
 
@@ -163,13 +162,13 @@ class solutionInterior(solutionPhys):
 		np.save(solConsFile, self.solCons)
 
 
-	def calcDSolNorms(self, solver):
+	def calcDSolNorms(self, solver, timeType):
 		"""
 		Calculate and print solution change norms
 		Note that output is ORDER OF MAGNITUDE of residual norm (i.e. 1e-X, where X is the order of magnitude)
 		"""
 
-		if (solver.timeIntegrator.timeType == "implicit"):
+		if (timeType == "implicit"):
 			dSol = self.solHistPrim[0] - self.solHistPrim[1]
 		else:
 			# TODO: only valid for single-stage explicit schemes
@@ -179,15 +178,15 @@ class solutionInterior(solutionPhys):
 
 		normOutL2 = np.log10(normL2)
 		normOutL1 = np.log10(normL1)
-		outString = ("%8i:   L2: %18.14f,   L1: %18.14f") % (solver.timeIntegrator.timeIter, normOutL2, normOutL1)
+		outString = ("%8i:   L2: %18.14f,   L1: %18.14f") % (solver.timeIter, normOutL2, normOutL1)
 		print(outString)
 
 		self.dSolNormL2 = normL2
 		self.dSolNormL1 = normL1
-		self.dSolNormHistory[solver.timeIntegrator.iter-1, :] = [normL2, normL1]
+		self.dSolNormHistory[solver.iter-1, :] = [normL2, normL1]
 
 
-	def calcResNorms(self, solver):
+	def calcResNorms(self, solver, subiter):
 		"""
 		Calculate and print linear solve residual norms		
 		Note that output is ORDER OF MAGNITUDE of residual norm (i.e. 1e-X, where X is the order of magnitude)
@@ -197,20 +196,18 @@ class solutionInterior(solutionPhys):
 		normL2, normL1 = self.calcNorms(self.res, solver.resNormPrim)
 
 		# don't print for "steady" solve
-		if (not solver.timeIntegrator.runSteady):
+		if (not solver.runSteady):
 			normOutL2 = np.log10(normL2)
 			normOutL1 = np.log10(normL1)
-			outString = (str(solver.timeIntegrator.subiter)+":\tL2: %18.14f, \tL1: %18.14f") % (normOutL2, normOutL1)
+			outString = (str(subiter)+":\tL2: %18.14f, \tL1: %18.14f") % (normOutL2, normOutL1)
 			print(outString)
 
 		self.resNormL2 = normL2
 		self.resNormL1 = normL1
-		self.resNormHistory[solver.timeIntegrator.iter-1, :] = [normL2, normL1]
+		self.resNormHistory[solver.iter-1, :] = [normL2, normL1]
 
 
 	def calcNorms(self, arrIn, normFacs):
-
-		# TODO: pass the appropriate residual normalization factors
 
 		arrAbs = np.abs(arrIn)
 

@@ -17,23 +17,6 @@ class explicitIntegrator(timeIntegrator):
 		self.dualTime 	= False
 		self.adaptDTau 	= False
 
-	def advanceSubiter(self, solDomain, solROM, solver):
-
-		solInt = solDomain.solInt
-
-		calcRHS(solDomain, solver)
-
-		# compute change in solution/code, advance solution/code
-		if (solver.calcROM):
-			solROM.mapRHSToModels(solInt)
-			solROM.calcRHSProjection()
-			solROM.advanceSubiter(solInt, solver)
-		else:
-			dSol = self.solveSolChange(solInt.RHS)
-			solInt.solCons = solInt.solHistCons[0] + dSol 	# TODO: only valid for single-stage schemes
-				
-		solInt.updateState(solver.gasModel)
-
 class rkExplicit(explicitIntegrator):
 	"""
 	Low-memory explicit Runge-Kutta scheme

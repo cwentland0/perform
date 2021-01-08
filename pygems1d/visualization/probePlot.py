@@ -38,13 +38,13 @@ class probePlot(visualization):
 
 		# data extraction of probes is done in solDomain 
 		varIdx = np.squeeze(np.argwhere(solDomain.probeVars == varStr)[0])
-		yData = solDomain.probeVals[self.probeNum, varIdx, :solver.timeIntegrator.iter]
+		yData = solDomain.probeVals[self.probeNum, varIdx, :solver.iter]
 
 		return yData
 
 	def getXData(self, solDomain, solver):
 
-		xData = solDomain.timeVals[:solver.timeIntegrator.iter]
+		xData = solDomain.timeVals[:solver.iter]
 		return xData
 
 	def save(self, solver):
