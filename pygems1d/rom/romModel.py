@@ -12,3 +12,4 @@ class romModel:
 		self.latentDim = latentDim
 
 		
+	def 
