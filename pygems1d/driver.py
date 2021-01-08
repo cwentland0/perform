@@ -4,7 +4,7 @@ import pygems1d.constants as const
 from pygems1d.systemSolver import systemSolver
 from pygems1d.solution.solutionDomain import solutionDomain
 from pygems1d.visualization.visualizationGroup import visualizationGroup
-# from pygems1d.rom.rom import romSolver
+from pygems1d.rom.romDomain import romDomain
 from pygems1d.miscFuncs import mkdirInWorkdir
 
 import numpy as np
@@ -42,7 +42,7 @@ def main():
 
 	# ROM definition and solution
 	if solver.calcROM: 
-		# rom = romSolver(solver)
+		rom = romSolver(solver)
 		raise ValueError("ROM not working right now, check back later")
 		# solROM = solutionROM(solver.romInputs, solDomain.solInt, solver)
 		# solROM.initializeROMState(solDomain.solInt)
@@ -60,7 +60,6 @@ def main():
 		t1 = time()
 		for solver.iter in range(1, solver.numSteps+1):
 			
-
 			# advance one physical time step
 			if (solver.calcROM):
 				romDomain.advanceIter(solver)
