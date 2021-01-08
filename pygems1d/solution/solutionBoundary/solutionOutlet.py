@@ -1,5 +1,5 @@
-from .solutionBoundary import solutionBoundary
-from inputFuncs import parseBC
+from pygems1d.solution.solutionBoundary.solutionBoundary import solutionBoundary
+
 from math import pow, sqrt
 
 class solutionOutlet(solutionBoundary):

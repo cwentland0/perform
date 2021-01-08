@@ -1,4 +1,4 @@
-from .solutionBoundary import solutionBoundary
+from pygems1d.solution.solutionBoundary.solutionBoundary import solutionBoundary
 from math import pow, sqrt
 
 class solutionInlet(solutionBoundary):

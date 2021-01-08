@@ -16,5 +16,6 @@ setup(
 	long_description = readme,
 	license = license,
 	install_requires = ['numpy', 'scipy', 'matplotlib'],
+	entry_points = {'console_scripts': ['pygems = pygems1d.driver:main']},
 	python_requires = ">=3.5",
 )

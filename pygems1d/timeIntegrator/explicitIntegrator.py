@@ -3,6 +3,7 @@ from pygems1d.timeIntegrator.timeIntegrator import timeIntegrator
 from pygems1d.spaceSchemes import calcRHS
 
 import numpy as np
+import pdb
 
 class explicitIntegrator(timeIntegrator):
 	"""

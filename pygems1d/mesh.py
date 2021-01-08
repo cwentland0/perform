@@ -1,5 +1,6 @@
+from pygems1d.constants import realType
+
 import numpy as np
-from constants import realType
 
 class mesh:
 

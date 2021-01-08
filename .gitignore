@@ -18,3 +18,4 @@
 *.jpg
 *.h5
 *.swp
+*.egg-info/
