@@ -38,16 +38,9 @@ def main():
 	solver = systemSolver()				# mesh, gas model, and time integrator
 										# TODO: multi-domain solvers
 
-	solDomain = solutionDomain(solver)	# physical solution
-
-	# ROM definition and solution
-	if solver.calcROM: 
-		rom = romSolver(solver)
-		raise ValueError("ROM not working right now, check back later")
-		# solROM = solutionROM(solver.romInputs, solDomain.solInt, solver)
-		# solROM.initializeROMState(solDomain.solInt)
-	else:
-		rom = None
+	# physical and ROM solutions
+	solDomain = solutionDomain(solver)	
+	if solver.calcROM: rom = romDomain(solDomain, solver)
 
 	visGroup = visualizationGroup(solver) # plots
 
@@ -62,7 +55,7 @@ def main():
 			
 			# advance one physical time step
 			if (solver.calcROM):
-				romDomain.advanceIter(solver)
+				rom.advanceIter(solDomain, solver)
 			else:
 				solDomain.advanceIter(solver)
 			solver.timeIter += 1

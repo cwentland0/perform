@@ -24,6 +24,8 @@ dtauDefault 			= 1.0e-5
 CFLDefault 				= 1.0
 VNNDefault 				= 20.0
 
+fdStepDefault 			= 1.0e-8
+
 # visualization constants
 figWidthDefault 	= 12
 figHeightDefault 	= 6

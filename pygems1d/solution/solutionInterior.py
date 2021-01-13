@@ -74,15 +74,15 @@ class solutionInterior(solutionPhys):
 				self.dSolNormHistory 	= np.zeros((solver.numSteps,2), dtype=realType)
 		
 	
-	def updateSolHist(self, solver):
+	def updateSolHist(self):
 		"""
 		Update time history of solution for multi-stage time integrators
 		"""
 	
 		self.solHistCons[1:] = self.solHistCons[:-1]
 		self.solHistPrim[1:] = self.solHistPrim[:-1]
-		self.solHistCons[0]  = self.solCons	
-		self.solHistPrim[0]  = self.solPrim
+		self.solHistCons[0]  = self.solCons.copy()
+		self.solHistPrim[0]  = self.solPrim.copy()
 
 
 	def updateSnapshots(self, solver):

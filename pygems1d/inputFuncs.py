@@ -45,6 +45,7 @@ def catchInput(inDict, inKey, defaultVal):
 
 # input processor for reading lists or lists of lists
 # default defines length of lists at lowest level
+# TODO: needs to throw an error if input list of lists is longer than lenHighest
 # TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
 def catchList(inDict, inKey, default, lenHighest=1):
 

@@ -93,7 +93,7 @@ class solutionDomain:
 		if solver.runSteady:
 			self.solInt.calcDSolNorms(solver, self.timeIntegrator.timeType)
 
-		self.solInt.updateSolHist(solver) 
+		self.solInt.updateSolHist() 
 
 
 	def advanceSubiter(self, solver):
@@ -123,8 +123,8 @@ class solutionDomain:
 		else:
 
 			dSol = self.timeIntegrator.solveSolChange(solInt.RHS)
-			solInt.solCons = solInt.solHistCons[0] + dSol 	# TODO: only valid for single-stage schemes
-			solInt.updateState(solver.gasModel)
+			solInt.solCons = solInt.solHistCons[0] + dSol
+			solInt.updateState(solver.gasModel, fromCons=True)
 
 
 	def calcBoundaryCells(self, solver):
