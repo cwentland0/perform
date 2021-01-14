@@ -52,7 +52,6 @@ class gasModel:
 		"""
 		Helper function to handle array slicing to avoid weird NumPy array broadcasting issues
 		"""
-
 		# get all but last mass fraction field
 		if (solPrim is None):
 			assert (massFracs is not None), "Must provide mass fractions if not providing primitive solution"
@@ -62,7 +61,7 @@ class gasModel:
 				massFracs = massFracs[:-1,:]
 		else:
 			massFracs = solPrim[3:,:]
-
+		print('get mass shape',massFracs.shape)
 		# slice array appropriately
 		if (self.numSpecies > 1):
 			massFracs = massFracs[:-1, :]

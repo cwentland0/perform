@@ -62,6 +62,7 @@ class caloricallyPerfectGas(gasModel):
 
 		return speciesEnth
 
+
 	# compute individual dynamic viscosities from Sutherland's law
 	# def calcSpeciesDynamicVisc(self, moleFrac=None, massFrac=None, mixMolWeight=None):
 
@@ -183,3 +184,21 @@ class caloricallyPerfectGas(gasModel):
 			derivs = derivs + (DStagEnthDSpec,)
 
 		return derivs
+
+
+
+		
+	# calculate Denisty from Primitive state
+	def calcDensFromPrim(self,solPrim,solCons):
+		massFracs = super().getMassFracArray(solPrim=solPrim)
+		RMix = self.calcMixGasConstant(massFracs)
+		return solPrim[0,:] / (RMix * solPrim[2,:])
+	# calculate Momentum from Primitive state
+	def calcMomentumFromPrim(self,solPrim,solCons):
+		return solCons[0,:] * solPrim[1,:]
+	# calculate Enthalpy from Primitive state
+	def calcEnthalpyFromPrim(self,solPrim,solCons):
+		massFracs = self.getMassFracArray(solPrim=solPrim)
+		enthRefMix 		= self.calcMixEnthRef(massFracs)
+		CpMix 			= self.calcMixCp(massFracs)
+		return solCons[0,:] * ( enthRefMix + CpMix * (solPrim[2,:] - self.tempRef) + np.power(solPrim[1,:],2.0) / 2.0 ) - solPrim[0,:]

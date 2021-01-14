@@ -211,7 +211,7 @@ def genPiecewiseUniformIC(solver):
 	solPrim[2,:splitIdx] 	= icDict["tempLeft"]
 	massFracLeft 			= icDict["massFracLeft"]
 	assert(np.sum(massFracLeft) == 1.0), "massFracLeft must sum to 1.0"
-	solPrim[3:,:splitIdx] 	= icDict["massFracLeft"][:-1]
+	solPrim[3:,:splitIdx] 	= icDict["massFracLeft"][:-1, None]
 
 	# right state
 	solPrim[0,splitIdx:] 	= icDict["pressRight"]
@@ -219,7 +219,7 @@ def genPiecewiseUniformIC(solver):
 	solPrim[2,splitIdx:] 	= icDict["tempRight"]
 	massFracRight 			= icDict["massFracRight"]
 	assert(np.sum(massFracRight) == 1.0), "massFracRight must sum to 1.0"
-	solPrim[3:,splitIdx:] 	= massFracRight[:-1]
+	solPrim[3:,splitIdx:] 	= massFracRight[:-1, None]
 	
 	solCons, _, _, _ = calcStateFromPrim(solPrim, solver.gasModel)
 

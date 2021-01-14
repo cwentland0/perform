@@ -7,16 +7,18 @@ import pdb
 
 class canteraMixture(gasModel):
 	"""
-	Container class for all CPG-specific thermo/transport property methods
+	Container class for all Cantera thermo/transport property methods
 	"""
 
-	def __init__(self, gasDict):
+	def __init__(self, gasDict, numCells):
 
-		self.gas1=ct.Solution(gasDict["ctiFile"])
-
-		self.numSpeciesFull 	= self.gas1.n_species				# total number of species in case
-		self.SpeciesNames       = self.gas1.species_names
-		self.molWeights 		= self.gas1.molecular_weights	# molecular weights, g/mol
+		
+		self.gas				=	ct.Solution(gasDict["ctiFile"])
+		self.gasArray			=	ct.SolutionArray(self.gas,numCells)
+		
+		self.numSpeciesFull 	= self.gas.n_species				# total number of species in case
+		self.SpeciesNames       = self.gas.species_names
+		self.molWeights 		= self.gas.molecular_weights	# molecular weights, g/mol
 		#self.enthRef 			= -2.545e+05#gasDict["enthRef"].astype(realType) 		# reference enthalpy, J/kg
 		#self.tempRef 			= 0.0#gasDict["tempRef"]						# reference temperature, K
 		#self.Cp 				= gasDict["Cp"].astype(realType)			# heat capacity at constant pressure, J/(kg-K)
@@ -33,25 +35,24 @@ class canteraMixture(gasModel):
 
 		# misc calculations
 		#self.RGas 				= RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)
+		
 		self.numSpecies 		= self.numSpeciesFull - 1			# last species is not directly solved for
+		print(self.numSpecies)
 		self.numEqs 			= self.numSpecies + 3				# pressure, velocity, temperature, and species transport
+		
 		#self.molWeightNu 		= self.molWeights * self.nu 
 		#self.mwInvDiffs 		= (1.0 / self.molWeights[:-1]) - (1.0 / self.molWeights[-1]) 
 		#self.CpDiffs 			= self.Cp[:-1] - self.Cp[-1]
 		#self.enthRefDiffs 		= self.enthRef[:-1] - self.enthRef[-1]
 
 	def updateReactorSpecies(self,massFracs):
-		assert(massFracs==self.numSpecies)
-		print(massFracs)
-		paddedMassFracs=np.append(massFracs,1-np.sum(massFracs))
-		self.gas1.Y = massFracs
-		return
+		assert(massFracs.shape[0]==self.numSpecies)
+		paddedMassFracs = np.concatenate((massFracs, (1 - np.sum(massFracs, axis = 0, keepdims = True))), axis = 0)
+		self.gasArray.TPY = 293,101325,paddedMassFracs.transpose()
+		return 
 	def calcMixGasConstant(self, massFracs):
 		self.updateReactorSpecies(massFracs)
-		if (self.numSpecies > 1):
-			RMix = RUniv * ( (1.0 / self.molWeights[-1]) + np.sum(massFracs * self.mwInvDiffs, axis=0) )
-		else:
-			RMix = RUniv * ( (1.0 / self.molWeights[-1]) + massFracs * self.mwInvDiffs[0] )
+		RMix = RUniv / self.gasArray.mean_molecular_weight
 		return RMix
 
 	# compute mixture ratio of specific heats
@@ -61,10 +62,8 @@ class canteraMixture(gasModel):
 
 	# compute mixture reference enthalpy
 	def calcMixEnthRef(self, massFracs):
-		if (self.numSpecies > 1):
-			enthRefMix = self.enthRef[-1] + np.sum(massFracs * self.enthRefDiffs, axis=0)
-		else:
-			enthRefMix = self.enthRef[-1] + massFracs * self.enthRefDiffs[0]
+		self.updateReactorSpecies(massFracs)
+		enthRefMix=self.gasArray.enthalpy_mass
 		return enthRefMix
 
 	# compute mixture specific heat at constant pressure
@@ -217,3 +216,22 @@ class canteraMixture(gasModel):
 			derivs = derivs + (DStagEnthDSpec,)
 
 		return derivs
+
+
+
+	def getMassFracArray(self, solPrim=None, massFracs=None):
+		"""
+		Helper function to handle array slicing to avoid weird NumPy array broadcasting issues
+		"""
+		# get all but last mass fraction field
+		if (solPrim is None):
+			assert (massFracs is not None), "Must provide mass fractions if not providing primitive solution"
+			if (massFracs.ndim == 1):
+				massFracs = np.reshape(massFracs, (1,-1))
+			if (massFracs.shape[1] == self.numSpeciesFull):
+				massFracs = massFracs[:-1,:]
+		else:
+			massFracs = solPrim[3:,:]
+		print('get mass shape',massFracs.shape)
+
+		return massFracs
