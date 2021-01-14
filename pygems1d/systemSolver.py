@@ -3,6 +3,7 @@ from pygems1d.inputFuncs import readInputFile, catchInput, catchList
 from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
 from pygems1d.timeIntegrator.implicitIntegrator import bdf
 from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
+from pygems1d.gasModel.canteraMixture import canteraMixture
 import pygems1d.mesh as mesh
 
 import numpy as np 
@@ -25,12 +26,15 @@ class systemSolver:
 
 		# gas model
 		gasFile = str(paramDict["gasFile"]) 		# gas properties file (string)
-		gasDict = readInputFile(gasFile) 
-		gasType = catchInput(gasDict, "gasType", "cpg")
+		gasDict = readInputFile(gasFile)
+		gasType=gasDict["gasType"] 
+		print(gasType)
 		if (gasType == "cpg"):
 			self.gasModel = caloricallyPerfectGas(gasDict)
+		elif (gasType == "cantera"):
+			self.gasModel = canteraMixture(gasDict)
 		else:
-			raise ValueError("Ivalid choice of gasType: " + gasType)
+			raise ValueError("Invalid choice of gasType: " + gasType)
 
 		# spatial domain
 		meshFile 	= str(paramDict["meshFile"]) 		# mesh properties file (string)
