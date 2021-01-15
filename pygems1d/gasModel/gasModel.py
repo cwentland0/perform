@@ -58,6 +58,8 @@ class gasModel:
 			assert (massFracs is not None), "Must provide mass fractions if not providing primitive solution"
 			if (massFracs.ndim == 1):
 				massFracs = np.reshape(massFracs, (1,-1))
+
+			# TODO: THIS IS NOT CORRECT, need to make sure N-1 species are preserved, this ends up cutting off two
 			if (massFracs.shape[1] == self.numSpeciesFull):
 				massFracs = massFracs[:-1,:]
 		else:

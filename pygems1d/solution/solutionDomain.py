@@ -36,6 +36,18 @@ class solutionDomain:
 		self.solIn 			= solutionInlet(solver)
 		self.solOut 		= solutionOutlet(solver)
 
+		# to avoid repeated concatenation of ghost cell states
+		self.solPrimFull = np.zeros((solver.gasModel.numEqs, 
+									 self.solIn.solPrim.shape[1]+self.solInt.solPrim.shape[1]+self.solOut.solPrim.shape[1]), 
+									 dtype=const.realType)
+		self.solConsFull = np.zeros(self.solPrimFull.shape, dtype=const.realType)
+
+		# for flux calculations, don't know shape yet for hyper-reduction
+		self.solPrimL = None
+		self.solConsL = None
+		self.solPrimR = None
+		self.solConsR = None
+
 		# probe storage (as this can include boundaries as well)
 		self.probeLocs 		= catchList(paramDict, "probeLocs", [None])
 		self.probeVars 		= catchList(paramDict, "probeVars", [None])
@@ -73,6 +85,39 @@ class solutionDomain:
 								 	solver.numSteps, dtype = const.realType)
 
 
+		# for compatability with hyper-reduction
+		# are overwritten if actually using hyper-reduction
+		self.numSampCells 	= solver.mesh.numCells
+		self.numFluxFaces 	= solver.mesh.numCells + 1
+		self.directSampIdxs = np.arange(0, solver.mesh.numCells)
+		self.fluxSampLIdxs 	= np.arange(0, solver.mesh.numCells+1)
+		self.fluxSampRIdxs 	= np.arange(1, solver.mesh.numCells+2)
+		self.fluxRHSIdxs	= np.arange(0, solver.mesh.numCells)
+
+
+	def fillSolFull(self):
+		"""
+		Fill solPrimFull and solConsFull from interior and ghost cells
+		"""
+
+		solInt = self.solInt
+		solIn  = self.solIn
+		solOut = self.solOut
+
+		idxIn = solIn.numCells
+		idxInt = idxIn + solInt.numCells
+
+		# solPrimFull
+		self.solPrimFull[:,:idxIn] 		 = solIn.solPrim.copy()
+		self.solPrimFull[:,idxIn:idxInt] = solInt.solPrim.copy()
+		self.solPrimFull[:,idxInt:] 	 = solOut.solPrim.copy()
+
+		# solConsFull
+		self.solConsFull[:,:idxIn] 		 = solIn.solCons.copy()
+		self.solConsFull[:,idxIn:idxInt] = solInt.solCons.copy()
+		self.solConsFull[:,idxInt:] 	 = solOut.solCons.copy()
+
+
 	def advanceIter(self, solver):
 		"""
 		Advance physical solution forward one time iteration
@@ -100,6 +145,8 @@ class solutionDomain:
 		"""
 		Advance physical solution forward one subiteration of time integrator
 		"""
+
+		# TODO: if not using scipy and resJacob is dense, use normal np.linalg.solve
 
 		calcRHS(self, solver) 	# TODO: space schemes need to be inserted into a class
 

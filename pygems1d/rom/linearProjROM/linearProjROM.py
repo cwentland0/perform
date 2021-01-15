@@ -7,12 +7,9 @@ import pdb
 
 class linearProjROM(romModel):
 
-	def __init__(self, modelIdx, romDomain, solDomain, romDict, solver):
+	def __init__(self, modelIdx, romDomain, solver):
 
-
-		self.gappyPOD = catchInput(romDict, "gappyPOD", False)
-
-		super().__init__(modelIdx, romDomain, solDomain, romDict, solver)
+		super().__init__(modelIdx, romDomain, solver)
 
 		# load and check trial basis
 		self.trialBasis = np.load(romDomain.modelFiles[self.modelIdx])
@@ -24,12 +21,28 @@ class linearProjROM(romModel):
 		assert (numModesBasisIn >= self.latentDim), ("Basis at " + romDomain.modelFiles[self.modelIdx] + " must have at least " + str(self.latentDim) +
 			" modes (" + str(numModesBasisIn) + " < " + str(self.latentDim) + ")")
 
+		# flatten first two dimensions for easier matmul
 		self.trialBasis = self.trialBasis[:,:,:self.latentDim]
 		self.trialBasis = np.reshape(self.trialBasis, (-1, self.latentDim), order='C')
 
-		# load and check gappy POD parameters and basis, if requested
-		# TODO: do this
-	
+		# load and check gappy POD basis
+		if romDomain.hyperReduc:
+			hyperReducBasis = np.load(romDomain.hyperReducFiles[self.modelIdx])
+			assert (hyperReducBasis.ndim == 3), "Hyper-reduction basis must have three axes"
+			assert (hyperReducBasis.shape[:2] == (solver.gasModel.numEqs, solver.mesh.numCells)), \
+				"Hyper reduction basis must have shape [numEqs, numCells, numHRModes]"
+
+			self.hyperReducDim = romDomain.hyperReducDims[self.modelIdx]
+			hyperReducBasis = hyperReducBasis[:,:,:self.hyperReducDim]
+			self.hyperReducBasis = np.reshape(hyperReducBasis, (-1, self.hyperReducDim), order="C")
+
+			# indices for sampling flattened hyperReducBasis
+			self.directHyperReducSampIdxs = np.zeros(romDomain.numSampCells * self.numVars, dtype=np.int32)
+			for varNum in range(self.numVars):
+				idx1 = varNum * romDomain.numSampCells
+				idx2 = (varNum+1) * romDomain.numSampCells
+				self.directHyperReducSampIdxs[idx1:idx2] = romDomain.directSampIdxs + varNum * solver.mesh.numCells
+
 
 	def applyTrialBasis(self, code):
 		"""
@@ -63,21 +76,17 @@ class linearProjROM(romModel):
 		return codeOut 
 
 
-	def calcRHSLowDim(self, solDomain):
+	def calcRHSLowDim(self, romDomain, solDomain):
 		"""
 		Project RHS onto low-dimensional space
 		"""
 
 		# scale RHS
-		# NOTE: normalization subtractive factor is not applied here
-		# TODO: could modify standardizeData() to not require the subtractive element
 		normSubProf = np.zeros(self.normFacProfCons.shape, dtype=realType)
-		rhsScaled = self.standardizeData(solDomain.solInt.RHS[self.varIdxs, :], 
-										 normalize=True, normFacProf=self.normFacProfCons, normSubProf=normSubProf,
+		rhsScaled = self.standardizeData(solDomain.solInt.RHS[self.varIdxs[:,None], solDomain.directSampIdxs[None,:]], 
+										 normalize=True, normFacProf=self.normFacProfCons[:,solDomain.directSampIdxs], normSubProf=normSubProf[:,solDomain.directSampIdxs],
 										 center=False, inverse=False)
 
 		# calc projection operator and project
-		self.calcProjector()
+		self.calcProjector(romDomain, romDomain.adaptiveROM)
 		self.rhsLowDim = self.projectToLowDim(self.projector, rhsScaled, transpose=False)
-
-

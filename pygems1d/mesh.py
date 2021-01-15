@@ -11,7 +11,10 @@ class mesh:
 		self.numFaces 	= self.numCells + 1
 		self.xFace 		= np.linspace(self.xL, self.xR, self.numCells + 1, dtype=realType)
 		self.xCell 		= (self.xFace[1:] + self.xFace[:-1]) / 2.0
-		self.dx 		= (self.xFace[1] - self.xFace[0]) * np.ones((1,self.numCells), dtype=realType) # cell length
-		self.dCellCent  = (self.xFace[1] - self.xFace[0]) * np.ones((1,self.numCells+1), dtype=realType) # distance b/w cell centers, incl ghost cells
+
+		# TODO: this should be an array when the non-uniform mesh is implemented
+		# TODO: also need distances between cell-centers and faces for viscous flux calculations
+		self.dx 		= self.xFace[1] - self.xFace[0]
+
 
 # TODO: uniform, non-uniform meshes, accompanying gradient operators and face reconstructions

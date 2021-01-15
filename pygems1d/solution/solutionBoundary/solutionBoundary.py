@@ -26,6 +26,7 @@ class solutionBoundary(solutionPhys):
 		self.enthRefMix = gas.calcMixEnthRef(self.massFrac[:-1])
 
 		# this will be updated at each iteration, just initializing now
+		# TODO: number of ghost cells should not always be one
 		solDummy = np.ones((gas.numEqs,1), dtype=realType)
 		super().__init__(solDummy, solDummy, 1, solver)
 		self.solPrim[3:,0] = self.massFrac[:-1]

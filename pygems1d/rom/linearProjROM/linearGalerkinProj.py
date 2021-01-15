@@ -1,5 +1,6 @@
 from pygems1d.rom.linearProjROM.linearProjROM import linearProjROM
 
+
 import numpy as np
 import pdb
 
@@ -11,12 +12,13 @@ class linearGalerkinProj(linearProjROM):
 	Trial basis is assumed to represent the conserved variables (see SPLSVT for primitive variable representation)
 	"""
 
-	def __init__(self, modelIdx, romDomain, solDomain, romDict, solver):
+	def __init__(self, modelIdx, romDomain, solver):
 
-		super().__init__(modelIdx, romDomain, solDomain, romDict, solver)
+		super().__init__(modelIdx, romDomain, solver)
 
 		self.testBasis = self.trialBasis
-		self.projector = self.trialBasis.T
+
+		self.calcProjector(romDomain, runCalc=True)
 
 
 	def decodeSol(self, code):
@@ -29,6 +31,7 @@ class linearGalerkinProj(linearProjROM):
 									   normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons,
 									   center=True, centProf=self.centProfCons, inverse=True)
 		return solCons
+
 
 	def initFromCode(self, code0, solDomain, solver):
 		"""
@@ -50,14 +53,21 @@ class linearGalerkinProj(linearProjROM):
 		solDomain.solInt.solCons[self.varIdxs, :] = self.decodeSol(self.code)
 
 
-	def calcProjector(self):
+	def calcProjector(self, romDomain, runCalc=False):
 		"""
 		Compute RHS projection operator
+		NOTE: runCalc is kind of a stupid way to handle static vs. adaptive bases.
+			  This method should generally be called with romDomain.adaptiveROM, but also needs to be calculated at init
 		"""
 
-		if self.gappyPOD:
-			raise ValueError("calcProjector() for gappy POD not implemented yet")
+		if runCalc:
+			if romDomain.hyperReduc:
+				# V^T * U * [S^T * U]^+
+				self.projector = self.trialBasis.T @ self.hyperReducBasis @ np.linalg.pinv(self.hyperReducBasis[self.directHyperReducSampIdxs,:])
 
+			else:
+				# V^T
+				self.projector = self.trialBasis.T
 		else:
 			pass
 

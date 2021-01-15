@@ -11,11 +11,11 @@ class romModel:
 	Base class for ROM model
 	"""
 
-	def __init__(self, modelIdx, romDomain, solDomain, romDict, solver):
+	def __init__(self, modelIdx, romDomain, solver):
 
 		self.modelIdx 	= modelIdx
 		self.latentDim 	= romDomain.latentDims[self.modelIdx]
-		self.varIdxs 	= romDomain.modelVarIdxs[self.modelIdx]
+		self.varIdxs 	= np.array(romDomain.modelVarIdxs[self.modelIdx], dtype=np.int32)
 		self.numVars   	= len(self.varIdxs)
 		self.solShape 	= (self.numVars, solver.mesh.numCells)
 		self.modelDir 	= romDomain.modelDir

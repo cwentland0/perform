@@ -1,9 +1,11 @@
 
 from pygems1d.inputFuncs import readInputFile, catchList, catchInput
 from pygems1d.rom.linearProjROM.linearGalerkinProj import linearGalerkinProj
+from pygems1d.rom.linearProjROM.linearSPLSVTProj import linearSPLSVTProj
 from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
 from pygems1d.timeIntegrator.implicitIntegrator import bdf
 from pygems1d.spaceSchemes import calcRHS
+from pygems1d.Jacobians import calcDResDSolPrim
 
 import numpy as np
 from time import sleep
@@ -88,16 +90,23 @@ class romDomain:
 
 		self.setModelFlags()
 
+		self.adaptiveROM = catchInput(romDict, "adaptiveROM", False)
+
+		# set up hyper-reduction, if necessary
+		self.hyperReduc = catchInput(romDict, "hyperReduc", False)
+		if (self.isIntrusive and self.hyperReduc):
+			self.loadHyperReduc(solDomain, solver)
+
 		# initialize models for domain
 		self.modelList = [None] * self.numModels
 		for modelIdx in range(self.numModels):
 
 			if (self.romMethod == "linearGalerkinProj"):
-				self.modelList[modelIdx] = linearGalerkinProj(modelIdx, self, solDomain, romDict, solver)
+				self.modelList[modelIdx] = linearGalerkinProj(modelIdx, self, solver)
 			elif (self.romMethod == "linearLSPGProj"):
 				raise ValueError("linearLSPGProj ROM not implemented yet")
 			elif (self.romMethod == "linearSPLSVTProj"):
-				raise ValueError("linearSPLSVTProj ROM not implemented yet")
+				self.modelList[modelIdx] = linearSPLSVTProj(modelIdx, self, solver)
 			elif (self.romMethod == "autoencoderGalerkinProjTF"):
 				raise ValueError("autoencoderGalerkinProjTF ROM not implemented yet")
 			elif (self.romMethod == "autoencoderLSPGProjTF"):
@@ -235,6 +244,68 @@ class romDomain:
 					self.initROMFromFile[modelIdx] = True
 
 
+	def loadHyperReduc(self, solDomain, solver):
+
+		# load and check sample points
+		sampFile = catchInput(self.romDict, "sampFile", "")
+		assert (sampFile != ""), "Must supply sampFile if performing hyper-reduction"
+		sampFile = os.path.join(self.modelDir, sampFile)
+		assert (os.path.isfile(sampFile)), ("Could not find sampFile at " + sampFile)
+
+		# NOTE: assumed that sample indices are zero-indexed
+		solDomain.directSampIdxs = np.load(sampFile).flatten()
+		solDomain.directSampIdxs = (np.sort(solDomain.directSampIdxs)).astype(np.int32)
+		solDomain.numSampCells = len(solDomain.directSampIdxs)
+		assert (solDomain.numSampCells <= solver.mesh.numCells), "Cannot supply more sampling points than cells in domain."
+		assert (np.amin(solDomain.directSampIdxs) >= 0), "Sampling indices must be non-negative integers"
+		assert (np.amax(solDomain.directSampIdxs) < solver.mesh.numCells), "Sampling indices must be less than the number of cells in the domain"
+		assert (len(np.unique(solDomain.directSampIdxs)) == solDomain.numSampCells), "Sampling indices must be unique"
+
+		# TODO: should probably shunt these over to a function for when indices get updated in adaptive method
+
+		# compute indices for inviscid flux calculations
+		# NOTE: have to account for fact that boundary cells are prepended/appended
+		solDomain.fluxSampLIdxs = np.zeros(2 * solDomain.numSampCells, dtype=np.int32)
+		solDomain.fluxSampLIdxs[0::2] = solDomain.directSampIdxs
+		solDomain.fluxSampLIdxs[1::2] 	= solDomain.directSampIdxs + 1
+
+		solDomain.fluxSampRIdxs = np.zeros(2 * solDomain.numSampCells, dtype=np.int32)
+		solDomain.fluxSampRIdxs[0::2] = solDomain.directSampIdxs + 1
+		solDomain.fluxSampRIdxs[1::2] 	= solDomain.directSampIdxs + 2
+
+		# eliminate repeated indices
+		solDomain.fluxSampLIdxs = np.unique(solDomain.fluxSampLIdxs)
+		solDomain.fluxSampRIdxs = np.unique(solDomain.fluxSampRIdxs)
+		solDomain.numFluxFaces  = len(solDomain.fluxSampLIdxs)
+
+		# to slice flux when calculating RHS
+		solDomain.fluxRHSIdxs = np.zeros(solDomain.numSampCells, np.int32)
+		for i in range(1,solDomain.numSampCells):
+			if (solDomain.directSampIdxs[i] == (solDomain.directSampIdxs[i-1]+1)):
+				solDomain.fluxRHSIdxs[i] = solDomain.fluxRHSIdxs[i-1] + 1
+			else:
+				solDomain.fluxRHSIdxs[i] = solDomain.fluxRHSIdxs[i-1] + 2
+
+		# compute indices for gradient calculations
+		if (solver.spaceOrder > 1):
+			raise ValueError("Sampling for higher-order schemes not implemented yet")
+
+		# copy indices for ease of use
+		self.numSampCells = solDomain.numSampCells
+		self.directSampIdxs = solDomain.directSampIdxs
+
+		# paths to hyper-reduction files (unpacked later)
+		hyperReducFiles = self.romDict["hyperReducFiles"]
+		self.hyperReducFiles = [None] * self.numModels
+		assert (len(hyperReducFiles) == self.numModels), "Must provide hyperReducFiles for each model"
+		for modelIdx in range(self.numModels):
+			inFile = os.path.join(self.modelDir, hyperReducFiles[modelIdx])
+			assert (os.path.isfile(inFile)), "Could not find hyper-reduction file at " + inFile
+			self.hyperReducFiles[modelIdx] = inFile
+
+		self.hyperReducDims = catchList(self.romDict, "hyperReducDims", [0], lenHighest=self.numModels)
+
+
 	def advanceIter(self, solDomain, solver):
 		"""
 		Advance low-dimensional state forward one time iteration
@@ -245,7 +316,6 @@ class romDomain:
 		# update model which does NOT require numerical time integration
 		if not self.hasTimeIntegrator:
 			raise ValueError("Iteration advance for models without numerical time integration not yet implemented")
-			# for modelIdx, model in enumerate(self.modelList):
 
 		# if method requires numerical time integration
 		else:
@@ -255,7 +325,7 @@ class romDomain:
 				self.advanceSubiter(solDomain, solver)
 				
 				if (self.timeIntegrator.timeType == "implicit"):
-					solDomain.solInt.calcResNorms(solver, subiter)
+					solDomain.solInt.calcResNorms(solver, self.timeIntegrator.subiter)
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol): break
 
 		solDomain.solInt.updateSolHist()
@@ -267,6 +337,7 @@ class romDomain:
 		Advance physical solution forward one subiteration of time integrator
 		"""
 
+		solInt = solDomain.solInt
 
 		if self.isIntrusive:
 			calcRHS(solDomain, solver)
@@ -274,29 +345,32 @@ class romDomain:
 		if (self.timeIntegrator.timeType == "implicit"):
 
 			raise ValueError("Implicit ROM not implemented yet")
-			# solInt.res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
-			# resJacob = calcDResDSolPrim(self, solver) 	# TODO: new Jacobians, state update for non-dual time 
-			# dSol = spsolve(resJacob, solInt.res.ravel('F'))
+			# if self.isIntrusive:
+			# 	res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
+			# 	resJacob = calcDResDSolPrim(solDomain, solver) 	# TODO: new Jacobians, state update for non-dual time 
 
-			# solInt.solPrim += dSol.reshape((solver.gasModel.numEqs, solver.mesh.numCells), order='F')
-			# solInt.updateState(solver.gasModel, fromCons = False)
-			# solInt.solHistCons[0] = solInt.solCons.copy() 
-			# solInt.solHistPrim[0] = solInt.solPrim.copy() 
-
-			# # borrow solInt.res to store linear solve residual	
-			# res = resJacob @ dSol - solInt.res.ravel('F')
+			# for modelIdx, model in enumerate(self.modelList):
+			# 	dCode, LHS, RHS = model.calcDSol(resJacob, res)
+			# 	model.code += dCode
+			# 	model.codeHist[0] = model.code.copy()
+			# 	model.updateSol(solDomain)
+				
+			# dSol = solInt.solPrim - solInt.solHistPrim[0]
+			# res = resJacob @ dSol.ravel("F") - solInt.res.ravel("F")
 			# solInt.res = np.reshape(res, (solver.gasModel.numEqs, solver.mesh.numCells), order='F')
+
+			# solInt.updateState(solver.gasModel, fromCons=False) 	# TODO: not valid for all models
 
 		else:
 
 			for modelIdx, model in enumerate(self.modelList):
 
-				model.calcRHSLowDim(solDomain)
+				model.calcRHSLowDim(self, solDomain)
 				dCode = self.timeIntegrator.solveSolChange(model.rhsLowDim)
 				model.code = model.codeHist[0] + dCode
 				model.updateSol(solDomain)
 			
-			solDomain.solInt.updateState(solver.gasModel, fromCons=True)
+			solInt.updateState(solver.gasModel, fromCons=True)
 
 	def updateCodeHist(self):
 		"""

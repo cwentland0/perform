@@ -40,7 +40,10 @@ def main():
 
 	# physical and ROM solutions
 	solDomain = solutionDomain(solver)	
-	if solver.calcROM: rom = romDomain(solDomain, solver)
+	if solver.calcROM:
+		rom = romDomain(solDomain, solver)
+	else:
+		rom = None
 
 	visGroup = visualizationGroup(solver) # plots
 
@@ -85,7 +88,6 @@ def main():
 	##### START POST-PROCESSING #####
 
 	solDomain.writeFinalOutputs(solver)
-	# visGroup.savePlots(solver)
 
 	##### END POST-PROCESSING #####
 

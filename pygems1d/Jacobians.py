@@ -8,6 +8,8 @@ from scipy.sparse import bsr_matrix
 import pdb
 
 # TODO: A LOT of this needs to be converted to gasModel functions
+# TODO: scipy is not strictly needed, should only import if it's available with a try, except.
+#		In this case, can just make the Jacobian dense. It's a cost hit but makes code less restrictive.
 
 ### Gamma Inverse ###
 def calcDSolPrimDSolCons(solCons, solPrim, gas):
@@ -318,9 +320,9 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
 	Ap_r = calcAp(solPrimR, solConsR[0,:], cp_r, HR, solver)
 
 	# TODO: not valid for non-uniform mesh
-	Ap_l[:,:,:]  *= (0.5 / solver.mesh.dx[:,0])
-	Ap_r[:,:,:]  *= (0.5 / solver.mesh.dx[:,0])
-	M_ROE[:,:,:] *= (0.5 / solver.mesh.dx[:,0])
+	Ap_l[:,:,:]  *= (0.5 / solver.mesh.dx)
+	Ap_r[:,:,:]  *= (0.5 / solver.mesh.dx)
+	M_ROE[:,:,:] *= (0.5 / solver.mesh.dx)
 
     #Jacobian wrt current cell
 	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,:-1])
@@ -409,9 +411,11 @@ def resJacobAssemble(mat1, mat2, mat3):
 	Reassemble residual Jacobian into a sparse 2D array for linear solve
 	Stacking block diagonal forms of mat1 and block tri-diagonal form of mat2
 	mat1 : 3-D Form of Gamma*(1/dt) + Gamma*(1/dtau) - dS/dQp + (dF/dQp)_i
-	mat2 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbour)
-	mat3 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbour)
+	mat2 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbor)
+	mat3 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbor)
 	'''
+
+	# TODO: this needs to be converted to C ordering, it causes headaches with the implicit ROMs
 
 	numEqs, _, numCells = mat1.shape
 	 

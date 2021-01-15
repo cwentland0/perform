@@ -15,6 +15,8 @@ class solutionPhys:
 		
 		gas = solver.gasModel
 
+		self.numCells = numCells
+
 		# solution and mixture properties
 		self.solPrim	= np.zeros((gas.numEqs, numCells), dtype=realType)		# solution in primitive variables
 		self.solCons	= np.zeros((gas.numEqs, numCells), dtype=realType)		# solution in conservative variables

@@ -24,6 +24,12 @@ class visualizationGroup:
 		self.visInterval 	= catchInput(paramDict, "visInterval", 1)
 		self.niceVis 		= catchInput(paramDict, "niceVis", False)
 
+		# if not saving or showing, don't even draw the plots
+		self.visDraw = True
+		if ((not self.visShow) and (not self.visSave)):
+			self.visDraw = False
+			return
+
 		# count number of visualizations requested
 		self.numVisPlots = 0
 		plotCount = True
@@ -73,6 +79,8 @@ class visualizationGroup:
 		""" 
 		Helper function to draw, display, and save plots
 		"""
+
+		if not self.visDraw: return
 
 		if (self.numVisPlots > 0):
 			if ((solver.iter % self.visInterval) != 0):
