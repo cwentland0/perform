@@ -11,7 +11,7 @@ def calcCellGradients(solDomain, solver):
 	"""
 
 	# compute gradients via finite difference stencil
-	solPrimGrad = np.zeros((solver.gasModel.numEqs, solDomain.numGradCells), dtype=realType)
+	solPrimGrad = np.zeros((solDomain.gasModel.numEqs, solDomain.numGradCells), dtype=realType)
 	if (solver.spaceOrder == 2):
 		solPrimGrad = (0.5 / solver.mesh.dx) * (solDomain.solPrimFull[:, solDomain.gradIdxs + 1] - solDomain.solPrimFull[:, solDomain.gradIdxs - 1])
 	else:

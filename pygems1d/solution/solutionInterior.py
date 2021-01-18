@@ -11,10 +11,10 @@ class solutionInterior(solutionPhys):
 	Solution of interior domain
 	"""
 
-	def __init__(self, solPrimIn, solConsIn, solver, timeInt):
-		super().__init__(solPrimIn, solConsIn, solver.mesh.numCells, solver)
+	def __init__(self, solDomain, solPrimIn, solConsIn, solver, timeInt):
+		super().__init__(solDomain, solPrimIn, solConsIn, solver.mesh.numCells, solver)
 
-		gas = solver.gasModel
+		gas = self.gasModel
 		numCells = solver.mesh.numCells 
 
 		self.source = np.zeros((gas.numSpecies,numCells), dtype=realType)	# reaction source term
@@ -24,7 +24,7 @@ class solutionInterior(solutionPhys):
 		if (solver.velAdd != 0.0):
 			self.solPrim[1,:] += solver.velAdd
 		
-		self.updateState(gas, fromCons=False)
+		self.updateState(fromCons=False)
 
 		# initializing time history
 		self.solHistCons = [self.solCons.copy()] * (timeInt.timeOrder+1)

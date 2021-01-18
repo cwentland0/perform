@@ -7,7 +7,7 @@ import pdb
 
 class linearProjROM(romModel):
 
-	def __init__(self, modelIdx, romDomain, solver):
+	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
 		super().__init__(modelIdx, romDomain, solver)
 
@@ -22,18 +22,18 @@ class linearProjROM(romModel):
 			" modes (" + str(numModesBasisIn) + " < " + str(self.latentDim) + ")")
 
 		# flatten first two dimensions for easier matmul
-		self.trialBasis = self.trialBasis[:,:,:self.latentDim]
+		self.trialBasis = self.trialBasis[self.varIdxs,:,:self.latentDim]
 		self.trialBasis = np.reshape(self.trialBasis, (-1, self.latentDim), order='C')
 
 		# load and check gappy POD basis
 		if romDomain.hyperReduc:
 			hyperReducBasis = np.load(romDomain.hyperReducFiles[self.modelIdx])
 			assert (hyperReducBasis.ndim == 3), "Hyper-reduction basis must have three axes"
-			assert (hyperReducBasis.shape[:2] == (solver.gasModel.numEqs, solver.mesh.numCells)), \
+			assert (hyperReducBasis.shape[:2] == (solDomain.gasModel.numEqs, solver.mesh.numCells)), \
 				"Hyper reduction basis must have shape [numEqs, numCells, numHRModes]"
 
 			self.hyperReducDim = romDomain.hyperReducDims[self.modelIdx]
-			hyperReducBasis = hyperReducBasis[:,:,:self.hyperReducDim]
+			hyperReducBasis = hyperReducBasis[self.varIdxs,:,:self.hyperReducDim]
 			self.hyperReducBasis = np.reshape(hyperReducBasis, (-1, self.hyperReducDim), order="C")
 
 			# indices for sampling flattened hyperReducBasis

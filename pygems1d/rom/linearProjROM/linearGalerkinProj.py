@@ -12,9 +12,9 @@ class linearGalerkinProj(linearProjROM):
 	Trial basis is assumed to represent the conserved variables (see SPLSVT for primitive variable representation)
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver):
+	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		super().__init__(modelIdx, romDomain, solver)
+		super().__init__(modelIdx, romDomain, solver, solDomain)
 
 		self.testBasis = self.trialBasis
 

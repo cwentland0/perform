@@ -19,7 +19,7 @@ mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 
 class visualization:
 
-	def __init__(self, solver):
+	def __init__(self, solDomain, solver):
 
 		paramDict = solver.paramDict
 
@@ -37,7 +37,7 @@ class visualization:
 						elif (visVar[:15] == "density-species"):
 							speciesIdx = int(visVar[15:])
 
-						assert ((speciesIdx > 0) and (speciesIdx <= solver.gasModel.numSpecies)), \
+						assert ((speciesIdx > 0) and (speciesIdx <= solDomain.gasModel.numSpecies)), \
 							"Species number must be a positive integer less than or equal to the number of chemical species"
 					except:
 						raise ValueError("visVar entry" + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")

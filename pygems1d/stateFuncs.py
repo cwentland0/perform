@@ -10,7 +10,7 @@ def calcStateFromCons(solCons, gas):
 	# pressure, velocity, temperature, mass fraction
 	solPrim = np.zeros(solCons.shape, dtype=realType)
 
-	solPrim[3:,:] 	= solCons[3:,:] / solCons[[0],:] 
+	solPrim[3:,:] 	= solCons[3:,:] / solCons[[0],:]
 	massFracs = gas.getMassFracArray(solPrim=solPrim)
 
 	# update thermo properties
@@ -19,6 +19,7 @@ def calcStateFromCons(solCons, gas):
 	CpMix 			= gas.calcMixCp(massFracs)
 
 	# update primitive state
+	# TODO: gasModel references
 	solPrim[1,:] = solCons[1,:] / solCons[0,:]
 	solPrim[2,:] = (solCons[2,:] / solCons[0,:] - np.square(solPrim[1,:])/2.0 - enthRefMix + CpMix * gas.tempRef) / (CpMix - RMix) 
 	solPrim[0,:] = solCons[0,:] * RMix * solPrim[2,:]
@@ -39,6 +40,7 @@ def calcStateFromPrim(solPrim, gas):
 	CpMix 			= gas.calcMixCp(massFracs)
 
 	# update conservative variables
+	# TODO: gasModel references
 	solCons[0,:] = solPrim[0,:] / (RMix * solPrim[2,:]) 
 	solCons[1,:] = solCons[0,:] * solPrim[1,:]				
 	solCons[2,:] = solCons[0,:] * ( enthRefMix + CpMix * (solPrim[2,:] - gas.tempRef) + np.power(solPrim[1,:],2.0) / 2.0 ) - solPrim[0,:]

@@ -14,36 +14,48 @@ class caloricallyPerfectGas(gasModel):
 
 
 	def calcMixGasConstant(self, massFracs):
-		if (self.numSpecies > 1):
-			RMix = RUniv * ( (1.0 / self.molWeights[-1]) + np.sum(massFracs * self.mwInvDiffs, axis=0) )
-		else:
-			RMix = RUniv * ( (1.0 / self.molWeights[-1]) + massFracs * self.mwInvDiffs[0] )
+		"""
+		Compute mixture specific gas constant
+		"""
+
+		assert(massFracs.shape[0] == self.numSpecies), "Only N-1 species must be passed to calcMixGasConstant"
+		RMix = RUniv * ( (1.0 / self.molWeights[-1]) + np.sum(massFracs * self.mwInvDiffs, axis=0) )
 		return RMix
 
-	# compute mixture ratio of specific heats
+
 	def calcMixGamma(self, RMix, CpMix):
+		"""
+		Compute mixture ratio of specific heats
+		"""
+
 		gammaMix = CpMix / (CpMix - RMix)
 		return gammaMix
 
-	# compute mixture reference enthalpy
+
 	def calcMixEnthRef(self, massFracs):
-		if (self.numSpecies > 1):
-			enthRefMix = self.enthRef[-1] + np.sum(massFracs * self.enthRefDiffs, axis=0)
-		else:
-			enthRefMix = self.enthRef[-1] + massFracs * self.enthRefDiffs[0]
+		"""
+		Compute mixture reference enthalpy
+		"""
+
+		assert(massFracs.shape[0] == self.numSpecies), "Only N-1 species must be passed to calcMixEnthRef"
+		enthRefMix = self.enthRef[-1] + np.sum(massFracs * self.enthRefDiffs, axis=0)
 		return enthRefMix
 
-	# compute mixture specific heat at constant pressure
+
 	def calcMixCp(self, massFracs):
-		if (self.numSpecies > 1):
-			CpMix = self.Cp[-1] + np.sum(massFracs * self.CpDiffs, axis=0)
-		else:
-			CpMix = self.Cp[-1] + massFracs * self.CpDiffs[0]
+		"""
+		Compute mixture specific heat at constant pressure
+		"""
+
+		assert(massFracs.shape[0] == self.numSpecies), "Only N-1 species must be passed to calcMixCp"
+		CpMix = self.Cp[-1] + np.sum(massFracs * self.CpDiffs, axis=0)
 		return CpMix
 
-	# compute density from ideal gas law
-	# TODO: account for compressibility?
+	
 	def calcDensity(self, solPrim, RMix=None):
+		"""
+		Compute density from ideal gas law
+		"""
 
 		# need to calculate mixture gas constant
 		if (RMix is None):
@@ -55,12 +67,34 @@ class caloricallyPerfectGas(gasModel):
 
 		return density
 
-	# compute individual enthalpies for each species
+
 	def calcSpeciesEnthalpies(self, temperature):
+		"""
+		Compute individual enthalpies for each species
+		"""
 
 		speciesEnth = self.Cp[:,None] * (np.repeat(np.reshape(temperature, (1,-1)), self.numSpeciesFull, axis=0) - self.tempRef) + self.enthRef[:,None]
 
 		return speciesEnth
+
+
+	def calcStagnationEnthalpy(self, solPrim, speciesEnth=None):
+		"""
+		Compute stagnation enthalpy from velocity and species enthalpies
+		"""
+
+		# get the species enthalpies if not provided
+		if (speciesEnth is None):
+			speciesEnth = self.calcSpeciesEnthalpies(solPrim[2,:])
+
+		# compute all mass fraction fields
+		massFracs = self.calcAllMassFracs(solPrim[3:,:])
+
+		assert (massFracs.shape == speciesEnth.shape)
+
+		stagEnth = np.sum(speciesEnth * massFracs, axis=0) + 0.5 * np.square(solPrim[1,:])
+
+		return stagEnth
 
 	# compute individual dynamic viscosities from Sutherland's law
 	# def calcSpeciesDynamicVisc(self, moleFrac=None, massFrac=None, mixMolWeight=None):
@@ -68,8 +102,11 @@ class caloricallyPerfectGas(gasModel):
 	# compute mixture dynamic viscosity from mixing law
 	# def calcMixtureDynamicVisc():
 
-	# compute sound speed
+
 	def calcSoundSpeed(self, temperature, RMix=None, gammaMix=None, massFracs=None, CpMix=None):
+		"""
+		Compute sound speed
+		"""
 
 		# calculate mixture gas constant if not provided
 		massFracsSet = False
@@ -99,11 +136,15 @@ class caloricallyPerfectGas(gasModel):
 
 		return soundSpeed
 
-	# compute derivatives of density with respect to pressure, temperature, or species mass fraction
+
 	def calcDensityDerivatives(self, density, 
 								wrtPress=False, pressure=None,
 								wrtTemp=False, temperature=None,
 								wrtSpec=False, mixMolWeight=None, massFracs=None):
+
+		"""
+		Compute derivatives of density with respect to pressure, temperature, or species mass fraction
+		"""
 
 		assert any([wrtPress, wrtTemp, wrtSpec]), "Must compute at least one density derivative..."
 
@@ -131,27 +172,15 @@ class caloricallyPerfectGas(gasModel):
 
 		return derivs
 
-	# compute stagnation enthalpy from velocity and species enthalpies
-	def calcStagnationEnthalpy(self, solPrim, speciesEnth=None):
 
-		# get the species enthalpies if not provided
-		if (speciesEnth is None):
-			speciesEnth = self.calcSpeciesEnthalpies(solPrim[2,:])
-
-		# compute all mass fraction fields
-		massFracs = self.calcAllMassFracs(solPrim[3:,:])
-
-		assert (massFracs.shape == speciesEnth.shape)
-
-		stagEnth = np.sum(speciesEnth * massFracs, axis=0) + 0.5 * np.square(solPrim[1,:])
-
-		return stagEnth
-
-	# compute derivatives of stagnation enthalpy with respect to pressure, temperature, velocity, or species mass fraction
 	def calcStagEnthalpyDerivatives(self, wrtPress=False,
 									wrtTemp=False, massFracs=None,
 									wrtVel=False, velocity=None,
 									wrtSpec=False, speciesEnth=None, temperature=None):
+
+		"""
+		Compute derivatives of stagnation enthalpy with respect to pressure, temperature, velocity, or species mass fraction
+		"""
 
 		assert any([wrtPress, wrtTemp, wrtVel, wrtSpec]), "Must compute at least one density derivative..."
 

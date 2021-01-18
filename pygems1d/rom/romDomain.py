@@ -59,9 +59,9 @@ class romDomain:
 			modelVarSum += len(modelVarIdxs[modelIdx])
 			for modelVarIdx in modelVarIdxs[modelIdx]:
 				assert (modelVarIdx >= 0), "modelVarIdxs must be non-negative integers"
-				assert (modelVarIdx < solver.gasModel.numEqs), "modelVarIdxs must less than the number of governing equations"
-		assert (modelVarSum == solver.gasModel.numEqs), ("Must specify as many modelVarIdxs entries as governing equations (" +
-														str(modelVarSum) + " != " + str(solver.gasModel.numEqs) + ")")
+				assert (modelVarIdx < solDomain.gasModel.numEqs), "modelVarIdxs must less than the number of governing equations"
+		assert (modelVarSum == solDomain.gasModel.numEqs), ("Must specify as many modelVarIdxs entries as governing equations (" +
+														str(modelVarSum) + " != " + str(solDomain.gasModel.numEqs) + ")")
 		modelVarIdxsOneList = sum(modelVarIdxs, [])
 		assert (len(modelVarIdxsOneList) == len(set(modelVarIdxsOneList))), "All entries in modelVarIdxs must be unique"
 		self.modelVarIdxs = modelVarIdxs 
@@ -101,7 +101,7 @@ class romDomain:
 		for modelIdx in range(self.numModels):
 
 			if (self.romMethod == "linearGalerkinProj"):
-				self.modelList[modelIdx] = linearGalerkinProj(modelIdx, self, solver)
+				self.modelList[modelIdx] = linearGalerkinProj(modelIdx, self, solver, solDomain)
 			elif (self.romMethod == "linearLSPGProj"):
 				raise ValueError("linearLSPGProj ROM not implemented yet")
 			elif (self.romMethod == "linearSPLSVTProj"):
@@ -125,7 +125,7 @@ class romDomain:
 			else:
 				self.modelList[modelIdx].initFromSol(solDomain, solver)
 		
-		solDomain.solInt.updateState(solver.gasModel, fromCons=self.targetCons)
+		solDomain.solInt.updateState(fromCons=self.targetCons)
 
 		# get time integrator, if necessary
 		# TODO: move this selection to an external function? This is repeated in solutionDomain
@@ -400,9 +400,9 @@ class romDomain:
 				
 			# dSol = solInt.solPrim - solInt.solHistPrim[0]
 			# res = resJacob @ dSol.ravel("F") - solInt.res.ravel("F")
-			# solInt.res = np.reshape(res, (solver.gasModel.numEqs, solver.mesh.numCells), order='F')
+			# solInt.res = np.reshape(res, (solDomain.gasModel.numEqs, solver.mesh.numCells), order='F')
 
-			# solInt.updateState(solver.gasModel, fromCons=False) 	# TODO: not valid for all models
+			# solInt.updateState(fromCons=False) 	# TODO: not valid for all models
 
 		else:
 
@@ -413,7 +413,7 @@ class romDomain:
 				model.code = model.codeHist[0] + dCode
 				model.updateSol(solDomain)
 			
-			solInt.updateState(solver.gasModel, fromCons=True)
+			solInt.updateState(fromCons=True)
 
 	def updateCodeHist(self):
 		"""

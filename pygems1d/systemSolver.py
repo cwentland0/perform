@@ -1,6 +1,5 @@
 import pygems1d.constants as const
 from pygems1d.inputFuncs import readInputFile, catchInput, catchList
-from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
 import pygems1d.mesh as mesh
 
 import numpy as np 
@@ -20,15 +19,6 @@ class systemSolver:
 		paramFile = os.path.join(const.workingDir, const.paramInputs)
 		paramDict = readInputFile(paramFile)
 		self.paramDict = paramDict
-
-		# gas model
-		gasFile = str(paramDict["gasFile"]) 		# gas properties file (string)
-		gasDict = readInputFile(gasFile) 
-		gasType = catchInput(gasDict, "gasType", "cpg")
-		if (gasType == "cpg"):
-			self.gasModel = caloricallyPerfectGas(gasDict)
-		else:
-			raise ValueError("Ivalid choice of gasType: " + gasType)
 
 		# spatial domain
 		meshFile 	= str(paramDict["meshFile"]) 		# mesh properties file (string)

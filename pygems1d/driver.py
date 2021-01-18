@@ -45,7 +45,7 @@ def main():
 	else:
 		rom = None
 
-	visGroup = visualizationGroup(solver) # plots
+	visGroup = visualizationGroup(solDomain, solver) # plots
 
 	##### END SETUP #####
 

@@ -1,6 +1,7 @@
 from pygems1d.constants import realType, RUniv
 
 import numpy as np
+import pdb
 
 # TODO: some of the CPG functions can be generalized and placed here (e.g. calc sound speed in terms of enthalpy and density derivs) 
 
@@ -24,19 +25,27 @@ class gasModel:
 		
 		# Arrhenius factors
 		# TODO: modify these to allow for multiple global reactions
-		self.nu 				= gasDict["nu"].astype(realType)		# ?????
-		self.nuArr 				= gasDict["nuArr"].astype(realType)		# ?????
+		self.nu 				= gasDict["nu"].astype(realType)
+		self.nuArr 				= gasDict["nuArr"].astype(realType) 	# global reaction concentration exponents
 		self.actEnergy			= float(gasDict["actEnergy"])			# global reaction Arrhenius activation energy, divided by RUniv, ?????
 		self.preExpFact 		= float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
 
 		# misc calculations
-		self.RGas 				= RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)
-		self.numSpecies 		= self.numSpeciesFull - 1			# last species is not directly solved for
-		self.numEqs 			= self.numSpecies + 3				# pressure, velocity, temperature, and species transport
+		self.RGas 				= RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)	
 		self.molWeightNu 		= self.molWeights * self.nu 
-		self.mwInvDiffs 		= (1.0 / self.molWeights[:-1]) - (1.0 / self.molWeights[-1]) 
-		self.CpDiffs 			= self.Cp[:-1] - self.Cp[-1]
-		self.enthRefDiffs 		= self.enthRef[:-1] - self.enthRef[-1]
+		
+		# dealing with single-species option
+		if (self.numSpeciesFull == 1):
+			self.numSpecies		= self.numSpeciesFull
+		else:
+			self.numSpecies 	= self.numSpeciesFull - 1		# last species is not directly solved for
+
+		self.massFracSlice  = np.arange(self.numSpecies)
+		self.mwInvDiffs 	= (1.0 / self.molWeights[self.massFracSlice]) - (1.0 / self.molWeights[-1])
+		self.CpDiffs 		= self.Cp[self.massFracSlice] - self.Cp[-1]
+		self.enthRefDiffs 	= self.enthRef[self.massFracSlice] - self.enthRef[-1]
+
+		self.numEqs 		= self.numSpecies + 3			# pressure, velocity, temperature, and species transport
 
 		# mass matrices for calculating viscosity and thermal conductivity mixing laws
 		self.mixMassMatrix 		= np.zeros((self.numSpeciesFull, self.numSpeciesFull), dtype=realType)
@@ -47,6 +56,7 @@ class gasModel:
 		for specNum in range(self.numSpeciesFull):
 			self.mixMassMatrix[specNum, :] 		= np.power((self.molWeights / self.molWeights[specNum]), 0.25)
 			self.mixInvMassMatrix[specNum, :] 	= 1.0 / np.sqrt( 1.0 + self.molWeights[specNum] / self.molWeights)
+
 
 	def getMassFracArray(self, solPrim=None, massFracs=None):
 		"""
@@ -59,19 +69,15 @@ class gasModel:
 			if (massFracs.ndim == 1):
 				massFracs = np.reshape(massFracs, (1,-1))
 
-			# TODO: THIS IS NOT CORRECT, need to make sure N-1 species are preserved, this ends up cutting off two
 			if (massFracs.shape[1] == self.numSpeciesFull):
 				massFracs = massFracs[:-1,:]
+			else:
+				assert (massFracs.shape[0] == self.numSpecies), "If not passing full mass fraction array, must pass N-1 species"
 		else:
 			massFracs = solPrim[3:,:]
 
-		# slice array appropriately
-		if (self.numSpecies > 1):
-			massFracs = massFracs[:-1, :]
-		else:
-			massFracs = massFracs[0,:]
-
 		return massFracs
+
 
 	def calcAllMassFracs(self, massFracsNS):
 		"""
@@ -79,12 +85,17 @@ class gasModel:
 		Thresholds all mass fraction fields between zero and unity 
 		"""
 
-		numSpecies, numCells = massFracsNS.shape
-		massFracs = np.zeros((numSpecies+1,numCells), dtype=realType)
+		if (self.numSpeciesFull == 1):
+			massFracs = np.maximum(0.0, np.minimum(1.0, massFracsNS))
 
-		massFracs[:-1,:] 	= np.maximum(0.0, np.minimum(1.0, massFracsNS))
-		massFracs[-1,:] 	= 1.0 - np.sum(massFracs[:-1,:], axis=0)
-		massFracs[-1,:] 	= np.maximum(0.0, np.minimum(1.0, massFracs[-1,:]))
+		else:
+			numSpecies, numCells = massFracsNS.shape
+			assert (numSpecies == self.numSpecies), ("massFracsNS argument must have "+str(self.numSpecies)+" species")
+
+			massFracs = np.zeros((numSpecies+1,numCells), dtype=realType)
+			massFracs[:-1,:] 	= np.maximum(0.0, np.minimum(1.0, massFracsNS))
+			massFracs[-1,:] 	= 1.0 - np.sum(massFracs[:-1,:], axis=0)
+			massFracs[-1,:] 	= np.maximum(0.0, np.minimum(1.0, massFracs[-1,:]))
 
 		return massFracs
 

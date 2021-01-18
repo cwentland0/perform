@@ -42,8 +42,8 @@ def calcRHS(solDomain, solver):
 		solPrimGrad = calcCellGradients(solDomain, solver)
 		solDomain.solPrimL[:,solDomain.fluxLExtract] += (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradLExtract]
 		solDomain.solPrimR[:,solDomain.fluxRExtract] -= (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradRExtract]
-		solDomain.solConsL, _, _ ,_  = stateFuncs.calcStateFromPrim(solDomain.solPrimL, solver.gasModel)
-		solDomain.solConsR, _, _ ,_ = stateFuncs.calcStateFromPrim(solDomain.solPrimR, solver.gasModel)
+		solDomain.solConsL, _, _ ,_  = stateFuncs.calcStateFromPrim(solDomain.solPrimL, solDomain.gasModel)
+		solDomain.solConsR, _, _ ,_ = stateFuncs.calcStateFromPrim(solDomain.solPrimR, solDomain.gasModel)
 
 	# compute fluxes
 	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solDomain, solver)
@@ -83,18 +83,18 @@ def calcInvFlux(solDomain, solver):
 	fac1 = 1.0 - fac
 
 	# Roe average stagnation enthalpy and density
-	h0L = solver.gasModel.calcStagnationEnthalpy(solPrimL)
-	h0R = solver.gasModel.calcStagnationEnthalpy(solPrimR) 
+	h0L = solDomain.gasModel.calcStagnationEnthalpy(solPrimL)
+	h0R = solDomain.gasModel.calcStagnationEnthalpy(solPrimR) 
 	h0Ave = fac * h0L + fac1 * h0R 
 	rhoAve = sqrhol * sqrhor
 
 	# compute Roe average primitive state, adjust iteratively to conform to Roe average density and enthalpy
 	solPrimAve = fac[None,:] * solPrimL + fac1[None,:] * solPrimR
-	solPrimAve = stateFuncs.calcStateFromRhoH0(solPrimAve, rhoAve, h0Ave, solver.gasModel)
+	solPrimAve = stateFuncs.calcStateFromRhoH0(solPrimAve, rhoAve, h0Ave, solDomain.gasModel)
 
 	# compute Roe average state at faces, associated fluid properties
-	solConsAve, RAve, enthRefAve, CpAve = stateFuncs.calcStateFromPrim(solPrimAve, solver.gasModel)
-	gammaAve = solver.gasModel.calcMixGamma(RAve, CpAve)
+	solConsAve, RAve, enthRefAve, CpAve = stateFuncs.calcStateFromPrim(solPrimAve, solDomain.gasModel)
+	gammaAve = solDomain.gasModel.calcMixGamma(RAve, CpAve)
 	cAve = np.sqrt(gammaAve * RAve * solPrimAve[2,:])
 
 	# compute inviscid flux vectors of left and right state
@@ -115,7 +115,7 @@ def calcInvFlux(solDomain, solver):
 
 	# dissipation term
 	dQp = solPrimL - solPrimR
-	M_ROE = calcRoeDissipation(solPrimAve, solConsAve[0,:], h0Ave, cAve, CpAve, solver.gasModel)
+	M_ROE = calcRoeDissipation(solPrimAve, solConsAve[0,:], h0Ave, cAve, CpAve, solDomain.gasModel)
 	dissTerm = 0.5 * (M_ROE * np.expand_dims(dQp, 0)).sum(-2)
 
 	# complete Roe flux
@@ -217,7 +217,7 @@ def calcRoeDissipation(solPrim, rho, h0, c, Cp, gas):
 # compute viscous fluxes
 def calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver):
 
-	gas 	= solver.gasModel 
+	gas 	= solDomain.gasModel 
 	mesh 	= solver.mesh
 	solInt  = solDomain.solInt
 
@@ -226,10 +226,11 @@ def calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver):
 	solPrimGrad = np.zeros((gas.numEqs, solDomain.numFluxFaces), dtype=realType)
 	solPrimGrad = (solDomain.solPrimFull[:,solDomain.fluxSampRIdxs] - solDomain.solPrimFull[:,solDomain.fluxSampLIdxs]) / mesh.dx
 
-	Ck = gas.muRef[:-1] * CpAve / gas.Pr[:-1] 									# thermal conductivity
-	tau = 4.0/3.0 * gas.muRef[:-1] * solPrimGrad[1,:] 							# stress "tensor"
+	# TODO: gasModel refs
+	Ck = gas.muRef[gas.massFracSlice] * CpAve / gas.Pr[gas.massFracSlice] 									# thermal conductivity
+	tau = 4.0/3.0 * gas.muRef[gas.massFracSlice] * solPrimGrad[1,:] 							# stress "tensor"
 
-	Cd = gas.muRef[:-1] / gas.Sc[:-1] / solConsAve[0,:]							# mass diffusivity
+	Cd = gas.muRef[gas.massFracSlice] / gas.Sc[gas.massFracSlice] / solConsAve[0,:]							# mass diffusivity
 	diff_rhoY = solConsAve[0,:] * Cd * np.squeeze(solPrimGrad[3:,:])  			# 
 	hY = gas.enthRefDiffs + (solPrimAve[2,:] - gas.tempRef) * gas.CpDiffs 		# species enthalpies, TODO: replace with gas model function
 
@@ -249,7 +250,7 @@ def calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver):
 # TODO: bring in rho*Yi so it doesn't keep getting calculated
 def calcSource(solDomain, solver):
 
-	gas = solver.gasModel
+	gas = solDomain.gasModel
 
 	temp 	  = solDomain.solInt.solPrim[2,solDomain.directSampIdxs]
 	massFracs = solDomain.solInt.solPrim[3:,solDomain.directSampIdxs]

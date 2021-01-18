@@ -11,7 +11,7 @@ class fieldPlot(visualization):
 	Class for field plot image
 	"""
 
-	def __init__(self, visID, visInterval, solver):
+	def __init__(self, visID, visInterval, solDomain, solver):
 
 		paramDict = solver.paramDict
 
@@ -26,7 +26,7 @@ class fieldPlot(visualization):
 		else:
 			self.imgString 	= None
 
-		super().__init__(solver)
+		super().__init__(solDomain, solver)
 
 		# set up output directory
 		visName = ""

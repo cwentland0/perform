@@ -11,7 +11,7 @@ import pdb
 
 class probePlot(visualization):
 
-	def __init__(self, visID, solver):
+	def __init__(self, visID, solDomain, solver):
 
 		self.visType = "probe"
 		self.visID   = visID
@@ -21,7 +21,7 @@ class probePlot(visualization):
 		assert (self.probeNum >= 0 ), "Must provide positive integer probe number for probe"+str(self.visID)
 		assert (self.probeNum < solver.numProbes), "probeNum"+str(self.visID)+" must correspond to a valid probe"
 
-		super().__init__(solver)
+		super().__init__(solDomain, solver)
 
 		# image file on disk
 		visName = ""

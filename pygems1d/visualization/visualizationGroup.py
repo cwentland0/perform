@@ -15,7 +15,7 @@ class visualizationGroup:
 	Container class for all visualizations
 	"""
 
-	def __init__(self, solver):
+	def __init__(self, solDomain, solver):
 		
 		paramDict = solver.paramDict
 
@@ -54,11 +54,11 @@ class visualizationGroup:
 			visType = str(paramDict["visType"+str(visIdx)])
 
 			if (visType == "field"):
-				self.visList[visIdx-1] = fieldPlot(visIdx, self.visInterval, solver)
+				self.visList[visIdx-1] = fieldPlot(visIdx, self.visInterval, solDomain, solver)
 			elif (visType == "probe"):
-				self.visList[visIdx-1] = probePlot(visIdx, solver)
+				self.visList[visIdx-1] = probePlot(visIdx, solDomain, solver)
 			elif (visType == "residual"):
-				self.visList[visIdx-1] = residualPlot()
+				raise ValueError("Residual plot not implemented yet")
 			else:
 				raise ValueError("Invalid visualization selection: "+visType)
 

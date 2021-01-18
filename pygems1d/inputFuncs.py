@@ -163,29 +163,29 @@ def parseBC(bcName, inDict):
 	
 	return press, vel, temp, massFrac, rho, pertType, pertPerc, pertFreq
 
-def getInitialConditions(solver):
+def getInitialConditions(solDomain, solver):
 
 	# TODO: add an option to interpolate a solution onto the given mesh, if different
 
 	# intialize from restart file
 	if solver.initFromRestart:
 		solver.solTime, solPrim0, solver.restartIter = readRestartFile()
-		solCons0, _, _, _ = calcStateFromPrim(solPrim0, solver.gasModel)
+		solCons0, _, _, _ = calcStateFromPrim(solPrim0, solDomain.gasModel)
 
 	# otherwise init from scratch IC or custom IC file 
 	else:
 		if (solver.initFile == None):
-			solPrim0, solCons0 = genPiecewiseUniformIC(solver)
+			solPrim0, solCons0 = genPiecewiseUniformIC(solDomain, solver)
 		else:
 			# TODO: change this to .npz format with physical time included
 			solPrim0 = np.load(solver.initFile)
-			solCons0, _, _, _ = calcStateFromPrim(solPrim0, solver.gasModel)
+			solCons0, _, _, _ = calcStateFromPrim(solPrim0, solDomain.gasModel)
 
 	return solPrim0, solCons0
 
 # generate "left" and "right" states
 # TODO: generalize to >2 uniform regions
-def genPiecewiseUniformIC(solver):
+def genPiecewiseUniformIC(solDomain, solver):
 	"""
 
 
@@ -204,7 +204,7 @@ def genPiecewiseUniformIC(solver):
 		raise ValueError("Could not find initial conditions file at "+solver.icParamsFile)
 
 	splitIdx 	= np.absolute(solver.mesh.xCell - icDict["xSplit"]).argmin()+1
-	solPrim 	= np.zeros((solver.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
+	solPrim 	= np.zeros((solDomain.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
 
 	# left state
 	solPrim[0,:splitIdx] 	= icDict["pressLeft"]
@@ -222,7 +222,7 @@ def genPiecewiseUniformIC(solver):
 	assert(np.sum(massFracRight) == 1.0), "massFracRight must sum to 1.0"
 	solPrim[3:,splitIdx:] 	= massFracRight[:-1]
 	
-	solCons, _, _, _ = calcStateFromPrim(solPrim, solver.gasModel)
+	solCons, _, _, _ = calcStateFromPrim(solPrim, solDomain.gasModel)
 
 	return solPrim, solCons
 

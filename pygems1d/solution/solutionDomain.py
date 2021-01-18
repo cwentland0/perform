@@ -1,7 +1,8 @@
 import pygems1d.constants as const
-from pygems1d.inputFuncs import getInitialConditions, catchList
+from pygems1d.inputFuncs import getInitialConditions, catchList, catchInput, readInputFile
 from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
 from pygems1d.timeIntegrator.implicitIntegrator import bdf
+from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
 from pygems1d.solution.solutionInterior import solutionInterior
 from pygems1d.solution.solutionBoundary.solutionInlet import solutionInlet 
 from pygems1d.solution.solutionBoundary.solutionOutlet import solutionOutlet
@@ -30,16 +31,23 @@ class solutionDomain:
 		else:
 			raise ValueError("Invalid choice of timeScheme: "+solver.timeScheme)
 
+		# gas model
+		gasFile = str(paramDict["gasFile"]) 		# gas properties file (string)
+		gasDict = readInputFile(gasFile) 
+		gasType = catchInput(gasDict, "gasType", "cpg")
+		if (gasType == "cpg"):
+			self.gasModel = caloricallyPerfectGas(gasDict)
+		else:
+			raise ValueError("Ivalid choice of gasType: " + gasType)
+
 		# solution
-		solPrim0, solCons0 	= getInitialConditions(solver)
-		self.solInt 		= solutionInterior(solPrim0, solCons0, solver, self.timeIntegrator)
-		self.solIn 			= solutionInlet(solver)
-		self.solOut 		= solutionOutlet(solver)
+		solPrim0, solCons0 	= getInitialConditions(self, solver)
+		self.solInt 		= solutionInterior(self, solPrim0, solCons0, solver, self.timeIntegrator)
+		self.solIn 			= solutionInlet(self, solver)
+		self.solOut 		= solutionOutlet(self, solver)
 
 		# to avoid repeated concatenation of ghost cell states
-		self.solPrimFull = np.zeros((solver.gasModel.numEqs, 
-									 self.solIn.solPrim.shape[1]+self.solInt.solPrim.shape[1]+self.solOut.solPrim.shape[1]), 
-									 dtype=const.realType)
+		self.solPrimFull = np.zeros((self.gasModel.numEqs, self.solIn.numCells+self.solInt.numCells+self.solOut.numCells), dtype=const.realType)
 		self.solConsFull = np.zeros(self.solPrimFull.shape, dtype=const.realType)
 
 		# for flux calculations, don't know shape yet for hyper-reduction
@@ -166,20 +174,20 @@ class solutionDomain:
 			resJacob = calcDResDSolPrim(self, solver) 	# TODO: new Jacobians, state update for non-dual time 
 			dSol = spsolve(resJacob, solInt.res.ravel('F'))
 
-			solInt.solPrim += dSol.reshape((solver.gasModel.numEqs, solver.mesh.numCells), order='F')
-			solInt.updateState(solver.gasModel, fromCons = False)
+			solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+			solInt.updateState(fromCons = False)
 			solInt.solHistCons[0] = solInt.solCons.copy() 
 			solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
 			# borrow solInt.res to store linear solve residual	
 			res = resJacob @ dSol - solInt.res.ravel('F')
-			solInt.res = np.reshape(res, (solver.gasModel.numEqs, solver.mesh.numCells), order='F')
+			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='F')
 
 		else:
 
 			dSol = self.timeIntegrator.solveSolChange(solInt.RHS)
 			solInt.solCons = solInt.solHistCons[0] + dSol
-			solInt.updateState(solver.gasModel, fromCons=True)
+			solInt.updateState(fromCons=True)
 
 
 	def calcBoundaryCells(self, solver):

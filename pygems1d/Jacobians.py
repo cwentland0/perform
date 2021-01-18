@@ -11,9 +11,13 @@ import pdb
 # TODO: scipy is not strictly needed, should only import if it's available with a try, except.
 #		In this case, can just make the Jacobian dense. It's a cost hit but makes code less restrictive.
 
-### Gamma Inverse ###
+
 def calcDSolPrimDSolCons(solCons, solPrim, gas):
-	
+	"""
+	Compute the Jacobian of the conservative state w/r/t/ the primitive state
+	This appears as \Gamma^{-1} in the pyGEMS documentation
+	"""
+
 	gammaMatrixInv = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[0]))
 	
 	rho = solCons[0,:]
@@ -31,12 +35,13 @@ def calcDSolPrimDSolCons(solCons, solPrim, gas):
 	Ri = gas.calcMixGasConstant(massFracs)
 	Cpi = gas.calcMixCp(massFracs)
 	
-	rhop = 1 / (Ri * T)
-	rhoT = -rho / T
-	hT = Cpi
+	rhop = 1 / (Ri * T) 						# TODO
+	rhoT = -rho / T 							# TODO
+	hT = Cpi 									# TODO
 	d = rho * rhop * hT + rhoT
-	h0 = (solCons[2,:] + p) / rho
+	h0 = (solCons[2,:] + p) / rho 				# TODO
 	
+	# TODO
 	if (gas.numSpecies == 0):
 		gamma11 = (rho * hT + rhoT * (h0 - (u * u))) / d
 	else:
@@ -45,8 +50,8 @@ def calcDSolPrimDSolCons(solCons, solPrim, gas):
 		gamma11 = (rho * hT + rhoT * (h0 - (u * u)) + (Y * (rhoY * hT - rhoT * hY))) / d 
 		
 	gammaMatrixInv[0,0,:] = gamma11
-	gammaMatrixInv[0,1,:] = u * rhoT / d
-	gammaMatrixInv[0,2,:] = -rhoT / d
+	gammaMatrixInv[0,1,:] = u * rhoT / d 	# TODO
+	gammaMatrixInv[0,2,:] = -rhoT / d 		# TODO
 	
 	if (gas.numSpecies > 0):
 		gammaMatrixInv[0,3:,:] = (rhoT * hY - rhoY * hT) / d
@@ -73,25 +78,23 @@ def calcDSolPrimDSolCons(solCons, solPrim, gas):
 	return gammaMatrixInv
 
 
-# compute gradient of conservative variable solution w/r/t the primitive variable solution
 def calcDSolConsDSolPrim(solPrim, solCons, gas):
-	
+	"""
+	Compute the Jacobian of conservative state w/r/t the primitive state
+	This appears as \Gamma in the pyGEMS documentation
+	"""
+
 	gammaMatrix = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[1]))
 	rho = solCons[0,:]
 	p   = solPrim[0,:]
 	u   = solPrim[1,:]
 	T   = solPrim[2,:]
 
-	# if (gas.numSpecies > 1):
 	Y = solPrim[3:,:]
 	massFracs = solPrim[3:,:]
-	# else:
-	# 	Y = solPrim[[3,:]
-	# 	massFracs = solPrim[3,:]
-		
-	# Y = Y.reshape((gas.numSpecies, Y.shape[1])) # TODO: what does this accomplish?
-	Ri = gas.calcMixGasConstant(massFracs)
-	Cpi = gas.calcMixCp(massFracs)
+
+	Ri = gas.calcMixGasConstant(Y)
+	Cpi = gas.calcMixCp(Y)
 	
 	rhop = 1.0 / (Ri * T)
 	rhoT = -rho / T
@@ -100,10 +103,8 @@ def calcDSolConsDSolPrim(solPrim, solCons, gas):
 	hp = 0.0
 	h0 = (solCons[2,:] + p) / rho
 	
-	if (gas.numSpecies > 0):
-		#rhoY = -(rho**2)*(const.RUniv * T/p)*(1/gas.molWeights[0] - 1/gas.molWeights[gas.numSpecies])
-		rhoY = -np.square(rho) * (const.RUniv * T / p * gas.mwInvDiffs)
-		hY = gas.enthRefDiffs + (T - gas.tempRef) * (gas.Cp[0] - gas.Cp[gas.numSpecies])
+	rhoY = -np.square(rho) * (const.RUniv * T / p * gas.mwInvDiffs)
+	hY = gas.enthRefDiffs + (T - gas.tempRef) * (gas.Cp[0] - gas.Cp[gas.numSpecies])
 		
 	
 	gammaMatrix[0,0,:] = rhop
@@ -145,14 +146,9 @@ def calcDSourceDSolPrim(solPrim, solCons, gas, mesh, dt):
 	p   = solPrim[0,:]
 	T   = solPrim[2,:]
 
-	if (gas.numSpecies > 1):
-		Y = solPrim[3:,:]
-		massFracs = solPrim[3:,:]
-	else:
-		Y = solPrim[[3],:]
-		massFracs = solPrim[3,:]
+	Y = solPrim[3:,:]
 		
-	Ri = gas.calcMixGasConstant(massFracs)
+	Ri = gas.calcMixGasConstant(Y)
 	
 	rhop = 1 / (Ri * T)
 	rhoT = -rho / T
@@ -199,9 +195,7 @@ def calcDSourceDSolPrim(solPrim, solCons, gas, mesh, dt):
 	
 
 # compute flux Jacobians   
-def calcAp(solPrim, rho, cp, h0, solver):
-	
-	gas = solver.gasModel
+def calcAp(solPrim, rho, cp, h0, solver, gas):
 
 	Ap = np.zeros((gas.numEqs, gas.numEqs, solPrim.shape[1]))
 	
@@ -299,25 +293,24 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
 	
 	Hi = np.squeeze((di * HR + HL) * dl)
 	
-	if (solver.gasModel.numSpecies > 1):
+	if (solDomain.gasModel.numSpecies > 1):
 		massFracsRoe = Qp_i[3:,:]
 	else:
 		massFracsRoe = Qp_i[3,:]
 		
-	Ri = solver.gasModel.calcMixGasConstant(massFracsRoe)
-	Cpi = solver.gasModel.calcMixCp(massFracsRoe)
-	gammai = solver.gasModel.calcMixGamma(Ri, Cpi)
+	Ri = solDomain.gasModel.calcMixGasConstant(massFracsRoe)
+	Cpi = solDomain.gasModel.calcMixCp(massFracsRoe)
+	gammai = solDomain.gasModel.calcMixGamma(Ri, Cpi)
 	
 	ci = np.sqrt(gammai * Ri * Qp_i[2,:])
 	
-	# M_ROE = np.transpose(calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solver.gasModel), axes=(1,2,0))
-	M_ROE = calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solver.gasModel)
+	M_ROE = calcRoeDissipation(Qp_i, rhoi, Hi, ci, Cpi, solDomain.gasModel)
 
 	cp_l = np.concatenate((solDomain.solIn.CpMix, solDomain.solInt.CpMix))
 	cp_r = np.concatenate((solDomain.solInt.CpMix, solDomain.solOut.CpMix))
 
-	Ap_l = calcAp(solPrimL, solConsL[0,:], cp_l, HL, solver)
-	Ap_r = calcAp(solPrimR, solConsR[0,:], cp_r, HR, solver)
+	Ap_l = calcAp(solPrimL, solConsL[0,:], cp_l, HL, solver, solDomain.gasModel)
+	Ap_r = calcAp(solPrimR, solConsR[0,:], cp_r, HR, solver, solDomain.gasModel)
 
 	# TODO: not valid for non-uniform mesh
 	Ap_l[:,:,:]  *= (0.5 / solver.mesh.dx)
@@ -344,12 +337,12 @@ def calcDResDSolPrim(solDomain, solver):
 	solOut = solDomain.solOut
 
 	# contribution to main block diagonal from source term Jacobian
-	dSdQp = np.zeros((solver.gasModel.numEqs, solver.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
+	dSdQp = np.zeros((solDomain.gasModel.numEqs, solDomain.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
 	if solver.sourceOn:
-		dSdQp = calcDSourceDSolPrim(solInt.solPrim, solInt.solCons, solver.gasModel, solver.mesh, solDomain.timeIntegrator.dt)
+		dSdQp = calcDSourceDSolPrim(solInt.solPrim, solInt.solCons, solDomain.gasModel, solver.mesh, solDomain.timeIntegrator.dt)
 	
 	# contribution to main block diagonal from physical/dual time solution Jacobian
-	gammaMatrix = calcDSolConsDSolPrim(solInt.solPrim, solInt.solCons, solver.gasModel)
+	gammaMatrix = calcDSolConsDSolPrim(solInt.solPrim, solInt.solCons, solDomain.gasModel)
 		
 	# contribution from inviscid and viscous flux Jacobians
 	# TODO: the face reconstruction should be held onto from the RHS calcs
@@ -363,8 +356,8 @@ def calcDResDSolPrim(solDomain, solver):
 		solPrimGrad = calcCellGradients(solDomain, solver)
 		solPrimL[:,1:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
 		solPrimR[:,:-1] -= (solver.mesh.dx / 2.0) * solPrimGrad
-		solConsL[:,1:], _, _ ,_ = calcStateFromPrim(solPrimL[:,1:], solver.gasModel)
-		solConsR[:,:-1], _, _ ,_ = calcStateFromPrim(solPrimR[:,:-1], solver.gasModel)
+		solConsL[:,1:], _, _ ,_ = calcStateFromPrim(solPrimL[:,1:], solDomain.gasModel)
+		solConsR[:,:-1], _, _ ,_ = calcStateFromPrim(solPrimR[:,:-1], solDomain.gasModel)
 		
 	# *_l is contribution to lower block diagonal, *_r is to upper block diagonal
 	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
@@ -374,7 +367,7 @@ def calcDResDSolPrim(solDomain, solver):
 	dtCoeffIdx = min(solver.iter, solDomain.timeIntegrator.timeOrder) - 1
 	dtInv = solDomain.timeIntegrator.coeffs[dtCoeffIdx][0] / solDomain.timeIntegrator.dt
 	if (solDomain.timeIntegrator.adaptDTau):
-		dtauInv = calcAdaptiveDTau(solDomain, gammaMatrix, solver)
+		dtauInv = calcAdaptiveDTau(solDomain, gammaMatrix)
 	else:
 		dtauInv = 1./solDomain.timeIntegrator.dtau
 
@@ -387,7 +380,7 @@ def calcDResDSolPrim(solDomain, solver):
 	return dRdQp
 
 # TODO: move this to implicitIntegrator
-def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
+def calcAdaptiveDTau(solDomain, gammaMatrix):
 
 	# compute initial dtau from input CFL and srf (max characteristic speed)
 	# srf is computed in calcInvFlux
@@ -396,7 +389,7 @@ def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 
 	# limit by von Neumann number
 	# TODO: THIS NU IS NOT CORRECT FOR A GENERAL MIXTURE
-	nu = solver.gasModel.muRef[0] / solDomain.solInt.solCons[0,:]
+	nu = solDomain.gasModel.muRef[0] / solDomain.solInt.solCons[0,:]
 	dtau = np.minimum(dtau, solDomain.timeIntegrator.VNN / nu)
 	dtaum = np.minimum(dtaum, 3.0 / nu)
 
