@@ -62,7 +62,7 @@ class systemSolver:
 		# spatial discretization parameters
 		self.spaceScheme 	= catchInput(paramDict, "spaceScheme", "roe")	# spatial discretization scheme (string)
 		self.spaceOrder 	= catchInput(paramDict, "spaceOrder", 1)		# spatial discretization order of accuracy (int)
-		self.gradLimiter 	= catchInput(paramDict, "gradLimiter", 0)		# gradient limiter for higher-order face reconstructions
+		self.gradLimiter 	= catchInput(paramDict, "gradLimiter", "")		# gradient limiter for higher-order face reconstructions
 		self.viscScheme 	= catchInput(paramDict, "viscScheme", 0)		# 0 for inviscid, 1 for viscous
 
 		# restart files
@@ -71,7 +71,7 @@ class systemSolver:
 		if self.saveRestarts:
 			self.restartInterval 	= catchInput(paramDict, "restartInterval", 100)	# number of steps between restart file saves
 			self.numRestarts 		= catchInput(paramDict, "numRestarts", 20) 		# number of restart files to keep saved
-			self.restartIter 		= 1		# file number counter
+			self.restartIter 		= 1												# file number counter
 		self.initFromRestart = catchInput(paramDict, "initFromRestart", False)
 
 		if ((self.initFile == None) and (not self.initFromRestart)):

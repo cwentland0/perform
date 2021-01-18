@@ -41,7 +41,6 @@ class romDomain:
 			assert (len(self.latentDims) == 1), "Must provide only one value of latentDims when numModels = 1"
 			assert (self.latentDims[0] > 0), "latentDims must contain positive integers"
 		else:
-
 			if (len(self.latentDims) == self.numModels):
 				pass
 			elif (len(self.latentDims) == 1):	
@@ -106,7 +105,7 @@ class romDomain:
 			elif (self.romMethod == "linearLSPGProj"):
 				raise ValueError("linearLSPGProj ROM not implemented yet")
 			elif (self.romMethod == "linearSPLSVTProj"):
-				self.modelList[modelIdx] = linearSPLSVTProj(modelIdx, self, solver)
+				raise ValueError("linearSPLSVTProj ROM not implemented yet")
 			elif (self.romMethod == "autoencoderGalerkinProjTF"):
 				raise ValueError("autoencoderGalerkinProjTF ROM not implemented yet")
 			elif (self.romMethod == "autoencoderLSPGProjTF"):
@@ -245,6 +244,11 @@ class romDomain:
 
 
 	def loadHyperReduc(self, solDomain, solver):
+		"""
+		Loads direct sampling indices and determines cell indices for calculating fluxes and gradients
+		"""
+
+		# TODO: add some explanations for what each index array accomplishes
 
 		# load and check sample points
 		sampFile = catchInput(self.romDict, "sampFile", "")
@@ -287,8 +291,33 @@ class romDomain:
 				solDomain.fluxRHSIdxs[i] = solDomain.fluxRHSIdxs[i-1] + 2
 
 		# compute indices for gradient calculations
+		# NOTE: also need to account for prepended/appended boundary cells
+		# TODO: generalize for higher-order schemes
 		if (solver.spaceOrder > 1):
-			raise ValueError("Sampling for higher-order schemes not implemented yet")
+			if (solver.spaceOrder == 2):
+				solDomain.gradIdxs = np.concatenate((solDomain.directSampIdxs+1, solDomain.directSampIdxs, solDomain.directSampIdxs+2))
+				solDomain.gradIdxs = np.unique(solDomain.gradIdxs)
+				# exclude left neighbor of inlet, right neighbor of outlet
+				if (solDomain.gradIdxs[0] == 0): solDomain.gradIdxs = solDomain.gradIdxs[1:]
+				if (solDomain.gradIdxs[-1] == (solver.mesh.numCells+1)):  solDomain.gradIdxs = solDomain.gradIdxs[:-1]
+				solDomain.numGradCells = len(solDomain.gradIdxs)
+
+				# neighbors of gradient cells
+				solDomain.gradNeighIdxs = np.concatenate((solDomain.gradIdxs-1, solDomain.gradIdxs+1))
+				solDomain.gradNeighIdxs = np.unique(solDomain.gradNeighIdxs)
+				# exclude left neighbor of inlet, right neighbor of outlet
+				if (solDomain.gradNeighIdxs[0] == -1): solDomain.gradNeighIdxs = solDomain.gradNeighIdxs[1:]
+				if (solDomain.gradNeighIdxs[-1] == (solver.mesh.numCells+2)):  solDomain.gradNeighIdxs = solDomain.gradNeighIdxs[:-1]
+
+				# indices of gradIdxs in gradNeighIdxs
+				_, _, solDomain.gradNeighExtract = np.intersect1d(solDomain.gradIdxs, solDomain.gradNeighIdxs, return_indices=True)
+
+				# indices of gradIdxs in fluxSampLIdxs and fluxSampRIdxs, and vice versa
+				_, solDomain.gradLExtract, solDomain.fluxLExtract = np.intersect1d(solDomain.gradIdxs, solDomain.fluxSampLIdxs, return_indices=True)
+				_, solDomain.gradRExtract, solDomain.fluxRExtract = np.intersect1d(solDomain.gradIdxs, solDomain.fluxSampRIdxs, return_indices=True)
+
+			else:
+				raise ValueError("Sampling for higher-order schemes not implemented yet")
 
 		# copy indices for ease of use
 		self.numSampCells = solDomain.numSampCells
@@ -303,7 +332,21 @@ class romDomain:
 			assert (os.path.isfile(inFile)), "Could not find hyper-reduction file at " + inFile
 			self.hyperReducFiles[modelIdx] = inFile
 
+		# load hyper reduction dimensions and check validity
 		self.hyperReducDims = catchList(self.romDict, "hyperReducDims", [0], lenHighest=self.numModels)
+		for i in self.hyperReducDims: assert (i > 0), "hyperReducDims must contain positive integers"
+		if (self.numModels == 1):
+			assert (len(self.hyperReducDims) == 1), "Must provide only one value of hyperReducDims when numModels = 1"
+			assert (self.hyperReducDims[0] > 0), "hyperReducDims must contain positive integers"
+		else:
+			if (len(self.hyperReducDims) == self.numModels):
+				pass
+			elif (len(self.hyperReducDims) == 1):	
+				print("Only one value provided in hyperReducDims, applying to all models")
+				sleep(1.0)
+				self.hyperReducDims = [self.hyperReducDims[0]] * self.numModels
+			else:
+				raise ValueError("Must provide either numModels or 1 entry in hyperReducDims")
 
 
 	def advanceIter(self, solDomain, solver):

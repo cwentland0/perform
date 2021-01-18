@@ -87,12 +87,20 @@ class solutionDomain:
 
 		# for compatability with hyper-reduction
 		# are overwritten if actually using hyper-reduction
-		self.numSampCells 	= solver.mesh.numCells
-		self.numFluxFaces 	= solver.mesh.numCells + 1
-		self.directSampIdxs = np.arange(0, solver.mesh.numCells)
-		self.fluxSampLIdxs 	= np.arange(0, solver.mesh.numCells+1)
-		self.fluxSampRIdxs 	= np.arange(1, solver.mesh.numCells+2)
-		self.fluxRHSIdxs	= np.arange(0, solver.mesh.numCells)
+		self.numSampCells     = solver.mesh.numCells
+		self.numFluxFaces     = solver.mesh.numCells + 1
+		self.numGradCells     = solver.mesh.numCells
+		self.directSampIdxs   = np.arange(0, solver.mesh.numCells)
+		self.fluxSampLIdxs 	  = np.arange(0, solver.mesh.numCells+1)
+		self.fluxSampRIdxs 	  = np.arange(1, solver.mesh.numCells+2)
+		self.gradIdxs         = np.arange(1, solver.mesh.numCells+1)
+		self.gradNeighIdxs    = np.arange(0, solver.mesh.numCells+2)
+		self.gradNeighExtract = np.arange(1, solver.mesh.numCells+1)
+		self.fluxLExtract     = np.arange(1, solver.mesh.numCells+1)
+		self.fluxRExtract     = np.arange(0, solver.mesh.numCells)
+		self.gradLExtract     = np.arange(0, solver.mesh.numCells)
+		self.gradRExtract     = np.arange(0, solver.mesh.numCells)
+		self.fluxRHSIdxs      = np.arange(0, solver.mesh.numCells)
 
 
 	def fillSolFull(self):

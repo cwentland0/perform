@@ -40,10 +40,10 @@ def calcRHS(solDomain, solver):
 	# TODO: make this work with gappy POD
 	if (solver.spaceOrder > 1):
 		solPrimGrad = calcCellGradients(solDomain, solver)
-		solDomain.solPrimL[:,1:]  += (solver.mesh.dx / 2.0) * solPrimGrad 
-		solDomain.solPrimR[:,:-1] -= (solver.mesh.dx / 2.0) * solPrimGrad
-		solDomain.solConsL[:,1:], _, _ ,_  = stateFuncs.calcStateFromPrim(solDomain.solPrimL[:,1:], solver.gasModel)
-		solDomain.solConsR[:,:-1], _, _ ,_ = stateFuncs.calcStateFromPrim(solDomain.solPrimR[:,:-1], solver.gasModel)
+		solDomain.solPrimL[:,solDomain.fluxLExtract] += (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradLExtract]
+		solDomain.solPrimR[:,solDomain.fluxRExtract] -= (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradRExtract]
+		solDomain.solConsL, _, _ ,_  = stateFuncs.calcStateFromPrim(solDomain.solPrimL, solver.gasModel)
+		solDomain.solConsR, _, _ ,_ = stateFuncs.calcStateFromPrim(solDomain.solPrimR, solver.gasModel)
 
 	# compute fluxes
 	flux, solPrimAve, solConsAve, CpAve = calcInvFlux(solDomain, solver)
@@ -222,7 +222,6 @@ def calcViscFlux(solDomain, solPrimAve, solConsAve, CpAve, solver):
 	solInt  = solDomain.solInt
 
 	# compute 2nd-order state gradients at faces
-	# TODO: not valid for non-uniform mesh
 	# TODO: generalize to higher orders of accuracy
 	solPrimGrad = np.zeros((gas.numEqs, solDomain.numFluxFaces), dtype=realType)
 	solPrimGrad = (solDomain.solPrimFull[:,solDomain.fluxSampRIdxs] - solDomain.solPrimFull[:,solDomain.fluxSampLIdxs]) / mesh.dx

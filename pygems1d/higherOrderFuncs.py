@@ -3,28 +3,29 @@ from pygems1d.constants import realType
 import numpy as np
 import pdb
 
-def calcCellGradients(solDomain, solver):
-	
-	# compute gradients via a finite difference stencil
-	solPrimGrad = np.zeros(solDomain.solInt.solPrim.shape, dtype=realType)
-	# TODO: this is not valid on a non-uniform grid
-	# TODO: move this calculation to solutionDomain
-	if (solver.spaceOrder == 2):
-		solPrimGrad[:, 1:-1] = (0.5 / solver.mesh.dx) * (solDomain.solInt.solPrim[:,2:] - solDomain.solInt.solPrim[:,:-2])
-		solPrimGrad[:, 0]    = (0.5 / solver.mesh.dx) * (solDomain.solInt.solPrim[:,1] - solDomain.solIn.solPrim[:,0])
-		solPrimGrad[:, -1]   = (0.5 / solver.mesh.dx) * (solDomain.solOut.solPrim[:,0] - solDomain.solInt.solPrim[:,-2])
-	else:
-		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented...")
 
-	# compute gradient limiter and limit gradient, if necessary
-	if (solver.gradLimiter > 0):
+def calcCellGradients(solDomain, solver):
+	"""
+	Compute cell-centered gradients for higher-order face reconstructions
+	Also calculate gradient limiters if requested
+	"""
+
+	# compute gradients via finite difference stencil
+	solPrimGrad = np.zeros((solver.gasModel.numEqs, solDomain.numGradCells), dtype=realType)
+	if (solver.spaceOrder == 2):
+		solPrimGrad = (0.5 / solver.mesh.dx) * (solDomain.solPrimFull[:, solDomain.gradIdxs + 1] - solDomain.solPrimFull[:, solDomain.gradIdxs - 1])
+	else:
+		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented")
+
+	# compute gradient limiter and limit gradient, if requested
+	if (solver.gradLimiter != ""):
 
 		# Barth-Jespersen
-		if (solver.gradLimiter == 1):
+		if (solver.gradLimiter == "barth"):
 			phi = limiterBarthJespersen(solDomain, solPrimGrad, solver.mesh)
 
 		# Venkatakrishnan, no correction
-		elif (solver.gradLimiter == 2):
+		elif (solver.gradLimiter == "venkat"):
 			phi = limiterVenkatakrishnan(solDomain, solPrimGrad, solver.mesh)
 
 		else:
@@ -34,37 +35,41 @@ def calcCellGradients(solDomain, solver):
 
 	return solPrimGrad
 	
-# find minimum and maximum of cell state and neighbor cell state
-def findNeighborMinMax(solInterior, solInlet=None, solOutlet=None):
+
+def findNeighborMinMax(sol):
+	"""
+	Find minimum and maximum of cell state and neighbor cell state
+	"""
 
 	# max and min of cell and neighbors
-	solMax = solInterior.copy()
-	solMin = solInterior.copy()
+	solMax = sol.copy()
+	solMin = sol.copy()
 
 	# first compare against right neighbor
-	solMax[:,:-1]  	= np.maximum(solInterior[:,:-1], solInterior[:,1:])
-	solMin[:,:-1]  	= np.minimum(solInterior[:,:-1], solInterior[:,1:])
-	if (solOutlet is not None):
-		solMax[:,-1]	= np.maximum(solInterior[:,-1], solOutlet[:,0])
-		solMin[:,-1]	= np.minimum(solInterior[:,-1], solOutlet[:,0])
+	solMax[:,:-1]  	= np.maximum(sol[:,:-1], sol[:,1:])
+	solMin[:,:-1]  	= np.minimum(sol[:,:-1], sol[:,1:])
 
 	# then compare agains left neighbor
-	solMax[:,1:] 	= np.maximum(solMax[:,1:], solInterior[:,:-1])
-	solMin[:,1:] 	= np.minimum(solMin[:,1:], solInterior[:,:-1])
-	if (solInlet is not None):
-		solMax[:,0] 	= np.maximum(solMax[:,0], solInlet[:,0])
-		solMin[:,0] 	= np.minimum(solMin[:,0], solInlet[:,0])
+	solMax[:,1:] 	= np.maximum(solMax[:,1:], sol[:,:-1])
+	solMin[:,1:] 	= np.minimum(solMin[:,1:], sol[:,:-1])
 
 	return solMin, solMax
 
-# Barth-Jespersen limiter
-# ensures that no new minima or maxima are introduced in reconstruction
-def limiterBarthJespersen(solDomain, grad, mesh):
 
-	solPrim = solDomain.solInt.solPrim
+def limiterBarthJespersen(solDomain, grad, mesh):
+	"""
+	Barth-Jespersen limiter
+	Ensures that no new minima or maxima are introduced in reconstruction
+	"""
+
+	solPrim = solDomain.solPrimFull[:, solDomain.gradIdxs]
 
 	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, solDomain.solIn.solPrim, solDomain.solOut.solPrim)
+	solPrimMin, solPrimMax = findNeighborMinMax(solDomain.solPrimFull[:, solDomain.gradNeighIdxs])
+
+	# extract gradient cells
+	solPrimMin = solPrimMin[:, solDomain.gradNeighExtract]
+	solPrimMax = solPrimMax[:, solDomain.gradNeighExtract]
 
 	# unconstrained reconstruction at neighboring cell centers
 	delSolPrim 		= grad * mesh.dx
@@ -92,14 +97,17 @@ def limiterBarthJespersen(solDomain, grad, mesh):
 	
 	return phi
 
-# Venkatakrishnan limiter
-# differentiable, but limits in uniform regions
-def limiterVenkatakrishnan(solDomain, grad, mesh):
 
-	solPrim = solDomain.solInt.solPrim
+def limiterVenkatakrishnan(solDomain, grad, mesh):
+	"""
+	Venkatakrishnan limiter
+	Differentiable, but limits in uniform regions
+	"""
+
+	solPrim = solDomain.solPrimFull[:, solDomain.gradIdxs]
 
 	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solPrim, solDomain.solIn.solPrim, solDomain.solOut.solPrim)
+	solPrimMin, solPrimMax = findNeighborMinMax(solDomain.solPrimFull[:, solDomain.gradNeighIdxs])
 
 	# unconstrained reconstruction at neighboring cell centers
 	delSolPrim 		= grad * mesh.dx
