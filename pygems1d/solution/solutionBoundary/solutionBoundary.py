@@ -31,7 +31,7 @@ class solutionBoundary(solutionPhys):
 		# this will be updated at each iteration, just initializing now
 		# TODO: number of ghost cells should not always be one
 		solDummy = np.ones((gas.numEqs,1), dtype=realType)
-		super().__init__(solDomain, solDummy, solDummy, 1, solver)
+		super().__init__(solDomain, solDummy, 1, solver)
 		self.solPrim[3:,0] = self.massFrac[gas.massFracSlice]
 
 	

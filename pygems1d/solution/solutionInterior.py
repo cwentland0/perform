@@ -11,8 +11,8 @@ class solutionInterior(solutionPhys):
 	Solution of interior domain
 	"""
 
-	def __init__(self, solDomain, solPrimIn, solConsIn, solver, timeInt):
-		super().__init__(solDomain, solPrimIn, solConsIn, solver.mesh.numCells, solver)
+	def __init__(self, solDomain, solPrimIn, solver, timeInt):
+		super().__init__(solDomain, solPrimIn, solver.mesh.numCells, solver)
 
 		gas = self.gasModel
 		numCells = solver.mesh.numCells 
@@ -20,11 +20,10 @@ class solutionInterior(solutionPhys):
 		self.source = np.zeros((gas.numSpecies,numCells), dtype=realType)	# reaction source term
 		self.RHS 	= np.zeros((gas.numEqs,numCells), dtype=realType)		# RHS function
 
-		# add bulk velocity if required
+		# add bulk velocity and update state if requested
 		if (solver.velAdd != 0.0):
 			self.solPrim[1,:] += solver.velAdd
-		
-		self.updateState(fromCons=False)
+			self.updateState(fromCons=False)
 
 		# initializing time history
 		self.solHistCons = [self.solCons.copy()] * (timeInt.timeOrder+1)
@@ -33,10 +32,10 @@ class solutionInterior(solutionPhys):
 		# snapshot storage matrices, store initial condition
 		if solver.primOut: 
 			self.primSnap = np.zeros((gas.numEqs, numCells, solver.numSnaps+1), dtype=realType)
-			self.primSnap[:,:,0] = solPrimIn.copy()
+			self.primSnap[:,:,0] = self.solPrim.copy()
 		if solver.consOut: 
 			self.consSnap = np.zeros((gas.numEqs, numCells, solver.numSnaps+1), dtype=realType)
-			self.consSnap[:,:,0] = solConsIn.copy()
+			self.consSnap[:,:,0] = self.solCons.copy()
 
 		# these don't include the source/RHS associated with the final solution
 		# TODO: calculate at final solution? Doesn't really seem worth the bother to me

@@ -1,7 +1,5 @@
 import pygems1d.constants as const
-from pygems1d.spaceSchemes import calcRoeDissipation
-from pygems1d.higherOrderFuncs import calcCellGradients
-from pygems1d.stateFuncs import calcStateFromPrim
+# from pygems1d.spaceSchemes import calcRoeDissipation
 
 import numpy as np
 from scipy.sparse import bsr_matrix
@@ -93,13 +91,13 @@ def calcDSolConsDSolPrim(solPrim, solCons, gas):
 	Y = solPrim[3:,:]
 	massFracs = solPrim[3:,:]
 
-	Ri = gas.calcMixGasConstant(Y)
+	Ri = gas.calcMixGasConstant(Y) 	# already calculated
 	Cpi = gas.calcMixCp(Y)
 	
 	rhop = 1.0 / (Ri * T)
 	rhoT = -rho / T
 	hT = Cpi
-	d = rho * rhop * hT + rhoT 	# Ashish, this is unused?
+	d = rho * rhop * hT + rhoT 
 	hp = 0.0
 	h0 = (solCons[2,:] + p) / rho
 	
@@ -293,10 +291,7 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
 	
 	Hi = np.squeeze((di * HR + HL) * dl)
 	
-	if (solDomain.gasModel.numSpecies > 1):
-		massFracsRoe = Qp_i[3:,:]
-	else:
-		massFracsRoe = Qp_i[3,:]
+	massFracsRoe = Qp_i[3:,:]
 		
 	Ri = solDomain.gasModel.calcMixGasConstant(massFracsRoe)
 	Cpi = solDomain.gasModel.calcMixCp(massFracsRoe)
@@ -312,18 +307,17 @@ def calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)
 	Ap_l = calcAp(solPrimL, solConsL[0,:], cp_l, HL, solver, solDomain.gasModel)
 	Ap_r = calcAp(solPrimR, solConsR[0,:], cp_r, HR, solver, solDomain.gasModel)
 
-	# TODO: not valid for non-uniform mesh
 	Ap_l[:,:,:]  *= (0.5 / solver.mesh.dx)
 	Ap_r[:,:,:]  *= (0.5 / solver.mesh.dx)
 	M_ROE[:,:,:] *= (0.5 / solver.mesh.dx)
 
-    #Jacobian wrt current cell
+    # Jacobian wrt current cell
 	dFluxdQp = (Ap_l[:,:,1:] + M_ROE[:,:,1:]) + (-Ap_r[:,:,:-1] + M_ROE[:,:,:-1])
     
-    #Jacobian wrt left neighbour
+    # Jacobian wrt left neighbor
 	dFluxdQp_l = (-Ap_l[:,:,1:-1] - M_ROE[:,:,:-2])
     
-    #Jacobian wrt right neighbour
+    # Jacobian wrt right neighbor
 	dFluxdQp_r = (Ap_r[:,:,1:-1] - M_ROE[:,:,2:]) 
     
 	return dFluxdQp, dFluxdQp_l, dFluxdQp_r
@@ -346,18 +340,18 @@ def calcDResDSolPrim(solDomain, solver):
 		
 	# contribution from inviscid and viscous flux Jacobians
 	# TODO: the face reconstruction should be held onto from the RHS calcs
-	solPrimL = np.concatenate((solIn.solPrim, solInt.solPrim), axis=1)
-	solConsL = np.concatenate((solIn.solCons, solInt.solCons), axis=1)
-	solPrimR = np.concatenate((solInt.solPrim, solOut.solPrim), axis=1)
-	solConsR = np.concatenate((solInt.solCons, solOut.solCons), axis=1)       
+	# solPrimL = np.concatenate((solIn.solPrim, solInt.solPrim), axis=1)
+	# solConsL = np.concatenate((solIn.solCons, solInt.solCons), axis=1)
+	# solPrimR = np.concatenate((solInt.solPrim, solOut.solPrim), axis=1)
+	# solConsR = np.concatenate((solInt.solCons, solOut.solCons), axis=1)       
 
-	# add higher-order contribution
-	if (solver.spaceOrder > 1):
-		solPrimGrad = calcCellGradients(solDomain, solver)
-		solPrimL[:,1:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
-		solPrimR[:,:-1] -= (solver.mesh.dx / 2.0) * solPrimGrad
-		solConsL[:,1:], _, _ ,_ = calcStateFromPrim(solPrimL[:,1:], solDomain.gasModel)
-		solConsR[:,:-1], _, _ ,_ = calcStateFromPrim(solPrimR[:,:-1], solDomain.gasModel)
+	# # add higher-order contribution
+	# if (solver.spaceOrder > 1):
+	# 	solPrimGrad = calcCellGradients(solDomain, solver)
+	# 	solPrimL[:,1:] 	+= (solver.mesh.dx / 2.0) * solPrimGrad 
+	# 	solPrimR[:,:-1] -= (solver.mesh.dx / 2.0) * solPrimGrad
+	# 	solConsL[:,1:], _, _ ,_ = calcStateFromPrim(solPrimL[:,1:], solDomain.gasModel)
+	# 	solConsR[:,:-1], _, _ ,_ = calcStateFromPrim(solPrimR[:,:-1], solDomain.gasModel)
 		
 	# *_l is contribution to lower block diagonal, *_r is to upper block diagonal
 	dFdQp, dFdQp_l, dFdQp_r = calcDFluxDSolPrim(solConsL, solPrimL, solConsR, solPrimR, solDomain, solver)

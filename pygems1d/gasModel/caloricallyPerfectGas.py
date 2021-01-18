@@ -206,7 +206,7 @@ class caloricallyPerfectGas(gasModel):
 				assert (temperature is not None), "Must provide temperature if not providing species enthalpies..."
 				speciesEnth = self.calcSpeciesEnthalpies(temperature)
 			
-			DStagEnthDSpec = np.zeros((self.numSpecies, speciesEnth.shape[0]), dtype=realType)
+			DStagEnthDSpec = np.zeros((self.numSpecies, speciesEnth.shape[1]), dtype=realType)
 			for specNum in range(self.numSpecies):
 				DStagEnthDSpec[specNum,:] = speciesEnth[-1,:] - speciesEnth[specNum,:]
 			derivs = derivs + (DStagEnthDSpec,)

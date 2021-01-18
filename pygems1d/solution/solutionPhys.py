@@ -1,5 +1,4 @@
-from pygems1d.constants import realType
-from pygems1d.stateFuncs import calcStateFromPrim, calcStateFromCons
+from pygems1d.constants import realType, hugeNum, RUniv
 
 import numpy as np
 import pdb
@@ -11,7 +10,7 @@ class solutionPhys:
 	Base class for physical solution (opposed to ROM solution)
 	"""
 
-	def __init__(self, solDomain, solPrimIn, solConsIn, numCells, solver):
+	def __init__(self, solDomain, solPrimIn, numCells, solver):
 		
 		self.gasModel = solDomain.gasModel
 
@@ -20,25 +19,116 @@ class solutionPhys:
 		# solution and mixture properties
 		self.solPrim	= np.zeros((self.gasModel.numEqs, numCells), dtype=realType)		# solution in primitive variables
 		self.solCons	= np.zeros((self.gasModel.numEqs, numCells), dtype=realType)		# solution in conservative variables
-		self.mwMix 		= np.zeros(numCells, dtype=realType)					# mixture molecular weight
-		self.RMix		= np.zeros(numCells, dtype=realType)					# mixture specific gas constant
-		self.gammaMix 	= np.zeros(numCells, dtype=realType)					# mixture ratio of specific heats
-		self.enthRefMix = np.zeros(numCells, dtype=realType)					# mixture reference enthalpy
-		self.CpMix 		= np.zeros(numCells, dtype=realType)					# mixture specific heat at constant pressure
+		self.mwMix 		= np.zeros(numCells, dtype=realType)								# mixture molecular weight
+		self.RMix		= np.zeros(numCells, dtype=realType)								# mixture specific gas constant
+		self.gammaMix 	= np.zeros(numCells, dtype=realType)								# mixture ratio of specific heats
+		self.enthRefMix = np.zeros(numCells, dtype=realType)								# mixture reference enthalpy
+		self.CpMix 		= np.zeros(numCells, dtype=realType)								# mixture specific heat at constant pressure
+		self.h0 		= np.zeros(numCells, dtype=realType) 								# stagnation enthalpy
+		self.hi 		= np.zeros((self.gasModel.numEqs, numCells), dtype=realType)		# species enthalpies
+		self.c 			= np.zeros(numCells, dtype=realType) 								# sound speed
 
-		# load initial condition and check size
+		# set initial condition
 		assert(solPrimIn.shape == (self.gasModel.numEqs, numCells))
-		assert(solConsIn.shape == (self.gasModel.numEqs, numCells))
 		self.solPrim = solPrimIn.copy()
-		self.solCons = solConsIn.copy()
+		self.updateState(fromCons=False)
 
 
 	def updateState(self, fromCons=True):
 		"""
-		Update state and mixture gas properties
+		Update state and some mixture gas properties
 		"""
 
 		if fromCons:
-			self.solPrim, self.RMix, self.enthRefMix, self.CpMix = calcStateFromCons(self.solCons, self.gasModel)
+			self.calcStateFromCons(calcR=True, calcEnthRef=True, calcCp=True)
 		else:
-			self.solCons, self.RMix, self.enthRefMix, self.CpMix = calcStateFromPrim(self.solPrim, self.gasModel)
+			self.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
+
+
+	def calcStateFromCons(self, calcR=False, calcEnthRef=False, calcCp=False):
+		"""
+		Compute primitive state from conservative state
+		"""
+
+		self.solPrim[3:,:] = self.solCons[3:,:] / self.solCons[[0],:]
+		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
+
+		# update thermo properties
+		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
+		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
+		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
+
+		# update primitive state
+		# TODO: gasModel references
+		self.solPrim[1,:] = self.solCons[1,:] / self.solCons[0,:]
+		self.solPrim[2,:] = (self.solCons[2,:] / self.solCons[0,:] - np.square(self.solPrim[1,:]) / 2.0 - 
+							 self.enthRefMix + self.CpMix * self.gasModel.tempRef) / (self.CpMix - self.RMix) 
+		self.solPrim[0,:] = self.solCons[0,:] * self.RMix * self.solPrim[2,:]
+
+
+	def calcStateFromPrim(self, calcR=False, calcEnthRef=False, calcCp=False):
+		"""
+		Compute state from primitive state
+		"""
+
+		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
+
+		# update thermo properties
+		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
+		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
+		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
+
+		# update conservative variables
+		# TODO: gasModel references
+		self.solCons[0,:]  = self.solPrim[0,:] / (self.RMix * self.solPrim[2,:]) 
+		self.solCons[1,:]  = self.solCons[0,:] * self.solPrim[1,:]				
+		self.solCons[2,:]  = self.solCons[0,:] * ( self.enthRefMix + self.CpMix * (self.solPrim[2,:] - self.gasModel.tempRef) + 
+												 np.power(self.solPrim[1,:], 2.0) / 2.0 ) - self.solPrim[0,:]
+		self.solCons[3:,:] = self.solCons[[0],:] * self.solPrim[3:,:]
+ 
+
+	def calcStateFromRhoH0(self):
+		"""
+		Adjust pressure and temperature iteratively to agree with a fixed density and stagnation enthalpy
+		Used to compute a physically-meaningful Roe average state from the Roe average enthalpy and density
+		"""
+
+		densFixed     = np.squeeze(self.solCons[0,:])
+		stagEnthFixed = np.squeeze(self.h0)
+
+		dPress = hugeNum * np.ones(self.numCells, dtype=realType)
+		dTemp  = hugeNum * np.ones(self.numCells, dtype=realType)
+
+		pressCurr = self.solPrim[0,:]
+
+		iterCount = 0
+		onesVec = np.ones(self.numCells, dtype=realType)
+		while ( (np.any( np.absolute(dPress / self.solPrim[0,:]) > 0.01 ) or np.any( np.absolute(dTemp / self.solPrim[2,:]) > 0.01)) and (iterCount < 20)):
+
+			# compute density and stagnation enthalpy from current state
+			densCurr 		= self.gasModel.calcDensity(self.solPrim)
+			stagEnthCurr 	= self.gasModel.calcStagnationEnthalpy(self.solPrim)
+
+			# compute difference between current and fixed density/stagnation enthalpy
+			dDens 		= densFixed - densCurr 
+			dStagEnth 	= stagEnthFixed - stagEnthCurr
+
+			# compute derivatives of density and stagnation enthalpy with respect to pressure and temperature
+			DDensDPress, DDensDTemp = self.gasModel.calcDensityDerivatives(densCurr, wrtPress=True, pressure=self.solPrim[0,:], 
+																		   wrtTemp=True, temperature=self.solPrim[2,:])
+			DStagEnthDPress, DStagEnthDTemp = self.gasModel.calcStagEnthalpyDerivatives(wrtPress=True, wrtTemp=True, massFracs=self.solPrim[3:,:])
+
+			# compute change in temperature and pressure 
+			dFactor = 1.0 / (DDensDPress * DStagEnthDTemp - DDensDTemp * DStagEnthDPress)
+			dPress 	= dFactor * (dDens * DStagEnthDTemp - dStagEnth * DDensDTemp)
+			dTemp 	= dFactor * (-dDens * DStagEnthDPress + dStagEnth * DDensDPress)
+
+			# threshold change in temperature and pressure 
+			dPress  = np.copysign(onesVec, dPress) * np.minimum(np.absolute(dPress), self.solPrim[0,:] * 0.1)
+			dTemp 	= np.copysign(onesVec, dTemp) * np.minimum(np.absolute(dTemp), self.solPrim[2,:] * 0.1)
+
+			# update temperature and pressure
+			self.solPrim[0,:] += dPress
+			self.solPrim[2,:] += dTemp
+
+			iterCount += 1

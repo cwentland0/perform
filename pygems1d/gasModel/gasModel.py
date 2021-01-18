@@ -1,4 +1,5 @@
 from pygems1d.constants import realType, RUniv
+from pygems1d.inputFuncs import catchInput
 
 import numpy as np
 import pdb
@@ -33,7 +34,8 @@ class gasModel:
 		# misc calculations
 		self.RGas 				= RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)	
 		self.molWeightNu 		= self.molWeights * self.nu 
-		
+		self.suthLaw 			= catchInput(gasDict, "suthLaw", False)
+
 		# dealing with single-species option
 		if (self.numSpeciesFull == 1):
 			self.numSpecies		= self.numSpeciesFull
@@ -105,7 +107,7 @@ class gasModel:
 		"""
 
 		if (massFracs.shape[0] == self.numSpecies):
-			massFracs = calcAllMassFracs(massFracs)
+			massFracs = self.calcAllMassFracs(massFracs)
 
 		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights, axis=0)
 

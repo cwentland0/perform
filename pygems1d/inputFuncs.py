@@ -1,5 +1,4 @@
 import pygems1d.constants as const
-from pygems1d.stateFuncs import calcStateFromPrim
 
 import re 
 import numpy as np
@@ -170,18 +169,16 @@ def getInitialConditions(solDomain, solver):
 	# intialize from restart file
 	if solver.initFromRestart:
 		solver.solTime, solPrim0, solver.restartIter = readRestartFile()
-		solCons0, _, _, _ = calcStateFromPrim(solPrim0, solDomain.gasModel)
 
 	# otherwise init from scratch IC or custom IC file 
 	else:
 		if (solver.initFile == None):
-			solPrim0, solCons0 = genPiecewiseUniformIC(solDomain, solver)
+			solPrim0 = genPiecewiseUniformIC(solDomain, solver)
 		else:
 			# TODO: change this to .npz format with physical time included
 			solPrim0 = np.load(solver.initFile)
-			solCons0, _, _, _ = calcStateFromPrim(solPrim0, solDomain.gasModel)
 
-	return solPrim0, solCons0
+	return solPrim0
 
 # generate "left" and "right" states
 # TODO: generalize to >2 uniform regions
@@ -222,9 +219,7 @@ def genPiecewiseUniformIC(solDomain, solver):
 	assert(np.sum(massFracRight) == 1.0), "massFracRight must sum to 1.0"
 	solPrim[3:,splitIdx:] 	= massFracRight[:-1]
 	
-	solCons, _, _, _ = calcStateFromPrim(solPrim, solDomain.gasModel)
-
-	return solPrim, solCons
+	return solPrim
 
 # read solution state from restart file 
 def readRestartFile():

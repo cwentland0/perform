@@ -4,6 +4,7 @@ from pygems1d.rom.linearProjROM.linearGalerkinProj import linearGalerkinProj
 from pygems1d.rom.linearProjROM.linearSPLSVTProj import linearSPLSVTProj
 from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
 from pygems1d.timeIntegrator.implicitIntegrator import bdf
+from pygems1d.solution.solutionPhys import solutionPhys
 from pygems1d.spaceSchemes import calcRHS
 from pygems1d.Jacobians import calcDResDSolPrim
 
@@ -281,6 +282,11 @@ class romDomain:
 		solDomain.fluxSampLIdxs = np.unique(solDomain.fluxSampLIdxs)
 		solDomain.fluxSampRIdxs = np.unique(solDomain.fluxSampRIdxs)
 		solDomain.numFluxFaces  = len(solDomain.fluxSampLIdxs)
+
+		# Roe average
+		if (solver.spaceScheme == "roe"):
+			zerosProf        = np.zeros((solDomain.gasModel.numEqs, solDomain.numFluxFaces), dtype=const.realType)
+			solDomain.solAve = solutionPhys(solDomain, zerosProf, zerosProf, solDomain.numFluxFaces, solver)
 
 		# to slice flux when calculating RHS
 		solDomain.fluxRHSIdxs = np.zeros(solDomain.numSampCells, np.int32)

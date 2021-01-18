@@ -3,6 +3,7 @@ from pygems1d.inputFuncs import getInitialConditions, catchList, catchInput, rea
 from pygems1d.timeIntegrator.explicitIntegrator import rkExplicit
 from pygems1d.timeIntegrator.implicitIntegrator import bdf
 from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
+from pygems1d.solution.solutionPhys import solutionPhys
 from pygems1d.solution.solutionInterior import solutionInterior
 from pygems1d.solution.solutionBoundary.solutionInlet import solutionInlet 
 from pygems1d.solution.solutionBoundary.solutionOutlet import solutionOutlet
@@ -41,20 +42,24 @@ class solutionDomain:
 			raise ValueError("Ivalid choice of gasType: " + gasType)
 
 		# solution
-		solPrim0, solCons0 	= getInitialConditions(self, solver)
-		self.solInt 		= solutionInterior(self, solPrim0, solCons0, solver, self.timeIntegrator)
-		self.solIn 			= solutionInlet(self, solver)
-		self.solOut 		= solutionOutlet(self, solver)
+		solPrim0    = getInitialConditions(self, solver)
+		self.solInt = solutionInterior(self, solPrim0, solver, self.timeIntegrator)
+		self.solIn  = solutionInlet(self, solver)
+		self.solOut = solutionOutlet(self, solver)
+
+		# average solution for Roe scheme
+		if (solver.spaceScheme == "roe"):
+			onesProf    = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
+			self.solAve  = solutionPhys(self, onesProf, self.solInt.numCells+1, solver)
+
+		# for flux calculations
+		onesProf = np.ones((self.gasModel.numEqs, self.solInt.numCells), dtype=const.realType)
+		self.solL = solutionPhys(self, onesProf, self.solInt.numCells, solver)
+		self.solR = solutionPhys(self, onesProf, self.solInt.numCells, solver)
 
 		# to avoid repeated concatenation of ghost cell states
 		self.solPrimFull = np.zeros((self.gasModel.numEqs, self.solIn.numCells+self.solInt.numCells+self.solOut.numCells), dtype=const.realType)
 		self.solConsFull = np.zeros(self.solPrimFull.shape, dtype=const.realType)
-
-		# for flux calculations, don't know shape yet for hyper-reduction
-		self.solPrimL = None
-		self.solConsL = None
-		self.solPrimR = None
-		self.solConsR = None
 
 		# probe storage (as this can include boundaries as well)
 		self.probeLocs 		= catchList(paramDict, "probeLocs", [None])
