@@ -3,6 +3,7 @@ from pygems1d.solution.solutionPhys import solutionPhys
 from pygems1d.inputFuncs import parseBC
 
 import numpy as np
+import pdb
 from math import sin, pi
 
 class solutionBoundary(solutionPhys):
@@ -18,12 +19,13 @@ class solutionBoundary(solutionPhys):
 		# this generally stores fixed/stagnation properties
 		self.press, self.vel, self.temp, self.massFrac, self.rho, \
 			self.pertType, self.pertPerc, self.pertFreq = parseBC(boundType, paramDict)
-
+		primState=np.concatenate((np.array([self.press,self.vel,self.temp]),self.massFrac))
+		primState=primState[:-1]
 		assert (len(self.massFrac) == gas.numSpeciesFull), "Must provide mass fraction state for all species at boundary"
-		self.CpMix 		= gas.calcMixCp(self.massFrac[:-1])
-		self.RMix 		= gas.calcMixGasConstant(self.massFrac[:-1])
-		self.gamma 		= gas.calcMixGamma(self.RMix, self.CpMix)
-		self.enthRefMix = gas.calcMixEnthRef(self.massFrac[:-1])
+		self.CpMix 		= gas.calcMixCp(primState[:,None])
+		self.RMix 		= gas.calcMixGasConstant(primState[:,None])
+		self.gamma 		= gas.calcMixGamma(self.CpMix,self.RMix)
+		self.enthRefMix = gas.calcMixEnthRef(primState[:,None])
 
 		# this will be updated at each iteration, just initializing now
 		solDummy = np.ones((gas.numEqs,1), dtype=realType)

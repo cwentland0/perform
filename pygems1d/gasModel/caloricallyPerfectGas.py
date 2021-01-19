@@ -186,10 +186,8 @@ class caloricallyPerfectGas(gasModel):
 		return derivs
 
 
-
-		
 	# calculate Denisty from Primitive state
-	def calcDensFromPrim(self,solPrim,solCons):
+	def calcDensityFromPrim(self,solPrim,solCons):
 		massFracs = super().getMassFracArray(solPrim=solPrim)
 		RMix = self.calcMixGasConstant(massFracs)
 		return solPrim[0,:] / (RMix * solPrim[2,:])
@@ -202,3 +200,7 @@ class caloricallyPerfectGas(gasModel):
 		enthRefMix 		= self.calcMixEnthRef(massFracs)
 		CpMix 			= self.calcMixCp(massFracs)
 		return solCons[0,:] * ( enthRefMix + CpMix * (solPrim[2,:] - self.tempRef) + np.power(solPrim[1,:],2.0) / 2.0 ) - solPrim[0,:]
+	# calculate rhoY from Primitive state
+	def calcDensityYFromPrim(self,solPrim,solCons):
+		return solCons[[0],:]*solPrim[3:,:]
+		

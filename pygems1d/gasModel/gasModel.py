@@ -96,3 +96,4 @@ class gasModel:
 		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights, axis=0)
 
 		return mixMolWeight
+	

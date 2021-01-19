@@ -31,16 +31,16 @@ def calcStateFromPrim(solPrim, gas):
 	# density, momentum, energy, density-weighted mass fraction
 	solCons = np.zeros(solPrim.shape, dtype=realType)
 
-	massFracs = gas.getMassFracArray(solPrim=solPrim)
-	RMix = gas.calcMixGasConstant(massFracs)
-	enthRefMix = gas.calcMixEnthRef(massFracs)
-	CpMix = gas.calcMixCp(massFracs)
-
 	# update conservative variables
-	solCons[0,:] = gas.calcDensFromPrim(solPrim,solCons)   		#solPrim[0,:] / (RMix * solPrim[2,:]) 
+	solCons[0,:] = gas.calcDensityFromPrim(solPrim,solCons)   		#solPrim[0,:] / (RMix * solPrim[2,:]) 
 	solCons[1,:] = gas.calcMomentumFromPrim(solPrim,solCons)	#solCons[0,:] * solPrim[1,:]				
 	solCons[2,:] = gas.calcEnthalpyFromPrim(solPrim,solCons)	#solCons[0,:] * ( enthRefMix + CpMix * (solPrim[2,:] - gas.tempRef) + np.power(solPrim[1,:],2.0) / 2.0 ) - solPrim[0,:]
 	solCons[3:,:] = solCons[[0],:]*solPrim[3:,:]
+
+	
+	RMix = gas.calcMixGasConstant(solPrim)
+	enthRefMix = gas.calcMixEnthRef(solPrim)
+	CpMix = gas.calcMixCp(solPrim)
 
 	return solCons, RMix, enthRefMix, CpMix
 
