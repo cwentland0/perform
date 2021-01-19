@@ -133,10 +133,9 @@ def calcRoeDissipation(solAve):
 	Compute dissipation term of Roe flux
 	"""
 
-	# allocate
 	dissMat = np.zeros((solAve.gasModel.numEqs, solAve.gasModel.numEqs, solAve.numCells), dtype=realType)        
 	
-	# primitive variables for clarity
+	# for clarity
 	rho       = solAve.solCons[0,:]
 	press     = solAve.solPrim[0,:]
 	vel       = solAve.solPrim[1,:]
@@ -261,6 +260,7 @@ def calcSource(solDomain, solver):
 	"""
 
 	# TODO: expand to multiple global reactions
+	# TODO: expand to general reaction w/ reverse direction
 
 	gas = solDomain.gasModel
 
@@ -272,21 +272,10 @@ def calcSource(solDomain, solver):
 	# TODO: account for temperature exponential
 	wf = gas.preExpFact * np.exp(gas.actEnergy / temp)
 	
-	rhoY = massFracs * rho
+	rhoY = rho * massFracs
 
-	# specIdxs = np.argwhere(gas.nuArr != 0.0)
-	# wf = wf * np.power((rhoY[specIdx,:] / gas.molWeights[specIdx]), gas.nuArr[specIdx])
+	specIdxs = np.squeeze(np.argwhere(gas.nuArr != 0.0))
+	wf       = np.product( wf[None,:] * np.power((rhoY[specIdxs,:] / gas.molWeights[specIdxs, None]), gas.nuArr[specIdxs, None]), axis=0)
+	wf       = np.amin(np.minimum(wf[None,:], rhoY[specIdxs,:] / solver.dt), axis=0)
 
-	for specIdx in range(gas.numSpecies):
-		if (gas.nuArr[specIdx] != 0.0):
-			wf = wf * np.power((rhoY[specIdx,:] / gas.molWeights[specIdx]), gas.nuArr[specIdx])
-			wf[massFracs[specIdx, :] < 0.0] = 0.0
-
-	for specIdx in range(gas.numSpecies):
-		if (gas.nuArr[specIdx] != 0.0):
-			wf = np.minimum(wf, rhoY[specIdx] / solver.dt)
-
-	# TODO: could vectorize this I think
-	for specIdx in range(gas.numSpecies):
-		solDomain.solInt.source[specIdx,solDomain.directSampIdxs] = -gas.molWeightNu[specIdx] * wf
-
+	solDomain.solInt.source[gas.massFracSlice, solDomain.directSampIdxs] = -gas.molWeightNu[gas.massFracSlice, None] * wf[None, :]
