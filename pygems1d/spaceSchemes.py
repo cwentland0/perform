@@ -242,15 +242,15 @@ def calcViscFlux(solDomain, solver):
 	massDiff    = gas.calcSpeciesMassDiffCoeff(solAve.solCons[0,:], specDynVisc=specDynVisc)
 	hi          = gas.calcSpeciesEnthalpies(solAve.solPrim[2,:])
 
-	# TODO: include Matt's correction velocity to the diffusion velocity?
-	tau = 4.0/3.0 * muMix * solPrimGrad[1,:]						# stress "tensor"
-	diffVel = solAve.solCons[[0],:] * massDiff * solPrimGrad[3:,:] 	# diffusion velocity term 
+	tau = 4.0/3.0 * muMix * solPrimGrad[1,:]							# stress "tensor"
+	diffVel = solAve.solCons[[0],:] * massDiff * solPrimGrad[3:,:]		# diffusion velocity
+	corrVel = np.sum(diffVel, axis=0) 									# correction velocity
 
 	# viscous flux
 	Fv = np.zeros((gas.numEqs, solDomain.numFluxFaces), dtype=realType)
 	Fv[1,:]  += tau
 	Fv[2,:]  += solAve.solPrim[1,:] * tau + thermCond * solPrimGrad[2,:] + np.sum(diffVel * hi, axis = 0)
-	Fv[3:,:] += diffVel[gas.massFracSlice]
+	Fv[3:,:] += diffVel[gas.massFracSlice] - solAve.solPrim[3:,:] * corrVel[None,:]
 
 	return Fv
 
