@@ -42,11 +42,15 @@ def catchInput(inDict, inKey, defaultVal):
 
 	return outVal
 
-# input processor for reading lists or lists of lists
-# default defines length of lists at lowest level
-# TODO: needs to throw an error if input list of lists is longer than lenHighest
-# TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
+
 def catchList(inDict, inKey, default, lenHighest=1):
+	"""
+	Input processor for reading lists or lists of lists
+	Default defines length of lists at lowest level
+	"""
+
+	# TODO: needs to throw an error if input list of lists is longer than lenHighest
+	# TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
 
 	listOfListsFlag = (type(default[0]) == list)
 	
@@ -87,8 +91,12 @@ def catchList(inDict, inKey, default, lenHighest=1):
 
 	return valList
 
-# parse read text value into dict value
+
 def parseValue(expr):
+	"""
+	Parse read text value into dict value
+	"""
+
 	try:
 		return eval(expr)
 	except:
@@ -96,17 +104,25 @@ def parseValue(expr):
 	else:
 		return expr
 
-# parse read text line into dict key and value
+
 def parseLine(line):
+	"""
+	Parse read text line into dict key and value
+	"""
+
 	eq = line.find('=')
 	if eq == -1: raise Exception()
 	key = line[:eq].strip()
 	value = line[eq+1:-1].strip()
 	return key, parseValue(value)
 
-# read input file
-# TODO: better exception handling besides just a pass
+
 def readInputFile(inputFile):
+	"""
+	Read input file
+	"""
+
+	# TODO: better exception handling besides just a pass
 
 	readDict = {}
 	with open(inputFile) as f:
@@ -124,9 +140,14 @@ def readInputFile(inputFile):
 
 	return readDict
 
-# parse boundary condition parameters from the input parameter dictionary
-# TODO: can definitely be made more general
+
 def parseBC(bcName, inDict):
+	"""
+	Parse boundary condition parameters from the input parameter dictionary
+	"""
+
+	# TODO: can definitely be made more general
+
 	if ("press_"+bcName in inDict): 
 		press = inDict["press_"+bcName]
 	else:
@@ -162,7 +183,11 @@ def parseBC(bcName, inDict):
 	
 	return press, vel, temp, massFrac, rho, pertType, pertPerc, pertFreq
 
+
 def getInitialConditions(solDomain, solver):
+	"""
+	Extract initial condition profile from two-zone initParamsFile, initFile .npy file, or restart file
+	"""
 
 	# TODO: add an option to interpolate a solution onto the given mesh, if different
 
@@ -180,20 +205,13 @@ def getInitialConditions(solDomain, solver):
 
 	return solPrim0
 
-# generate "left" and "right" states
-# TODO: generalize to >2 uniform regions
+
 def genPiecewiseUniformIC(solDomain, solver):
 	"""
-
-
-	Inputs
-	------
-
-	Output
-	------
-	
-
+	Generate "left" and "right" states
 	"""
+
+	# TODO: generalize to >2 uniform regions
 
 	if os.path.isfile(solver.icParamsFile):
 		icDict 	= readInputFile(solver.icParamsFile)
@@ -221,8 +239,11 @@ def genPiecewiseUniformIC(solDomain, solver):
 	
 	return solPrim
 
-# read solution state from restart file 
+
 def readRestartFile():
+	"""
+	Read solution state from restart file 
+	"""
 
 	# TODO: if higher-order multistep scheme, load previous time steps to preserve time accuracy
 

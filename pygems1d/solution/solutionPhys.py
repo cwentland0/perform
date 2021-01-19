@@ -16,17 +16,34 @@ class solutionPhys:
 
 		self.numCells = numCells
 
-		# solution and mixture properties
+		# primitive and conservative state
 		self.solPrim	= np.zeros((self.gasModel.numEqs, numCells), dtype=realType)		# solution in primitive variables
 		self.solCons	= np.zeros((self.gasModel.numEqs, numCells), dtype=realType)		# solution in conservative variables
+		
+		# chemical properties
 		self.mwMix 		= np.zeros(numCells, dtype=realType)								# mixture molecular weight
 		self.RMix		= np.zeros(numCells, dtype=realType)								# mixture specific gas constant
 		self.gammaMix 	= np.zeros(numCells, dtype=realType)								# mixture ratio of specific heats
+		
+		# thermodynamic properties
 		self.enthRefMix = np.zeros(numCells, dtype=realType)								# mixture reference enthalpy
 		self.CpMix 		= np.zeros(numCells, dtype=realType)								# mixture specific heat at constant pressure
 		self.h0 		= np.zeros(numCells, dtype=realType) 								# stagnation enthalpy
-		self.hi 		= np.zeros((self.gasModel.numEqs, numCells), dtype=realType)		# species enthalpies
+		self.hi 		= np.zeros((self.gasModel.numSpecies, numCells), dtype=realType)	# species enthalpies
 		self.c 			= np.zeros(numCells, dtype=realType) 								# sound speed
+
+		# transport properties
+		self.dynViscMix   = np.zeros(numCells, dtype=realType)
+		self.thermCondMix = np.zeros(numCells, dtype=realType)
+		self.massDiffMix  = np.zeros((self.gasModel.numSpecies, numCells), dtype=realType)
+
+		# derivatives of density and enthalpy
+		self.dRhodPress = np.zeros(numCells, dtype=realType)
+		self.dRhodTemp  = np.zeros(numCells, dtype=realType)
+		self.dRhodY     = np.zeros(numCells, dtype=realType)
+		self.dHdPress   = np.zeros(numCells, dtype=realType)
+		self.dHdTemp    = np.zeros(numCells, dtype=realType)
+		self.dHdY       = np.zeros(numCells, dtype=realType)	
 
 		# set initial condition
 		assert(solPrimIn.shape == (self.gasModel.numEqs, numCells))
@@ -62,7 +79,7 @@ class solutionPhys:
 		# TODO: gasModel references
 		self.solPrim[1,:] = self.solCons[1,:] / self.solCons[0,:]
 		self.solPrim[2,:] = (self.solCons[2,:] / self.solCons[0,:] - np.square(self.solPrim[1,:]) / 2.0 - 
-							 self.enthRefMix + self.CpMix * self.gasModel.tempRef) / (self.CpMix - self.RMix) 
+							 self.enthRefMix) / (self.CpMix - self.RMix) 
 		self.solPrim[0,:] = self.solCons[0,:] * self.RMix * self.solPrim[2,:]
 
 
@@ -82,7 +99,7 @@ class solutionPhys:
 		# TODO: gasModel references
 		self.solCons[0,:]  = self.solPrim[0,:] / (self.RMix * self.solPrim[2,:]) 
 		self.solCons[1,:]  = self.solCons[0,:] * self.solPrim[1,:]				
-		self.solCons[2,:]  = self.solCons[0,:] * ( self.enthRefMix + self.CpMix * (self.solPrim[2,:] - self.gasModel.tempRef) + 
+		self.solCons[2,:]  = self.solCons[0,:] * ( self.enthRefMix + self.CpMix * self.solPrim[2,:] + 
 												 np.power(self.solPrim[1,:], 2.0) / 2.0 ) - self.solPrim[0,:]
 		self.solCons[3:,:] = self.solCons[[0],:] * self.solPrim[3:,:]
  

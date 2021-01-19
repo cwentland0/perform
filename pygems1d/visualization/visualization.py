@@ -37,10 +37,10 @@ class visualization:
 						elif (visVar[:15] == "density-species"):
 							speciesIdx = int(visVar[15:])
 
-						assert ((speciesIdx > 0) and (speciesIdx <= solDomain.gasModel.numSpecies)), \
+						assert ((speciesIdx > 0) and (speciesIdx <= solDomain.gasModel.numSpeciesFull)), \
 							"Species number must be a positive integer less than or equal to the number of chemical species"
 					except:
-						raise ValueError("visVar entry" + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")
+						raise ValueError("visVar entry " + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")
 				else:
 					raise ValueError("Invalid entry in visVar"+str(visID))
 

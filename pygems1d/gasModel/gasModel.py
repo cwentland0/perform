@@ -15,39 +15,40 @@ class gasModel:
 	def __init__(self, gasDict):
 
 		# gas composition
-		self.numSpeciesFull 	= int(gasDict["numSpecies"])				# total number of species in case
-		self.molWeights 		= gasDict["molWeights"].astype(realType)	# molecular weights, g/mol
-		self.enthRef 			= gasDict["enthRef"].astype(realType) 		# reference enthalpy, J/kg
-		self.tempRef 			= gasDict["tempRef"]						# reference temperature, K
-		self.Cp 				= gasDict["Cp"].astype(realType)			# heat capacity at constant pressure, J/(kg-K)
-		self.Pr 				= gasDict["Pr"].astype(realType)			# Prandtl number
-		self.Sc 				= gasDict["Sc"].astype(realType)			# Schmidt number
-		self.muRef				= gasDict["muRef"].astype(realType)			# reference dynamic viscosity for Sutherland model
-		
+		self.numSpeciesFull     = int(gasDict["numSpecies"])				# total number of species in case
+		self.molWeights         = gasDict["molWeights"].astype(realType)	# molecular weights, g/mol
+		self.enthRef            = gasDict["enthRef"].astype(realType) 		# reference enthalpy, J/kg
+		self.Cp                 = gasDict["Cp"].astype(realType)			# heat capacity at constant pressure, J/(kg-K)
+		self.Pr                 = gasDict["Pr"].astype(realType)			# Prandtl number
+		self.Sc                 = gasDict["Sc"].astype(realType)			# Schmidt number
+		self.muRef              = gasDict["muRef"].astype(realType)			# reference dynamic viscosity for Sutherland model
+		self.tempRef            = gasDict["tempRef"].astype(realType)		# reference temperature for Sutherland model, K
+
 		# Arrhenius factors
 		# TODO: modify these to allow for multiple global reactions
-		self.nu 				= gasDict["nu"].astype(realType)
-		self.nuArr 				= gasDict["nuArr"].astype(realType) 	# global reaction concentration exponents
-		self.actEnergy			= float(gasDict["actEnergy"])			# global reaction Arrhenius activation energy, divided by RUniv, ?????
-		self.preExpFact 		= float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
+		self.nu                 = gasDict["nu"].astype(realType) 		# global reaction stoichiometric "forward" coefficients
+		self.nuArr              = gasDict["nuArr"].astype(realType) 	# global reaction concentration exponents
+		self.actEnergy          = float(gasDict["actEnergy"])			# global reaction Arrhenius activation energy, divided by RUniv, ?????
+		self.preExpFact         = float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
 
 		# misc calculations
-		self.RGas 				= RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)	
-		self.molWeightNu 		= self.molWeights * self.nu 
-		self.suthLaw 			= catchInput(gasDict, "suthLaw", False)
+		self.RGas               = RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)	
+		self.molWeightNu        = self.molWeights * self.nu 
+		self.suthLaw            = catchInput(gasDict, "suthLaw", False)
 
 		# dealing with single-species option
 		if (self.numSpeciesFull == 1):
-			self.numSpecies		= self.numSpeciesFull
+			self.numSpecies	    = self.numSpeciesFull
 		else:
-			self.numSpecies 	= self.numSpeciesFull - 1		# last species is not directly solved for
+			self.numSpecies     = self.numSpeciesFull - 1		# last species is not directly solved for
 
 		self.massFracSlice  = np.arange(self.numSpecies)
-		self.mwInvDiffs 	= (1.0 / self.molWeights[self.massFracSlice]) - (1.0 / self.molWeights[-1])
-		self.CpDiffs 		= self.Cp[self.massFracSlice] - self.Cp[-1]
-		self.enthRefDiffs 	= self.enthRef[self.massFracSlice] - self.enthRef[-1]
+		self.mwInv          = 1.0 / self.molWeights
+		self.mwInvDiffs     = self.mwInv[self.massFracSlice] - self.mwInv[-1]
+		self.CpDiffs        = self.Cp[self.massFracSlice] - self.Cp[-1]
+		self.enthRefDiffs   = self.enthRef[self.massFracSlice] - self.enthRef[-1]
 
-		self.numEqs 		= self.numSpecies + 3			# pressure, velocity, temperature, and species transport
+		self.numEqs         = self.numSpecies + 3			# pressure, velocity, temperature, and species transport
 
 		# mass matrices for calculating viscosity and thermal conductivity mixing laws
 		self.mixMassMatrix 		= np.zeros((self.numSpeciesFull, self.numSpeciesFull), dtype=realType)
@@ -55,9 +56,13 @@ class gasModel:
 		self.precompMixMassMatrices()
 
 	def precompMixMassMatrices(self):
+		"""
+		Precompute mass matrices for dynamic viscosity mixing law
+		"""
+
 		for specNum in range(self.numSpeciesFull):
-			self.mixMassMatrix[specNum, :] 		= np.power((self.molWeights / self.molWeights[specNum]), 0.25)
-			self.mixInvMassMatrix[specNum, :] 	= 1.0 / np.sqrt( 1.0 + self.molWeights[specNum] / self.molWeights)
+			self.mixMassMatrix[specNum, :] 	  = np.power((self.molWeights / self.molWeights[specNum]), 0.25)
+			self.mixInvMassMatrix[specNum, :] = (1.0 / (2.0 * np.sqrt(2.0))) * (1.0 / np.sqrt( 1.0 + self.molWeights[specNum] / self.molWeights)) 
 
 
 	def getMassFracArray(self, solPrim=None, massFracs=None):
@@ -72,7 +77,7 @@ class gasModel:
 				massFracs = np.reshape(massFracs, (1,-1))
 
 			if (massFracs.shape[1] == self.numSpeciesFull):
-				massFracs = massFracs[:-1,:]
+				massFracs = massFracs[self.massFracSlice,:]
 			else:
 				assert (massFracs.shape[0] == self.numSpecies), "If not passing full mass fraction array, must pass N-1 species"
 		else:
@@ -109,6 +114,22 @@ class gasModel:
 		if (massFracs.shape[0] == self.numSpecies):
 			massFracs = self.calcAllMassFracs(massFracs)
 
-		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights, axis=0)
+		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights[:, None], axis=0)
 
 		return mixMolWeight
+
+
+	def calcAllMoleFracs(self, massFracs, mixMolWeight=None):
+		"""
+		Compute mole fractions of all species from mass fractions
+		"""
+
+		if (massFracs.shape[0] == self.numSpecies):
+			massFracs = self.calcAllMassFracs(massFracs)
+
+		if (mixMolWeight is None):
+			mixMolWeight = self.calcMixMolWeight(massFracs)
+
+		moleFracs = massFracs * mixMolWeight[None, :] * self.mwInv[:, None]
+
+		return moleFracs

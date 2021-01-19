@@ -62,15 +62,18 @@ class fieldPlot(visualization):
 				yData = solCons[1,:]
 			elif (varStr == "energy"):
 				yData = solCons[2,:]
-
-			# TODO: fails for last species
 			elif (varStr[:7] == "species"):
 				specIdx = int(varStr[7:])
-				yData = solPrim[3+specIdx-1,:]
+				if (specIdx == solDomain.gasModel.numSpeciesFull):
+					massFracs = solDomain.gasModel.calcAllMassFracs(solPrim[3:,:])
+					yData = massFracs[-1,:]
+				else:
+					yData = solPrim[3+specIdx-1,:]
 			elif (varStr[:15] == "density-species"):
 				specIdx = int(varStr[15:])
 				yData = solCons[3+specIdx-1,:]
-		except:
+		except Exception as e:
+			print(e)
 			raise ValueError("Invalid field visualization variable:"+str(varStr))
 
 		return yData
