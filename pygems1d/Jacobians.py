@@ -317,9 +317,9 @@ def calcDResDSolPrim(solDomain, solver):
 		# contribution to main block diagonal from solution Jacobian
 		gammaMatrix = calcDSolConsDSolPrim(solInt)
 		if (solDomain.timeIntegrator.adaptDTau):
-			dtauInv = calcAdaptiveDTau(solDomain, gammaMatrix)
+			dtauInv = calcAdaptiveDTau(solDomain, gammaMatrix, solver)
 		else:
-			dtauInv = 1./solDomain.timeIntegrator.dtau
+			dtauInv = 1./solDomain.timeIntegrator.dtau * np.ones(solInt.numCells, dtype=const.realType)
 
 		dRdQp += gammaMatrix * (dtauInv[None,None,:] + dtInv)
 
@@ -343,7 +343,7 @@ def calcDResDSolPrim(solDomain, solver):
 	return resJacob
 
 
-def calcAdaptiveDTau(solDomain, gammaMatrix):
+def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 	"""
 	Adapt dtau for each cell based on user input constraints and local wave speed
 	"""
@@ -357,9 +357,10 @@ def calcAdaptiveDTau(solDomain, gammaMatrix):
 
 	# limit by von Neumann number
 	# TODO: THIS NU IS NOT CORRECT FOR A GENERAL MIXTURE
-	nu = solDomain.gasModel.muRef[0] / solDomain.solInt.solCons[0,:]
-	dtau = np.minimum(dtau, solDomain.timeIntegrator.VNN / nu)
-	dtaum = np.minimum(dtaum, 3.0 / nu)
+	if (solver.viscScheme > 0):
+		nu = solDomain.gasModel.muRef[0] / solDomain.solInt.solCons[0,:]
+		dtau = np.minimum(dtau, solDomain.timeIntegrator.VNN / nu)
+		dtaum = np.minimum(dtaum, 3.0 / nu)
 
 	# limit dtau
 	# TODO: implement entirety of solutionChangeLimitedTimeStep from gems_precon.f90

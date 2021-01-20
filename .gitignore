@@ -19,3 +19,5 @@
 *.h5
 *.swp
 *.egg-info/
+*.plt
+*.szplt

@@ -1,0 +1,72 @@
+# input files
+gasFile = "~/path/to/pygems/examples/contact_surface/Inputs/global1.chem"
+meshFile = "~/path/to/pygems/examples/contact_surface/Inputs/mesh_0to0.01_1000c.inp"
+initFile = "~/path/to/pygems/examples/contact_surface/Inputs/contact_surface_ic.npy"
+
+# time discretization
+dt         = 5.0e-9
+numSteps   = 100000
+timeScheme = "rkExp"
+timeOrder  = 3
+
+# space discretization
+spaceScheme = "roe"
+spaceOrder = 2
+gradLimiter = "barth"
+viscScheme = 1
+
+# inlet
+boundCond_inlet = "meanflow"
+press_inlet    = 1030083.6980625015
+temp_inlet     = 302.31475446522023
+vel_inlet      = 3372.9509548609494
+rho_inlet      = 13111.04826167433
+massFrac_inlet = [1.0, 0.0]
+
+# outlet
+boundCond_outlet = "meanflow"
+press_outlet     = 984646.3927477646 
+vel_outlet       = 1170.779526060266
+rho_outlet       = 1579.6744683574213
+massFrac_outlet  = [0.0, 1.0]
+
+pertType_outlet = "pressure"
+pertPerc_outlet = 0.05
+pertFreq_outlet = [2.0e5]
+
+# misc
+velAdd   = 10.0
+sourceOn = False
+
+# restart files
+saveRestarts    = False
+restartInterval = 100
+numRestarts     = 20
+initFromRestart = False
+
+# field output
+outInterval = 100
+primOut     = True
+consOut     = True
+sourceOut   = False
+RHSOut      = False
+
+# probe output
+probeLocs = [0.0025,0.005]
+probeVars = ["pressure"]
+
+# visualization
+visShow 	= True
+visSave 	= True
+visInterval = 500
+
+visType1  = "probe"
+visVar1   = ["pressure"]
+probeNum1 = 2
+
+visType2    = "field"
+visVar2     = ["pressure", "velocity", "temperature", "species1"]
+visYBounds2 = [[9.5e5,1.04e6], [-15,35], [200,2700], [-0.05,1.05]]
+
+# ROM params
+calcROM = False
