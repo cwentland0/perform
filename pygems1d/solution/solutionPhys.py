@@ -9,9 +9,9 @@ class solutionPhys:
 	Base class for physical solution (opposed to ROM solution)
 	"""
 
-	def __init__(self, solDomain, solPrimIn, numCells, solver):
+	def __init__(self, gas, solPrimIn, numCells):
 		
-		self.gasModel = solDomain.gasModel
+		self.gasModel = gas
 
 		self.numCells = numCells
 

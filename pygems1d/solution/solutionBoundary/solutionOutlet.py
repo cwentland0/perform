@@ -7,7 +7,7 @@ class solutionOutlet(solutionBoundary):
 	Outlet ghost cell solution
 	"""
 
-	def __init__(self, solDomain, solver):
+	def __init__(self, gas, solver):
 
 		paramDict = solver.paramDict
 		self.boundCond 		= paramDict["boundCond_outlet"] 
@@ -20,7 +20,7 @@ class solutionOutlet(solutionBoundary):
 		else:
 			raise ValueError("Invalid outlet boundary condition selection: " + str(self.boundCond))
 
-		super().__init__(solDomain, solver, "outlet")
+		super().__init__(gas, solver, "outlet")
 
 	def calcSubsonicBC(self, solver, solPrim=None, solCons=None):
 		"""

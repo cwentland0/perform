@@ -41,22 +41,23 @@ class solutionDomain:
 			self.gasModel = caloricallyPerfectGas(gasDict)
 		else:
 			raise ValueError("Ivalid choice of gasType: " + gasType)
+		gas = self.gasModel
 
 		# solution
 		solPrim0    = getInitialConditions(self, solver)
-		self.solInt = solutionInterior(self, solPrim0, solver, self.timeIntegrator)
-		self.solIn  = solutionInlet(self, solver)
-		self.solOut = solutionOutlet(self, solver)
+		self.solInt = solutionInterior(gas, solPrim0, solver, self.timeIntegrator)
+		self.solIn  = solutionInlet(gas, solver)
+		self.solOut = solutionOutlet(gas, solver)
 
 		# average solution for Roe scheme
 		if (solver.spaceScheme == "roe"):
 			onesProf    = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
-			self.solAve  = solutionPhys(self, onesProf, self.solInt.numCells+1, solver)
+			self.solAve  = solutionPhys(gas, onesProf, self.solInt.numCells+1)
 
 		# for flux calculations
 		onesProf = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
-		self.solL = solutionPhys(self, onesProf, self.solInt.numCells+1, solver)
-		self.solR = solutionPhys(self, onesProf, self.solInt.numCells+1, solver)
+		self.solL = solutionPhys(gas, onesProf, self.solInt.numCells+1)
+		self.solR = solutionPhys(gas, onesProf, self.solInt.numCells+1)
 
 		# to avoid repeated concatenation of ghost cell states
 		self.solPrimFull = np.zeros((self.gasModel.numEqs, self.solIn.numCells+self.solInt.numCells+self.solOut.numCells), dtype=const.realType)
@@ -195,6 +196,7 @@ class solutionDomain:
 
 		else:
 
+			# pdb.set_trace()
 			dSol = self.timeIntegrator.solveSolChange(solInt.RHS)
 			solInt.solCons = solInt.solHistCons[0] + dSol
 			solInt.updateState(fromCons=True)

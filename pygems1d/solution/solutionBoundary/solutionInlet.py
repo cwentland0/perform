@@ -7,7 +7,7 @@ class solutionInlet(solutionBoundary):
 	Inlet ghost cell solution
 	"""
 
-	def __init__(self, solDomain, solver):
+	def __init__(self, gas, solver):
 
 		paramDict = solver.paramDict
 		self.boundCond = paramDict["boundCond_inlet"] 
@@ -22,7 +22,7 @@ class solutionInlet(solutionBoundary):
 		else:
 			raise ValueError("Invalid inlet boundary condition selection: " + str(self.boundCond))
 
-		super().__init__(solDomain, solver, "inlet")
+		super().__init__(gas, solver, "inlet")
 
 
 	def calcStagnationBC(self, solver, solPrim=None, solCons=None):

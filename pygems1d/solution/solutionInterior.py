@@ -11,8 +11,8 @@ class solutionInterior(solutionPhys):
 	Solution of interior domain
 	"""
 
-	def __init__(self, solDomain, solPrimIn, solver, timeInt):
-		super().__init__(solDomain, solPrimIn, solver.mesh.numCells, solver)
+	def __init__(self, gas, solPrimIn, solver, timeInt):
+		super().__init__(gas, solPrimIn, solver.mesh.numCells)
 
 		gas = self.gasModel
 		numCells = solver.mesh.numCells 

@@ -11,10 +11,9 @@ class solutionBoundary(solutionPhys):
 	Ghost cell solution
 	"""
 
-	def __init__(self, solDomain, solver, boundType):
+	def __init__(self, gas, solver, boundType):
 
 		paramDict = solver.paramDict
-		gas = solDomain.gasModel
 
 		# this generally stores fixed/stagnation properties
 		self.press, self.vel, self.temp, self.massFrac, self.rho, \
@@ -31,7 +30,7 @@ class solutionBoundary(solutionPhys):
 		# this will be updated at each iteration, just initializing now
 		# TODO: number of ghost cells should not always be one
 		solDummy = np.ones((gas.numEqs,1), dtype=realType)
-		super().__init__(solDomain, solDummy, 1, solver)
+		super().__init__(gas, solDummy, 1)
 		self.solPrim[3:,0] = self.massFrac[gas.massFracSlice]
 
 	

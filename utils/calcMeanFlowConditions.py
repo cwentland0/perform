@@ -1,82 +1,102 @@
-import sys
-sys.path.append("../src/")
+from pygems1d.solution.solutionPhys import solutionPhys
+from pygems1d.inputFuncs import readInputFile
+from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
+
 import numpy as np
-import stateFuncs 
-from classDefs import gasProps
-from inputFuncs import readInputFile
 from math import sqrt
+import os
 import pdb
 
 ##### BEGIN USER INPUT #####
 
-gasFile = "/home/chris/Research/GEMS_runs/prf_nonlinManifold/pyGEMS/standingFlame/Inputs/global1.chem"
+gasFile = "~/path/to/chemistry/file.chem"
 
-fromICFile = False  # If True, load primitive state from file. If False, specify left and right primitive state
-
-icFile = "" 	# primitive state file
+# If True, load primitive state from icFile. If False, specify left and right primitive state
+fromICFile = False  
+icFile = ""
 
 # left and right states, if fomrICFile = False
-pressL 		= 999775.96996096
-velL 		= 11.07569418
-tempL 		= 300.03214239
-massFracL 	= [1.0, 0.0]
-pressR 		= 999743.38742495
-velR 		= 16.53076408
-tempR 		= 2491.04091458
-massFracR 	= [0.0, 1.0]
+pressL    = 1e5
+velL      = 0.0
+tempL     = 256.420677
+massFracL = [1.0]
+pressR    = 1e4
+velR      = 0.0
+tempR     = 256.420677
+massFracR = [1.0]
 
 ##### END USER INPUT #####
 
-# load gas file
-gas = gasProps(gasFile)
+gasFile = os.path.expanduser(gasFile)
 
+# load gas file
+gasDict = readInputFile(gasFile)
+gasType = gasDict["gasType"]
+if (gasType == "cpg"):
+	gas = caloricallyPerfectGas(gasDict)
+else:
+	raise ValueError("Invalid gasType")
+
+# handle single-species
+numSpeciesFull = len(massFracL)
+assert (len(massFracR) == numSpeciesFull), "massFracL and massFracR must have the same number of mass fractions"
+assert (np.sum(massFracL) == 1.0), "massFracL elements must sum to 1.0"
+assert (np.sum(massFracR) == 1.0), "massFracR elements must sum to 1.0"
+if (numSpeciesFull == 1):
+	numSpecies = numSpeciesFull
+else:
+	numSpecies = numSpeciesFull - 1
+massFracSlice = np.arange(numSpecies)
+ 
 # set up states
 if fromICFile:
-	solPrim 	= np.load(icFile)
-	solPrimIn 	= solPrim[[0],:]
-	solPrimOut 	= solPrim[[-1],:]
+	solPrim    = np.load(icFile)
+	solPrimIn  = solPrim[:, [0]]
+	solPrimOut = solPrim[:, [-1]]
 
 else:
-	solPrimIn 	= np.zeros((1,3+len(massFracL)-1), dtype = np.float64)
-	solPrimOut 	= np.zeros((1,3+len(massFracL)-1), dtype = np.float64)
-	solPrimIn[0,:3] 	= np.array([pressL, velL, tempL])
-	solPrimIn[0,3:] 	= np.array(massFracL).astype(np.float64)[:-1]
-	solPrimOut[0,:3] 	= np.array([pressR, velR, tempR])
-	solPrimOut[0,3:] 	= np.array(massFracR).astype(np.float64)[:-1]
+	solPrimIn        = np.zeros((3+numSpecies,1), dtype = np.float64)
+	solPrimOut       = np.zeros((3+numSpecies,1), dtype = np.float64)
+	solPrimIn[:3,0]  = np.array([pressL, velL, tempL])
+	solPrimIn[3:,0]  = np.array(massFracL).astype(np.float64)[massFracSlice]
+	solPrimOut[:3,0] = np.array([pressR, velR, tempR])
+	solPrimOut[3:,0] = np.array(massFracR).astype(np.float64)[massFracSlice]
 
-# calculate conservative state
-solConsIn,  RMixIn,  enthRefMixIn,  CpMixIn  = stateFuncs.calcStateFromPrim(solPrimIn, gas)
-solConsOut, RMixOut, enthRefMixOut, CpMixOut = stateFuncs.calcStateFromPrim(solPrimOut, gas)
+solInlet  = solutionPhys(gas, solPrimIn, 1)
+solInlet.updateState(fromCons=False)
+solOutlet = solutionPhys(gas, solPrimOut, 1) 
+solOutlet.updateState(fromCons=False)
 
 # set some variables for ease of use
-pressIn = solPrimIn[0,0]
-velIn 	= solPrimIn[0,1]
-tempIn  = solPrimIn[0,2]
-rhoIn 	= solConsIn[0,0] 
+pressIn = solInlet.solPrim[0,0]
+velIn 	= solInlet.solPrim[1,0]
+tempIn  = solInlet.solPrim[2,0]
+rhoIn 	= solInlet.solCons[0,0] 
+CpMixIn = solInlet.CpMix[0]
 
-pressOut = solPrimOut[0,0]
-velOut 	 = solPrimOut[0,1]
-tempOut  = solPrimOut[0,2]
-rhoOut 	 = solConsOut[0,0]
+pressOut = solOutlet.solPrim[0,0]
+velOut 	 = solOutlet.solPrim[1,0]
+tempOut  = solOutlet.solPrim[2,0]
+rhoOut 	 = solOutlet.solCons[0,0]
+CpMixOut = solOutlet.CpMix[0]
 
 # calculate sound speed
-gammaIn = stateFuncs.calcGammaMixture(RMixIn, CpMixIn)[0]
-cIn 	= np.sqrt(gammaIn * RMixIn[0] * tempIn)
-gammaOut = stateFuncs.calcGammaMixture(RMixOut, CpMixOut)[0]
-cOut 	= np.sqrt(gammaOut * RMixOut[0] * tempOut)
+cIn  = gas.calcSoundSpeed(solInlet.solPrim[2,:], RMix=solInlet.RMix, massFracs=solInlet.solPrim[3:,:], CpMix=solInlet.CpMix)[0]
+cOut = gas.calcSoundSpeed(solOutlet.solPrim[2,:], RMix=solOutlet.RMix, massFracs=solOutlet.solPrim[3:,:], CpMix=solOutlet.CpMix)[0]
 
 # reference quantities
-pressUp 	= pressIn + velIn * rhoIn * cIn 
-tempUp 		= tempIn + (pressUp - pressIn) / (rhoIn * CpMixIn[0])
-pressBack 	= pressOut - velOut * rhoOut * cOut
+pressUp   = pressIn + velIn * rhoIn * cIn 
+tempUp    = tempIn + (pressUp - pressIn) / (rhoIn * CpMixIn)
+pressBack = pressOut - velOut * rhoOut * cOut
 
 # print results
+# TODO: nicer string formatting
 print("##### INLET #####")
 print("Rho: "+str(rhoIn))
 print("Sound speed: "+str(cIn))
-print("Cp: "+str(CpMixIn[0]))
+print("Cp: "+str(CpMixIn))
 print("Rho*C: "+str(rhoIn*cIn))
-print("Rho*Cp: "+str(rhoIn*CpMixIn[0]))
+print("Rho*Cp: "+str(rhoIn*CpMixIn))
 print("Upstream pressure: "+str(pressUp))
 print("Upstream temp: "+str(tempUp))
 
@@ -85,7 +105,7 @@ print("\n")
 print("##### OUTLET #####")
 print("Rho: "+str(rhoOut))
 print("Sound speed: "+str(cOut))
-print("Cp: "+str(CpMixOut[0]))
+print("Cp: "+str(CpMixOut))
 print("Rho*C: "+str(rhoOut*cOut))
-print("Rho*Cp: "+str(rhoOut*CpMixOut[0]))
+print("Rho*Cp: "+str(rhoOut*CpMixOut))
 print("Downstream pressure: "+str(pressBack))

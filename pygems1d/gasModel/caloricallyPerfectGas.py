@@ -239,7 +239,7 @@ class caloricallyPerfectGas(gasModel):
 			else:
 				CpMix = np.squeeze(CpMix)
 
-			gammaMix = calcMixGamma(RMix, CpMix)
+			gammaMix = self.calcMixGamma(RMix, CpMix)
 		else:
 			gammaMix = np.squeeze(gammaMix)
 
