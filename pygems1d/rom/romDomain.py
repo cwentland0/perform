@@ -249,6 +249,8 @@ class romDomain:
 		Loads direct sampling indices and determines cell indices for calculating fluxes and gradients
 		"""
 
+		raise ValueError("Hyper-reduction temporarily out of commission for development")
+
 		# TODO: add some explanations for what each index array accomplishes
 
 		# load and check sample points
@@ -387,28 +389,30 @@ class romDomain:
 		"""
 
 		solInt = solDomain.solInt
+		res, resJacob = None, None
 
 		if self.isIntrusive:
 			calcRHS(solDomain, solver)
 
 		if (self.timeIntegrator.timeType == "implicit"):
 
-			raise ValueError("Implicit ROM not implemented yet")
-			# if self.isIntrusive:
-			# 	res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
-			# 	resJacob = calcDResDSolPrim(solDomain, solver) 	# TODO: new Jacobians, state update for non-dual time 
+			raise ValueError("Implicit ROM under development")
 
-			# for modelIdx, model in enumerate(self.modelList):
-			# 	dCode, LHS, RHS = model.calcDSol(resJacob, res)
-			# 	model.code += dCode
-			# 	model.codeHist[0] = model.code.copy()
-			# 	model.updateSol(solDomain)
+			if self.isIntrusive:
+				res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
+				resJacob = calcDResDSolPrim(solDomain, solver)
+
+			for modelIdx, model in enumerate(self.modelList):
+				dCode = model.calcDCode(resJacob, res)
+				model.code += dCode
+				model.codeHist[0] = model.code.copy()
+				model.updateSol(solDomain)
 				
-			# dSol = solInt.solPrim - solInt.solHistPrim[0]
-			# res = resJacob @ dSol.ravel("F") - solInt.res.ravel("F")
-			# solInt.res = np.reshape(res, (solDomain.gasModel.numEqs, solver.mesh.numCells), order='F')
+			dSol = solInt.solPrim - solInt.solHistPrim[0]
+			res = resJacob @ dSol.ravel("F") - solInt.res.ravel("F")
+			solInt.res = np.reshape(res, (solDomain.gasModel.numEqs, solver.mesh.numCells), order='F')
 
-			# solInt.updateState(fromCons=False) 	# TODO: not valid for all models
+			solInt.updateState(fromCons=False) 	
 
 		else:
 

@@ -72,6 +72,26 @@ class linearGalerkinProj(linearProjROM):
 			pass
 
 
+	def calcDCode(self, resJacob, res):
+		"""
+		Compute change in low-dimensional state for implicit scheme Newton iteration
+		"""
+
+		# calculate test basis
+		# TODO: this is not valid for scalar POD, another reason to switch to C ordering of resJacob
+		self.testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="F")[:,None]) @ self.trialBasisFScaled
+
+		# compute W^T * W
+		LHS = self.testBasis.T @ self.testBasis
+		RHS = -self.testBasis.T @ res.ravel(order="F")
+
+		# linear solve
+		dCode = np.linalg.solve(LHS, RHS)
+		pdb.set_trace()
+		
+		return dCode, LHS, RHS
+
+
 	def updateSol(self, solDomain):
 		"""
 		Update conservative solution after code has been updated
