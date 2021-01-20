@@ -207,19 +207,23 @@ class solutionInterior(solutionPhys):
 
 
 	def calcNorms(self, arrIn, normFacs):
+		"""
+		Compute L1 and L2 norms of arrIn
+		arrIn assumed to be in [numVars, numCells] order
+		"""
 
 		arrAbs = np.abs(arrIn)
 
 		# L2 norm
 		arrNormL2 = np.sum(np.square(arrAbs), axis=1)
-		arrNormL2[:] /= arrIn.shape[1] 					# TODO: change to shape[1] when switching dimension order
+		arrNormL2[:] /= arrIn.shape[1]
 		arrNormL2 /= np.square(normFacs)
 		arrNormL2 = np.sqrt(arrNormL2)
 		arrNormL2 = np.mean(arrNormL2)
 		
 		# L1 norm
 		arrNormL1 = np.sum(arrAbs, axis=1)
-		arrNormL1[:] /= arrIn.shape[1]					# TODO: same here
+		arrNormL1[:] /= arrIn.shape[1]
 		arrNormL1 /= normFacs
 		arrNormL1 = np.mean(arrNormL1)
 		

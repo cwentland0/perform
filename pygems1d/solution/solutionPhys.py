@@ -29,21 +29,25 @@ class solutionPhys:
 		self.enthRefMix = np.zeros(numCells, dtype=realType)								# mixture reference enthalpy
 		self.CpMix 		= np.zeros(numCells, dtype=realType)								# mixture specific heat at constant pressure
 		self.h0 		= np.zeros(numCells, dtype=realType) 								# stagnation enthalpy
-		self.hi 		= np.zeros((self.gasModel.numSpecies, numCells), dtype=realType)	# species enthalpies
+		self.hi 		= np.zeros((self.gasModel.numSpeciesFull, numCells), dtype=realType)# species enthalpies
 		self.c 			= np.zeros(numCells, dtype=realType) 								# sound speed
 
 		# transport properties
-		self.dynViscMix   = np.zeros(numCells, dtype=realType)
-		self.thermCondMix = np.zeros(numCells, dtype=realType)
-		self.massDiffMix  = np.zeros((self.gasModel.numSpecies, numCells), dtype=realType)
+		self.dynViscMix   = np.zeros(numCells, dtype=realType)									# mixture dynamic viscosity
+		self.thermCondMix = np.zeros(numCells, dtype=realType) 									# mixture thermal conductivity
+		self.massDiffMix  = np.zeros((self.gasModel.numSpeciesFull, numCells), dtype=realType) 	# mass diffusivity coefficient (into mixture)
 
 		# derivatives of density and enthalpy
-		self.dRhodPress = np.zeros(numCells, dtype=realType)
-		self.dRhodTemp  = np.zeros(numCells, dtype=realType)
-		self.dRhodY     = np.zeros(numCells, dtype=realType)
-		self.dHdPress   = np.zeros(numCells, dtype=realType)
-		self.dHdTemp    = np.zeros(numCells, dtype=realType)
-		self.dHdY       = np.zeros(numCells, dtype=realType)	
+		self.dRho_dP = np.zeros(numCells, dtype=realType)
+		self.dRho_dT = np.zeros(numCells, dtype=realType)
+		self.dRho_dY = np.zeros((self.gasModel.numSpecies, numCells), dtype=realType)
+		self.dH_dP   = np.zeros(numCells, dtype=realType)
+		self.dH_dT   = np.zeros(numCells, dtype=realType)
+		self.dH_dY   = np.zeros((self.gasModel.numSpecies, numCells), dtype=realType)	
+
+		# reaction rate-of-progress variables
+		# TODO: generalize to >1 reaction, reverse reactions
+		self.wf = np.zeros((1, numCells), dtype=realType)
 
 		# set initial condition
 		assert(solPrimIn.shape == (self.gasModel.numEqs, numCells))

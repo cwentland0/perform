@@ -23,10 +23,10 @@ class solutionBoundary(solutionPhys):
 		assert (len(self.massFrac) == gas.numSpeciesFull), "Must provide mass fraction state for all species at boundary"
 		assert (np.sum(self.massFrac) == 1.0), "Boundary mass fractions must sum to 1.0"
 
-		self.CpMix 		= gas.calcMixCp(self.massFrac[gas.massFracSlice])
-		self.RMix 		= gas.calcMixGasConstant(self.massFrac[gas.massFracSlice])
+		self.CpMix 		= gas.calcMixCp(self.massFrac[gas.massFracSlice, None])
+		self.RMix 		= gas.calcMixGasConstant(self.massFrac[gas.massFracSlice, None])
 		self.gamma 		= gas.calcMixGamma(self.RMix, self.CpMix)
-		self.enthRefMix = gas.calcMixEnthRef(self.massFrac[gas.massFracSlice])
+		self.enthRefMix = gas.calcMixEnthRef(self.massFrac[gas.massFracSlice, None])
 
 		# this will be updated at each iteration, just initializing now
 		# TODO: number of ghost cells should not always be one

@@ -109,6 +109,10 @@ def limiterVenkatakrishnan(solDomain, grad, mesh):
 	# get min/max of cell and neighbors
 	solPrimMin, solPrimMax = findNeighborMinMax(solDomain.solPrimFull[:, solDomain.gradNeighIdxs])
 
+	# extract gradient cells
+	solPrimMin = solPrimMin[:, solDomain.gradNeighExtract]
+	solPrimMax = solPrimMax[:, solDomain.gradNeighExtract]
+
 	# unconstrained reconstruction at neighboring cell centers
 	delSolPrim 		= grad * mesh.dx
 	solPrimL 		= solPrim - delSolPrim

@@ -53,9 +53,9 @@ class solutionDomain:
 			self.solAve  = solutionPhys(self, onesProf, self.solInt.numCells+1, solver)
 
 		# for flux calculations
-		onesProf = np.ones((self.gasModel.numEqs, self.solInt.numCells), dtype=const.realType)
-		self.solL = solutionPhys(self, onesProf, self.solInt.numCells, solver)
-		self.solR = solutionPhys(self, onesProf, self.solInt.numCells, solver)
+		onesProf = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
+		self.solL = solutionPhys(self, onesProf, self.solInt.numCells+1, solver)
+		self.solR = solutionPhys(self, onesProf, self.solInt.numCells+1, solver)
 
 		# to avoid repeated concatenation of ghost cell states
 		self.solPrimFull = np.zeros((self.gasModel.numEqs, self.solIn.numCells+self.solInt.numCells+self.solOut.numCells), dtype=const.realType)

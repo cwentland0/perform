@@ -4,6 +4,8 @@ from pygems1d.gasModel.gasModel import gasModel
 import numpy as np
 import pdb
 
+# TODO: more options for passing arguments to avoid repeats in called methods
+
 class caloricallyPerfectGas(gasModel):
 	"""
 	Container class for all CPG-specific thermo/transport property methods
@@ -40,7 +42,7 @@ class caloricallyPerfectGas(gasModel):
 		Compute mixture reference enthalpy
 		"""
 
-		assert(massFracs.shape[0] == self.numSpecies), "Only N-1 species must be passed to calcMixEnthRef"
+		assert(massFracs.shape[0] == self.numSpecies), "Only numSpecies species must be passed to calcMixEnthRef"
 		enthRefMix = self.enthRef[-1] + np.sum(massFracs * self.enthRefDiffs[:,None], axis=0)
 		return enthRefMix
 
@@ -50,7 +52,7 @@ class caloricallyPerfectGas(gasModel):
 		Compute mixture specific heat at constant pressure
 		"""
 
-		assert(massFracs.shape[0] == self.numSpecies), "Only N-1 species must be passed to calcMixCp"
+		assert(massFracs.shape[0] == self.numSpecies), "Only numSpecies species must be passed to calcMixCp"
 		CpMix = self.Cp[-1] + np.sum(massFracs * self.CpDiffs[:,None], axis=0)
 		return CpMix
 
@@ -74,7 +76,7 @@ class caloricallyPerfectGas(gasModel):
 	def calcSpeciesEnthalpies(self, temperature):
 		"""
 		Compute individual enthalpies for each species
-		Returns values for ALL species, NOT N-1 species
+		Returns values for ALL species, NOT numSpecies species
 		"""
 
 		speciesEnth = self.Cp[:,None] * np.repeat(np.reshape(temperature, (1,-1)), self.numSpeciesFull, axis=0) + self.enthRef[:,None]
@@ -105,7 +107,7 @@ class caloricallyPerfectGas(gasModel):
 		"""
 		Compute individual dynamic viscosities from Sutherland's law
 		Defaults to reference dynamic viscosity if reference temperature is zero
-		Returns values for ALL species, NOT N-1 species
+		Returns values for ALL species, NOT numSpecies species
 		"""
 
 		# TODO: theoretically, I think this should account for species-specific Sutherland temperatures
@@ -113,12 +115,12 @@ class caloricallyPerfectGas(gasModel):
 		specDynVisc = np.zeros((self.numSpeciesFull, len(temperature)), dtype=realType)
 
 		# if reference temperature is (close to) zero, constant dynamic viscosity
-		idxsZeroTemp = np.squeeze(np.argwhere(self.tempRef < 1.0e-7))
+		idxsZeroTemp = np.squeeze(np.argwhere(self.tempRef < 1.0e-7), axis=1)
 		if (len(idxsZeroTemp) > 0):
 			specDynVisc[idxsZeroTemp, :] = self.muRef[idxsZeroTemp, None]
 
 		# otherwise apply Sutherland's law
-		idxsSuth = np.squeeze(np.argwhere(self.tempRef > 1.0e-7))
+		idxsSuth = np.squeeze(np.argwhere(self.tempRef > 1.0e-7), axis=1)
 		if (len(idxsSuth) > 0):
 			tempFac = temperature[None,:] / self.tempRef[idxsSuth, None]
 			tempFac = np.power(tempFac, 3./2.)
@@ -160,7 +162,7 @@ class caloricallyPerfectGas(gasModel):
 	def calcSpeciesThermCond(self, specDynVisc=None, temperature=None):
 		"""
 		Compute species thermal conductivities
-		Returns values for ALL species, NOT N-1 species
+		Returns values for ALL species, NOT numSpecies species
 		"""
 
 		if (specDynVisc is None):
@@ -200,7 +202,7 @@ class caloricallyPerfectGas(gasModel):
 	def calcSpeciesMassDiffCoeff(self, density, specDynVisc=None, temperature=None):
 		"""
 		Compute mass diffusivity coefficient of species into mixture
-		Returns values for ALL species, NOT N-1 species
+		Returns values for ALL species, NOT numSpecies species
 		"""
 
 		if (specDynVisc is None):
@@ -253,6 +255,7 @@ class caloricallyPerfectGas(gasModel):
 
 		"""
 		Compute derivatives of density with respect to pressure, temperature, or species mass fraction
+		For species derivatives, returns numSpecies derivatives
 		"""
 
 		assert any([wrtPress, wrtTemp, wrtSpec]), "Must compute at least one density derivative..."
@@ -289,6 +292,7 @@ class caloricallyPerfectGas(gasModel):
 
 		"""
 		Compute derivatives of stagnation enthalpy with respect to pressure, temperature, velocity, or species mass fraction
+		For species derivatives, returns numSpecies derivatives
 		"""
 
 		assert any([wrtPress, wrtTemp, wrtVel, wrtSpec]), "Must compute at least one density derivative..."

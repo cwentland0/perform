@@ -202,6 +202,7 @@ def getInitialConditions(solDomain, solver):
 		else:
 			# TODO: change this to .npz format with physical time included
 			solPrim0 = np.load(solver.initFile)
+			assert (solPrim0.shape[0] == solDomain.gasModel.numEqs), ("Incorrect initFile numEqs: "+str(solPrim0.shape[0]))
 
 	return solPrim0
 
@@ -221,13 +222,16 @@ def genPiecewiseUniformIC(solDomain, solver):
 	splitIdx 	= np.absolute(solver.mesh.xCell - icDict["xSplit"]).argmin()+1
 	solPrim 	= np.zeros((solDomain.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
 
+	gas = solDomain.gasModel
+
 	# left state
 	solPrim[0,:splitIdx] 	= icDict["pressLeft"]
 	solPrim[1,:splitIdx] 	= icDict["velLeft"]
 	solPrim[2,:splitIdx] 	= icDict["tempLeft"]
 	massFracLeft 			= icDict["massFracLeft"]
 	assert(np.sum(massFracLeft) == 1.0), "massFracLeft must sum to 1.0"
-	solPrim[3:,:splitIdx] 	= icDict["massFracLeft"][:-1]
+	assert(len(massFracLeft) == gas.numSpeciesFull), "massFracLeft must have "+str(gas.numSpeciesFull)+" entries"
+	solPrim[3:,:splitIdx] 	= icDict["massFracLeft"][gas.massFracSlice, None]
 
 	# right state
 	solPrim[0,splitIdx:] 	= icDict["pressRight"]
@@ -235,7 +239,8 @@ def genPiecewiseUniformIC(solDomain, solver):
 	solPrim[2,splitIdx:] 	= icDict["tempRight"]
 	massFracRight 			= icDict["massFracRight"]
 	assert(np.sum(massFracRight) == 1.0), "massFracRight must sum to 1.0"
-	solPrim[3:,splitIdx:] 	= massFracRight[:-1]
+	assert(len(massFracRight) == gas.numSpeciesFull), "massFracRight must have "+str(gas.numSpeciesFull)+" entries"
+	solPrim[3:,splitIdx:] 	= massFracRight[gas.massFracSlice, None]
 	
 	return solPrim
 

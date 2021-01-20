@@ -159,7 +159,7 @@ def calcRoeDissipation(solAve):
 	# gamma terms for energy equation
 	Gp = rho * dH_dP + dRho_dP * solAve.h0 - 1.0
 	GT = rho * dH_dT + dRho_dT * solAve.h0
-	GY = rho * dH_dY + dRho_dY * solAve.h0
+	GY = rho[None,:] * dH_dY +  solAve.h0[None,:] * dRho_dY
 
 	# characteristic speeds
 	lambda1 = vel + solAve.c
@@ -184,26 +184,30 @@ def calcRoeDissipation(solAve):
 	m = rho * alpha
 	e = rho * vel * alpha
 
+	# continuity equation row
 	dissMat[0,0,:] = phi_star
 	dissMat[0,1,:] = beta_star
 	dissMat[0,2,:] = u_abs * dRho_dT
+	dissMat[0,3:,:] = u_abs[None,:] * dRho_dY
 
-	dissMat[0,3:,:] = u_abs * dRho_dY
+	# momentum equation row
 	dissMat[1,0,:] = vel * phi_star + R_roe
 	dissMat[1,1,:] = vel * beta_star + m
 	dissMat[1,2,:] = vel * u_abs * dRho_dT
-	dissMat[1,3:,:] = vel * u_abs * dRho_dY
+	dissMat[1,3:,:] = (vel * u_abs)[None,:] * dRho_dY
 
+	# energy equation row
 	dissMat[2,0,:] = phi_e + R_roe * vel
 	dissMat[2,1,:] = beta_e + e
 	dissMat[2,2,:] = GT * u_abs
-	dissMat[2,3:,:] = GY * u_abs
+	dissMat[2,3:,:] = GY * u_abs[None,:]
 
+	# species transport row
+	dissMat[3:,0,:] = massFracs * phi_star[None,:]
+	dissMat[3:,1,:] = massFracs * beta_star[None,:]
+	dissMat[3:,2,:] = massFracs * (u_abs * dRho_dT)[None,:]
+	# TODO: vectorize
 	for yIdx_out in range(3, solAve.gasModel.numEqs):
-		dissMat[yIdx_out,0,:] = massFracs[yIdx_out-3,:] * phi_star
-		dissMat[yIdx_out,1,:] = massFracs[yIdx_out-3,:] * beta_star
-		dissMat[yIdx_out,2,:] = massFracs[yIdx_out-3,:] * u_abs * dRho_dT
-
 		for yIdx_in in range(3, solAve.gasModel.numEqs):
 			# TODO: might want to check this again against GEMS, something weird going on
 			if (yIdx_out == yIdx_in):
@@ -234,21 +238,27 @@ def calcViscFlux(solDomain, solver):
 	solPrimGrad[-1,:] = (massFracs[-1,solDomain.fluxSampRIdxs] - massFracs[-1,solDomain.fluxSampLIdxs]) / mesh.dx
 
 	# thermo and transport props
-	moleFracs   = gas.calcAllMoleFracs(solAve.solPrim[3:,:])
-	specDynVisc = gas.calcSpeciesDynamicVisc(solAve.solPrim[2,:])
-	thermCond   = gas.calcMixThermalCond(specDynVisc=specDynVisc, moleFracs=moleFracs)
-	muMix       = gas.calcMixDynamicVisc(specDynVisc=specDynVisc, moleFracs=moleFracs)
-	massDiff    = gas.calcSpeciesMassDiffCoeff(solAve.solCons[0,:], specDynVisc=specDynVisc)
-	hi          = gas.calcSpeciesEnthalpies(solAve.solPrim[2,:])
+	moleFracs    = gas.calcAllMoleFracs(solAve.solPrim[3:,:])
+	specDynVisc  = gas.calcSpeciesDynamicVisc(solAve.solPrim[2,:])
+	thermCondMix = gas.calcMixThermalCond(specDynVisc=specDynVisc, moleFracs=moleFracs)
+	dynViscMix   = gas.calcMixDynamicVisc(specDynVisc=specDynVisc, moleFracs=moleFracs)
+	massDiffMix  = gas.calcSpeciesMassDiffCoeff(solAve.solCons[0,:], specDynVisc=specDynVisc)
+	hi           = gas.calcSpeciesEnthalpies(solAve.solPrim[2,:])
 
-	tau = 4.0/3.0 * muMix * solPrimGrad[1,:]							# stress "tensor"
-	diffVel = solAve.solCons[[0],:] * massDiff * solPrimGrad[3:,:]		# diffusion velocity
+	# copy for use later
+	solAve.dynViscMix   = dynViscMix
+	solAve.thermCondMix = thermCondMix
+	solAve.massDiffMix  = massDiffMix
+	solAve.hi           = hi
+
+	tau = 4.0/3.0 * dynViscMix * solPrimGrad[1,:]						# stress "tensor"
+	diffVel = solAve.solCons[[0],:] * massDiffMix * solPrimGrad[3:,:]	# diffusion velocity
 	corrVel = np.sum(diffVel, axis=0) 									# correction velocity
 
 	# viscous flux
 	Fv = np.zeros((gas.numEqs, solDomain.numFluxFaces), dtype=realType)
 	Fv[1,:]  += tau
-	Fv[2,:]  += solAve.solPrim[1,:] * tau + thermCond * solPrimGrad[2,:] + np.sum(diffVel * hi, axis = 0)
+	Fv[2,:]  += solAve.solPrim[1,:] * tau + thermCondMix * solPrimGrad[2,:] + np.sum(diffVel * hi, axis = 0)
 	Fv[3:,:] += diffVel[gas.massFracSlice] - solAve.solPrim[3:,:] * corrVel[None,:]
 
 	return Fv
@@ -261,11 +271,12 @@ def calcSource(solDomain, solver):
 
 	# TODO: expand to multiple global reactions
 	# TODO: expand to general reaction w/ reverse direction
+	# TODO: really need to check that this works for more than a two-species reaction
 
 	gas = solDomain.gasModel
 
 	temp 	  = solDomain.solInt.solPrim[2,solDomain.directSampIdxs]
-	massFracs = solDomain.solInt.solPrim[3:,solDomain.directSampIdxs]
+	massFracs = gas.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs])
 	rho 	  = solDomain.solInt.solCons[[0],solDomain.directSampIdxs]
 
 	# NOTE: actEnergy here is -Ea/R
@@ -277,5 +288,6 @@ def calcSource(solDomain, solver):
 	specIdxs = np.squeeze(np.argwhere(gas.nuArr != 0.0))
 	wf       = np.product( wf[None,:] * np.power((rhoY[specIdxs,:] / gas.molWeights[specIdxs, None]), gas.nuArr[specIdxs, None]), axis=0)
 	wf       = np.amin(np.minimum(wf[None,:], rhoY[specIdxs,:] / solver.dt), axis=0)
+	solDomain.solInt.wf = wf
 
-	solDomain.solInt.source[gas.massFracSlice, solDomain.directSampIdxs] = -gas.molWeightNu[gas.massFracSlice, None] * wf[None, :]
+	solDomain.solInt.source[gas.massFracSlice[:,None], solDomain.directSampIdxs[None,:]] = -gas.molWeightNu[gas.massFracSlice, None] * wf[None, :]
