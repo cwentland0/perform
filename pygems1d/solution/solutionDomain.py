@@ -13,6 +13,7 @@ from pygems1d.Jacobians import calcDResDSolPrim
 import os
 import numpy as np
 from scipy.sparse.linalg import spsolve
+from scipy.linalg import solve
 import pdb
 
 class solutionDomain:
@@ -167,20 +168,24 @@ class solutionDomain:
 		Advance physical solution forward one subiteration of time integrator
 		"""
 
-		# TODO: if not using scipy and resJacob is dense, use normal np.linalg.solve
-
-		calcRHS(self, solver) 	# TODO: space schemes need to be inserted into a class
+		calcRHS(self, solver)
 
 		solInt = self.solInt
 
 		if (self.timeIntegrator.timeType == "implicit"):
 
 			solInt.res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
-			resJacob = calcDResDSolPrim(self, solver) 	# TODO: new Jacobians, state update for non-dual time 
-			dSol = spsolve(resJacob, solInt.res.ravel('F'))
+			resJacob = calcDResDSolPrim(self, solver)
 
-			solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
-			solInt.updateState(fromCons = False)
+			dSol = spsolve(resJacob, solInt.res.ravel('F'))
+			
+			# if solving in dual time, solving for primitive state
+			if (self.timeIntegrator.dualTime):
+				solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+			else:
+				solInt.solCons += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+				
+			solInt.updateState(fromCons = (not self.timeIntegrator.dualTime))
 			solInt.solHistCons[0] = solInt.solCons.copy() 
 			solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
