@@ -78,7 +78,7 @@ Two sample cases are included in `examples/`:
 After modifying the `gasFile`, `meshFile`, and `initFile`/`icParamsFile` parameters in `solverParams.inp`, running one of these cases is as simple as, e.g.,
 
 ```
-pygems ./examples/standingFlame_forced
+pygems ./examples/shock_tube
 ```
 
 ## Utilities
