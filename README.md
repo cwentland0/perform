@@ -1,6 +1,10 @@
 # **pyGEMS** - 1D
 
-This code is intended to be a sort of low-fidelity Python port of the General Mesh and Equations Solver (**GEMS**). Whereas **GEMS** is capable of computing high-fidelity simulations of 2D/3D reacting flows with enormous libraries for flame modeling, **pyGEMS** is intended for simulating one-dimensional reacting flows with simple global reaction mechanisms. **GEMS** was originally developed by Guoping Xia at Purdue University, and has since been expanded drastically by researchers from Purdue University, the University of Michigan, Ann Arbor, and the Air Force Research Laboratory. The hope is that this code might serve as a useful testbed for projection-based reduced-order model (ROM) developers to analyze performance of new ROM methods for reacting flow simulations, a field of research which poses significant difficulties in effective model-order reduction. 
+This code is intended to be a sort of low-fidelity Python port of the General Mesh and Equations Solver (**GEMS**). Whereas **GEMS** is capable of computing high-fidelity simulations of 2D/3D reacting flows with enormous libraries for flame modeling, **pyGEMS** is intended for simulating one-dimensional reacting flows with simple global reaction mechanisms. **GEMS** was originally developed by Guoping Xia at Purdue University, and has since been expanded drastically by researchers from Purdue University, the University of Michigan, Ann Arbor, and the Air Force Research Laboratory. The hope is that this code might serve as a useful testbed for reduced-order model (ROM) developers to analyze performance of new ROM methods for reacting flow simulations, a field of research which poses significant difficulties in effective model-order reduction.
+
+## Note to Scitech Panel Attendees
+
+If you're visiting this page from the 2021 AIAA Scitech "Application of Data-Driven Methods to Chemically Reacting Flows" panel, please note that this project is still under development and lacks some key features. **Additionally, the documentation is grossly incomplete and out of data. It is not reflective of the current state of the code, but will be updated in short order. Please check back in the next couple days for updated documentation.** That being said, feel free to run the provided test cases and toy around with settings as you see fit. 
 
 ## Table of Contents 
 * [Documentation](#documentation)
@@ -34,7 +38,7 @@ Four input files are required compute full-order model (FOM) solutions: `solverP
 3. **Mesh file**: This file can be placed anywhere and referenced in the `meshFile` parameter in `solverParams.inp`. As of the writing of this, **pyGEMS** can only handle uniform meshes, and this file simply defines the left and right boundary coordinates and the number of finite volume cells in the discretized domain.
 4. **Initial conditions file**: The definition of this file depends on its format and is explained in more detail below. This file defines the primitive field from which an unsteady simulation is initialized.
 
- Input parameters from text input files are read by regular expressions; all must be formatted as `inputName = inputValue`, with as much white space before and after the `=` as desired. Lists should be enclosed by brackets (e.g. [val1, val2, val3]), and lists of lists should be formatted in kind (e.g. [[val11, val12],[val21, val22]]). Even if a list input only has one entry, it should be formatted as a list in the input file.
+Input parameters from text input files are read by regular expressions; all must be formatted as `inputName = inputValue`, with as much white space before and after the `=` as desired. Lists should be enclosed by brackets (e.g. [val1, val2, val3]), and lists of lists should be formatted in kind (e.g. [[val11, val12],[val21, val22]]). Even if a list input only has one entry, it should be formatted as a list in the input file.
 
 Initial condition files take one of three forms: 
 
@@ -67,8 +71,9 @@ Upon executing **pyGEMS**, several directories will be generated in the working 
 
 Two sample cases are included in `examples/`:
 
-1. **`shock_tube`**: A fairly simple non-reacting flow designed following the Sod shock tube problem, which models a diaphragm breaking between a high-pressure chamber of gas and a low-pressure chamber of gas. The resulting shock, contact surface, and rarefaction waves are a good test for the future-state prediction capabilities of advanced ROM methods.
-2. **`standingFlame_forced`**: Arguable the simplest reacting flow simulation, featuring a premixed flame with single-frequency outlet pressure forcing. The small mean-flow velocity is very closely balanced with the reaction-diffusion of the flame, leading to a largely-stationary flame with very simple system acoustics. This case can serve as a test for the parametric prediction performance of ROMs by modifying the forcing amplitude and frequency.
+1. **`shock_tube`**: A fairly simple non-reacting flow designed following the Sod shock tube problem, which models a diaphragm breaking between a high-pressure, high-density chamber of gas and a low-pressure, low-density chamber of gas. The resulting shock, contact surface, and rarefaction waves are a good test for the future-state prediction capabilities of advanced ROM methods.
+2. **`contact_surface`**: A fairly simple case that introduces a strong contact surface gradients in the temperature and species mass fraction fields. There is no reaction in this case, but it serves as a good baseline for testing the ability of models to predict system acoustics in a multi-species system. By applying acoustic forcing of varying amplitudes and frequencies at the outlet, the parametric prediction capabilities of models may also be evaluated
+2. **`transient_flame` (COMING SOON)**: This case follows the contact surface case, but finally introduces a premixed flame reaction. This case exhibits complex non-linear interactions between the flame and the system acoustics. Altering the amplitude and frequency of the outlet forcing strains the abilities of ROMs to make accurate predictions in an extremely complex parametric space.
 
 After modifying the `gasFile`, `meshFile`, and `initFile`/`icParamsFile` parameters in `solverParams.inp`, running one of these cases is as simple as, e.g.,
 
@@ -78,4 +83,8 @@ pygems ./examples/standingFlame_forced
 
 ## Utilities
 
-Some very simple pre/post-processing scripts are provided in `utils/`. These include scripts for generating POD basis modes, calculating input parameters for non-reflective boundary conditions, plotting the power spectral density of a pressure probe signal, etc. Brief descriptions of the scripts and their input parameters are given within the scripts. More detailed explanations are provided in `doc/`.
+Some very simple pre/post-processing scripts are provided in `utils/`. These include scripts for generating POD basis modes, calculating input parameters for non-reflective boundary conditions etc. Brief descriptions of the scripts and their input parameters are given within the scripts. More detailed explanations are provided in `doc/`.
+
+## Contributing
+
+I am actively working on making the code as modular as possible so that folks can easily integrate their flux schemes/time integrators/gas models/ROM methods into the solver. Please be patient while I clean things up and debug. If you find an error or room for optimization or better organization, feel free to make a new issue on the topic.
