@@ -1,6 +1,6 @@
-from pygems1d.solution.solutionPhys import solutionPhys
-from pygems1d.inputFuncs import readInputFile
-from pygems1d.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
+from perform.solution.solutionPhys import solutionPhys
+from perform.inputFuncs import readInputFile
+from perform.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
 
 import numpy as np
 from math import sqrt
