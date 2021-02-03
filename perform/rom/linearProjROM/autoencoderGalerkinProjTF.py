@@ -1,6 +1,6 @@
-from pygems1d.constants import realType, fdStepDefault
-from pygems1d.inputFuncs import catchInput
-from pygems1d.rom.linearProjROM.linearProjROM import linearProjROM
+from perform.constants import realType, fdStepDefault
+from perform.inputFuncs import catchInput
+from perform.rom.linearProjROM.linearProjROM import linearProjROM
 
 import tensorflow as tf
 

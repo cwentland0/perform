@@ -1,5 +1,5 @@
-from pygems1d.constants import realType
-from pygems1d.rom.linearProjROM.linearProjROM import linearProjROM
+from perform.constants import realType
+from perform.rom.linearProjROM.linearProjROM import linearProjROM
 
 import numpy as np
 import pdb

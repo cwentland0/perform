@@ -1,7 +1,6 @@
 
 from perform.inputFuncs import readInputFile, catchList, catchInput
 from perform.rom.linearProjROM.linearGalerkinProj import linearGalerkinProj
-from perform.rom.linearProjROM.linearSPLSVTProj import linearSPLSVTProj
 from perform.timeIntegrator.explicitIntegrator import rkExplicit
 from perform.timeIntegrator.implicitIntegrator import bdf
 from perform.solution.solutionPhys import solutionPhys
