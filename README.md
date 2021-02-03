@@ -10,6 +10,7 @@ This code is intended to be a sort of low-fidelity Python port of the General Me
 * [Outputs](#outputs)
 * [Sample Cases](#sample-cases)
 * [Utilities](#utilities)
+* [Contributing](#contributing)
 
 ## Documentation
 
