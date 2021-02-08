@@ -1,14 +1,16 @@
 import perform.constants as const
 from perform.inputFuncs import getInitialConditions, catchList, catchInput, readInputFile
-from perform.timeIntegrator.explicitIntegrator import rkExplicit
-from perform.timeIntegrator.implicitIntegrator import bdf
-from perform.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
 from perform.solution.solutionPhys import solutionPhys
 from perform.solution.solutionInterior import solutionInterior
 from perform.solution.solutionBoundary.solutionInlet import solutionInlet 
 from perform.solution.solutionBoundary.solutionOutlet import solutionOutlet
 from perform.spaceSchemes import calcRHS
 from perform.Jacobians import calcDResDSolPrim
+from perform.timeIntegrator import getTimeIntegrator
+
+# gas models
+# TODO: make an __init__.py with getGasModel()
+from perform.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
 
 import os
 import numpy as np
@@ -26,12 +28,7 @@ class solutionDomain:
 		paramDict = solver.paramDict
 
 		# time integrator
-		if (solver.timeScheme == "bdf"):
-			self.timeIntegrator = bdf(paramDict)
-		elif (solver.timeScheme == "rkExp"):
-			self.timeIntegrator = rkExplicit(paramDict)
-		else:
-			raise ValueError("Invalid choice of timeScheme: "+solver.timeScheme)
+		self.timeIntegrator = getTimeIntegrator(solver.timeScheme, paramDict)
 
 		# gas model
 		gasFile = str(paramDict["gasFile"]) 		# gas properties file (string)
@@ -148,7 +145,7 @@ class solutionDomain:
 
 		if (not solver.runSteady): print("Iteration "+str(solver.iter))
 
-		for self.timeIntegrator.subiter in range(1, self.timeIntegrator.subiterMax+1):
+		for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
 				
 			self.advanceSubiter(solver)
 

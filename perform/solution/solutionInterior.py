@@ -29,6 +29,9 @@ class solutionInterior(solutionPhys):
 		self.solHistCons = [self.solCons.copy()] * (timeInt.timeOrder+1)
 		self.solHistPrim = [self.solPrim.copy()] * (timeInt.timeOrder+1)
 
+		# RHS storage for multi-stage schemes
+		self.rhsHist     = [self.RHS.copy()] * (timeInt.timeOrder+1)
+
 		# snapshot storage matrices, store initial condition
 		if solver.primOut: 
 			self.primSnap = np.zeros((gas.numEqs, numCells, solver.numSnaps+1), dtype=realType)
@@ -75,13 +78,18 @@ class solutionInterior(solutionPhys):
 	
 	def updateSolHist(self):
 		"""
-		Update time history of solution for multi-stage time integrators
+		Update time history of solution and RHS function for multi-stage time integrators
 		"""
 	
+		# primitive and conservative state history
 		self.solHistCons[1:] = self.solHistCons[:-1]
 		self.solHistPrim[1:] = self.solHistPrim[:-1]
 		self.solHistCons[0]  = self.solCons.copy()
 		self.solHistPrim[0]  = self.solPrim.copy()
+
+		# RHS function history
+		self.rhsHist[1:] = self.rhsHist[:-1]
+		self.rhsHist[0]  = self.RHS.copy()
 
 
 	def updateSnapshots(self, solver):
@@ -198,7 +206,7 @@ class solutionInterior(solutionPhys):
 		if (not solver.runSteady):
 			normOutL2 = np.log10(normL2)
 			normOutL1 = np.log10(normL1)
-			outString = (str(subiter)+":\tL2: %18.14f, \tL1: %18.14f") % (normOutL2, normOutL1)
+			outString = (str(subiter+1)+":\tL2: %18.14f, \tL1: %18.14f") % (normOutL2, normOutL1)
 			print(outString)
 
 		self.resNormL2 = normL2

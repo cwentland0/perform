@@ -1,8 +1,7 @@
 
 from perform.inputFuncs import readInputFile, catchList, catchInput
 from perform.rom.linearProjROM.linearGalerkinProj import linearGalerkinProj
-from perform.timeIntegrator.explicitIntegrator import rkExplicit
-from perform.timeIntegrator.implicitIntegrator import bdf
+from perform.timeIntegrator import getTimeIntegrator
 from perform.solution.solutionPhys import solutionPhys
 from perform.spaceSchemes import calcRHS
 from perform.Jacobians import calcDResDSolPrim
@@ -128,15 +127,9 @@ class romDomain:
 		solDomain.solInt.updateState(fromCons=self.targetCons)
 
 		# get time integrator, if necessary
-		# TODO: move this selection to an external function? This is repeated in solutionDomain
 		# TODO: timeScheme should be specific to the romDomain, not the solver
 		if self.hasTimeIntegrator:
-			if (solver.timeScheme == "bdf"):
-				self.timeIntegrator = bdf(solver.paramDict)
-			elif (solver.timeScheme == "rkExp"):
-				self.timeIntegrator = rkExplicit(solver.paramDict)
-			else:
-				raise ValueError("Invalid choice of timeScheme: "+solver.timeScheme)
+			self.timeIntegrator = getTimeIntegrator(solver.timeScheme, solver.paramDict)
 
 			# initialize code history
 			# TODO: this is necessary for non-time-integrated methods, e.g. TCN
@@ -370,7 +363,7 @@ class romDomain:
 		# if method requires numerical time integration
 		else:
 		
-			for self.timeIntegrator.subiter in range(1, self.timeIntegrator.subiterMax+1):
+			for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
 
 				self.advanceSubiter(solDomain, solver)
 				
