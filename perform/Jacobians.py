@@ -349,6 +349,8 @@ def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 	"""
 
 	# TODO: move this to implicitIntegrator
+	solInt = solDomain.solInt
+
 
 	# compute initial dtau from input CFL and srf (max characteristic speed)
 	# srf is computed in calcInvFlux
@@ -357,7 +359,8 @@ def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 
 	# limit by von Neumann number
 	if (solver.viscScheme > 0):
-		nu = solDomain.solInt.dynViscMix / solDomain.solInt.solCons[0,:]
+		solInt.dynViscMix = solDomain.gasModel.calcMixDynamicVisc(temperature=solInt.solPrim[2,:],massFracs=solInt.solPrim[3:,:])
+		nu = solInt.dynViscMix / solInt.solCons[0,:]
 		dtau = np.minimum(dtau, solDomain.timeIntegrator.VNN * np.square(solver.mesh.dx) / nu)
 		dtaum = np.minimum(dtaum, 3.0 / nu)
 

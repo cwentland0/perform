@@ -6,6 +6,10 @@ from perform.solution.solutionPhys import solutionPhys
 from perform.spaceSchemes import calcRHS
 from perform.Jacobians import calcDResDSolPrim
 
+# TODO: put the selection stuff for this into an __init__.py
+from perform.rom.projectionROM.linearProjROM.linearGalerkinProj import linearGalerkinProj
+from perform.rom.projectionROM.autoencoderProjROM.autoencoderGalerkinProjTFKeras import autoencoderGalerkinProjTFKeras
+
 import numpy as np
 from time import sleep
 import pdb
@@ -15,8 +19,6 @@ import os
 # TODO: when moving to multi-domain, it may be useful to just hold a solDomain inside romDomain for the associated full-dim solution
 # 		Still a pain to move around since it's associated with the romDomain and not the romModel, but whatever
 
-# TODO: I'm making this too general, I think it's safe for now to assume that a single domain will have a single time integrator,
-#		single ROM method, single gas model, etc.
 
 class romDomain:
 	"""
@@ -105,8 +107,8 @@ class romDomain:
 				raise ValueError("linearLSPGProj ROM not implemented yet")
 			elif (self.romMethod == "linearSPLSVTProj"):
 				raise ValueError("linearSPLSVTProj ROM not implemented yet")
-			elif (self.romMethod == "autoencoderGalerkinProjTF"):
-				raise ValueError("autoencoderGalerkinProjTF ROM not implemented yet")
+			elif (self.romMethod == "autoencoderGalerkinProjTFKeras"):
+				self.modelList[modelIdx] = autoencoderGalerkinProjTFKeras(modelIdx, self, solver, solDomain)
 			elif (self.romMethod == "autoencoderLSPGProjTF"):
 				raise ValueError("autoencoderLSPGProjTF ROM not implemented yet")
 			elif (self.romMethod == "autoencoderSPLSVTProjTF"):
@@ -120,9 +122,9 @@ class romDomain:
 
 			# initialize state
 			if self.initROMFromFile[modelIdx]:
-				self.modelList[modelIdx].initFromCode(self.code0[modelIdx], solDomain, solver)
+				self.modelList[modelIdx].initFromCode(self.code0[modelIdx], solDomain)
 			else:
-				self.modelList[modelIdx].initFromSol(solDomain, solver)
+				self.modelList[modelIdx].initFromSol(solDomain)
 		
 		solDomain.solInt.updateState(fromCons=self.targetCons)
 
@@ -174,7 +176,7 @@ class romDomain:
 			self.hasConsNorm 		= True
 			self.hasPrimNorm 		= True
 			self.hasPrimCent 		= True
-		elif (self.romMethod == "autoencoderGalerkinProjTF"):
+		elif (self.romMethod == "autoencoderGalerkinProjTFKeras"):
 			self.hasTimeIntegrator 	= True
 			self.isIntrusive 	   	= True
 			self.targetCons 		= True
@@ -383,6 +385,8 @@ class romDomain:
 		solInt = solDomain.solInt
 		res, resJacob = None, None
 
+		pdb.set_trace()
+
 		if self.isIntrusive:
 			calcRHS(solDomain, solver)
 
@@ -416,6 +420,8 @@ class romDomain:
 				model.updateSol(solDomain)
 			
 			solInt.updateState(fromCons=True)
+
+			pdb.set_trace()
 
 	def updateCodeHist(self):
 		"""

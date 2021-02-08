@@ -157,6 +157,7 @@ class caloricallyPerfectGas(gasModel):
 
 			if (moleFracs is None):
 				assert (massFracs is not None), "Must provide mass fractions if not providing mole fractions"
+				moleFracs = self.calcAllMoleFracs(massFracs)
 
 			phi = np.zeros((self.numSpeciesFull, specDynVisc.shape[1]), dtype=realType)
 			for specIdx in range(self.numSpeciesFull):

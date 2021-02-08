@@ -60,12 +60,12 @@ class solutionPhys:
 		"""
 
 		if fromCons:
-			self.calcStateFromCons(calcR=True, calcEnthRef=True, calcCp=True)
+			self.calcStateFromCons(calcR=True, calcEnthRef=True, calcCp=True, calcGamma=True)
 		else:
-			self.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
+			self.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True, calcGamma=True)
 
 
-	def calcStateFromCons(self, calcR=False, calcEnthRef=False, calcCp=False):
+	def calcStateFromCons(self, calcR=False, calcEnthRef=False, calcCp=False, calcGamma=False):
 		"""
 		Compute primitive state from conservative state
 		"""
@@ -74,9 +74,13 @@ class solutionPhys:
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
 
 		# update thermo properties
+		if calcGamma:
+			calcR  = True
+			calcCp = True
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
 		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
+		if calcGamma:   self.gammaMix   = self.gasModel.calcMixGamma(self.RMix,self.CpMix)
 
 		# update primitive state
 		# TODO: gasModel references
@@ -86,7 +90,7 @@ class solutionPhys:
 		self.solPrim[0,:] = self.solCons[0,:] * self.RMix * self.solPrim[2,:]
 
 
-	def calcStateFromPrim(self, calcR=False, calcEnthRef=False, calcCp=False):
+	def calcStateFromPrim(self, calcR=False, calcEnthRef=False, calcCp=False, calcGamma=False):
 		"""
 		Compute state from primitive state
 		"""
@@ -94,9 +98,13 @@ class solutionPhys:
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
 
 		# update thermo properties
+		if calcGamma:
+			calcR  = True
+			calcCp = True
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
 		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
+		if calcGamma:   self.gammaMix   = self.gasModel.calcMixGamma(self.RMix,self.CpMix)
 
 		# update conservative variables
 		# TODO: gasModel references
