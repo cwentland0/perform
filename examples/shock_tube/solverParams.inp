@@ -6,7 +6,7 @@ icParamsFile = "~/path/to/pygems/examples/shock_tube/Inputs/shockTube.inp"
 # time discretization
 dt         = 1.e-8
 numSteps   = 750
-timeScheme = "rkExp"
+timeScheme = "sspRK3"
 timeOrder  = 3
 
 # space discretization
