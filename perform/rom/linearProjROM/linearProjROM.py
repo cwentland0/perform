@@ -3,7 +3,6 @@ from perform.rom.romModel import romModel
 from perform.inputFuncs import catchInput
 
 import numpy as np
-import pdb
 
 class linearProjROM(romModel):
 

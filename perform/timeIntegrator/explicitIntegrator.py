@@ -3,7 +3,6 @@ from perform.timeIntegrator.timeIntegrator import timeIntegrator
 
 import numpy as np
 import time
-import pdb
 
 class explicitIntegrator(timeIntegrator):
 	"""

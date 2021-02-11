@@ -8,9 +8,7 @@ from perform.Jacobians import calcDResDSolPrim
 
 import numpy as np
 from time import sleep
-import pdb
 import os
-
 
 # TODO: when moving to multi-domain, it may be useful to just hold a solDomain inside romDomain for the associated full-dim solution
 # 		Still a pain to move around since it's associated with the romDomain and not the romModel, but whatever

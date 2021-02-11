@@ -2,7 +2,6 @@ from perform.constants import realType, RUniv, suthTemp
 from perform.gasModel.gasModel import gasModel
 
 import numpy as np
-import pdb
 
 # TODO: more options for passing arguments to avoid repeats in called methods
 

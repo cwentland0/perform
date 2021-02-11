@@ -1,7 +1,6 @@
 from perform.constants import realType, hugeNum, RUniv
 
 import numpy as np
-import pdb
 
 
 class solutionPhys:

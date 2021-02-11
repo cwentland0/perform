@@ -13,7 +13,6 @@ import traceback
 import warnings
 warnings.filterwarnings("error")
 from time import time
-import pdb
 
 # TODO: make code general for more than two species, array broadcasts are different for 2 vs 3+ species
 #		idea: custom iterators for species-related slicing, or just squeeze any massfrac references

@@ -16,7 +16,6 @@ import os
 import numpy as np
 from scipy.sparse.linalg import spsolve
 from scipy.linalg import solve
-import pdb
 
 class solutionDomain:
 	"""
@@ -193,7 +192,6 @@ class solutionDomain:
 
 		else:
 
-			# pdb.set_trace()
 			dSol = self.timeIntegrator.solveSolChange(solInt.RHS)
 			solInt.solCons = solInt.solHistCons[0] + dSol
 			solInt.updateState(fromCons=True)

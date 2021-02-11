@@ -1,7 +1,6 @@
 from perform.constants import realType
 
 import numpy as np
-import pdb
 import os
 
 # TODO: workflow and method hierarchy can probably be cleaned up a lot

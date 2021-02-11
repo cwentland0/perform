@@ -4,7 +4,6 @@ from perform.visualization.visualization import visualization
 import matplotlib.pyplot as plt
 import os
 from math import floor, log
-import pdb
 
 class fieldPlot(visualization):
 	"""

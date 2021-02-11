@@ -5,7 +5,6 @@ from perform.inputFuncs import catchInput
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-import pdb
 
 # TODO: might be easier to make probe and residual plots under some pointPlot class
 

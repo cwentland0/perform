@@ -4,7 +4,6 @@ from perform.solution.solutionPhys import solutionPhys
 
 import numpy as np
 import os
-import pdb
 
 class solutionInterior(solutionPhys):
 	"""

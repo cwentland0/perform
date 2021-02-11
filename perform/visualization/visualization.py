@@ -1,7 +1,6 @@
 from perform.inputFuncs import catchList
 
 import numpy as np
-import pdb
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

@@ -4,7 +4,6 @@ from perform.visualization.probePlot import probePlot
 # from perform.visualization.residualPlot import residualPlot
 from perform.inputFuncs import catchInput
 
-import pdb
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np

@@ -2,7 +2,6 @@ import perform.constants as const
 
 import numpy as np
 from scipy.sparse import bsr_matrix, csr_matrix, dia_matrix, diags
-import pdb
 
 # TODO: scipy is not strictly needed, should only import if it's available with a try, except.
 #		In this case, can just make the Jacobian dense. It's a cost hit but makes code less restrictive.

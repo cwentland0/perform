@@ -5,7 +5,6 @@ import perform.mesh as mesh
 import numpy as np 
 from math import floor, log
 import os
-import pdb
 
 
 class systemSolver:

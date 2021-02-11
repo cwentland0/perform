@@ -2,7 +2,6 @@ import perform.constants
 from perform.inputFuncs import catchInput
 
 import numpy as np
-import pdb
 
 class timeIntegrator:
 	"""
