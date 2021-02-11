@@ -204,6 +204,9 @@ def getInitialConditions(solDomain, solver):
 			solPrim0 = np.load(solver.initFile)
 			assert (solPrim0.shape[0] == solDomain.gasModel.numEqs), ("Incorrect initFile numEqs: "+str(solPrim0.shape[0]))
 
+		# attempt to get solver.solTime, if given
+		solver.solTime = catchInput(solver.paramDict, "solTimeInit", 0.0)
+
 	return solPrim0
 
 

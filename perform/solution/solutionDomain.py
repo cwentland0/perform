@@ -253,7 +253,7 @@ class solutionDomain:
 		if solver.solveFailed: solver.simType += "_FAILED"
 
 		if (not solver.runSteady):		
-			self.solInt.writeSnapshots(solver)
+			self.solInt.writeSnapshots(solver, solver.solveFailed)
 		
 		if (self.numProbes > 0):
 			self.writeProbes(solver)

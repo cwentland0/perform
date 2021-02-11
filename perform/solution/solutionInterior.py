@@ -102,12 +102,17 @@ class solutionInterior(solutionPhys):
 		if solver.RHSOut:  		self.RHSSnap[:,:,storeIdx-1]  	= self.RHS
 
 
-	def writeSnapshots(self, solver):
+	def writeSnapshots(self, solver, failed):
 		"""
 		Save snapshot matrices to disk
 		"""
 
-		finalIdx = int((solver.iter - 1) / solver.outInterval) + 1 # accounts for failed simulation dump
+		# account for failed simulation dump
+		if failed:
+			offset = 1
+		else:
+			offset = 2
+		finalIdx = int((solver.iter - 1) / solver.outInterval) + offset
 
 		if solver.primOut:
 			solPrimFile = os.path.join(const.unsteadyOutputDir, "solPrim_"+solver.simType+".npy")
