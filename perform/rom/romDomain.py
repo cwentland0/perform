@@ -1,6 +1,5 @@
 
 from perform.inputFuncs import readInputFile, catchList, catchInput
-from perform.rom.linearProjROM.linearGalerkinProj import linearGalerkinProj
 from perform.timeIntegrator import getTimeIntegrator
 from perform.solution.solutionPhys import solutionPhys
 from perform.spaceSchemes import calcRHS
@@ -125,7 +124,7 @@ class romDomain:
 				self.modelList[modelIdx].initFromCode(self.code0[modelIdx], solDomain)
 			else:
 				self.modelList[modelIdx].initFromSol(solDomain)
-		
+
 		solDomain.solInt.updateState(fromCons=self.targetCons)
 
 		# get time integrator, if necessary
@@ -385,8 +384,6 @@ class romDomain:
 		solInt = solDomain.solInt
 		res, resJacob = None, None
 
-		pdb.set_trace()
-
 		if self.isIntrusive:
 			calcRHS(solDomain, solver)
 
@@ -420,8 +417,6 @@ class romDomain:
 				model.updateSol(solDomain)
 			
 			solInt.updateState(fromCons=True)
-
-			pdb.set_trace()
 
 	def updateCodeHist(self):
 		"""

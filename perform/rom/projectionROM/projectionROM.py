@@ -51,5 +51,4 @@ class projectionROM(romModel):
 
 		# calc projection operator and project
 		self.calcProjector(solDomain, False)
-		pdb.set_trace()
 		self.rhsLowDim = self.projectToLowDim(self.projector, rhsScaled, transpose=False)

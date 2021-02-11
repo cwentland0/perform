@@ -3,10 +3,16 @@ from perform.inputFuncs import catchInput
 from perform.rom.projectionROM.autoencoderProjROM.autoencoderProjROM import autoencoderProjROM
 
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from scipy.linalg import pinv
 
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 import pdb
+
+# TODO: include casting to realType
 
 class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 	"""
@@ -16,9 +22,27 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
+		# make sure TF doesn't gobble up device memory
+		gpus = tf.config.experimental.list_physical_devices('GPU')
+		if gpus:
+			try:
+				# Currently, memory growth needs to be the same across GPUs
+				for gpu in gpus:
+					tf.config.experimental.set_memory_growth(gpu, True)
+					logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+			except RuntimeError as e:
+				# Memory growth must be set before GPUs have been initialized
+				print(e)
+
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
-		pass
+		# initialize tf.Variable for Jacobian calculations
+		# otherwise, recreating this will cause retracing of the computational graph
+		if (not self.numericalJacob):
+			if self.encoderJacob:
+				self.jacobInput = tf.Variable(solDomain.solInt.solCons[None,self.varIdxs,:], dtype=self.encoderIODtypes[0])
+			else:
+				self.jacobInput = tf.Variable(self.code[None,:], dtype=self.decoderIODtypes[0])
 
 
 	def loadModelObj(self, modelPath):
@@ -44,9 +68,9 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 		return shape
 
 
-	def checkModelDims(self, decoder=True):
+	def checkModel(self, decoder=True):
 		"""
-		Check decoder/encoder input/output dimensions
+		Check decoder/encoder input/output dimensions and returns I/O dtypes
 		"""
 
 		if decoder:
@@ -56,12 +80,20 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 			assert(inputShape[-1] == self.latentDim), "Mismatched decoder input shape: "+str(inputShape)+", "+str(self.latentDim)
 			assert(outputShape[-2:] == self.solShape), "Mismatched decoder output shape: "+str(outputShape)+", "+str(self.solShape)
 
+			inputDtype  = self.decoder.layers[0].dtype
+			outputDtype = self.decoder.layers[-1].dtype
+
 		else:
 			inputShape  = self.getIOShape(self.encoder.layers[0].input_shape)
 			outputShape = self.getIOShape(self.encoder.layers[-1].output_shape)
 
 			assert(inputShape[-2:] == self.solShape), "Mismatched encoder output shape: "+str(inputShape)+", "+str(self.solShape)
 			assert(outputShape[-1] == self.latentDim), "Mismatched encoder output shape: "+str(outputShape)+", "+str(self.latentDim)
+
+			inputDtype  = self.encoder.layers[0].dtype
+			outputDtype = self.encoder.layers[-1].dtype
+
+		return [inputDtype, outputDtype]
 
 
 	def applyDecoder(self, code):
@@ -82,25 +114,18 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 		return code
 
 
-	def calcAnalyticalJacobian(inputArr, encoder=False):
+	@tf.function
+	def calcAnalyticalModelJacobian(self, model, inputs):
 		"""
-		Compute analytical Jacobian of TensorFlow-Keras models using GradientTape
-		For encoder, inputArr should be solution array
-		For decoder, inputArr should be latent code
+		Compute analytical Jacobian of TensorFlow-Keras model using GradientTape
 		"""
 
-		if encoder:
-			raise ValueError("Analytical encoder Jacobian has not been implemented")
-		else:
-			with tf.GradientTape() as g:
-				inputs = tf.Variable(inputArr[None,:], dtype=dtype)
-				outputs = self.decoder(inputs)
-
-			# output of model is in CW order, Jacobian is thus CWK
-			jacob = np.squeeze(g.jacobian(outputs, inputs).numpy(), axis=(0,3))
+		with tf.GradientTape() as g:
+			outputs = model(inputs)
+		jacob = g.jacobian(outputs, inputs)
 
 		return jacob
-
+		
 
 	def calcProjector(self, solDomain, runCalc=True):
 		"""
@@ -114,13 +139,25 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 			sol = self.standardizeData(solDomain.solInt.solCons[self.varIdxs, :], 
 										normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons, 
 										center=True, centProf=self.centProfCons, inverse=False)
-			self.projector = self.calcAnalyticalJacobian(sol, encoder=True)
+			
+			self.jacobInput.assign(sol[None,:,:])
+			jacobTF = self.calcAnalyticalModelJacobian(self.encoder, self.jacobInput)
+			jacob = tf.squeeze(jacobTF, axis=[0,2]).numpy()
+
+			self.projector = np.reshape(jacob, (self.latentDim, -1), order='C')
 		else:
-			jacob = self.calcAnalyticalJacobian(self.code, encoder=False)
+
+			self.jacobInput.assign(self.code[None,:])
+			jacobTF = self.calcAnalyticalModelJacobian(self.decoder, self.jacobInput)
+			jacob = tf.squeeze(jacobTF, axis=[0,3]).numpy()
+			jacob = np.reshape(jacob, (-1, self.latentDim), order='C')
+
 			self.projector = pinv(jacob)
 
 
-	# def calcNumericalTFJacobian(modelObj, encoder=False, dtype=realType):
+############
+
+	# def calcNumericalTFJacobian(self, modelObj, encoder=False, dtype=realType):
 	# 	"""
 	# 	Compute numerical Jacobian of TensorFlow-Keras models by finite difference approximation
 	# 	"""
@@ -175,6 +212,5 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 
 	# 	# linear solve
 	# 	dCode = np.linalg.solve(LHS, RHS)
-	# 	pdb.set_trace()
 		
 	# 	return dCode, LHS, RHS

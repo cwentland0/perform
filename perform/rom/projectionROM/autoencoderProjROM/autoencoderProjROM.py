@@ -1,6 +1,7 @@
 from perform.rom.projectionROM.projectionROM import projectionROM
 from perform.inputFuncs import catchInput
 
+import numpy as np
 import os
 import pdb
 
@@ -16,7 +17,7 @@ class autoencoderProjROM(projectionROM):
 		decoderPath = os.path.join(romDomain.modelDir, romDomain.modelFiles[modelIdx])
 		assert(os.path.isfile(decoderPath)), "Invalid decoder file path"
 		self.decoder = self.loadModelObj(decoderPath)
-		self.checkModelDims(decoder=True)
+		self.decoderIODtypes = self.checkModel(decoder=True)
 
 		# if required, load encoder
 		# encoder is required for encoder Jacobian or initializing from projection of full ICs
@@ -28,7 +29,7 @@ class autoencoderProjROM(projectionROM):
 			encoderPath = os.path.join(romDomain.modelDir, encoderFiles[modelIdx])
 			assert (os.path.isfile(encoderPath)), "Could not find encoder file at " + encoderPath
 			self.encoder = self.loadModelObj(encoderPath)
-			self.checkModelDims(decoder=False)
+			self.encoderIODtypes = self.checkModel(decoder=False)
 
 		# numerical Jacobian params
 		self.numericalJacob = catchInput(romDict, "numericalJacob", False)
