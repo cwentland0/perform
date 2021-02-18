@@ -89,7 +89,9 @@ class romDomain:
 		# Adaptive ROM
 		self.adaptiveROM = catchInput(romDict, "adaptiveROM", False)
 		if self.adaptiveROM:
-				self.adaptiveROMMethod = catchInput(romDict, "adaptiveROMMethod", False)
+				self.adaptiveROMMethod = catchInput(romDict, "adaptiveROMMethod", "OSAB")
+				self.adaptiveROMParams = romDict["adaptiveROMParams"]
+			
 
 		# set up hyper-reduction, if necessary
 		self.hyperReduc = catchInput(romDict, "hyperReduc", False)
@@ -371,6 +373,8 @@ class romDomain:
 				if (self.timeIntegrator.timeType == "implicit"):
 					solDomain.solInt.calcResNorms(solver, self.timeIntegrator.subiter)
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol): break
+			if self.adaptiveROM:
+				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)
 
 		solDomain.solInt.updateSolHist()
 		self.updateCodeHist()
@@ -410,11 +414,13 @@ class romDomain:
 		else:
 
 			for modelIdx, model in enumerate(self.modelList):
-
-				model.calcRHSLowDim(self, solDomain)
-				dCode = self.timeIntegrator.solveSolChange(model.rhsLowDim)
-				model.code = model.codeHist[0] + dCode
-				model.updateSol(solDomain)
+				if(self.adaptiveROM and model.adapt.subIteration):
+					model.adaptSubIteration(self, solDomain)
+				else:
+					model.calcRHSLowDim(self, solDomain)
+					dCode = self.timeIntegrator.solveSolChange(model.rhsLowDim)
+					model.code = model.codeHist[0] + dCode
+					model.updateSol(solDomain)
 			
 			solInt.updateState(fromCons=True)
 

@@ -5,7 +5,7 @@ import os
 
 ##### BEGIN USER INPUT #####
 
-dataDir 	= "~/path/to/data/dir"
+dataDir 	= "/home/sahil/Documents/Academics/Summer2020/KDUR/pyGEMS_1D/examples/standingFlame_forced/UnsteadyFieldResults/"
 dataFile 	= "solCons_FOM.npy"
 iterStart 	= 0 		# zero-indexed starting index for snapshot array
 iterEnd 	= 700		# zero-indexed ending index for snapshot array
@@ -15,13 +15,13 @@ centType 	= "initCond" 		# accepts "initCond" and "mean"
 normType 	= "l2"				# accepts "minmax" and "l2"
 
 # zero-indexed list of lists for group variables
-varIdxs 	= [[0],[1],[2],[3]]	
+varIdxs 	= [[0, 1, 2, 3]]
 
 maxModes 	= 700
 
 writeRightEvecs = False
 
-basisOutDir = "podData_prim_press_vel_temp_mf_samp1"
+basisOutDir = "podData_cons_DensMomEnergyMF"
 
 ##### END USER INPUT #####
 
@@ -48,7 +48,7 @@ def main():
 
 		minDim = min(nCells*nVars, nSnaps)
 		modesOut = min(minDim, maxModes)
-
+		print(snapArr.shape)
 		# compute SVD 
 		groupArr = np.reshape(groupArr, (-1, groupArr.shape[-1]), order="C")
 		U, s, VT = svd(groupArr)

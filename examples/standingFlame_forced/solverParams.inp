@@ -6,8 +6,8 @@ initFile = "/home/sahil/Documents/Academics/Summer2020/KDUR/pyGEMS_1D/examples/s
 # time discretization
 dt         = 5.e-9
 numSteps   = 10000
-timeScheme = "bdf"
-timeOrder  = 2
+timeScheme = "sspRK3"
+timeOrder  = 3
 dualTime = False
 
 # space discretization
@@ -59,7 +59,7 @@ probeVars = ["pressure"]
 
 # visualization
 visShow 	= False
-visSave 	= True
+visSave 	= False
 visInterval = 50
 
 visType1    = "field"
@@ -71,4 +71,4 @@ visVar2     = ["pressure"]
 probeNum2   = 1
 
 # run ROM
-calcROM = False
+calcROM = True

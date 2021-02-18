@@ -89,3 +89,23 @@ class linearProjROM(romModel):
 		# calc projection operator and project
 		self.calcProjector(romDomain, romDomain.adaptiveROM)
 		self.rhsLowDim = self.projectToLowDim(self.projector, rhsScaled, transpose=False)
+
+
+	def adaptSubIteration(self, romDomain, solDomain):
+		if romDomain.timeIntegrator.timeType =="implicit" :
+			raise ValueError ("Implicit framework for model adaptation not implemented yet")
+
+		else:
+			if self.adapt.adaptiveROMMethod == "OSAB":
+				if romDomain.hyperReduc: raise ValueError ("OSAB currently not DEIM friendly")
+				rhs   = solDomain.solInt.RHS[self.varIdxs[:,None], solDomain.directSampIdxs[None,:]]
+				dcode = romDomain.timeIntegrator.solveSolChange(rhs)
+				solDomain.solInt.solCons[self.varIdxs, :] = solDomain.solInt.solHistCons[0][self.varIdxs, :] + dcode
+
+				if romDomain.timeIntegrator.subiter == romDomain.timeIntegrator.subiterMax - 1:
+					solCons = self.standardizeData(solDomain.solInt.solCons[self.varIdxs, :], normalize=True,
+													   normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons,
+													   center=True, centProf=self.centProfCons, inverse=False)
+					self.adapt.trueStandardizedState = solCons
+					self.calcProjector(romDomain, romDomain.adaptiveROM)
+					self.code = self.projectToLowDim(self.projector, solCons, transpose=False)

@@ -5,7 +5,7 @@ latentDims = [70]
 modelVarIdxs = [[0,1,2,3]]
 
 # model data paths
-modelDir = "/Users/sahil/Documents/Academics/KDUR/pyGEMS_1D_Iss/examples/standingFlame_forced/UnsteadyFieldResults/podData_cons_DensMomEnergyMF"
+modelDir = "/home/sahil/Documents/Academics/Summer2020/KDUR/pyGEMS_1D/examples/standingFlame_forced/UnsteadyFieldResults/podData_cons_DensMomEnergyMF"
 modelFiles = ["spatialModes_0_1_2_3.npy"]
 
 # standardization profiles
@@ -20,5 +20,5 @@ hyperReducFiles = ["spatialModes_0_1_2_3.npy"]
 hyperReducDims = [70]
 
 # Adaptation
-adaptiveROM = False
-adaptionParameters = [1]
+adaptiveROM       = True
+adaptiveROMParams =  [1]

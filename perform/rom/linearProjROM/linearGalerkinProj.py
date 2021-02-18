@@ -1,5 +1,5 @@
 from perform.rom.linearProjROM.linearProjROM import linearProjROM
-
+from perform.rom.ModelAdaption.adapt import adapt
 import numpy as np
 
 # TODO: could move some of these functions to linearProjROM and just branch if targeting cons vars or prim vars
@@ -18,6 +18,7 @@ class linearGalerkinProj(linearProjROM):
 
 		self.calcProjector(romDomain, runCalc=True)
 
+		if romDomain.adaptiveROM: self.adapt = adapt(self, solver, romDomain)
 
 	def decodeSol(self, code):
 		"""
