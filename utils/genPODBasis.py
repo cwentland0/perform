@@ -1,93 +1,78 @@
 import numpy as np 
 from numpy.linalg import svd
-import matplotlib.pyplot as plt
 import pdb
 import os
 
-# TODO: spatial modes should be lists too, to accommodate different latent dims for each basis
-
 ##### BEGIN USER INPUT #####
 
-dataDir 	= "/home/chris/Research/GEMS_runs/prf_nonlinManifold/pyGEMS/standingFlame/dataProc/40microsec"
-dataFile 	= "solCons_FOM.npy"		
-iterStart 	= 1 		# one-indexed starting index for snapshot array
-iterEnd 	= 4001		# one-indexed ending index for snapshot array
+dataDir 	= "~/path/to/data/dir"
+dataFile 	= "solCons_FOM.npy"
+iterStart 	= 0 		# zero-indexed starting index for snapshot array
+iterEnd 	= 700		# zero-indexed ending index for snapshot array
 iterSkip 	= 1
 
 centType 	= "initCond" 		# accepts "initCond" and "mean"
-normType 	= "l2"			# accepts "minmax"
+normType 	= "l2"				# accepts "minmax" and "l2"
 
-varIdxs 	= [[0],[1],[2,3]]	# zero-indexed list of lists for group variables
+# zero-indexed list of lists for group variables
+varIdxs 	= [[0],[1],[2],[3]]	
 
-maxModes 	= 200
+maxModes 	= 700
 
 writeRightEvecs = False
 
-basisOutDir = "podData_cons_dens_mom_energymommf_samp1"
+basisOutDir = "podData_prim_press_vel_temp_mf_samp1"
 
 ##### END USER INPUT #####
+
+outDir = os.path.join(os.path.expanduser(dataDir), basisOutDir)
+if not os.path.isdir(outDir): os.mkdir(outDir)
 
 def main():
 
 	# load data
 	inFile = os.path.join(dataDir, dataFile)
 	snapArr = np.load(inFile)
-	snapArr = snapArr[:,:,iterStart-1:iterEnd:iterSkip] 	# subsample
-	nCells, nVarsTot, nSnaps = snapArr.shape
-
-	minDim = min(nCells*nVarsTot, nSnaps)
-	assert(maxModes <= minDim)
+	snapArr = snapArr[:,:,iterStart:iterEnd+1:iterSkip] 	# subsample
+	nVarsTot, nCells, nSnaps = snapArr.shape
 
 	# loop through groups
-	basisOut 	 	= np.zeros((nCells, nVarsTot, maxModes), dtype = np.float64)
-	singVals 		= [] #np.zeros((minDim,len(varIdxs)), dtype = np.float64)
-	centProfOut 	= np.zeros((nCells, nVarsTot), dtype = np.float64)
-	normSubOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
-	normFacOut 		= np.zeros((nCells, nVarsTot), dtype = np.float64)
 	for groupIdx, varIdxList in enumerate(varIdxs):
 
-		groupArr = snapArr[:,varIdxList,:]	# break data array into different variable groups
-		nVars = groupArr.shape[1]
+		groupArr = snapArr[varIdxList,:,:]	# break data array into different variable groups
+		nVars = groupArr.shape[0]
 
 		# center and normalize data 
 		groupArr, centProf = centerData(groupArr)
 		groupArr, normSubProf, normFacProf = normalizeData(groupArr)		
 
+		minDim = min(nCells*nVars, nSnaps)
+		modesOut = min(minDim, maxModes)
+
 		# compute SVD 
-		groupArr = np.reshape(groupArr, (-1, groupArr.shape[-1]), order="F")
+		groupArr = np.reshape(groupArr, (-1, groupArr.shape[-1]), order="C")
 		U, s, VT = svd(groupArr)
-		U = np.reshape(U, (nCells, nVars, U.shape[-1]), order="F")
+		U = np.reshape(U, (nVars, nCells, U.shape[-1]), order="C")
+		basis = U[:,:,:modesOut] # truncate modes
 
-		# store arrays
-		centProfOut[:,varIdxList] = centProf.copy()
-		normSubOut[:,varIdxList] = normSubProf.copy() 
-		normFacOut[:,varIdxList] = normFacProf.copy()
-		basisOut[:,varIdxList,:] = U[:,:,:maxModes] # truncate modes
-		singVals.append(s.copy())
-
-	# suffix for output files
-	suffix = ""
-	for varIdxList in varIdxs:
-		suffix += "_"
+		# suffix for output files
+		suffix = ""
 		for varIdx in varIdxList:
-			suffix += str(varIdx)
-	suffix += ".npy"	
+			suffix += "_" + str(varIdx)
+		suffix += ".npy"	
 
-	# save data to disk
-	outDir = os.path.join(dataDir, basisOutDir)
-	if not os.path.isdir(outDir): os.mkdir(outDir)
+		# save data to disk
+		centFile 		= os.path.join(outDir, "centProf")
+		normSubFile 	= os.path.join(outDir, "normSubProf")
+		normFacFile 	= os.path.join(outDir, "normFacProf")
+		spatialModeFile = os.path.join(outDir, "spatialModes")
+		singValsFile	= os.path.join(outDir, "singularValues")
 
-	centFile = os.path.join(outDir, "centProf")
-	normSubFile = os.path.join(outDir, "normSubProf")
-	normFacFile = os.path.join(outDir, "normFacProf")
-	spatialModeFile = os.path.join(outDir, "spatialModes")
-	singValsFile	= os.path.join(outDir, "singularValues")
-	
-	np.save(centFile+suffix, centProfOut)
-	np.save(normSubFile+suffix, normSubOut)
-	np.save(normFacFile+suffix, normFacOut)
-	np.save(spatialModeFile+suffix, basisOut)
-	np.save(singValsFile+suffix, singVals)
+		np.save(centFile+suffix, centProf)
+		np.save(normSubFile+suffix, normSubProf)
+		np.save(normFacFile+suffix, normFacProf)
+		np.save(spatialModeFile+suffix, basis)
+		np.save(singValsFile+suffix, s)
 
 	print("POD basis generated!")
 
@@ -118,16 +103,16 @@ def normalizeData(dataArr):
 
 	# normalize by  (X - min(X)) / (max(X) - min(X)) 
 	if (normType == "minmax"):
-		minVals = np.amin(dataArr, axis=(0,2), keepdims=True)
-		maxVals = np.amax(dataArr, axis=(0,2), keepdims=True)
+		minVals = np.amin(dataArr, axis=(1,2), keepdims=True)
+		maxVals = np.amax(dataArr, axis=(1,2), keepdims=True)
 		normSubProf = minVals * onesProf
 		normFacProf = (maxVals - minVals) * onesProf
 
 	# normalize by L2 norm sqaured of each variable
 	elif (normType == "l2"):
 		dataArrSq = np.square(dataArr)
-		normFacProf = np.sum(np.sum(dataArrSq, axis=0, keepdims=True), axis=2, keepdims=True) 
-		normFacProf /= (dataArr.shape[0] * dataArr.shape[2])
+		normFacProf = np.sum(np.sum(dataArrSq, axis=1, keepdims=True), axis=2, keepdims=True) 
+		normFacProf /= (dataArr.shape[1] * dataArr.shape[2])
 		normFacProf = normFacProf * onesProf
 		normSubProf = zeroProf
 
