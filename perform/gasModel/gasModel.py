@@ -46,6 +46,7 @@ class gasModel:
 		self.mixInvMassMatrix 	= np.zeros((self.numSpeciesFull, self.numSpeciesFull), dtype=realType)
 		self.precompMixMassMatrices()
 
+
 	def precompMixMassMatrices(self):
 		"""
 		Precompute mass matrices for dynamic viscosity mixing law
@@ -96,6 +97,7 @@ class gasModel:
 			massFracs[-1,:] 	= np.maximum(0.0, np.minimum(1.0, massFracs[-1,:]))
 
 		return massFracs
+
 
 	def calcMixMolWeight(self, massFracs):
 		"""

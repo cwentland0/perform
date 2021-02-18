@@ -15,9 +15,8 @@ warnings.filterwarnings("error")
 from time import time
 import pdb
 
-# TODO: make code general for more than two species, array broadcasts are different for 2 vs 3+ species
-#		idea: custom iterators for species-related slicing, or just squeeze any massfrac references
 # TODO: check all calls to calcDensityDerivatives and calcStagEnthalpyDerivatives, pass full massFrac array
+# TODO: ^^^^^ emphasizing this, this is a big contribution to Jacobian cost
 
 def main():
 

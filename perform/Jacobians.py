@@ -158,7 +158,7 @@ def calcDSourceDSolPrim(solInt, dt):
 	
 	return dSdQp
 	
-   
+
 def calcDInvFluxDSolPrim(sol):
 	"""
 	Compute Jacobian of inviscid flux vector with respect to primitive state
@@ -324,7 +324,7 @@ def calcDResDSolPrim(solDomain, solver):
 		dRdQp += gammaMatrix * (dtauInv[None,None,:] + dtInv)
 
 		# assemble sparse Jacobian from main, upper, and lower block diagonals
-		resJacob = resJacobAssemble(dRdQp, dFdQp_l, dFdQp_r)
+		resJacob = resJacobAssemble(dRdQp, dFdQp_l, dFdQp_r, solInt)
 
 	else:
 		# TODO: this is hilariously inefficient, need to make Jacobian functions w/r/t conservative state
@@ -351,7 +351,6 @@ def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 	# TODO: move this to implicitIntegrator
 	solInt = solDomain.solInt
 
-
 	# compute initial dtau from input CFL and srf (max characteristic speed)
 	# srf is computed in calcInvFlux
 	dtaum = 1.0 * solver.mesh.dx / solDomain.solInt.srf
@@ -359,6 +358,7 @@ def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 
 	# limit by von Neumann number
 	if (solver.viscScheme > 0):
+		# TODO: calculating this is stupidly expensive, figure out a workaround
 		solInt.dynViscMix = solDomain.gasModel.calcMixDynamicVisc(temperature=solInt.solPrim[2,:],massFracs=solInt.solPrim[3:,:])
 		nu = solInt.dynViscMix / solInt.solCons[0,:]
 		dtau = np.minimum(dtau, solDomain.timeIntegrator.VNN * np.square(solver.mesh.dx) / nu)
@@ -369,109 +369,18 @@ def calcAdaptiveDTau(solDomain, gammaMatrix, solver):
 	
 	return  1.0 / dtau 
 
-def resJacobAssemble(mat1, mat2, mat3):
+
+def resJacobAssemble(centerBlock, lowerBlock, upperBlock, solInt):
 	'''
 	Reassemble residual Jacobian into a sparse 2D array for linear solve
-	Stacking block diagonal forms of mat1 and block tri-diagonal form of mat2
-	mat1 : 3-D Form of Gamma*(1/dt) + Gamma*(1/dtau) - dS/dQp + (dF/dQp)_i
-	mat2 : 3-D Form of (dF/dQp)_(i-1) (Left Neighbor)
-	mat3 : 3-D Form of (dF/dQp)_(i+1) (Right Neighbor)
 	'''
 
-	# TODO: this needs to be converted to C ordering, it causes headaches with the implicit ROMs
+	# TODO: my God, this is still the single most expensive operation in the Jacobian calculation
+	# 		How can this be made any simpler/faster??? Preallocating and assigning "data" is *slower*
 
-	numEqs, _, numCells = mat1.shape
-	 
-	# put arrays in proper format for use with bsr_matrix
-	# zeroPad is because I don't know how to indicate that a row should have no blocks added when using bsr_matrix
-	zeroPad = np.zeros((1,numEqs,numEqs), dtype = const.realType)
-	center = np.transpose(mat1, (2,0,1))
-	lower = np.concatenate((zeroPad, np.transpose(mat2, (2,0,1))), axis=0) 
-	upper = np.concatenate((np.transpose(mat3, (2,0,1)), zeroPad), axis=0)
+	jacobDim = solInt.jacobDim
 
-	# BSR format indices and indices pointers
-	indptr = np.arange(numCells+1)
-	indicesCenter = np.arange(numCells)
-	indicesLower = np.arange(numCells)
-	indicesLower[1:] -= 1
-	indicesUpper = np.arange(1,numCells+1)
-	indicesUpper[-1] -= 1
+	data = np.concatenate((centerBlock.ravel("C"), lowerBlock.ravel("C"), upperBlock.ravel("C")))
+	resJacobTest = csr_matrix((data, (solInt.rowIdxs, solInt.colIdxs)), shape=(jacobDim, jacobDim), dtype=const.realType) 
 
-	# format center, lower, and upper block diagonals
-	jacDim = numEqs * numCells
-	centerSparse = bsr_matrix((center, indicesCenter, indptr), shape=(jacDim, jacDim))
-	lowerSparse  = bsr_matrix((lower, indicesLower, indptr), shape=(jacDim, jacDim))
-	upperSparse  = bsr_matrix((upper, indicesUpper, indptr), shape=(jacDim, jacDim))
-
-	# assemble full matrix
-	# convert to csr because spsolve requires this, I timed this and it's the most efficient way
-	resJacob  = centerSparse + lowerSparse + upperSparse 
-	resJacob = resJacob.tocsr(copy=False)
-
-	return resJacob
-
-
-# NOTE: this was an atrocious failure in an attempt to get resJacob into C-order
-# easily 3-4 times more expensive that F-order above
-# still would be really useful to get a C-order resJacob for ROMs
-# def resJacobAssembleCOrder(centerBlock, lowerBlock, upperBlock):
-
-# 	numEqs, _, numCells = centerBlock.shape
-# 	jacDim = numEqs * numCells
-
-# 	resJacob = csr_matrix((jacDim, jacDim), dtype=const.realType)
-
-# 	for blockDiagIdx in range(numEqs):
-
-# 		for varIdx1 in range(numEqs-blockDiagIdx):
-
-# 			varIdx2 = varIdx1 + blockDiagIdx
-
-# 			# center block diagonal
-# 			if (blockDiagIdx == 0):
-# 				if (varIdx1 == 0):
-# 					center = centerBlock[varIdx1, varIdx2, :]	
-# 					lower  = lowerBlock[varIdx1, varIdx2, :]
-# 					upper  = upperBlock[varIdx1, varIdx2, :]
-# 				else:
-# 					center = np.concatenate((center, centerBlock[varIdx1, varIdx2, :]))
-# 					lower  = np.concatenate((lower, np.array([0]), lowerBlock[varIdx1, varIdx2, :]))
-# 					upper  = np.concatenate((upper, np.array([0]), upperBlock[varIdx1, varIdx2, :]))
-
-# 			# off-center block diagonals
-# 			else:
-
-# 				if (varIdx1 == 0):
-# 					upperCenter = centerBlock[varIdx1, varIdx2, :]
-# 					upperLower  = np.concatenate((np.array([0]), lowerBlock[varIdx1, varIdx2, :]))
-# 					upperUpper  = upperBlock[varIdx1, varIdx2, :]
-
-# 					lowerCenter = centerBlock[varIdx2, varIdx1, :]
-# 					lowerLower  = lowerBlock[varIdx2, varIdx1, :]
-# 					lowerUpper  = np.concatenate((np.array([0]), upperBlock[varIdx2, varIdx1, :]))
-# 				else:					
-# 					upperCenter = np.concatenate((upperCenter, centerBlock[varIdx1, varIdx2, :]))
-# 					upperLower  = np.concatenate((upperLower, np.array([0]), lowerBlock[varIdx1, varIdx2, :]))
-# 					upperUpper  = np.concatenate((upperUpper, np.array([0]), upperBlock[varIdx1, varIdx2, :]))
-				
-# 					lowerCenter = np.concatenate((lowerCenter, centerBlock[varIdx2, varIdx1, :]))
-# 					lowerLower  = np.concatenate((lowerLower, np.array([0]), lowerBlock[varIdx2, varIdx1, :]))
-# 					lowerUpper  = np.concatenate((lowerUpper, np.array([0]), upperBlock[varIdx2, varIdx1, :]))
-
-# 				if (varIdx1 == (numEqs-blockDiagIdx-1)):
-# 					lowerUpper  = np.concatenate((lowerUpper, np.array([0])))
-# 					upperLower  = np.concatenate((upperLower, np.array([0])))
-
-
-# 		# center block diagonal
-# 		if (blockDiagIdx == 0):
-# 			resJacob = resJacob + diags((lower, center, upper), offsets=[-1,0,1], shape=(jacDim, jacDim), format="csr")
-
-# 		# off-center block diagonals
-# 		else:
-
-# 			offset = blockDiagIdx * numCells
-# 			resJacob += diags((lowerLower, lowerCenter, lowerUpper), offsets=[-offset-1,-offset,-offset+1], shape=(jacDim, jacDim), format="csr")
-# 			resJacob += diags((upperLower, upperCenter, upperUpper), offsets=[offset-1,offset,offset+1], shape=(jacDim, jacDim), format="csr")
-
-# 	return resJacob
+	return resJacobTest

@@ -175,25 +175,24 @@ class solutionDomain:
 			solInt.res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 			resJacob = calcDResDSolPrim(self, solver)
 
-			dSol = spsolve(resJacob, solInt.res.ravel('F'))
+			dSol = spsolve(resJacob, solInt.res.ravel('C'))
 			
 			# if solving in dual time, solving for primitive state
 			if (self.timeIntegrator.dualTime):
-				solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+				solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='C')
 			else:
-				solInt.solCons += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+				solInt.solCons += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='C')
 				
 			solInt.updateState(fromCons = (not self.timeIntegrator.dualTime))
 			solInt.solHistCons[0] = solInt.solCons.copy() 
 			solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
 			# borrow solInt.res to store linear solve residual	
-			res = resJacob @ dSol - solInt.res.ravel('F')
-			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='F')
+			res = resJacob @ dSol - solInt.res.ravel('C')
+			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='C')
 
 		else:
 
-			# pdb.set_trace()
 			dSol = self.timeIntegrator.solveSolChange(solInt.RHS)
 			solInt.solCons = solInt.solHistCons[0] + dSol
 			solInt.updateState(fromCons=True)
@@ -253,7 +252,7 @@ class solutionDomain:
 		if solver.solveFailed: solver.simType += "_FAILED"
 
 		if (not solver.runSteady):		
-			self.solInt.writeSnapshots(solver)
+			self.solInt.writeSnapshots(solver, solver.solveFailed)
 		
 		if (self.numProbes > 0):
 			self.writeProbes(solver)

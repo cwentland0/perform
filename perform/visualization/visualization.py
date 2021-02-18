@@ -19,15 +19,13 @@ mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 
 class visualization:
 
-	def __init__(self, solDomain, solver):
-
-		paramDict = solver.paramDict
+	def __init__(self, visID, visVars, visXBounds, visYBounds, numSpeciesFull):
 
 		if (self.visType in ["field","probe"]):
 
 			# check requested variables
-			self.visVar	= catchList(paramDict, "visVar"+str(self.visID), [None])
-			for visVar in self.visVar:
+			self.visVars	= visVars
+			for visVar in self.visVars:
 				if (visVar in ["pressure","velocity","temperature","source","density","momentum","energy"]):
 					pass
 				elif ((visVar[:7] == "species") or (visVar[:15] == "density-species")):
@@ -37,22 +35,24 @@ class visualization:
 						elif (visVar[:15] == "density-species"):
 							speciesIdx = int(visVar[15:])
 
-						assert ((speciesIdx > 0) and (speciesIdx <= solDomain.gasModel.numSpeciesFull)), \
+						assert ((speciesIdx > 0) and (speciesIdx <= numSpeciesFull)), \
 							"Species number must be a positive integer less than or equal to the number of chemical species"
 					except:
 						raise ValueError("visVar entry " + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")
 				else:
 					raise ValueError("Invalid entry in visVar"+str(visID))
 
-			self.numSubplots = len(self.visVar)
+			self.numSubplots = len(self.visVars)
 
 		# residual plot
 		else:
-			self.visVar = ["residual"]
+			self.visVars = ["residual"]
 			self.numSubplots = 1
 
-		self.visXBounds 	= catchList(paramDict, "visXBounds"+str(self.visID), [[None,None]], lenHighest=self.numSubplots)
-		self.visYBounds 	= catchList(paramDict, "visYBounds"+str(self.visID), [[None,None]], lenHighest=self.numSubplots)
+		self.visXBounds = visXBounds
+		assert(len(self.visXBounds) == self.numSubplots), "Length of visXBounds"+str(visID)+" must match number of subplots: "+str(self.numSubplots)
+		self.visYBounds = visYBounds
+		assert(len(self.visYBounds) == self.numSubplots), "Length of visYBounds"+str(visID)+" must match number of subplots: "+str(self.numSubplots)
 
 		if (self.numSubplots == 1):
 			self.numRows = 1 
@@ -80,7 +80,7 @@ class visualization:
 			self.axLabels[0] = "Residual History"
 		else:
 			for axIdx in range(self.numSubplots):
-				varStr = self.visVar[axIdx]
+				varStr = self.visVars[axIdx]
 				if (varStr == "pressure"):
 					self.axLabels[axIdx] = "Pressure (Pa)"
 				elif (varStr == "velocity"):
@@ -102,47 +102,4 @@ class visualization:
 				elif (varStr[:15] == "density-species"):
 					self.axLabels[axIdx] = "Density-weighted Species "+str(varStr[7:])+" Mass Fraction (kg/m^3)"
 				else:
-					raise ValueError("Invalid field visualization variable:"+str(solver.visVar))
-
-
-	def plot(self, solDomain, solver):
-		"""
-		Draw and display plot
-		"""
-
-		plt.figure(self.visID)
-
-		if (type(self.ax) != np.ndarray):
-			axList = [self.ax]
-		else:
-			axList = self.ax
-
-		for colIdx, col in enumerate(axList):
-			if (type(col) != np.ndarray):
-				colList = [col]
-			else:
-				colList = col
-			for rowIdx, axVar in enumerate(colList):
-
-				axVar.cla()
-				linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (self.numRows, self.numCols))[0]
-				if ((linIdx+1) > self.numSubplots): 
-					axVar.axis("off")
-					break
-
-				yData = self.getYData(solDomain, self.visVar[linIdx], solver)
-				xData = self.getXData(solDomain, solver)
-
-				axVar.plot(xData, yData)
-				axVar.set_ylim(self.visYBounds[linIdx])
-				axVar.set_xlim(self.visXBounds[linIdx])
-				axVar.set_ylabel(self.axLabels[linIdx])
-				axVar.set_xlabel(self.xLabel)
-				
-				if (self.visType == "field"):
-					axVar.ticklabel_format(useOffset=False)
-				else:
-					axVar.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
-
-		self.fig.tight_layout()
-		self.fig.canvas.draw_idle()
+					raise ValueError("Invalid field visualization variable:"+str(varStr))

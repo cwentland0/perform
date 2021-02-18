@@ -2,9 +2,8 @@ from perform.constants import figWidthDefault, figHeightDefault
 from perform.visualization.fieldPlot import fieldPlot
 from perform.visualization.probePlot import probePlot
 # from perform.visualization.residualPlot import residualPlot
-from perform.inputFuncs import catchInput
+from perform.inputFuncs import catchInput, catchList
 
-import pdb
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -51,12 +50,19 @@ class visualizationGroup:
 		# initialize each figure object
 		for visIdx in range(1, self.numVisPlots+1):
 			
-			visType = str(paramDict["visType"+str(visIdx)])
+			# some parameters all plots have
+			visType    = str(paramDict["visType"+str(visIdx)])
+			visVars	   = catchList(paramDict, "visVar"+str(visIdx), [None])
+			visXBounds = catchList(paramDict, "visXBounds"+str(visIdx), [[None,None]], lenHighest=len(visVars))
+			visYBounds = catchList(paramDict, "visYBounds"+str(visIdx), [[None,None]], lenHighest=len(visVars))
 
 			if (visType == "field"):
-				self.visList[visIdx-1] = fieldPlot(visIdx, self.visInterval, solDomain, solver)
+				self.visList[visIdx-1] = fieldPlot(visIdx, self.visInterval, solver.numSteps, solver.simType, 
+											visVars, visXBounds, visYBounds, solDomain.gasModel.numSpeciesFull)
 			elif (visType == "probe"):
-				self.visList[visIdx-1] = probePlot(visIdx, solDomain, solver)
+				probeNum = catchInput(paramDict, "probeNum"+str(visIdx), -2) - 1
+				self.visList[visIdx-1] = probePlot(visIdx, solver.simType, solver.probeVars, visVars, probeNum, 
+											solver.numProbes, visXBounds, visYBounds, solDomain.gasModel.numSpeciesFull)
 			elif (visType == "residual"):
 				raise ValueError("Residual plot not implemented yet")
 			else:
@@ -87,12 +93,35 @@ class visualizationGroup:
 				return
 
 			for vis in self.visList:
-				vis.plot(solDomain, solver)
-				if self.visSave: vis.save(solver)
+
+				# clear plots
+				plt.figure(vis.visID)
+				if (type(vis.ax) != np.ndarray):
+					axList = [vis.ax]
+				else:
+					axList = vis.ax
+				for colIdx, col in enumerate(axList):
+					if (type(col) != np.ndarray):
+						colList = [col]
+					else:
+						colList = col
+					for rowIdx, axVar in enumerate(colList):
+						axVar.cla()
+
+				# draw and save plots
+				if (vis.visType == "field"):
+					vis.plot(solDomain.solInt.solPrim, solDomain.solInt.solCons, solDomain.solInt.source, solDomain.solInt.RHS, 
+							solDomain.gasModel, solver.mesh.xCell, 'b-')
+				elif (vis.visType == "probe"):
+					vis.plot(solDomain.probeVals, solDomain.timeVals, solver.iter, 'b-')
+				else:
+					raise ValueError("Invalid visType:" + str(vis.visType))
+				if self.visSave: vis.save(solver.iter)
 
 			if self.visShow:
 				plt.show(block=False)
 				plt.pause(0.001)
+
 
 	def movePlots(self):
 		"""

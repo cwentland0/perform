@@ -1,51 +1,86 @@
 import perform.constants as const
 from perform.visualization.visualization import visualization
 
+import numpy as np
 import matplotlib.pyplot as plt
 import os
 from math import floor, log
-import pdb
 
 class fieldPlot(visualization):
 	"""
 	Class for field plot image
 	"""
 
-	def __init__(self, visID, visInterval, solDomain, solver):
-
-		paramDict = solver.paramDict
+	def __init__(self, visID, visInterval, numSteps, simType, visVars, visXBounds, visYBounds, numSpeciesFull):
 
 		self.visType 		= "field"
 		self.visInterval	= visInterval
 		self.visID 			= visID
 		self.xLabel 		= "x (m)"
 
-		self.numImgs 		= int(solver.numSteps / visInterval)
+		self.numImgs 		= int(numSteps / visInterval)
 		if (self.numImgs > 0):
 			self.imgString 	= '%0'+str(floor(log(self.numImgs, 10))+1)+'d'
 		else:
 			self.imgString 	= None
 
-		super().__init__(solDomain, solver)
+		super().__init__(visID, visVars, visXBounds, visYBounds, numSpeciesFull)
 
 		# set up output directory
 		visName = ""
-		for visVar in self.visVar:
-			visName += "_"+visVar
-		visName += "_"+solver.simType
+		for visVar in self.visVars:
+			visName += "_" + visVar
+		visName += "_" + simType
 		self.imgDir = os.path.join(const.imageOutputDir, "field"+visName)
 		if not os.path.isdir(self.imgDir): os.mkdir(self.imgDir)
 		
 
-	def getYData(self, solDomain, varStr, solver):
+	def plot(self, solPrim, solCons, source, rhs, gasModel, xCell, lineStyle):
+		"""
+		Draw and display plot
+		"""
+
+		plt.figure(self.visID)
+
+		if (type(self.ax) != np.ndarray):
+			axList = [self.ax]
+		else:
+			axList = self.ax
+
+		for colIdx, col in enumerate(axList):
+			if (type(col) != np.ndarray):
+				colList = [col]
+			else:
+				colList = col
+			for rowIdx, axVar in enumerate(colList):
+
+				linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (self.numRows, self.numCols))[0]
+				if ((linIdx+1) > self.numSubplots): 
+					axVar.axis("off")
+					break
+
+				yData = self.getYData(solPrim, solCons, source, rhs, self.visVars[linIdx], gasModel)
+				xData = xCell
+
+				axVar.plot(xData, yData, lineStyle)
+				axVar.set_ylim(self.visYBounds[linIdx])
+				axVar.set_xlim(self.visXBounds[linIdx])
+				axVar.set_ylabel(self.axLabels[linIdx])
+				axVar.set_xlabel(self.xLabel)
+				
+				if (self.visType == "field"):
+					axVar.ticklabel_format(useOffset=False)
+				else:
+					axVar.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+
+		self.fig.tight_layout()
+		self.fig.canvas.draw_idle()
+
+
+	def getYData(self, solPrim, solCons, source, rhs, varStr, gasModel):
 		"""
 		Extract plotting data from flow field domain data
 		"""
-
-		solPrim = solDomain.solInt.solPrim
-		solCons = solDomain.solInt.solCons
-		source  = solDomain.solInt.source
-		rhs 	= solDomain.solInt.RHS
 
 		try:
 			if (varStr == "pressure"):
@@ -64,8 +99,8 @@ class fieldPlot(visualization):
 				yData = solCons[2,:]
 			elif (varStr[:7] == "species"):
 				specIdx = int(varStr[7:])
-				if (specIdx == solDomain.gasModel.numSpeciesFull):
-					massFracs = solDomain.gasModel.calcAllMassFracs(solPrim[3:,:])
+				if (specIdx == gasModel.numSpeciesFull):
+					massFracs = gasModel.calcAllMassFracs(solPrim[3:,:])
 					yData = massFracs[-1,:]
 				else:
 					yData = solPrim[3+specIdx-1,:]
@@ -78,18 +113,14 @@ class fieldPlot(visualization):
 
 		return yData
 
-	def getXData(self, solDomain, solver):
-		
-		xData = solver.mesh.xCell
-		return xData
 
-	def save(self, solver):
+	def save(self, iterNum):
 		"""
 		Save plot to disk
 		"""
 
 		plt.figure(self.visID)
-		visIdx 	= int(solver.iter / self.visInterval)
+		visIdx 	= int(iterNum / self.visInterval)
 		figNum 	= self.imgString % visIdx
 		figFile = os.path.join(self.imgDir, "fig_"+figNum+".png")
 		self.fig.savefig(figFile)
