@@ -86,7 +86,10 @@ class romDomain:
 
 		self.setModelFlags()
 
+		# Adaptive ROM
 		self.adaptiveROM = catchInput(romDict, "adaptiveROM", False)
+		if self.adaptiveROM:
+				self.adaptiveROMMethod = catchInput(romDict, "adaptiveROMMethod", False)
 
 		# set up hyper-reduction, if necessary
 		self.hyperReduc = catchInput(romDict, "hyperReduc", False)

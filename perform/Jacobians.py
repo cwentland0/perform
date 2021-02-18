@@ -306,6 +306,7 @@ def calcDResDSolPrim(solDomain, solver):
 		dSdQp = calcDSourceDSolPrim(solInt, solDomain.timeIntegrator.dt)
 		dRdQp -= dSdQp
 
+
 	# TODO: make this specific for each implicitIntegrator
 	dtCoeffIdx = min(solver.iter, solDomain.timeIntegrator.timeOrder) - 1
 	dtInv = solDomain.timeIntegrator.coeffs[dtCoeffIdx][0] / solDomain.timeIntegrator.dt

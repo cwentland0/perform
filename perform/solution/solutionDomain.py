@@ -8,6 +8,7 @@ from perform.spaceSchemes import calcRHS
 from perform.Jacobians import calcDResDSolPrim
 from perform.timeIntegrator import getTimeIntegrator
 
+
 # gas models
 # TODO: make an __init__.py with getGasModel()
 from perform.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
