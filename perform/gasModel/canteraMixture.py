@@ -1,5 +1,5 @@
-from pygems1d.constants import realType, RUniv
-from pygems1d.gasModel.gasModel import gasModel
+from perform.constants import realType, RUniv, suthTemp
+from perform.gasModel.gasModel import gasModel
 
 import numpy as np
 import cantera as ct
