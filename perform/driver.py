@@ -54,7 +54,6 @@ def main():
 		# loop over time iterations
 		t1 = time()
 		for solver.iter in range(1, solver.numSteps+1):
-			
 			# advance one physical time step
 			if (solver.calcROM):
 				rom.advanceIter(solDomain, solver)

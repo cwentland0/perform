@@ -28,6 +28,7 @@ class romModel:
 		if romDomain.hasConsNorm:
 			self.normSubProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.normSubConsIn[self.modelIdx]), default="zeros")
 			self.normFacProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.normFacConsIn[self.modelIdx]), default="ones")
+
 		if romDomain.hasConsCent:
 			self.centProfCons    = self.loadStandardization(os.path.join(self.modelDir, romDomain.centConsIn[self.modelIdx]), default="zeros")
 		if romDomain.hasPrimNorm:

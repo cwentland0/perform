@@ -48,8 +48,7 @@ def main():
 
 		minDim = min(nCells*nVars, nSnaps)
 		modesOut = min(minDim, maxModes)
-		print(snapArr.shape)
-		# compute SVD 
+		# compute SVD
 		groupArr = np.reshape(groupArr, (-1, groupArr.shape[-1]), order="C")
 		U, s, VT = svd(groupArr)
 		U = np.reshape(U, (nVars, nCells, U.shape[-1]), order="C")
@@ -111,7 +110,9 @@ def normalizeData(dataArr):
 	# normalize by L2 norm sqaured of each variable
 	elif (normType == "l2"):
 		dataArrSq = np.square(dataArr)
-		normFacProf = np.sum(np.sum(dataArrSq, axis=1, keepdims=True), axis=2, keepdims=True) 
+		normFacProf = np.sum(np.sum(dataArrSq, axis=1, keepdims=True), axis=2, keepdims=True)
+
+
 		normFacProf /= (dataArr.shape[1] * dataArr.shape[2])
 		normFacProf = normFacProf * onesProf
 		normSubProf = zeroProf

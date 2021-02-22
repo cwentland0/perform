@@ -1,6 +1,7 @@
 from perform.rom.linearProjROM.linearProjROM import linearProjROM
 from perform.rom.ModelAdaption.adapt import adapt
 import numpy as np
+from scipy.sparse import csr_matrix
 
 # TODO: could move some of these functions to linearProjROM and just branch if targeting cons vars or prim vars
 
@@ -76,24 +77,22 @@ class linearGalerkinProj(linearProjROM):
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 
-		# calculate test basis
-		# TODO: this is not valid for scalar POD, another reason to switch to C ordering of resJacob
-		self.testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="F")[:,None]) @ self.trialBasisFScaled
+		trialBasisFordered = (self.trialBasis.reshape((self.numVars, -1, self.latentDim), order = 'C')).reshape(-1, self.latentDim, order = 'F')
+		scaledTrialBasis   = trialBasisFordered*self.normFacProfCons.ravel(order="F")[:, np.newaxis]
 
-		# compute W^T * W
-		LHS = self.testBasis.T @ self.testBasis
-		RHS = -self.testBasis.T @ res.ravel(order="F")
+		#V^{T}*H^{-1}*resJacob*H*V
+		LHS = trialBasisFordered.T @ (resJacob / self.normFacProfCons.ravel(order="F")[:, np.newaxis]) @ scaledTrialBasis
+		#V^{T}*H^{-1}*residual
+		RHS = trialBasisFordered.T @ (res.ravel(order='F')[:, np.newaxis] / self.normFacProfCons.ravel(order="F")[:, np.newaxis])
 
-		# linear solve
+		# #solving linear-system
 		dCode = np.linalg.solve(LHS, RHS)
-		pdb.set_trace()
-		
-		return dCode, LHS, RHS
+		return np.squeeze(dCode)
 
 
 	def updateSol(self, solDomain):
 		"""
 		Update conservative solution after code has been updated
 		"""
-
+		# print(np.linalg.norm(solDomain.solInt.solCons, axis = 1))
 		solDomain.solInt.solCons[self.varIdxs,:] = self.decodeSol(self.code)

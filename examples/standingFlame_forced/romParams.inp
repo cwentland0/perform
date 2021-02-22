@@ -20,5 +20,7 @@ hyperReducFiles = ["spatialModes_0_1_2_3.npy"]
 hyperReducDims = [70]
 
 # Adaptation
-adaptiveROM       = True
-adaptiveROMParams =  [1]
+adaptiveROM       = False
+adaptiveROMMethod = "AADEIM"
+adaptiveROMParams = [[2], [1], [1]]
+

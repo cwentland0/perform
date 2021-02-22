@@ -20,12 +20,10 @@ class romDomain:
 	"""
 	Container class for ROM parameters and romModels
 	"""
-
 	def __init__(self, solDomain, solver):
 
 		romDict = readInputFile(solver.romInputs)
 		self.romDict = romDict
-
 		# load model parameters
 		self.romMethod 		= str(romDict["romMethod"])
 		self.numModels 		= int(romDict["numModels"])
@@ -90,8 +88,8 @@ class romDomain:
 		self.adaptiveROM = catchInput(romDict, "adaptiveROM", False)
 		if self.adaptiveROM:
 				self.adaptiveROMMethod = catchInput(romDict, "adaptiveROMMethod", "OSAB")
-				self.adaptiveROMParams = romDict["adaptiveROMParams"]
-			
+				self.adaptiveROMParams = catchInput(romDict, "adaptiveROMParams", [""])
+				self.staleConsFileName	   = catchInput(romDict, "staleConsFileName", "solCons_FOM.npy")
 
 		# set up hyper-reduction, if necessary
 		self.hyperReduc = catchInput(romDict, "hyperReduc", False)
@@ -369,9 +367,12 @@ class romDomain:
 			for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
 
 				self.advanceSubiter(solDomain, solver)
-				
+				# print(np.linalg.norm(solDomain.solInt.res))
+
 				if (self.timeIntegrator.timeType == "implicit"):
 					solDomain.solInt.calcResNorms(solver, self.timeIntegrator.subiter)
+					print(solDomain.solInt.resNormL2)
+
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol): break
 			if self.adaptiveROM:
 				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)
@@ -386,30 +387,35 @@ class romDomain:
 		"""
 
 		solInt = solDomain.solInt
-		res, resJacob = None, None
+		solInt.res, resJacob = None, None
 
 		if self.isIntrusive:
 			calcRHS(solDomain, solver)
 
 		if (self.timeIntegrator.timeType == "implicit"):
 
-			raise ValueError("Implicit ROM under development")
-
 			if self.isIntrusive:
+				if solDomain.timeIntegrator.dualTime: raise ValueError('under construction')
 				res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 				resJacob = calcDResDSolPrim(solDomain, solver)
 
 			for modelIdx, model in enumerate(self.modelList):
 				dCode = model.calcDCode(resJacob, res)
-				model.code += dCode
+				model.code = model.code + dCode
 				model.codeHist[0] = model.code.copy()
 				model.updateSol(solDomain)
-				
-			dSol = solInt.solPrim - solInt.solHistPrim[0]
-			res = resJacob @ dSol.ravel("F") - solInt.res.ravel("F")
-			solInt.res = np.reshape(res, (solDomain.gasModel.numEqs, solver.mesh.numCells), order='F')
 
-			solInt.updateState(fromCons=False) 	
+			solInt.updateState(fromCons=True)
+
+			dSol = solInt.solCons - solInt.solHistCons[0]
+			solInt.solHistCons[0] = solInt.solCons.copy()
+			solInt.solHistPrim[0] = solInt.solPrim.copy()
+
+			res = resJacob @ dSol.ravel(order = "F") - res.ravel(order = "F")
+			solInt.res = np.reshape(res, (solDomain.gasModel.numEqs, solver.mesh.numCells), order='F')
+			# if self.isIntrusive: calcRHS(solDomain, solver)
+			# print('residual norm : ', np.linalg.norm(solInt.res))
+			# print('resJacobian : ', np.linalg.norm(resJacob.toarray()))
 
 		else:
 
@@ -419,10 +425,12 @@ class romDomain:
 				else:
 					model.calcRHSLowDim(self, solDomain)
 					dCode = self.timeIntegrator.solveSolChange(model.rhsLowDim)
+					print('dCode', dCode)
 					model.code = model.codeHist[0] + dCode
 					model.updateSol(solDomain)
-			
+
 			solInt.updateState(fromCons=True)
+			if self.isIntrusive: calcRHS(solDomain, solver)
 
 	def updateCodeHist(self):
 		"""
