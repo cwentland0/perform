@@ -90,8 +90,9 @@ class canteraMixture(gasModel):
 
 	# compute individual enthalpies for each species
 	def calcSpeciesEnthalpies(self, temperature):
-		assert(False)
-		return
+		gasArray=ct.SolutionArray(self.gas,temperature.size)
+		gasArray.TPY=temperature,gasArray.P,gasArray.Y
+		return gasArray.partial_molar_enthalpies/gasArray.molecular_weights
 
 	# calculate Denisty from Primitive state
 	def calcDensityFromPrim(self,solPrim,solCons):

@@ -159,6 +159,7 @@ def calcRoeDissipation(solAve):
 	# gamma terms for energy equation
 	Gp = rho * dH_dP + dRho_dP * solAve.h0 - 1.0
 	GT = rho * dH_dT + dRho_dT * solAve.h0
+	breakpoint()
 	GY = rho[None,:] * dH_dY +  solAve.h0[None,:] * dRho_dY
 
 	# characteristic speeds
