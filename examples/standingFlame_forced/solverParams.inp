@@ -1,7 +1,7 @@
 # input files
-gasFile = "/home/sahil/Documents/Academics/Summer2020/KDUR/pyGEMS_1D/examples/standingFlame_forced/Inputs/global1.chem"
-meshFile = "/home/sahil/Documents/Academics/Summer2020/KDUR/pyGEMS_1D/examples/standingFlame_forced/Inputs/mesh_0to0.01_1000c.inp"
-initFile = "/home/sahil/Documents/Academics/Summer2020/KDUR/pyGEMS_1D/examples/standingFlame_forced/Inputs/steadyFlame_1stOrder.npy"
+gasFile = "~/path/to/pygems/examples/shock_tube/Inputs/global1.chem"
+meshFile = "~/path/to/pygems/examples/shock_tube/Inputs/mesh_0to0.01_1000c.inp"
+icParamsFile = "~/path/to/pygems/examples/shock_tube/Inputs/shockTube.inp"
 
 # time discretization
 dt         = 5.e-9
@@ -71,4 +71,4 @@ visVar2     = ["pressure"]
 probeNum2   = 1
 
 # run ROM
-calcROM = True
+calcROM = False

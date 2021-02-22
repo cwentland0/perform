@@ -5,7 +5,7 @@ latentDims = [70]
 modelVarIdxs = [[0,1,2,3]]
 
 # model data paths
-modelDir = "/home/sahil/Documents/Academics/Summer2020/KDUR/pyGEMS_1D/examples/standingFlame_forced/UnsteadyFieldResults/podData_cons_DensMomEnergyMF"
+modelDir = "~/path/to/pygems/examples/shock_tube/UnsteadyFieldResults/podData_cons_DensMomEnergyMF"
 modelFiles = ["spatialModes_0_1_2_3.npy"]
 
 # standardization profiles
