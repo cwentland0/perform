@@ -68,7 +68,7 @@ class solutionPhys:
 		"""
 		Compute primitive state from conservative state
 		"""
-
+		assert(False)
 		self.solPrim[3:,:] = self.solCons[3:,:] / self.solCons[[0],:]
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
 
@@ -103,7 +103,7 @@ class solutionPhys:
 		self.solCons[0,:]  = self.solPrim[0,:] / (self.RMix * self.solPrim[2,:]) 
 		self.solCons[1,:]  = self.solCons[0,:] * self.solPrim[1,:]				
 		self.solCons[2,:]  = self.gasModel.calcEnthalpy(self.solCons[0,:],self.solPrim[1,:],self.solPrim[2,:],self.solPrim[0,:],self.solPrim[3:,:],self.enthRefMix,self.CpMix)
-		self.solCons[3:,:] = self.solCons[[0],:] * self.solPrim[3:,:]
+		self.solCons[3:,:] = self.solCons[0,:] * self.solPrim[3:,:]
  
 
 	def calcStateFromRhoH0(self):

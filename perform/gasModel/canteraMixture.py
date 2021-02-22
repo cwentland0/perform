@@ -14,7 +14,7 @@ class canteraMixture(gasModel):
 
 		self.gasType 				= gasDict["gasType"]
 		self.gas				=	ct.Solution(gasDict["ctiFile"])
-		self.gasArray			=	ct.SolutionArray(self.gas,numCells)  #used for keeping track of cell properties
+		#self.gasArray			=	ct.SolutionArray(self.gas,numCells)  #used for keeping track of cell properties
 		#self.gasChecker			=   ct.SolutionArray(self.gas,1)  #used for state independent lookup
 		
 		self.numSpeciesFull 	= self.gas.n_species				# total number of species in case
@@ -26,7 +26,7 @@ class canteraMixture(gasModel):
 		#self.Cp 				= gasDict["Cp"].astype(realType)			# heat capacity at constant pressure, J/(kg-K)
 		self.Pr 				= gasDict["Pr"].astype(realType)			# Prandtl number
 		self.Sc 				= gasDict["Sc"].astype(realType)			# Schmidt number
-		self.muRef				= gasDict["muRef"].astype(realType)			# reference dynamic viscosity for Sutherland model
+		#self.muRef				= gasDict["muRef"].astype(realType)			# reference dynamic viscosity for Sutherland model
 		
 
 		#Don't need these for cantera all reactions are handled internally
@@ -53,8 +53,10 @@ class canteraMixture(gasModel):
 
 
 	def calcMixGasConstant(self, massFrac):
-		self.gasArray.TPY=self.gasArray.T,self.gasArray.P, self.padMassFrac(massFrac).transpose()
-		return RUniv/self.gasArray.mean_molecular_weight
+		gasArray=ct.SolutionArray(self.gas,massFrac.shape[1])
+		gasArray.TPY=gasArray.T,gasArray.P, self.padMassFrac(massFrac).transpose()
+		return RUniv/gasArray.mean_molecular_weight
+
 
 	def calcMixGamma(self, RMix, CpMix):
 		"""
@@ -65,19 +67,26 @@ class canteraMixture(gasModel):
 
 
 	def calcEnthalpy(self,density,vel,temp,pressure,Y,enthRefMix,CpMix):
-		self.gasArray.TPY=temp,pressure,self.padMassFrac(Y).transpose()
-		return density * (self.gasArray.enthalpy_mass + np.power(vel,2.)/2)- pressure
-
+		gasArray=ct.SolutionArray(self.gas,Y.shape[1])
+		gasArray.TPY=temp,pressure,self.padMassFrac(Y).transpose()
+		return density * (gasArray.enthalpy_mass + np.power(vel,2.)/2)- pressure
+		
 
 	# compute mixture specific heat at constant pressure
 	def calcMixCp(self, massFrac):
-		self.gasArray.TPY=self.gasArray.T,self.gasArray.P, self.padMassFrac(massFrac).transpose()
-		return self.gasArray.cp_mass
+		gasArray=ct.SolutionArray(self.gas,massFrac.shape[1])
+		gasArray.TPY=gasArray.T,gasArray.P, self.padMassFrac(massFrac).transpose()
+		return gasArray.cp_mass
 
 	# compute density from ideal gas law  
 	def calcDensity(self, solPrim, RMix=None):
-		assert(False)
-		return 
+		# need to calculate mixture gas constant
+		if (RMix is None):
+			RMix = self.calcMixGasConstant(solPrim[3:,:])
+
+		# calculate directly from ideal gas
+		return  solPrim[0,:] / (RMix * solPrim[2,:])
+		
 
 	# compute individual enthalpies for each species
 	def calcSpeciesEnthalpies(self, temperature):
@@ -100,3 +109,134 @@ class canteraMixture(gasModel):
 	def calcDensityYFromPrim(self,solPrim,solCons):
 		assert(False)
 		return 
+
+
+	def calcStagnationEnthalpy(self, solPrim, speciesEnth=None):
+		"""
+		Compute stagnation enthalpy from velocity and species enthalpies
+		"""
+		gasArray=ct.SolutionArray(self.gas,solPrim.shape[1])
+		gasArray.TPY=solPrim[2,:].transpose(),solPrim[0,:].transpose(),self.padMassFrac(solPrim[3:,:]).transpose()
+		
+
+		stagEnth = gasArray.enthalpy_mass + 0.5 * np.square(solPrim[1,:])
+
+		return stagEnth
+
+
+
+	def calcDensityDerivatives(self, density, 
+								wrtPress=False, pressure=None,
+								wrtTemp=False, temperature=None,
+								wrtSpec=False, mixMolWeight=None, massFracs=None):
+
+		"""
+		Compute derivatives of density with respect to pressure, temperature, or species mass fraction
+		For species derivatives, returns numSpecies derivatives
+		"""
+
+		assert any([wrtPress, wrtTemp, wrtSpec]), "Must compute at least one density derivative..."
+
+		derivs = tuple()
+		if (wrtPress):
+			assert (pressure is not None), "Must provide pressure for pressure derivative..."
+			DDensDPress = density / pressure
+			derivs = derivs + (DDensDPress,)
+
+		if (wrtTemp):
+			assert (temperature is not None), "Must provide temperature for temperature derivative..."
+			DDensDTemp = -density / temperature
+			derivs = derivs + (DDensDTemp,)
+
+		if (wrtSpec):
+			# calculate mixture molecular weight
+			if (mixMolWeight is None):
+				assert (massFracs is not None), "Must provide mass fractions to calculate mixture mol weight..."
+				mixMolWeight = self.calcMixMolWeight(massFracs)
+
+			DDensDSpec = np.zeros((self.numSpecies, density.shape[0]), dtype=realType)
+			for specNum in range(self.numSpecies):
+				DDensDSpec[specNum, :] = density * mixMolWeight * (1.0 / self.molWeights[-1] - 1.0 / self.molWeights[specNum])
+			derivs = derivs + (DDensDSpec,)
+
+		return derivs
+
+
+	def calcStagEnthalpyDerivatives(self, wrtPress=False,
+									wrtTemp=False, massFracs=None,
+									wrtVel=False, velocity=None,
+									wrtSpec=False, speciesEnth=None, temperature=None):
+
+		"""
+		Compute derivatives of stagnation enthalpy with respect to pressure, temperature, velocity, or species mass fraction
+		For species derivatives, returns numSpecies derivatives
+		"""
+
+		assert any([wrtPress, wrtTemp, wrtVel, wrtSpec]), "Must compute at least one density derivative..."
+
+		derivs = tuple()
+		if (wrtPress):
+			DStagEnthDPress = 0.0
+			derivs = derivs + (DStagEnthDPress,)
+		
+		if (wrtTemp):
+			assert (massFracs is not None), "Must provide mass fractions for temperature derivative..."
+
+			massFracs = self.getMassFracArray(massFracs=massFracs)
+			DStagEnthDTemp = self.calcMixCp(massFracs)
+			derivs = derivs + (DStagEnthDTemp,)
+
+		if (wrtVel):
+			assert (velocity is not None), "Must provide velocity for velocity derivative..."
+			DStagEnthDVel = velocity.copy()
+			derivs = derivs + (DStagEnthDVel,)
+
+		if (wrtSpec):
+			if (speciesEnth is None):
+				assert (temperature is not None), "Must provide temperature if not providing species enthalpies..."
+				speciesEnth = self.calcSpeciesEnthalpies(temperature)
+			
+			DStagEnthDSpec = np.zeros((self.numSpecies, speciesEnth.shape[1]), dtype=realType)
+			if (self.numSpeciesFull == 1):
+				DStagEnthDSpec[0,:] = speciesEnth[0,:]
+			else:
+				for specNum in range(self.numSpecies):
+					DStagEnthDSpec[specNum,:] = speciesEnth[specNum,:] - speciesEnth[-1,:]
+
+			derivs = derivs + (DStagEnthDSpec,)
+
+		return derivs
+
+
+	def calcSoundSpeed(self, temperature, RMix=None, gammaMix=None, massFracs=None, CpMix=None):
+		"""
+		Compute sound speed
+		"""
+
+		# calculate mixture gas constant if not provided
+		massFracsSet = False
+		if (RMix is None):
+			assert (massFracs is not None), "Must provide mass fractions to calculate mixture gas constant..."
+			massFracs = self.getMassFracArray(massFracs=massFracs)
+			massFracsSet = True
+			RMix = self.calcMixGasConstant(massFracs)
+		else:
+			RMix = np.squeeze(RMix)
+			
+		# calculate ratio of specific heats if not provided
+		if (gammaMix is None):
+			if (CpMix is None):
+				assert (massFracs is not None), "Must provide mass fractions to calculate mixture Cp..."
+				if (not massFracsSet): 
+					massFracs = self.getMassFracArray(massFracs=massFracs)
+				CpMix = self.calcMixCp(massFracs)
+			else:
+				CpMix = np.squeeze(CpMix)
+
+			gammaMix = self.calcMixGamma(RMix, CpMix)
+		else:
+			gammaMix = np.squeeze(gammaMix)
+
+		soundSpeed = np.sqrt(gammaMix * RMix * temperature)
+
+		return soundSpeed
