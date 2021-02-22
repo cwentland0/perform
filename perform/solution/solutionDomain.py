@@ -152,7 +152,6 @@ class solutionDomain:
 			# iterative solver convergence
 			if (self.timeIntegrator.timeType == "implicit"):
 				self.solInt.calcResNorms(solver, self.timeIntegrator.subiter)
-				print(self.solInt.resNormL2)
 				if (self.solInt.resNormL2 < self.timeIntegrator.resTol): break
 
 		# "steady" convergence
@@ -175,21 +174,21 @@ class solutionDomain:
 
 			solInt.res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 			resJacob = calcDResDSolPrim(self, solver)
-			dSol = spsolve(resJacob, solInt.res.ravel('F'))
+			dSol = spsolve(resJacob, solInt.res.ravel('C'))
 
 			# if solving in dual time, solving for primitive state
 			if (self.timeIntegrator.dualTime):
-				solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+				solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='C')
 			else:
-				solInt.solCons += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+				solInt.solCons += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='C')
 
 			solInt.updateState(fromCons = (not self.timeIntegrator.dualTime))
 			solInt.solHistCons[0] = solInt.solCons.copy()
 			solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
 			# borrow solInt.res to store linear solve residual	
-			res = resJacob @ dSol - solInt.res.ravel('F')
-			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='F')
+			res = resJacob @ dSol - solInt.res.ravel('C')
+			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='C')
 
 		else:
 

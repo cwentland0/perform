@@ -140,6 +140,10 @@ class romDomain:
 		else:
 			self.timeIntegrator = None 	# TODO: this might be pointless
 
+		# overwrite history with initialized solution
+		solDomain.solInt.solHistCons = [solDomain.solInt.solCons.copy()] * (self.timeIntegrator.timeOrder+1)
+		solDomain.solInt.solHistPrim = [solDomain.solInt.solPrim.copy()] * (self.timeIntegrator.timeOrder+1)
+
 
 	def setModelFlags(self):
 		"""
@@ -367,13 +371,11 @@ class romDomain:
 			for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
 
 				self.advanceSubiter(solDomain, solver)
-				# print(np.linalg.norm(solDomain.solInt.res))
 
 				if (self.timeIntegrator.timeType == "implicit"):
-					solDomain.solInt.calcResNorms(solver, self.timeIntegrator.subiter)
-					print(solDomain.solInt.resNormL2)
-
+					self.calcCodeResNorms(solDomain, solver, self.timeIntegrator.subiter)
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol): break
+
 			if self.adaptiveROM:
 				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)
 
@@ -389,34 +391,35 @@ class romDomain:
 		solInt = solDomain.solInt
 		solInt.res, resJacob = None, None
 
+		# compute RHS if required
 		if self.isIntrusive:
 			calcRHS(solDomain, solver)
 
+		# implicit time integrator
 		if (self.timeIntegrator.timeType == "implicit"):
 
+			# compute residual and residual Jacobian, if required
 			if self.isIntrusive:
 				if solDomain.timeIntegrator.dualTime: raise ValueError('under construction')
 				res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 				resJacob = calcDResDSolPrim(solDomain, solver)
 
+			# compute update to low-dimensional state
 			for modelIdx, model in enumerate(self.modelList):
-				dCode = model.calcDCode(resJacob, res)
+				dCode, codeLHS, codeRHS = model.calcDCode(resJacob, res)
 				model.code = model.code + dCode
 				model.codeHist[0] = model.code.copy()
 				model.updateSol(solDomain)
 
-			solInt.updateState(fromCons=True)
+				# compute ROM residual for convergence measurement
+				model.res = codeLHS @ dCode - codeRHS
 
-			dSol = solInt.solCons - solInt.solHistCons[0]
+			solInt.updateState(fromCons=True)
 			solInt.solHistCons[0] = solInt.solCons.copy()
 			solInt.solHistPrim[0] = solInt.solPrim.copy()
 
-			res = resJacob @ dSol.ravel(order = "F") - res.ravel(order = "F")
-			solInt.res = np.reshape(res, (solDomain.gasModel.numEqs, solver.mesh.numCells), order='F')
-			# if self.isIntrusive: calcRHS(solDomain, solver)
-			# print('residual norm : ', np.linalg.norm(solInt.res))
-			# print('resJacobian : ', np.linalg.norm(resJacob.toarray()))
 
+		# explicit time integrator
 		else:
 
 			for modelIdx, model in enumerate(self.modelList):
@@ -425,12 +428,12 @@ class romDomain:
 				else:
 					model.calcRHSLowDim(self, solDomain)
 					dCode = self.timeIntegrator.solveSolChange(model.rhsLowDim)
-					print('dCode', dCode)
 					model.code = model.codeHist[0] + dCode
 					model.updateSol(solDomain)
 
 			solInt.updateState(fromCons=True)
 			if self.isIntrusive: calcRHS(solDomain, solver)
+
 
 	def updateCodeHist(self):
 		"""
@@ -441,3 +444,42 @@ class romDomain:
 
 			model.codeHist[1:] = model.codeHist[:-1]
 			model.codeHist[0]  = model.code.copy()
+
+
+	def calcCodeResNorms(self, solDomain, solver, subiter):
+		"""
+		Calculate and print linear solve residual norms		
+		Note that output is ORDER OF MAGNITUDE of residual norm (i.e. 1e-X, where X is the order of magnitude)
+		"""
+
+		# compute residual norm for each model
+		normL2Sum = 0.0
+		normL1Sum = 0.0
+		for model in self.modelList:
+
+			normL2, normL1 = model.calcCodeNorms()
+
+			normL2Sum += normL2
+			normL1Sum += normL1
+
+		# average over all models
+		normL2 = normL2Sum / self.numModels
+		normL1 = normL1Sum / self.numModels
+
+		# norm is sometimes zero, just default to -16 for perfect double-precision convergence I guess
+		if (normL2 == 0.0):
+			normOutL2 = -16.0
+		else:
+			normOutL2 = np.log10(normL2)
+		
+		if (normL1 == 0.0):
+			normOutL1 = -16.0
+		else: 
+			normOutL1 = np.log10(normL1)
+
+		outString = (str(subiter+1)+":\tL2: %18.14f, \tL1: %18.14f") % (normOutL2, normOutL1)
+		print(outString)
+
+		solDomain.solInt.resNormL2 = normL2
+		solDomain.solInt.resNormL1 = normL1
+		solDomain.solInt.resNormHistory[solver.iter-1, :] = [normL2, normL1]

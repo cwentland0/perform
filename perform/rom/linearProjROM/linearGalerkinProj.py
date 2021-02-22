@@ -1,7 +1,7 @@
 from perform.rom.linearProjROM.linearProjROM import linearProjROM
-from perform.rom.ModelAdaption.adapt import adapt
+# from perform.rom.ModelAdaption.adapt import adapt
+
 import numpy as np
-from scipy.sparse import csr_matrix
 
 # TODO: could move some of these functions to linearProjROM and just branch if targeting cons vars or prim vars
 
@@ -20,6 +20,7 @@ class linearGalerkinProj(linearProjROM):
 		self.calcProjector(romDomain, runCalc=True)
 
 		if romDomain.adaptiveROM: self.adapt = adapt(self, solver, romDomain)
+
 
 	def decodeSol(self, code):
 		"""
@@ -77,22 +78,21 @@ class linearGalerkinProj(linearProjROM):
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 
-		trialBasisFordered = (self.trialBasis.reshape((self.numVars, -1, self.latentDim), order = 'C')).reshape(-1, self.latentDim, order = 'F')
-		scaledTrialBasis   = trialBasisFordered*self.normFacProfCons.ravel(order="F")[:, np.newaxis]
+		# V^{T}*H^{-1}*resJacob*H*V
+		LHS = self.trialBasis.T @ (resJacob / self.normFacProfCons.ravel(order="C")[:, np.newaxis]) @ (self.trialBasis * self.normFacProfCons.ravel(order="C")[:,None])
 
-		#V^{T}*H^{-1}*resJacob*H*V
-		LHS = trialBasisFordered.T @ (resJacob / self.normFacProfCons.ravel(order="F")[:, np.newaxis]) @ scaledTrialBasis
-		#V^{T}*H^{-1}*residual
-		RHS = trialBasisFordered.T @ (res.ravel(order='F')[:, np.newaxis] / self.normFacProfCons.ravel(order="F")[:, np.newaxis])
+		# V^{T}*H^{-1}*residual
+		RHS = self.trialBasis.T @ (res / self.normFacProfCons).ravel(order="C")
 
-		# #solving linear-system
+		# solver linear system
 		dCode = np.linalg.solve(LHS, RHS)
-		return np.squeeze(dCode)
+
+		return dCode, LHS, RHS
 
 
 	def updateSol(self, solDomain):
 		"""
 		Update conservative solution after code has been updated
 		"""
-		# print(np.linalg.norm(solDomain.solInt.solCons, axis = 1))
+
 		solDomain.solInt.solCons[self.varIdxs,:] = self.decodeSol(self.code)

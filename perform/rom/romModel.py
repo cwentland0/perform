@@ -20,6 +20,7 @@ class romModel:
 		self.modelDir 	= romDomain.modelDir
 
 		self.code = np.zeros(self.latentDim, dtype=realType) 	# low-dimensional state
+		self.res  = np.zeros(self.latentDim, dtype=realType) 	# Newton iteration linear solve residual 
 
 		# get standardization profiles, if necessary
 		self.normSubProfCons = None; self.normSubProfPrim = None
@@ -108,3 +109,24 @@ class romModel:
 		else:
 			arr = (arr - normSubProf) / normFacProf
 		return arr
+
+	
+	def calcCodeNorms(self):
+		"""
+		Compute L1 and L2 norms of low-dimensional state linear solve residuals
+		"""
+
+		resAbs = np.abs(self.res)
+
+		# L2 norm
+		resNormL2 = np.sum(np.square(resAbs), axis=1)
+		resNormL2[:] /= self.latentDim
+		resNormL2 = np.sqrt(resNormL2)
+		resNormL2 = np.mean(resNormL2)
+		
+		# L1 norm
+		resNormL1 = np.sum(resAbs, axis=1)
+		resNormL1[:] /= self.latentDim
+		resNormL1 = np.mean(resNormL1)
+		
+		return resNormL2, resNormL1

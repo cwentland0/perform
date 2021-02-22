@@ -67,6 +67,41 @@ class solutionInterior(solutionPhys):
 				if ((timeInt.dualTime) and (timeInt.adaptDTau)):
 					self.srf 	= np.zeros(numCells, dtype=realType)
 
+				# CSR matrix indices
+				numElements = gas.numEqs**2 * numCells
+				self.jacobDim    = gas.numEqs * numCells
+				
+				self.rowIdxsCenter = np.zeros(numElements, dtype=np.int32)
+				self.colIdxsCenter = np.zeros(numElements, dtype=np.int32)
+				self.rowIdxsUpper  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
+				self.colIdxsUpper  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
+				self.rowIdxsLower  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
+				self.colIdxsLower  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
+
+				lin_idx_A = 0
+				lin_idx_B = 0
+				lin_idx_C = 0
+				for i in range(gas.numEqs):
+					for j in range(gas.numEqs):
+						for k in range(numCells):
+
+							self.rowIdxsCenter[lin_idx_A] = i * numCells + k
+							self.colIdxsCenter[lin_idx_A] = j * numCells + k
+							lin_idx_A += 1
+
+							if (k < (numCells-1)):
+								self.rowIdxsUpper[lin_idx_B] = i * numCells + k
+								self.colIdxsUpper[lin_idx_B] = j * numCells + k + 1
+								lin_idx_B += 1
+
+							if (k > 0):
+								self.rowIdxsLower[lin_idx_C] = i * numCells + k
+								self.colIdxsLower[lin_idx_C] = j * numCells + k - 1
+								lin_idx_C += 1
+
+				self.rowIdxs = np.concatenate((self.rowIdxsCenter, self.rowIdxsLower, self.rowIdxsUpper))
+				self.colIdxs = np.concatenate((self.colIdxsCenter, self.colIdxsLower, self.colIdxsUpper))
+
 			# "steady" convergence measures
 			if solver.runSteady:
 

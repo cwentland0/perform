@@ -21,3 +21,6 @@
 *.egg-info/
 *.plt
 *.szplt
+*.m
+*.mat
+*DS_Store
