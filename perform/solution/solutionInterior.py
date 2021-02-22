@@ -122,6 +122,7 @@ class solutionInterior(solutionPhys):
 		self.solHistCons[0]  = self.solCons.copy()
 		self.solHistPrim[0]  = self.solPrim.copy()
 
+		# TODO: RHS update should occur at the FIRST subiteration right after the RHS is calculated
 		# RHS function history
 		self.rhsHist[1:] = self.rhsHist[:-1]
 		self.rhsHist[0]  = self.RHS.copy()

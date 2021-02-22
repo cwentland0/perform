@@ -2,13 +2,11 @@ from perform.constants import realType, fdStepDefault
 from perform.inputFuncs import catchInput
 from perform.rom.projectionROM.autoencoderProjROM.autoencoderProjROM import autoencoderProjROM
 
+import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 from scipy.linalg import pinv
-
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import pdb
 
@@ -22,17 +20,31 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		# make sure TF doesn't gobble up device memory
-		gpus = tf.config.experimental.list_physical_devices('GPU')
-		if gpus:
-			try:
-				# Currently, memory growth needs to be the same across GPUs
-				for gpu in gpus:
-					tf.config.experimental.set_memory_growth(gpu, True)
-					logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-			except RuntimeError as e:
-				# Memory growth must be set before GPUs have been initialized
-				print(e)
+		self.runGPU = catchInput(romDomain.romDict, "runGPU", True)
+		if self.runGPU:
+			# make sure TF doesn't gobble up device memory
+			gpus = tf.config.experimental.list_physical_devices('GPU')
+			if gpus:
+				try:
+					# Currently, memory growth needs to be the same across GPUs
+					for gpu in gpus:
+						tf.config.experimental.set_memory_growth(gpu, True)
+						logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+				except RuntimeError as e:
+					# Memory growth must be set before GPUs have been initialized
+					print(e)
+		else:
+			# If GPU is available, TF will automatically run there
+			#	This forces to run on CPU even if GPU is available
+			os.environ["CUDA_VISIBLE_DEVICES"] = "-1" 
+
+		self.ioFormat = romDomain.romDict["ioFormat"]
+		if (self.ioFormat == "NCHW"):
+			assert (self.runGPU), "Tensorflow cannot handle NCHW on CPUs"
+		elif (self.ioFormat == "NHWC"):
+			pass # works on GPU or CPU
+		else:
+			raise ValueError("ioFormat must be either \"NCHW\" or \"NHWC\"; you entered " + str(self.ioFormat))
 
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
@@ -77,8 +89,11 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 			inputShape  = self.getIOShape(self.decoder.layers[0].input_shape)
 			outputShape = self.getIOShape(self.decoder.layers[-1].output_shape)
 
-			assert(inputShape[-1] == self.latentDim), "Mismatched decoder input shape: "+str(inputShape)+", "+str(self.latentDim)
-			assert(outputShape[-2:] == self.solShape), "Mismatched decoder output shape: "+str(outputShape)+", "+str(self.solShape)
+			assert(inputShape[-1] == self.latentDim), "Mismatched decoder input shape: "+str(inputShape[-1])+", "+str(self.latentDim)
+			if (self.ioFormat == "NCHW"):
+				assert(outputShape[-2:] == self.solShape), "Mismatched decoder output shape: "+str(outputShape[-2:])+", "+str(self.solShape)
+			else:
+				assert(outputShape[-2:] == self.solShape[::-1]), "Mismatched decoder output shape: "+str(outputShape[-2:])+", "+str(self.solShape[::-1])
 
 			inputDtype  = self.decoder.layers[0].dtype
 			outputDtype = self.decoder.layers[-1].dtype
@@ -87,8 +102,11 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 			inputShape  = self.getIOShape(self.encoder.layers[0].input_shape)
 			outputShape = self.getIOShape(self.encoder.layers[-1].output_shape)
 
-			assert(inputShape[-2:] == self.solShape), "Mismatched encoder output shape: "+str(inputShape)+", "+str(self.solShape)
-			assert(outputShape[-1] == self.latentDim), "Mismatched encoder output shape: "+str(outputShape)+", "+str(self.latentDim)
+			assert(outputShape[-1] == self.latentDim), "Mismatched encoder output shape: "+str(outputShape[-1])+", "+str(self.latentDim)
+			if (self.ioFormat == "NCHW"):
+				assert(inputShape[-2:] == self.solShape), "Mismatched encoder output shape: "+str(inputShape[-2:])+", "+str(self.solShape)
+			else:
+				assert(inputShape[-2:] == self.solShape[::-1]), "Mismatched encoder output shape: "+str(inputShape[-2:])+", "+str(self.solShape[::-1])
 
 			inputDtype  = self.encoder.layers[0].dtype
 			outputDtype = self.encoder.layers[-1].dtype
@@ -102,6 +120,9 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 		"""
 
 		sol = np.squeeze(self.decoder.predict(code[None,:]), axis=0)
+		if (self.ioFormat == "NHWC"):
+			sol = sol.T
+
 		return sol
 		
 
@@ -110,7 +131,12 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 		Compute raw encoding of solution, assuming it has been centered and normalized
 		"""
 
-		code = np.squeeze(self.encoder.predict(sol[None,:,:]), axis=0)
+		if (self.ioFormat == "NHWC"):
+			solIn = (sol.copy()).T
+		else:
+			solIn = sol.copy()
+		code = np.squeeze(self.encoder.predict(solIn[None,:,:]), axis=0)
+
 		return code
 
 
@@ -125,7 +151,7 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 		jacob = g.jacobian(outputs, inputs)
 
 		return jacob
-		
+
 
 	def calcProjector(self, solDomain, runCalc=True):
 		"""
@@ -143,16 +169,23 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 			self.jacobInput.assign(sol[None,:,:])
 			jacobTF = self.calcAnalyticalModelJacobian(self.encoder, self.jacobInput)
 			jacob = tf.squeeze(jacobTF, axis=[0,2]).numpy()
+			if (self.ioFormat == "NHWC"):
+				jacob = np.transpose(jacob, axes=(0,2,1))
 
 			self.projector = np.reshape(jacob, (self.latentDim, -1), order='C')
+
 		else:
 
 			self.jacobInput.assign(self.code[None,:])
 			jacobTF = self.calcAnalyticalModelJacobian(self.decoder, self.jacobInput)
 			jacob = tf.squeeze(jacobTF, axis=[0,3]).numpy()
+
+			if (self.ioFormat == "NHWC"):
+				jacob = np.transpose(jacob, axes=(1,0,2))
 			jacob = np.reshape(jacob, (-1, self.latentDim), order='C')
 
 			self.projector = pinv(jacob)
+
 
 
 ############
@@ -193,24 +226,3 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 	# 	# 		numJacob[:,elem] = (output - uSol).T/stepSize*normData[1]
 
 	# 	return numJacob
-
-
-
-	# # TODO: any way to put this in projectionROM?
-	# def calcDCode(self, resJacob, res):
-	# 	"""
-	# 	Compute change in low-dimensional state for implicit scheme Newton iteration
-	# 	"""
-
-	# 	# calculate test basis
-	# 	# TODO: this is not valid for scalar POD, another reason to switch to C ordering of resJacob
-	# 	self.testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="F")[:,None]) @ self.trialBasisFScaled
-
-	# 	# compute W^T * W
-	# 	LHS = self.testBasis.T @ self.testBasis
-	# 	RHS = -self.testBasis.T @ res.ravel(order="F")
-
-	# 	# linear solve
-	# 	dCode = np.linalg.solve(LHS, RHS)
-		
-	# 	return dCode, LHS, RHS

@@ -9,7 +9,7 @@ class autoencoderProjROM(projectionROM):
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		super().__init__(modelIdx, romDomain, solver)
+		super().__init__(modelIdx, romDomain, solver, solDomain)
 
 		romDict = romDomain.romDict
 

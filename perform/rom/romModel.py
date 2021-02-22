@@ -14,7 +14,7 @@ class romModel:
 		dimensional state, i.e. a "decoder"
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver):
+	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
 		self.modelIdx 	= modelIdx
 		self.latentDim 	= romDomain.latentDims[self.modelIdx]
@@ -27,23 +27,32 @@ class romModel:
 		self.targetCons = romDomain.targetCons
 		self.hyperReduc = romDomain.hyperReduc
 
-		# low-dimensional state
-		self.code = np.zeros(self.latentDim, dtype=realType)
+		self.code = np.zeros(self.latentDim, dtype=realType)	# low-dimensional state
+		self.res  = np.zeros(self.latentDim, dtype=realType) 	# Newton iteration linear solve residual 
 
-		# get standardization profiles, if necessary
+		# get normalization profiles, if necessary
 		self.normSubProfCons = None; self.normSubProfPrim = None
 		self.normFacProfCons = None; self.normFacProfPrim = None
 		self.centProfCons 	 = None; self.centProfPrim 	  = None
 		if romDomain.hasConsNorm:
 			self.normSubProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.normSubConsIn[self.modelIdx]), default="zeros")
 			self.normFacProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.normFacConsIn[self.modelIdx]), default="ones")
-		if romDomain.hasConsCent:
-			self.centProfCons    = self.loadStandardization(os.path.join(self.modelDir, romDomain.centConsIn[self.modelIdx]), default="zeros")
 		if romDomain.hasPrimNorm:
 			self.normSubProfPrim = self.loadStandardization(os.path.join(self.modelDir, romDomain.normSubPrimIn[self.modelIdx]), default="zeros")
 			self.normFacProfPrim = self.loadStandardization(os.path.join(self.modelDir, romDomain.normFacPrimIn[self.modelIdx]), default="ones")
+
+		# get centering profiles, if necessary
+		# if centIC, just use given initial conditions
+		if romDomain.hasConsCent:
+			if romDomain.centIC:
+				self.centProfCons = solDomain.solInt.solCons[self.varIdxs,:].copy()
+			else:
+				self.centProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.centConsIn[self.modelIdx]), default="zeros")
 		if romDomain.hasPrimCent:
-			self.centProfPrim    = self.loadStandardization(os.path.join(self.modelDir, romDomain.centPrimIn[self.modelIdx]), default="zeros")
+			if romDomain.centIC:
+				self.centProfPrim = solDomain.solInt.solPrim[self.varIdxs,:].copy()
+			else:
+				self.centProfPrim    = self.loadStandardization(os.path.join(self.modelDir, romDomain.centPrimIn[self.modelIdx]), default="zeros")
 
 
 	def loadStandardization(self, standInput, default="zeros"):
@@ -161,3 +170,24 @@ class romModel:
 			solDomain.solInt.solCons[self.varIdxs,:] = self.decodeSol(self.code)
 		else:
 			solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
+
+
+	def calcCodeNorms(self):
+		"""
+		Compute L1 and L2 norms of low-dimensional state linear solve residuals
+		"""
+
+		resAbs = np.abs(self.res)
+
+		# L2 norm
+		resNormL2 = np.sum(np.square(resAbs), axis=1)
+		resNormL2[:] /= self.latentDim
+		resNormL2 = np.sqrt(resNormL2)
+		resNormL2 = np.mean(resNormL2)
+		
+		# L1 norm
+		resNormL1 = np.sum(resAbs, axis=1)
+		resNormL1[:] /= self.latentDim
+		resNormL1 = np.mean(resNormL1)
+		
+		return resNormL2, resNormL1

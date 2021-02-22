@@ -10,9 +10,9 @@ class projectionROM(romModel):
 		but assumes a linear projection onto the low-dimensional space
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver):
+	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		super().__init__(modelIdx, romDomain, solver)
+		super().__init__(modelIdx, romDomain, solver, solDomain)
 
 
 	def projectToLowDim(self, projector, fullDimArr, transpose=False):

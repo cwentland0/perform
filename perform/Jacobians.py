@@ -328,8 +328,7 @@ def calcDResDSolPrim(solDomain, solver):
 
 	else:
 		# TODO: this is hilariously inefficient, need to make Jacobian functions w/r/t conservative state
-		#		convergence is also noticeably worse, since this is just approximate
-		# transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
+		# TODO: transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
 		gammaMatrixInv = np.transpose(calcDSolPrimDSolCons(solInt), axes=(2,0,1))
 		dRdQ   = np.transpose(np.matmul(np.transpose(dRdQp, axes=(2,0,1)), gammaMatrixInv), axes=(1,2,0))
 		dFdQ_l = np.transpose(np.matmul(np.transpose(dFdQp_l, axes=(2,0,1)), gammaMatrixInv[:-1,:,:]), axes=(1,2,0))
@@ -338,7 +337,7 @@ def calcDResDSolPrim(solDomain, solver):
 		dtMat = np.repeat(dtInv*np.eye(gas.numEqs)[:,:,None], solInt.numCells, axis=2)
 		dRdQ += dtMat
 
-		resJacob = resJacobAssemble(dRdQ, dFdQ_l, dFdQ_r)
+		resJacob = resJacobAssemble(dRdQ, dFdQ_l, dFdQ_r, solInt)
 
 	return resJacob
 

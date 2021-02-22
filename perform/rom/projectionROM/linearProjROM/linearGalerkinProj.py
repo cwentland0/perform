@@ -43,19 +43,10 @@ class linearGalerkinProj(linearProjROM):
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 
-		# TODO: any way to put this in projectionROM?
+		LHS = self.trialBasis.T @ (resJacob / self.normFacProfCons.ravel(order="C")[:,None]) @ (self.trialBasis * self.normFacProfCons.ravel(order="C")[:,None])
+		RHS = self.trialBasis.T @ (res / self.normFacProfCons).ravel(order="C")
 
-		# calculate test basis
-		# TODO: this is not valid for scalar POD, another reason to switch to C ordering of resJacob
-		self.testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="F")[:,None]) @ self.trialBasisFScaled
-
-		# compute W^T * W
-		LHS = self.testBasis.T @ self.testBasis
-		RHS = -self.testBasis.T @ res.ravel(order="F")
-
-		# linear solve
 		dCode = np.linalg.solve(LHS, RHS)
-		pdb.set_trace()
 		
 		return dCode, LHS, RHS
 
