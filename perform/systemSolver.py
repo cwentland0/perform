@@ -30,20 +30,6 @@ class systemSolver:
 		# else:
 		# 	raise ValueError("Invalid choice of meshType: " + meshType)
 
-		# gas model
-		gasFile = str(paramDict["gasFile"]) 		# gas properties file (string)
-		gasDict = readInputFile(gasFile)
-		gasType=gasDict["gasType"] 
-		print(gasType)
-		if (gasType == "cpg"):
-			self.gasModel = caloricallyPerfectGas(gasDict)
-		elif (gasType == "cantera"):
-			self.gasModel = canteraMixture(gasDict,int(meshDict["numCells"]))
-		else:
-			raise ValueError("Invalid choice of gasType: " + gasType)
-
-
-
 
 
 		# initial condition file

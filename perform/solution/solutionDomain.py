@@ -11,6 +11,8 @@ from perform.timeIntegrator import getTimeIntegrator
 # gas models
 # TODO: make an __init__.py with getGasModel()
 from perform.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
+from perform.gasModel.canteraMixture import canteraMixture
+
 
 import os
 import numpy as np
@@ -35,8 +37,10 @@ class solutionDomain:
 		gasType = catchInput(gasDict, "gasType", "cpg")
 		if (gasType == "cpg"):
 			self.gasModel = caloricallyPerfectGas(gasDict)
+		elif (gasType == "cantera"):
+		    self.gasModel = canteraMixture(gasDict,solver.mesh.numCells)
 		else:
-			raise ValueError("Ivalid choice of gasType: " + gasType)
+			raise ValueError("Invalid choice of gasType: " + gasType)
 		gas = self.gasModel
 
 		# solution

@@ -13,6 +13,8 @@ class gasModel:
 
 	def __init__(self, gasDict):
 
+
+		self.gasType 				= gasDict["gasType"]
 		# gas composition
 		self.numSpeciesFull     = int(gasDict["numSpecies"])				# total number of species in case
 		self.molWeights         = gasDict["molWeights"].astype(realType)	# molecular weights, g/mol
@@ -75,6 +77,8 @@ class gasModel:
 
 		return massFracs
 
+	def calcEnthalpy(self,density,vel,temp,pressure,enthRefMix,CpMix):
+		return density * (enthRefMix + CpMix*temp + np.power(vel,2.)/2)- pressure
 
 	def calcAllMassFracs(self, massFracsNS):
 		"""

@@ -11,7 +11,7 @@ class solutionPhys:
 	def __init__(self, gas, solPrimIn, numCells):
 		
 		self.gasModel = gas
-
+		
 		self.numCells = numCells
 
 		# primitive and conservative state
@@ -94,15 +94,15 @@ class solutionPhys:
 
 		# update thermo properties
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
-		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
+		if(self.gasModel.gasType != "cantera"):
+			if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
 
 		# update conservative variables
 		# TODO: gasModel references
 		self.solCons[0,:]  = self.solPrim[0,:] / (self.RMix * self.solPrim[2,:]) 
 		self.solCons[1,:]  = self.solCons[0,:] * self.solPrim[1,:]				
-		self.solCons[2,:]  = self.solCons[0,:] * ( self.enthRefMix + self.CpMix * self.solPrim[2,:] + 
-												 np.power(self.solPrim[1,:], 2.0) / 2.0 ) - self.solPrim[0,:]
+		self.solCons[2,:]  = self.gasModel.calcEnthalpy(self.solCons[0,:],self.solPrim[1,:],self.solPrim[2,:],self.solPrim[0,:],self.solPrim[3:,:],self.enthRefMix,self.CpMix)
 		self.solCons[3:,:] = self.solCons[[0],:] * self.solPrim[3:,:]
  
 
