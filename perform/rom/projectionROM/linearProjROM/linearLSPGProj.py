@@ -14,6 +14,9 @@ class linearLSPGProj(linearProjROM):
 		if (romDomain.timeIntegrator.timeType == "explicit"):
 			raise ValueError("LSPG with an explicit time integrator deteriorates to Galerkin, please use Galerkin.")
 
+		if romDomain.timeIntegrator.dualTime:
+			raise ValueError("LSPG is intended for conservative variable evolution, please set dualTime = False")
+
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
 
@@ -21,6 +24,8 @@ class linearLSPGProj(linearProjROM):
 		"""
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
+
+		# TODO: add hyper-reduction
 
 		# TODO: scaledTrialBasis should be calculated once
 		scaledTrialBasis = self.trialBasis * self.normFacProfCons.ravel(order="C")[:,None]

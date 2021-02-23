@@ -15,6 +15,7 @@ import os
 
 # TODO: when moving to multi-domain, it may be useful to just hold a solDomain inside romDomain for the associated full-dim solution
 # 		Still a pain to move around since it's associated with the romDomain and not the romModel, but whatever
+# TODO: need to eliminate normSubProf, just roll it into centProf (or reverse)
 
 
 class romDomain:
@@ -376,7 +377,6 @@ class romDomain:
 
 			# compute residual and residual Jacobian
 			if self.isIntrusive:
-				if solDomain.timeIntegrator.dualTime: raise ValueError('under construction')
 				res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 				resJacob = calcDResDSolPrim(solDomain, solver)
 
@@ -390,7 +390,7 @@ class romDomain:
 				# compute ROM residual for convergence measurement
 				model.res = codeLHS @ dCode - codeRHS
 				
-			solInt.updateState(fromCons = True)
+			solInt.updateState(fromCons = (not solDomain.timeIntegrator.dualTime))
 			solInt.solHistCons[0] = solInt.solCons.copy()
 			solInt.solHistPrim[0] = solInt.solPrim.copy()
 

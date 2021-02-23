@@ -1,89 +1,44 @@
-from perform.constants import realType
-from perform.rom.linearProjROM.linearProjROM import linearProjROM
+from perform.rom.projectionROM.linearProjROM.linearProjROM import linearProjROM
 
 import numpy as np
-import pdb
 
 class linearSPLSVTProj(linearProjROM):
 	"""
-	Class for linear decoder and Galerkin projection
-	Trial basis is assumed to represent the primitive variables (see Galerkin/LSPG for primitive variable representation)
+	Class for linear decoder and SP-LSVT formulation
+	Trial basis is assumed to represent the conserved variables
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver):
+	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		super().__init__(modelIdx, romDomain, solver)
+		if ((romDomain.timeIntegrator.timeType == "implicit") and (not romDomain.timeIntegrator.dualTime)):
+			raise ValueError("SP-LSVT is intended for primitive variable evolution, please use Galerkin or LSPG, or set dualTime = True")
 
-		trialBasisF = np.reshape(self.trialBasis, (self.numVars, solver.mesh.numCells, self.latentDim), order='C')
-		self.trialBasisF = np.reshape(trialBasisF, (-1, self.latentDim), order="F")
-		self.trialBasisFScaled = self.normFacProfPrim.ravel(order="F")[:,None] * self.trialBasisF
-		self.testBasis = np.zeros(self.trialBasis.shape, dtype=realType)
-		
+		if (romDomain.timeIntegrator.timeType == "explicit"):
+			raise ValueError("Explicit SP-LSVT not implemented yet")
 
-	def decodeSol(self, code):
+		super().__init__(modelIdx, romDomain, solver, solDomain)
+
+
+	def calcDCode(self, resJacob, res):
 		"""
-		Compute full decoding of primitive solution, including decentering and denormalization
-		"""
-
-		solPrim = self.applyTrialBasis(code)
-		solPrim = self.standardizeData(solPrim, 
-									   normalize=True, normFacProf=self.normFacProfPrim, normSubProf=self.normSubProfPrim,
-									   center=True, centProf=self.centProfPrim, inverse=True)
-		return solPrim
-
-	def initFromCode(self, code0, solDomain, solver):
-		"""
-		Initialize full-order primitive solution from input low-dimensional state
+		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 
-		self.code = code0.copy()
-		solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
+		# TODO: add hyper-reduction
 
+		# TODO: scaledTrialBasis should be calculated once
+		scaledTrialBasis = self.trialBasis * self.normFacProfPrim.ravel(order="C")[:,None]
 
-	def initFromSol(self, solDomain, solver):
-		"""
-		Initialize full-order primitive solution from projection of loaded full-order initial conditions
-		"""
+		# compute test basis
+		# TODO: using resJacob.toarray(), otherwise this operation returns type np.matrix, which is undesirable
+		# 	need to figure out a more efficient method, if possible
+		testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledTrialBasis
 
-		solPrim = self.standardizeData(solDomain.solInt.solPrim[self.varIdxs, :], 
-									   normalize=True, normFacProf=self.normFacProfPrim, normSubProf=self.normSubProfPrim, 
-									   center=True, centProf=self.centProfPrim, inverse=False)
-		self.code = self.projectToLowDim(self.trialBasis, solPrim, transpose=True)
-		solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
-
-
-	# def calcProjector(self, romDomain):
-	# 	"""
-	# 	Compute RHS projection operator
-	# 	"""
-
-	# 	if romDomain.hyperReduc:
-	# 		raise ValueError("calcProjector() for gappy POD not implemented yet")
-
-	# 	else:
-			
-	def calcDSol(self, resJacob, res):
-
-		# calculate test basis
-		# TODO: this is not valid for scalar POD, another reason to switch to C ordering of resJacob
-		self.testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="F")[:,None]) @ self.trialBasisFScaled
-
-		
-
-		# compute W^T * W
-		LHS = self.testBasis.T @ self.testBasis
-		RHS = -self.testBasis.T @ res.ravel(order="F")
+		# LHS and RHS of Newton iteration
+		LHS = testBasis.T @ testBasis
+		RHS = testBasis.T @ (res / self.normFacProfCons).ravel(order="C")
 
 		# linear solve
 		dCode = np.linalg.solve(LHS, RHS)
-		pdb.set_trace()
 		
 		return dCode, LHS, RHS
-
-
-	def updateSol(self, solDomain):
-		"""
-		Update primitive solution after code has been updated
-		"""
-
-		solDomain.solInt.solPrim[self.varIdxs,:] = self.decodeSol(self.code)

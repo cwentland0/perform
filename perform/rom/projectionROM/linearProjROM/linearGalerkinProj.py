@@ -5,10 +5,13 @@ import numpy as np
 class linearGalerkinProj(linearProjROM):
 	"""
 	Class for linear decoder and Galerkin projection
-	Trial basis is assumed to represent the conserved variables (see SPLSVT for primitive variable representation)
+	Trial basis is assumed to represent the conserved variables
 	"""
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
+
+		if ((romDomain.timeIntegrator.timeType == "implicit") and (romDomain.timeIntegrator.dualTime)):
+			raise ValueError("Galerkin is intended for conservative variable evolution, please set dualTime = False")
 
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
@@ -39,8 +42,6 @@ class linearGalerkinProj(linearProjROM):
 		# 	need to figure out a more efficient method, if possible
 		LHS = self.trialBasis.T @ (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledTrialBasis
 		RHS = self.trialBasis.T @ (res / self.normFacProfCons).ravel(order="C")
-
-		# breakpoint()
 
 		dCode = np.linalg.solve(LHS, RHS)
 		

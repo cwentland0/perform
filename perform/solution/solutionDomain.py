@@ -172,10 +172,10 @@ class solutionDomain:
 
 		if (self.timeIntegrator.timeType == "implicit"):
 
-			solInt.res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
+			res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 			resJacob = calcDResDSolPrim(self, solver)
 
-			dSol = spsolve(resJacob, solInt.res.ravel('C'))
+			dSol = spsolve(resJacob, res.ravel('C'))
 			
 			# if solving in dual time, solving for primitive state
 			if (self.timeIntegrator.dualTime):
@@ -187,8 +187,8 @@ class solutionDomain:
 			solInt.solHistCons[0] = solInt.solCons.copy() 
 			solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
-			# borrow solInt.res to store linear solve residual	
-			res = resJacob @ dSol - solInt.res.ravel('C')
+			# use solInt.res to store linear solve residual	
+			res = resJacob @ dSol - res.ravel('C')
 			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='C')
 
 		else:
