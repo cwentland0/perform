@@ -78,6 +78,7 @@ class gasModel:
 		return massFracs
 
 	def calcEnthalpy(self,density,vel,temp,pressure,enthRefMix,CpMix):
+		assert(False)
 		return density * (enthRefMix + CpMix*temp + np.power(vel,2.)/2)- pressure
 
 	def calcAllMassFracs(self, massFracsNS):
@@ -85,7 +86,6 @@ class gasModel:
 		Helper function to compute all numSpecies_full mass fraction fields from numSpecies fields
 		Thresholds all mass fraction fields between zero and unity 
 		"""
-
 		if (self.numSpeciesFull == 1):
 			massFracs = np.maximum(0.0, np.minimum(1.0, massFracsNS))
 
@@ -104,7 +104,7 @@ class gasModel:
 		"""
 		Compute mixture molecular weight
 		"""
-
+		assert(False)
 		if (massFracs.shape[0] == self.numSpecies):
 			massFracs = self.calcAllMassFracs(massFracs)
 
@@ -117,7 +117,6 @@ class gasModel:
 		"""
 		Compute mole fractions of all species from mass fractions
 		"""
-
 		if (massFracs.shape[0] == self.numSpecies):
 			massFracs = self.calcAllMassFracs(massFracs)
 
@@ -127,3 +126,25 @@ class gasModel:
 		moleFracs = massFracs * mixMolWeight[None, :] * self.mwInv[:, None]
 
 		return moleFracs
+
+
+	def calcSource(self,temp,massFracs,rho):
+		# TODO: expand to multiple global reactions
+		# TODO: expand to general reaction w/ reverse direction
+		# TODO: really need to check that this works for more than a two-species reaction
+
+	
+
+		# NOTE: actEnergy here is -Ea/R
+		# TODO: account for temperature exponential
+		wf = self.preExpFact * np.exp(self.actEnergy / temp)
+		
+		rhoY = rho * massFracs
+
+		specIdxs = np.squeeze(np.argwhere(self.nuArr != 0.0))
+		wf       = np.product( wf[None,:] * np.power((rhoY[specIdxs,:] / self.molWeights[specIdxs, None]), selfnuArr[specIdxs, None]), axis=0)
+		return wf
+		
+		
+
+		

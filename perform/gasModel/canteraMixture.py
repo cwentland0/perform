@@ -92,7 +92,8 @@ class canteraMixture(gasModel):
 	def calcSpeciesEnthalpies(self, temperature):
 		gasArray=ct.SolutionArray(self.gas,temperature.size)
 		gasArray.TPY=temperature,gasArray.P,gasArray.Y
-		return gasArray.partial_molar_enthalpies/gasArray.molecular_weights
+		speciesEnthalpy=gasArray.partial_molar_enthalpies/gasArray.molecular_weights
+		return speciesEnthalpy.transpose()
 
 	# calculate Denisty from Primitive state
 	def calcDensityFromPrim(self,solPrim,solCons):
@@ -241,3 +242,120 @@ class canteraMixture(gasModel):
 		soundSpeed = np.sqrt(gammaMix * RMix * temperature)
 
 		return soundSpeed
+
+	def calcMixMolWeight(self, massFracs):
+		"""
+		Compute mixture molecular weight
+		"""
+		gasArray=ct.SolutionArray(self.gas,massFracs.shape[1])
+
+		if (massFracs.shape[0] == self.numSpecies):
+			massFracs = self.padMassFrac(massFracs)
+
+		gasArray.TPY=gasArray.T,gasArray.P,massFracs.transpose()
+		mixMolWeight = gasArray.mean_molecular_weight
+
+		return mixMolWeight
+
+	def calcAllMoleFracs(self, massFracs, mixMolWeight=None):
+		"""
+		Compute mole fractions of all species from mass fractions
+		"""
+		gasArray=ct.SolutionArray(self.gas,massFracs.shape[1])
+
+		if (massFracs.shape[0] == self.numSpecies):
+			massFracs = self.padMassFrac(massFracs)
+
+		gasArray.TPY=gasArray.T,gasArray.P,massFracs.transpose()
+		moleFracs = gasArray.X.transpose()
+
+		return moleFracs
+
+
+	def calcSpeciesDynamicVisc(self, temperature):
+		"""
+		Compute individual dynamic viscosities from Sutherland's law
+		Defaults to reference dynamic viscosity if reference temperature is zero
+		Returns values for ALL species, NOT numSpecies species
+		"""
+
+		
+		return None
+
+
+
+
+	def calcMixDynamicVisc(self, specDynVisc=None, temperature=None, moleFracs=None, massFracs=None):
+		"""
+		Compute mixture dynamic viscosity from Wilkes mixing law
+		"""
+		
+		assert(temperature is not None), "Must provide temperature"
+
+		if (specDynVisc is None):
+			assert (temperature is not None), "Must provide temperature if not providing species dynamic viscosities"
+		gasArray=ct.SolutionArray(self.gas,temperature.size)
+		if (moleFracs is None):
+			assert (massFracs is not None),  "Must provide mass fractions if not providing mole fractions"
+			gasArray.TPY=temperature,gasArray.P,massFracs.transpose()
+		else:
+			gasArray.TPX=temperature,gasArray.P,moleFracs.transpose()
+		
+		mixDynVisc = gasArray.viscosity
+
+		return mixDynVisc
+
+
+
+	def calcMixThermalCond(self, specThermCond=None, specDynVisc=None, temperature=None, moleFracs=None, massFracs=None):
+		"""
+		Compute mixture thermal conductivity
+		"""
+		assert(temperature is not None), "Must provide temperature"
+
+
+
+		if (specDynVisc is None):
+			assert (temperature is not None), "Must provide temperature if not providing species dynamic viscosities"
+		gasArray=ct.SolutionArray(self.gas,temperature.size)
+		if (moleFracs is None):
+			assert (massFracs is not None),  "Must provide mass fractions if not providing mole fractions"
+			gasArray.TPY=temperature,gasArray.P,massFracs.transpose()
+		else:
+			gasArray.TPX=temperature,gasArray.P,moleFracs.transpose()
+
+			mixThermCond = gasArray.thermal_conductivity
+
+		return mixThermCond
+
+
+
+	def calcSpeciesMassDiffCoeff(self, density=None, specDynVisc=None, temperature=None,moleFracs=None,massFracs=None):
+		"""
+		Compute mass diffusivity coefficient of species into mixture
+		Returns values for ALL species, NOT numSpecies species
+		"""
+
+		if (specDynVisc is None):
+			assert (temperature is not None), "Must provide temperature if not providing species dynamic viscosities"
+			assert (moleFracs is not None), ""
+		gasArray=ct.SolutionArray(self.gas,temperature.size)
+		if (moleFracs is None):
+			assert (massFracs is not None),  "Must provide mass fractions if not providing mole fractions"
+			gasArray.TPY=temperature,gasArray.P,massFracs.transpose()
+		else:
+			gasArray.TPX=temperature,gasArray.P,moleFracs.transpose()
+		specMassDiff = gasArray.mix_diff_coeffs.transpose()
+
+		return specMassDiff
+
+
+
+	def calcSource(self,temp,massFracs,rho):
+
+		gasArray=ct.SolutionArray(self.gas,temp.shape)
+		gasArray.TDY=temp,rho,massFracs.transpose()
+
+		wf= gasArray.net_production_rates * gasArray.molecular_weights
+		return wf.transpose()
+

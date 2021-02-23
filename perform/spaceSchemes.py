@@ -159,7 +159,6 @@ def calcRoeDissipation(solAve):
 	# gamma terms for energy equation
 	Gp = rho * dH_dP + dRho_dP * solAve.h0 - 1.0
 	GT = rho * dH_dT + dRho_dT * solAve.h0
-	breakpoint()
 	GY = rho[None,:] * dH_dY +  solAve.h0[None,:] * dRho_dY
 
 	# characteristic speeds
@@ -241,9 +240,15 @@ def calcViscFlux(solDomain, solver):
 	# thermo and transport props
 	moleFracs    = gas.calcAllMoleFracs(solAve.solPrim[3:,:])
 	specDynVisc  = gas.calcSpeciesDynamicVisc(solAve.solPrim[2,:])
-	thermCondMix = gas.calcMixThermalCond(specDynVisc=specDynVisc, moleFracs=moleFracs)
-	dynViscMix   = gas.calcMixDynamicVisc(specDynVisc=specDynVisc, moleFracs=moleFracs)
-	massDiffMix  = gas.calcSpeciesMassDiffCoeff(solAve.solCons[0,:], specDynVisc=specDynVisc)
+	if(specDynVisc is not None):
+		thermCondMix = gas.calcMixThermalCond(specDynVisc=specDynVisc, moleFracs=moleFracs)
+		dynViscMix   = gas.calcMixDynamicVisc(specDynVisc=specDynVisc, moleFracs=moleFracs)
+		massDiffMix  = gas.calcSpeciesMassDiffCoeff(solAve.solCons[0,:], moleFracs=moleFracs,specDynVisc=specDynVisc)
+	else:
+		thermCondMix = gas.calcMixThermalCond(specDynVisc=specDynVisc, moleFracs=moleFracs,temperature=solAve.solPrim[2,:])
+		dynViscMix   = gas.calcMixDynamicVisc(specDynVisc=specDynVisc, moleFracs=moleFracs,temperature=solAve.solPrim[2,:])
+		massDiffMix  = gas.calcSpeciesMassDiffCoeff(specDynVisc=specDynVisc,moleFracs=moleFracs,temperature=solAve.solPrim[2,:])
+
 	hi           = gas.calcSpeciesEnthalpies(solAve.solPrim[2,:])
 
 	# copy for use later
@@ -251,7 +256,6 @@ def calcViscFlux(solDomain, solver):
 	solAve.thermCondMix = thermCondMix
 	solAve.massDiffMix  = massDiffMix
 	solAve.hi           = hi
-
 	tau = 4.0/3.0 * dynViscMix * solPrimGrad[1,:]						# stress "tensor"
 	diffVel = solAve.solCons[[0],:] * massDiffMix * solPrimGrad[3:,:]	# diffusion velocity
 	corrVel = np.sum(diffVel, axis=0) 									# correction velocity
@@ -269,26 +273,13 @@ def calcSource(solDomain, solver):
 	"""
 	Compute chemical source term
 	"""
-
-	# TODO: expand to multiple global reactions
-	# TODO: expand to general reaction w/ reverse direction
-	# TODO: really need to check that this works for more than a two-species reaction
-
-	gas = solDomain.gasModel
-
-	temp 	  = solDomain.solInt.solPrim[2,solDomain.directSampIdxs]
-	massFracs = gas.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs])
-	rho 	  = solDomain.solInt.solCons[[0],solDomain.directSampIdxs]
-
-	# NOTE: actEnergy here is -Ea/R
-	# TODO: account for temperature exponential
-	wf = gas.preExpFact * np.exp(gas.actEnergy / temp)
+	wf=solDomain.gasModel.calcSource(temp=solDomain.solInt.solPrim[2,solDomain.directSampIdxs],massFracs=solDomain.gasModel.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs]),rho=solDomain.solInt.solCons[[0],solDomain.directSampIdxs])
 	
-	rhoY = rho * massFracs
-
-	specIdxs = np.squeeze(np.argwhere(gas.nuArr != 0.0))
-	wf       = np.product( wf[None,:] * np.power((rhoY[specIdxs,:] / gas.molWeights[specIdxs, None]), gas.nuArr[specIdxs, None]), axis=0)
+	rhoY = solDomain.solInt.solCons[[0],solDomain.directSampIdxs] * solDomain.gasModel.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs])
 	wf       = np.amin(np.minimum(wf[None,:], rhoY[specIdxs,:] / solver.dt), axis=0)
 	solDomain.solInt.wf = wf
+	solDomain.solInt.source[solDomain.gasModel.massFracSlice[:,None], solDomain.directSampIdxs[None,:]] = -solDomain.gasModel.molWeightNu[solDomain.gasModel.massFracSlice, None] * wf[None, :]
 
-	solDomain.solInt.source[gas.massFracSlice[:,None], solDomain.directSampIdxs[None,:]] = -gas.molWeightNu[gas.massFracSlice, None] * wf[None, :]
+
+
+
