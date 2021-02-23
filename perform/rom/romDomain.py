@@ -167,13 +167,13 @@ class romDomain:
 			self.targetCons 		= True
 			self.hasConsNorm 		= True
 			self.hasConsCent 		= True
-		elif (self.romMethod == "autoencoderLSPGProjTF"):
+		elif (self.romMethod == "autoencoderLSPGProjTFKeras"):
 			self.hasTimeIntegrator 	= True
 			self.isIntrusive 	   	= True
 			self.targetCons 		= True
 			self.hasConsNorm 		= True
 			self.hasConsCent 		= True
-		elif (self.romMethod == "autoencoderSPLSVTProjTF"):
+		elif (self.romMethod == "autoencoderSPLSVTProjTFKeras"):
 			self.hasTimeIntegrator 	= True
 			self.isIntrusive 	   	= True
 			self.targetPrim 		= True

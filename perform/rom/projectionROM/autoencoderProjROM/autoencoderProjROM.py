@@ -1,3 +1,4 @@
+from perform.constants import fdStepDefault
 from perform.rom.projectionROM.projectionROM import projectionROM
 from perform.inputFuncs import catchInput
 
@@ -35,7 +36,7 @@ class autoencoderProjROM(projectionROM):
 
 		# numerical Jacobian params
 		self.numericalJacob = catchInput(romDict, "numericalJacob", False)
-		if self.numericalJacob: self.fdStep = catchInput(romDict, "fdStep", fdStepDefault)
+		self.fdStep = catchInput(romDict, "fdStep", fdStepDefault)
 
 
 	def encodeSol(self, solIn):

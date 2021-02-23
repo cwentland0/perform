@@ -19,7 +19,8 @@ class romModel:
 		self.latentDim 	= romDomain.latentDims[self.modelIdx]
 		self.varIdxs 	= np.array(romDomain.modelVarIdxs[self.modelIdx], dtype=np.int32)
 		self.numVars   	= len(self.varIdxs)
-		self.solShape 	= (self.numVars, solver.mesh.numCells)
+		self.numCells   = solver.mesh.numCells
+		self.solShape 	= (self.numVars, self.numCells)
 
 		# just copy some stuff for less clutter
 		self.modelDir 	= romDomain.modelDir

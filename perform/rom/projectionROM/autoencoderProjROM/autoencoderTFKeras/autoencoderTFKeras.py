@@ -35,7 +35,10 @@ class autoencoderTFKeras(autoencoderProjROM):
 		# otherwise, recreating this will cause retracing of the computational graph
 		if (not self.numericalJacob):
 			if self.encoderJacob:
-				self.jacobInput = tf.Variable(solDomain.solInt.solCons[None,self.varIdxs,:], dtype=self.encoderIODtypes[0])
+				if self.targetCons:
+					self.jacobInput = tf.Variable(solDomain.solInt.solCons[None,self.varIdxs,:], dtype=self.encoderIODtypes[0])
+				else:
+					self.jacobInput = tf.Variable(solDomain.solInt.solPrim[None,self.varIdxs,:], dtype=self.encoderIODtypes[0])
 			else:
 				self.jacobInput = tf.Variable(self.code[None,:], dtype=self.decoderIODtypes[0])
 
@@ -104,10 +107,48 @@ class autoencoderTFKeras(autoencoderProjROM):
 	def calcAnalyticalModelJacobian(self, model, inputs):
 		"""
 		Compute analytical Jacobian of TensorFlow-Keras model using GradientTape
+		NOTE: inputs is a tf.Variable
 		"""
 
 		with tf.GradientTape() as g:
 			outputs = model(inputs)
 		jacob = g.jacobian(outputs, inputs)
+
+		return jacob
+
+
+	def calcNumericalTFJacobian(self, model, inputs):
+		"""
+		Compute numerical Jacobian of TensorFlow-Keras models by finite difference approximation
+		NOTE: inputs is a np.ndarray
+		"""
+
+		if self.encoderJacob:
+			raise ValueError("Numerical encoder Jacobian not implemented yet")
+			if (self.ioFormat == "NHWC"):
+				jacob = np.zeros((inputs.shape[0], self.numCells, self.numVars), dtype=realType)
+			else:
+				jacob = np.zeros((inputs.shape[0], self.numVars, self.numCells), dtype=realType)
+		else:
+			if (self.ioFormat == "NHWC"):
+				jacob = np.zeros((self.numCells, self.numVars, inputs.shape[0]), dtype=realType)
+			else:
+				jacob = np.zeros((self.numVars, self.numCells, inputs.shape[0]), dtype=realType)
+
+		# get initial prediction
+		outputsBase = np.squeeze(model.predict(inputs[None,:]), axis=0)
+
+		# TODO: this does not generalize to encoder Jacobian
+		for elemIdx in range(0, inputs.shape[0]):
+
+			# perturb
+			inputsPert = inputs.copy()
+			inputsPert[elemIdx] = inputsPert[elemIdx] + self.fdStep
+
+			# make prediction at perturbed state
+			outputs = np.squeeze(model.predict(inputsPert[None,:]), axis=0)
+
+			# compute finite difference approximation
+			jacob[:,:,elemIdx] = (outputs - outputsBase) / self.fdStep
 
 		return jacob

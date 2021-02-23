@@ -12,7 +12,7 @@ class linearLSPGProj(linearProjROM):
 
 		# I'm not going to code LSPG with explicit time integrator, it's a pointless exercise
 		if (romDomain.timeIntegrator.timeType == "explicit"):
-			raise ValueError("LSPG with an explicit time integrator deteriorates to Galerkin, please use Galerkin.")
+			raise ValueError("LSPG with an explicit time integrator deteriorates to Galerkin, please use Galerkin or select an implicit time integrator.")
 
 		if romDomain.timeIntegrator.dualTime:
 			raise ValueError("LSPG is intended for conservative variable evolution, please set dualTime = False")
