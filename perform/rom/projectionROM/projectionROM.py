@@ -39,7 +39,7 @@ class projectionROM(romModel):
 
 	def calcRHSLowDim(self, romDomain, solDomain):
 		"""
-		Project RHS onto low-dimensional space
+		Project RHS onto low-dimensional space for explicit time integrators
 		Assumes that RHS term is scaled using an appropriate conservative variable normalization profile
 		"""
 
@@ -50,5 +50,5 @@ class projectionROM(romModel):
 										 center=False, inverse=False)
 
 		# calc projection operator and project
-		self.calcProjector(solDomain, False)
+		self.calcProjector(solDomain)
 		self.rhsLowDim = self.projectToLowDim(self.projector, rhsScaled, transpose=False)

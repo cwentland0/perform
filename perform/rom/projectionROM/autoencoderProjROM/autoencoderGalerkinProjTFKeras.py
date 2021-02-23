@@ -153,7 +153,7 @@ class autoencoderGalerkinProjTFKeras(autoencoderProjROM):
 		return jacob
 
 
-	def calcProjector(self, solDomain, runCalc=True):
+	def calcProjector(self, solDomain):
 		"""
 		Compute RHS projection operator
 		Decoder projector is pseudo-inverse of decoder Jacobian

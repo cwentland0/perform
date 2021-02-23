@@ -95,32 +95,31 @@ class romDomain:
 		if (self.isIntrusive and self.hyperReduc):
 			self.loadHyperReduc(solDomain, solver)
 
+		# get time integrator, if necessary
+		# TODO: timeScheme should be specific to the romDomain, not the solver
+		if self.hasTimeIntegrator:
+			self.timeIntegrator = getTimeIntegrator(solver.timeScheme, solver.paramDict)
+		else:
+			self.timeIntegrator = None 	# TODO: this might be pointless
+
 		# initialize models for domain
 		self.modelList = [None] * self.numModels
 		for modelIdx in range(self.numModels):
 
 			self.modelList[modelIdx] = getROMModel(modelIdx, self, solver, solDomain)
+			model = self.modelList[modelIdx]
 
 			# initialize state
 			if self.initROMFromFile[modelIdx]:
-				self.modelList[modelIdx].initFromCode(self.code0[modelIdx], solDomain)
+				model.initFromCode(self.code0[modelIdx], solDomain)
 			else:
-				self.modelList[modelIdx].initFromSol(solDomain)
-
-		solDomain.solInt.updateState(fromCons=self.targetCons)
-
-		# get time integrator, if necessary
-		# TODO: timeScheme should be specific to the romDomain, not the solver
-		if self.hasTimeIntegrator:
-			self.timeIntegrator = getTimeIntegrator(solver.timeScheme, solver.paramDict)
+				model.initFromSol(solDomain)
 
 			# initialize code history
 			# TODO: this is necessary for non-time-integrated methods, e.g. TCN
-			for model in self.modelList:
-				model.codeHist = [model.code.copy()] * (self.timeIntegrator.timeOrder+1)
+			model.codeHist = [model.code.copy()] * (self.timeIntegrator.timeOrder+1)
 
-		else:
-			self.timeIntegrator = None 	# TODO: this might be pointless
+		solDomain.solInt.updateState(fromCons=self.targetCons)
 
 		# overwrite history with initialized solution
 		solDomain.solInt.solHistCons = [solDomain.solInt.solCons.copy()] * (self.timeIntegrator.timeOrder+1)

@@ -1,8 +1,6 @@
 from perform.rom.projectionROM.linearProjROM.linearProjROM import linearProjROM
 
 import numpy as np
-import pdb
-
 
 class linearGalerkinProj(linearProjROM):
 	"""
@@ -14,28 +12,19 @@ class linearGalerkinProj(linearProjROM):
 
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
-		self.testBasis = self.trialBasis
 
-		self.calcProjector(solDomain, runCalc=True)
-
-
-	def calcProjector(self, solDomain, runCalc=False):
+	def calcProjector(self, solDomain):
 		"""
 		Compute RHS projection operator
-		NOTE: runCalc is kind of a stupid way to handle static vs. adaptive bases.
-			  This method should generally be called with romDomain.adaptiveROM, but also needs to be calculated at init
 		"""
 
-		if runCalc:
-			if self.hyperReduc:
-				# V^T * U * [S^T * U]^+
-				self.projector = self.trialBasis.T @ self.hyperReducBasis @ np.linalg.pinv(self.hyperReducBasis[self.directHyperReducSampIdxs,:])
+		if self.hyperReduc:
+			# V^T * U * [S^T * U]^+
+			self.projector = self.trialBasis.T @ self.hyperReducBasis @ np.linalg.pinv(self.hyperReducBasis[self.directHyperReducSampIdxs,:])
 
-			else:
-				# V^T
-				self.projector = self.trialBasis.T
 		else:
-			pass
+			# V^T
+			self.projector = self.trialBasis.T
 
 
 	def calcDCode(self, resJacob, res):
@@ -43,8 +32,15 @@ class linearGalerkinProj(linearProjROM):
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 
-		LHS = self.trialBasis.T @ (resJacob / self.normFacProfCons.ravel(order="C")[:,None]) @ (self.trialBasis * self.normFacProfCons.ravel(order="C")[:,None])
+		# TODO: should be calculated once
+		scaledTrialBasis = self.trialBasis * self.normFacProfCons.ravel(order="C")[:,None]
+
+		# TODO: using resJacob.toarray(), otherwise this operation returns type np.matrix, which is undesirable
+		# 	need to figure out a more efficient method, if possible
+		LHS = self.trialBasis.T @ (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledTrialBasis
 		RHS = self.trialBasis.T @ (res / self.normFacProfCons).ravel(order="C")
+
+		# breakpoint()
 
 		dCode = np.linalg.solve(LHS, RHS)
 		

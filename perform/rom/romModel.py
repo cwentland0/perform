@@ -1,7 +1,6 @@
 from perform.constants import realType
 
 import numpy as np
-import pdb
 import os
 
 # TODO: workflow and method hierarchy can probably be cleaned up a lot
@@ -180,14 +179,12 @@ class romModel:
 		resAbs = np.abs(self.res)
 
 		# L2 norm
-		resNormL2 = np.sum(np.square(resAbs), axis=1)
-		resNormL2[:] /= self.latentDim
+		resNormL2 = np.sum(np.square(resAbs))
+		resNormL2 /= self.latentDim
 		resNormL2 = np.sqrt(resNormL2)
-		resNormL2 = np.mean(resNormL2)
 		
 		# L1 norm
-		resNormL1 = np.sum(resAbs, axis=1)
-		resNormL1[:] /= self.latentDim
-		resNormL1 = np.mean(resNormL1)
+		resNormL1 = np.sum(resAbs)
+		resNormL1 /= self.latentDim
 		
 		return resNormL2, resNormL1
