@@ -22,7 +22,7 @@ class solutionBoundary(solutionPhys):
 		primState=primState[:-1]
 		assert (len(self.massFrac) == gas.numSpeciesFull), "Must provide mass fraction state for all species at boundary"
 		assert (np.sum(self.massFrac) == 1.0), "Boundary mass fractions must sum to 1.0"
-		self.CpMix 		= gas.calcMixCp(self.massFrac[gas.massFracSlice, None])
+		self.CpMix 		= gas.calcMixCp(self.massFrac[gas.massFracSlice, None],self.temp)
 		self.RMix 		= gas.calcMixGasConstant(self.massFrac[gas.massFracSlice, None])
 		self.gamma 		= gas.calcMixGamma(self.RMix, self.CpMix)
 		if(gas.gasType != "cantera"):

@@ -68,7 +68,7 @@ class solutionPhys:
 		"""
 		Compute primitive state from conservative state
 		"""
-		assert(False)
+		
 		self.solPrim[3:,:] = self.solCons[3:,:] / self.solCons[[0],:]
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
 
@@ -76,14 +76,15 @@ class solutionPhys:
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
 		if(self.gasModel.gasType != "cantera"):
 			if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
-		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
+		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs,self.solPrim[2,:])
 
 		# update primitive state
 		# TODO: gasModel references
 		self.solPrim[1,:] = self.solCons[1,:] / self.solCons[0,:]
 		self.solPrim[2,:] = self.gasModel.calcTemperature(self.solCons[0,:],self.solCons[1,:],self.solCons[2,:],self.solPrim[3:,:],self.enthRefMix,self.CpMix,self.RMix) 
+		assert(False)
 		self.solPrim[0,:] = self.solCons[0,:] * self.RMix * self.solPrim[2,:]
-
+		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs,self.solPrim[2,:])
 
 	def calcStateFromPrim(self, calcR=False, calcEnthRef=False, calcCp=False):
 		"""
@@ -96,7 +97,7 @@ class solutionPhys:
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
 		if(self.gasModel.gasType != "cantera"):
 			if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
-		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
+		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs,self.solPrim[2,:])
 
 		# update conservative variables
 		# TODO: gasModel references

@@ -69,17 +69,27 @@ class canteraMixture(gasModel):
 	def calcEnthalpy(self,density,vel,temp,pressure,Y,enthRefMix,CpMix):
 		gasArray=ct.SolutionArray(self.gas,Y.shape[1])
 		gasArray.TPY=temp,pressure,self.padMassFrac(Y).transpose()
+		print(gasArray.enthalpy_mass[0],gasArray.Y[0])
 		return density * (gasArray.enthalpy_mass + np.power(vel,2.)/2)- pressure
 
 	def calcTemperature(self,rho,rhoU,rhoH,rhoY,enthRefMix,CpMix,RMix):
 		gasArray=ct.SolutionArray(self.gas,rho.shape[0])
-		gasArray.UVY= rhoH/rho- np.square(rhoU/rho)/2,1/rho
+		#1st guess
+		iter=10
+		startStep=100
+		gasArray.TDY= gasArray.T , rho, self.padMassFrac(rhoY/rho).transpose()
+		print(gasArray.Y[0])
+		for i in range(iter):
+			diff= (gasArray.enthalpy_mass - (rhoH/rho - np.sqrt(np.abs(rhoU/rho))/2) )
+			print(i,gasArray.T[0], gasArray.enthalpy_mass[0] , (rhoH/rho - np.sqrt(np.abs(rhoU/rho))/2)[0], diff[0] )
+			gasArray.TDY= gasArray.T+  (diff/np.abs(diff)) *startStep,rho,gasArray.Y
+		assert(False)
 		return 	
 
 	# compute mixture specific heat at constant pressure
-	def calcMixCp(self, massFrac):
+	def calcMixCp(self, massFrac,temperature):
 		gasArray=ct.SolutionArray(self.gas,massFrac.shape[1])
-		gasArray.TPY=gasArray.T,gasArray.P, self.padMassFrac(massFrac).transpose()
+		gasArray.TPY=temperature,gasArray.P, self.padMassFrac(massFrac).transpose()
 		return gasArray.cp_mass
 
 	# compute density from ideal gas law  
@@ -189,7 +199,7 @@ class canteraMixture(gasModel):
 			assert (massFracs is not None), "Must provide mass fractions for temperature derivative..."
 
 			massFracs = self.getMassFracArray(massFracs=massFracs)
-			DStagEnthDTemp = self.calcMixCp(massFracs)
+			DStagEnthDTemp = self.calcMixCp(massFracs,temperature)
 			derivs = derivs + (DStagEnthDTemp,)
 
 		if (wrtVel):
@@ -363,3 +373,6 @@ class canteraMixture(gasModel):
 		wf= gasArray.net_production_rates * gasArray.molecular_weights
 		return wf[:,:].transpose()
 
+
+
+	
