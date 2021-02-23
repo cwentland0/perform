@@ -77,9 +77,13 @@ class gasModel:
 
 		return massFracs
 
-	def calcEnthalpy(self,density,vel,temp,pressure,enthRefMix,CpMix):
-		assert(False)
+	def calcEnthalpy(self,density,vel,temp,pressure,Y,enthRefMix,CpMix):
 		return density * (enthRefMix + CpMix*temp + np.power(vel,2.)/2)- pressure
+
+	def calcTemperature(self,rho,rhoU,rhoH,rhoY,enthRefMix,CpMix,RMix):
+		return (rhoH / rho - np.square(rhoU/rho) / 2.0 - 
+							 enthRefMix) / (CpMix - RMix) 
+
 
 	def calcAllMassFracs(self, massFracsNS):
 		"""

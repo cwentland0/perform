@@ -70,7 +70,11 @@ class canteraMixture(gasModel):
 		gasArray=ct.SolutionArray(self.gas,Y.shape[1])
 		gasArray.TPY=temp,pressure,self.padMassFrac(Y).transpose()
 		return density * (gasArray.enthalpy_mass + np.power(vel,2.)/2)- pressure
-		
+
+	def calcTemperature(self,rho,rhoU,rhoH,rhoY,enthRefMix,CpMix,RMix):
+		gasArray=ct.SolutionArray(self.gas,rho.shape[0])
+		gasArray.UVY= rhoH/rho- np.square(rhoU/rho)/2,1/rho
+		return 	
 
 	# compute mixture specific heat at constant pressure
 	def calcMixCp(self, massFrac):
@@ -357,5 +361,5 @@ class canteraMixture(gasModel):
 		gasArray.TDY=temp,rho,massFracs.transpose()
 
 		wf= gasArray.net_production_rates * gasArray.molecular_weights
-		return wf.transpose()
+		return wf[:,:].transpose()
 

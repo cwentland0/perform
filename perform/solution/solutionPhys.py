@@ -74,14 +74,14 @@ class solutionPhys:
 
 		# update thermo properties
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
-		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
+		if(self.gasModel.gasType != "cantera"):
+			if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
 
 		# update primitive state
 		# TODO: gasModel references
 		self.solPrim[1,:] = self.solCons[1,:] / self.solCons[0,:]
-		self.solPrim[2,:] = (self.solCons[2,:] / self.solCons[0,:] - np.square(self.solPrim[1,:]) / 2.0 - 
-							 self.enthRefMix) / (self.CpMix - self.RMix) 
+		self.solPrim[2,:] = self.gasModel.calcTemperature(self.solCons[0,:],self.solCons[1,:],self.solCons[2,:],self.solPrim[3:,:],self.enthRefMix,self.CpMix,self.RMix) 
 		self.solPrim[0,:] = self.solCons[0,:] * self.RMix * self.solPrim[2,:]
 
 

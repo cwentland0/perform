@@ -273,13 +273,22 @@ def calcSource(solDomain, solver):
 	"""
 	Compute chemical source term
 	"""
-	wf=solDomain.gasModel.calcSource(temp=solDomain.solInt.solPrim[2,solDomain.directSampIdxs],massFracs=solDomain.gasModel.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs]),rho=solDomain.solInt.solCons[[0],solDomain.directSampIdxs])
-	
-	rhoY = solDomain.solInt.solCons[[0],solDomain.directSampIdxs] * solDomain.gasModel.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs])
-	wf       = np.amin(np.minimum(wf[None,:], rhoY[specIdxs,:] / solver.dt), axis=0)
-	solDomain.solInt.wf = wf
-	solDomain.solInt.source[solDomain.gasModel.massFracSlice[:,None], solDomain.directSampIdxs[None,:]] = -solDomain.gasModel.molWeightNu[solDomain.gasModel.massFracSlice, None] * wf[None, :]
+	gas=solDomain.gasModel
+	rhoY = solDomain.solInt.solCons[[0],solDomain.directSampIdxs] * gas.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs])
 
+	if(gas.gasType != 'cantera'):
+		wf=gas.calcSource(temp=solDomain.solInt.solPrim[2,solDomain.directSampIdxs],massFracs=gas.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs]),rho=solDomain.solInt.solCons[[0],solDomain.directSampIdxs])
+		specIdxs = np.squeeze(np.argwhere(gas.nuArr != 0.0))
+			
+	else:
+		wf=gas.calcSource(temp=solDomain.solInt.solPrim[2,solDomain.directSampIdxs],massFracs=gas.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs]),rho=solDomain.solInt.solCons[[0],solDomain.directSampIdxs])
+	
+	wf       = np.amin(np.minimum(wf[None,:], rhoY[:,:] / solver.dt), axis=0)
+	solDomain.solInt.wf = wf
+	if(gas.gasType != 'cantera'):
+		solDomain.solInt.source[gas.massFracSlice[:,None], solDomain.directSampIdxs[None,:]] = -gas.molWeightNu[gas.massFracSlice, None] * wf[None, :]
+	else:
+		solDomain.solInt.source[gas.massFracSlice[:,None], solDomain.directSampIdxs[None,:]] = wf[None,:-1, :]
 
 
 
