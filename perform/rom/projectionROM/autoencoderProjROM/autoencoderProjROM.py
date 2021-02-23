@@ -1,11 +1,13 @@
 from perform.rom.projectionROM.projectionROM import projectionROM
 from perform.inputFuncs import catchInput
 
-import numpy as np
 import os
-import pdb
 
 class autoencoderProjROM(projectionROM):
+	"""
+	Base class for any non-linear manifold ROM using autoencoders
+	Child classes simply supply library-dependent functions (e.g. for TensorFlow, PyTorch)
+	"""
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
 

@@ -1,7 +1,10 @@
+# linear models
 from perform.rom.projectionROM.linearProjROM.linearGalerkinProj import linearGalerkinProj
 from perform.rom.projectionROM.linearProjROM.linearLSPGProj import linearLSPGProj
 from perform.rom.projectionROM.linearProjROM.linearSPLSVTProj import linearSPLSVTProj
-from perform.rom.projectionROM.autoencoderProjROM.autoencoderGalerkinProjTFKeras import autoencoderGalerkinProjTFKeras
+
+# TensorFlow-Keras autoencoder models
+from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderGalerkinProjTFKeras import autoencoderGalerkinProjTFKeras
 
 
 def getROMModel(modelIdx, romDomain, solver, solDomain):
