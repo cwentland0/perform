@@ -7,8 +7,8 @@ icParamsFile = "./Inputs/SF.inp"
 
 
 # time discretization
-dt = 5.0e-9
-numSteps = 1
+dt = 1.0e-8
+numSteps = 10000
 timeScheme = "classicRK4"
 timeOrder = 4
 resTol = 1e-12
@@ -30,27 +30,28 @@ gradLimiter = 0
 viscScheme = 1
 
 # inlet
-boundCond_inlet = "meanflow"
-press_inlet = 984405.92662432
-temp_inlet = 300.1644342252853
-vel_inlet = 3323.8842139926674
-rho_inlet = 12914.76650092348
+boundCond_inlet = "fullstate"
+press_inlet = 101325
+temp_inlet = 300
+vel_inlet = 20
+rho_inlet = .651689
 massFrac_inlet = [1.0, 0.0, 0.0,0.0, 0.0]
 
 # outlet
-boundCond_outlet = "meanflow"
-press_outlet = 976139.3884883802
-vel_outlet = 1153.8197059354775
-rho_outlet = 1556.2585511484947
+boundCond_outlet = "subsonic"
+press_outlet = 100000
+vel_outlet = 20
+rho_outlet = .651689
 massFrac_outlet = [1.0, 0.0, 0.0,0.0, 0.0]
 
-pertType_outlet = "pressure"
-pertPerc_outlet = 0.01
-pertFreq_outlet = [200000.0]
+#pertType_outlet = "pressure"
+#pertPerc_outlet = 0
+#0.01
+#pertFreq_outlet = [200000.0]
 
 # misc
 velAdd = 0.0
-sourceOn = True
+sourceOn = False
 
 # restart files
 saveRestarts    = False
@@ -73,11 +74,11 @@ probeVars = ["pressure"]
 niceVis 	= False
 visShow 	= True
 visSave 	= True
-visInterval = 100
+visInterval = 1
 
 visType1 	= "field"
 visVar1 	= ["pressure","velocity"]
-visYBounds1 = [[974000,990000],[-2,12]]
+visYBounds1 = 
 
 visType2 	= "probe"
 visVar2  	= ["pressure"]

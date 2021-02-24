@@ -1,13 +1,11 @@
 xSplit = 0.00501
 
-pressLeft 		= 1.0e5
-velLeft 		 0.0
-velLeft 		= 1.0e-25
+pressLeft 		= 101325
+velLeft 		= 20
 tempLeft 		= 300.0
-massFracLeft 	= [0.25,0.75,0.0,0.0,0.0]
+massFracLeft 	= [1.0,0.0,0.0,0.0,0.0]
 
-pressRight       = 1.0e5
-velRight          0.0
-velRight         = 1.0e-25
+pressRight       = 101325
+velRight         = 20
 tempRight        = 300.0
-massFracRight    = [0.5,0.5,0.0,0.0,0.0]
+massFracRight    = [1.0,0.0,0.0,0.0,0.0]

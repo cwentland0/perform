@@ -1,7 +1,7 @@
 # input files
-gasFile = "~/path/to/pygems/examples/contact_surface/Inputs/global1.chem"
-meshFile = "~/path/to/pygems/examples/contact_surface/Inputs/mesh_0to0.01_1000c.inp"
-initFile = "~/path/to/pygems/examples/contact_surface/Inputs/contact_surface_ic.npy"
+gasFile = "./Inputs/global1.chem"
+meshFile = "./Inputs/mesh_0to0.01_1000c.inp"
+initFile = "./Inputs/contact_surface_ic.npy"
 
 # time discretization
 dt         = 5.0e-9

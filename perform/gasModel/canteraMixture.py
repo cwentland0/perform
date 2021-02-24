@@ -91,7 +91,7 @@ class canteraMixture(gasModel):
 		conv_tol=1e-12
 		gasArray.TDY= Ti , rho, self.padMassFrac(rhoY/rho).transpose()
 		#print(gasArray.Y[0])
-		print("Temp","Sense(goal) H","H(calced)","h0","KE","species","temp min")
+		#print("Temp","Sense(goal) H","H(calced)","h0","KE","species","temp min")
 		for i in range(iter_max):
 			gasArray.TDY = T,rho,gasArray.Y
 			dh = hSense - gasArray.enthalpy_mass
@@ -100,7 +100,7 @@ class canteraMixture(gasModel):
 			if(np.min(T+dT)<0): #Try to minimize overshoot
 				ft=.1
 			T=T+ft*dT
-			print(T[0],hSense[0],gasArray.enthalpy_mass[0],(rhoH[0]/rho[0]), np.square(rhoU[0]/rho[0])/2, gasArray.Y[0],np.min(T))
+			#print(T[0],hSense[0],gasArray.enthalpy_mass[0],(rhoH[0]/rho[0]), np.square(rhoU[0]/rho[0])/2, gasArray.Y[0],np.min(T))
 			if( np.max(np.abs(dT)/T)<conv_tol):
 				break
 			
