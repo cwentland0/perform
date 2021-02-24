@@ -135,7 +135,7 @@ class solutionPhys:
 			# compute derivatives of density and stagnation enthalpy with respect to pressure and temperature
 			DDensDPress, DDensDTemp = self.gasModel.calcDensityDerivatives(densCurr, wrtPress=True, pressure=self.solPrim[0,:], 
 																		   wrtTemp=True, temperature=self.solPrim[2,:])
-			DStagEnthDPress, DStagEnthDTemp = self.gasModel.calcStagEnthalpyDerivatives(wrtPress=True, wrtTemp=True, massFracs=self.solPrim[3:,:])
+			DStagEnthDPress, DStagEnthDTemp = self.gasModel.calcStagEnthalpyDerivatives(wrtPress=True, wrtTemp=True, massFracs=self.solPrim[3:,:],temperature=self.solPrim[2,:])
 
 			# compute change in temperature and pressure 
 			dFactor = 1.0 / (DDensDPress * DStagEnthDTemp - DDensDTemp * DStagEnthDPress)

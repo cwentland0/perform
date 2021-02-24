@@ -14,7 +14,8 @@ class canteraMixture(gasModel):
 
 		self.gasType 				= gasDict["gasType"]
 		self.gas				=	ct.Solution(gasDict["ctiFile"])
-		self.gas.TP			=   300,101325
+		self.Tmin 				= gasDict["Tmin"]
+		self.gas.TP			=   self.Tmin,101325
 		#self.gasArray			=	ct.SolutionArray(self.gas,numCells)  #used for keeping track of cell properties
 		#self.gasChecker			=   ct.SolutionArray(self.gas,1)  #used for state independent lookup
 		
@@ -25,8 +26,8 @@ class canteraMixture(gasModel):
 		#self.enthRef 			= -2.545e+05#gasDict["enthRef"].astype(realType) 		# reference enthalpy, J/kg
 		#self.tempRef 			= 0.0#gasDict["tempRef"]						# reference temperature, K
 		#self.Cp 				= gasDict["Cp"].astype(realType)			# heat capacity at constant pressure, J/(kg-K)
-		self.Pr 				= gasDict["Pr"].astype(realType)			# Prandtl number
-		self.Sc 				= gasDict["Sc"].astype(realType)			# Schmidt number
+		#self.Pr 				= gasDict["Pr"].astype(realType)			# Prandtl number
+		#self.Sc 				= gasDict["Sc"].astype(realType)			# Schmidt number
 		#self.muRef				= gasDict["muRef"].astype(realType)			# reference dynamic viscosity for Sutherland model
 		
 
@@ -48,6 +49,9 @@ class canteraMixture(gasModel):
 		#self.CpDiffs 			= self.Cp[:-1] - self.Cp[-1]
 		#self.enthRefDiffs 		= self.enthRef[:-1] - self.enthRef[-1]
 
+	def tempLim(self,temp):
+		return np.where(temp>self.Tmin,temp,self.Tmin)
+
 	def padMassFrac(self,nm1MassFrac):
 		nMassFrac = np.concatenate((nm1MassFrac, (1 - np.sum(nm1MassFrac, axis = 0, keepdims = True))), axis = 0)
 		return nMassFrac
@@ -68,6 +72,7 @@ class canteraMixture(gasModel):
 
 
 	def calcEnthalpy(self,density,vel,temp,pressure,Y,enthRefMix,CpMix):
+		temp=self.tempLim(temp)
 		gasArray=ct.SolutionArray(self.gas,Y.shape[1])
 		gasArray.TPY=temp,pressure,self.padMassFrac(Y).transpose()
 		#print(gasArray.enthalpy_mass[0],gasArray.Y[0])
@@ -86,7 +91,7 @@ class canteraMixture(gasModel):
 		conv_tol=1e-12
 		gasArray.TDY= Ti , rho, self.padMassFrac(rhoY/rho).transpose()
 		#print(gasArray.Y[0])
-
+		print("Temp","Sense(goal) H","H(calced)","h0","KE","species","temp min")
 		for i in range(iter_max):
 			gasArray.TDY = T,rho,gasArray.Y
 			dh = hSense - gasArray.enthalpy_mass
@@ -95,7 +100,7 @@ class canteraMixture(gasModel):
 			if(np.min(T+dT)<0): #Try to minimize overshoot
 				ft=.1
 			T=T+ft*dT
-			print(T[0],hSense[0],cp[0],gasArray.enthalpy_mass[0],gasArray.Y[0],np.min(T))
+			print(T[0],hSense[0],gasArray.enthalpy_mass[0],(rhoH[0]/rho[0]), np.square(rhoU[0]/rho[0])/2, gasArray.Y[0],np.min(T))
 			if( np.max(np.abs(dT)/T)<conv_tol):
 				break
 			
@@ -103,6 +108,10 @@ class canteraMixture(gasModel):
 
 	# compute mixture specific heat at constant pressure
 	def calcMixCp(self, massFrac,temperature):
+		if(temperature is None):
+			print("TPG assuming 300K")
+			temperature=300*np.ones(massFrac.shape[1])
+		temperature=self.tempLim(temperature)
 		gasArray=ct.SolutionArray(self.gas,massFrac.shape[1])
 		gasArray.TPY=temperature,gasArray.P, self.padMassFrac(massFrac).transpose()
 		return gasArray.cp_mass
@@ -119,6 +128,7 @@ class canteraMixture(gasModel):
 
 	# compute individual enthalpies for each species
 	def calcSpeciesEnthalpies(self, temperature):
+		temperature=self.tempLim(temperature)
 		gasArray=ct.SolutionArray(self.gas,temperature.size)
 		gasArray.TPY=temperature,gasArray.P,gasArray.Y
 		speciesEnthalpy=gasArray.partial_molar_enthalpies/gasArray.molecular_weights
