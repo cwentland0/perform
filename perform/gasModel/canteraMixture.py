@@ -74,7 +74,8 @@ class canteraMixture(gasModel):
 		return density * (gasArray.enthalpy_mass + np.power(vel,2.)/2)- pressure
 
 	def calcTemperature(self,rho,rhoU,rhoH,rhoY,enthRefMix,CpMix,RMix):
-
+		# Calculates Temperature from enthalpy
+		# Requires convergence and recomputation of cp and temperature
 		hSense= (rhoH/rho) - np.square(rhoU/rho)/2 
 		gasArray=ct.SolutionArray(self.gas,rho.shape[0])
 		#1st guess
@@ -91,6 +92,8 @@ class canteraMixture(gasModel):
 			dh = hSense - gasArray.enthalpy_mass
 			cp = self.calcMixCp(rhoY/rho,gasArray.T)
 			dT = dh/cp 
+			if(np.min(T+dT)<0): #Try to minimize overshoot
+				ft=.1
 			T=T+ft*dT
 			print(T[0],hSense[0],cp[0],gasArray.enthalpy_mass[0],gasArray.Y[0],np.min(T))
 			if( np.max(np.abs(dT)/T)<conv_tol):
