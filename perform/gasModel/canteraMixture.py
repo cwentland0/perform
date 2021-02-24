@@ -14,6 +14,7 @@ class canteraMixture(gasModel):
 
 		self.gasType 				= gasDict["gasType"]
 		self.gas				=	ct.Solution(gasDict["ctiFile"])
+		self.gas.TP			=   300,101325
 		#self.gasArray			=	ct.SolutionArray(self.gas,numCells)  #used for keeping track of cell properties
 		#self.gasChecker			=   ct.SolutionArray(self.gas,1)  #used for state independent lookup
 		
@@ -69,22 +70,33 @@ class canteraMixture(gasModel):
 	def calcEnthalpy(self,density,vel,temp,pressure,Y,enthRefMix,CpMix):
 		gasArray=ct.SolutionArray(self.gas,Y.shape[1])
 		gasArray.TPY=temp,pressure,self.padMassFrac(Y).transpose()
-		print(gasArray.enthalpy_mass[0],gasArray.Y[0])
+		#print(gasArray.enthalpy_mass[0],gasArray.Y[0])
 		return density * (gasArray.enthalpy_mass + np.power(vel,2.)/2)- pressure
 
 	def calcTemperature(self,rho,rhoU,rhoH,rhoY,enthRefMix,CpMix,RMix):
+
+		hSense= (rhoH/rho) - np.square(rhoU/rho)/2 
 		gasArray=ct.SolutionArray(self.gas,rho.shape[0])
 		#1st guess
-		iter=10
-		startStep=100
-		gasArray.TDY= gasArray.T , rho, self.padMassFrac(rhoY/rho).transpose()
-		print(gasArray.Y[0])
-		for i in range(iter):
-			diff= (gasArray.enthalpy_mass - (rhoH/rho - np.sqrt(np.abs(rhoU/rho))/2) )
-			print(i,gasArray.T[0], gasArray.enthalpy_mass[0] , (rhoH/rho - np.sqrt(np.abs(rhoU/rho))/2)[0], diff[0] )
-			gasArray.TDY= gasArray.T+  (diff/np.abs(diff)) *startStep,rho,gasArray.Y
-		assert(False)
-		return 	
+		ft=1
+		Ti=self.gas.T
+		T=gasArray.T
+		iter_max=20
+		conv_tol=1e-12
+		gasArray.TDY= Ti , rho, self.padMassFrac(rhoY/rho).transpose()
+		#print(gasArray.Y[0])
+
+		for i in range(iter_max):
+			gasArray.TDY = T,rho,gasArray.Y
+			dh = hSense - gasArray.enthalpy_mass
+			cp = self.calcMixCp(rhoY/rho,gasArray.T)
+			dT = dh/cp 
+			T=T+ft*dT
+			print(T[0],hSense[0],cp[0],gasArray.enthalpy_mass[0],gasArray.Y[0],np.min(T))
+			if( np.max(np.abs(dT)/T)<conv_tol):
+				break
+			
+		return gasArray.T
 
 	# compute mixture specific heat at constant pressure
 	def calcMixCp(self, massFrac,temperature):

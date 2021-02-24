@@ -71,7 +71,7 @@ class solutionPhys:
 		
 		self.solPrim[3:,:] = self.solCons[3:,:] / self.solCons[[0],:]
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
-
+		
 		# update thermo properties
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
 		if(self.gasModel.gasType != "cantera"):
@@ -82,7 +82,6 @@ class solutionPhys:
 		# TODO: gasModel references
 		self.solPrim[1,:] = self.solCons[1,:] / self.solCons[0,:]
 		self.solPrim[2,:] = self.gasModel.calcTemperature(self.solCons[0,:],self.solCons[1,:],self.solCons[2,:],self.solPrim[3:,:],self.enthRefMix,self.CpMix,self.RMix) 
-		assert(False)
 		self.solPrim[0,:] = self.solCons[0,:] * self.RMix * self.solPrim[2,:]
 		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs,self.solPrim[2,:])
 
@@ -105,7 +104,7 @@ class solutionPhys:
 		self.solCons[1,:]  = self.solCons[0,:] * self.solPrim[1,:]				
 		self.solCons[2,:]  = self.gasModel.calcEnthalpy(self.solCons[0,:],self.solPrim[1,:],self.solPrim[2,:],self.solPrim[0,:],self.solPrim[3:,:],self.enthRefMix,self.CpMix)
 		self.solCons[3:,:] = self.solCons[0,:] * self.solPrim[3:,:]
- 
+		#breakpoint()
 
 	def calcStateFromRhoH0(self):
 		"""
