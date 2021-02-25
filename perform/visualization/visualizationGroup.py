@@ -79,7 +79,9 @@ class visualizationGroup:
 			for vis in self.visList:
 				vis.fig, vis.ax = plt.subplots(nrows=vis.numRows, ncols=vis.numCols, num=vis.visID, figsize=(figWidthDefault,figHeightDefault))	
 			
-		
+		if self.visShow:
+			plt.show(block=False)
+			plt.pause(0.001)
 
 	def drawPlots(self, solDomain, solver):
 		""" 

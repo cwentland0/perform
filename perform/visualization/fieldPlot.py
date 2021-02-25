@@ -100,7 +100,7 @@ class fieldPlot(visualization):
 			elif (varStr[:7] == "species"):
 				specIdx = int(varStr[7:])
 				if (specIdx == gasModel.numSpeciesFull):
-					massFracs = gasModel.calcAllMassFracs(solPrim[3:,:])
+					massFracs = gasModel.calcAllMassFracs(solPrim[3:,:], threshold=False)
 					yData = massFracs[-1,:]
 				else:
 					yData = solPrim[3+specIdx-1,:]

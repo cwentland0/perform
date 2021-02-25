@@ -12,8 +12,8 @@ class autoencoderGalerkinProjTFKeras(autoencoderTFKeras):
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		if (romDomain.timeIntegrator.timeType == "implicit"):
-			raise ValueError("Implicit TF-Keras NLM Galerkin not implemented yet")
+		if romDomain.timeIntegrator.dualTime:
+			raise ValueError("Galerkin is intended for conservative variable evolution, please set dualTime = False")
 
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
@@ -35,3 +35,26 @@ class autoencoderGalerkinProjTFKeras(autoencoderTFKeras):
 
 			self.projector = pinv(jacob)
 
+
+	def calcDCode(self, resJacob, res):
+		"""
+		Compute change in low-dimensional state for implicit scheme Newton iteration
+		TODO: this is non-general and janky, only valid for BDF 
+		"""
+
+		if (self.encoderJacob):
+			raise ValueError("Encoder Jacobian not implemented yet")
+
+		else:
+
+			# decoder Jacobian, scaled
+			jacob = self.calcModelJacobian()
+			scaledJacob = jacob * self.normFacProfCons.ravel(order="C")[:,None]
+			jacobPinv = pinv(scaledJacob)
+
+			# Newton iteration linear solve
+			LHS = jacobPinv @ (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledJacob
+			RHS = jacobPinv @ (res / self.normFacProfCons).ravel(order="C")
+			dCode = np.linalg.solve(LHS, RHS)
+
+		return dCode, LHS, RHS

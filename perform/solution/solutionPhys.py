@@ -79,6 +79,12 @@ class solutionPhys:
 		self.solPrim[3:,:] = self.solCons[3:,:] / self.solCons[[0],:]
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
 
+		# threshold
+		# TODO: is this valid? It shouldn't violate mass conservation since density stays the same
+		massFracs = self.gasModel.calcAllMassFracs(massFracs, threshold=True)[:-1,:]
+		self.solPrim[3:,:] = massFracs
+		self.solCons[3:,:] = self.solPrim[3:,:] * self.solCons[[0],:]
+
 		# update thermo properties
 		self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcGamma:
@@ -102,6 +108,8 @@ class solutionPhys:
 		"""
 
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
+		massFracs = self.gasModel.calcAllMassFracs(massFracs, threshold=True)[:-1,:] 		# threshold
+		self.solPrim[3:,:] = massFracs
 
 		# update thermo properties
 		self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)

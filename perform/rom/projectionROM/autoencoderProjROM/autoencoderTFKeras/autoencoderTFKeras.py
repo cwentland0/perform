@@ -82,7 +82,6 @@ class autoencoderTFKeras(autoencoderProjROM):
 		Compute raw decoding of code, without de-normalizing or de-centering
 		"""
 
-		# sol = np.squeeze(self.decoder.predict(code[None,:]), axis=0)
 		sol = np.squeeze(self.decoder(code[None,:]).numpy(), axis=0)
 		if (self.ioFormat == "NHWC"):
 			sol = sol.T
