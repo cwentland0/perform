@@ -9,7 +9,7 @@ class solutionPhys:
 	Base class for physical solution (opposed to ROM solution)
 	"""
 
-	def __init__(self, gas, solPrimIn, numCells):
+	def __init__(self, gas, numCells, solPrimIn=None, solConsIn=None):
 		
 		self.gasModel = gas
 
@@ -49,10 +49,16 @@ class solutionPhys:
 		self.wf = np.zeros((1, numCells), dtype=realType)
 
 		# set initial condition
-		assert(solPrimIn.shape == (self.gasModel.numEqs, numCells))
-		self.solPrim = solPrimIn.copy()
-		self.updateState(fromCons=False)
-
+		if (solPrimIn is not None):
+			assert(solPrimIn.shape == (self.gasModel.numEqs, numCells))
+			self.solPrim = solPrimIn.copy()
+			self.updateState(fromCons=False)
+		elif (solConsIn is not None):
+			assert(solConsIn.shape == (self.gasModel.numEqs, numCells))
+			self.solCons = solConsIn.copy()
+			self.updateState(fromCons=True)
+		else:
+			raise ValueError("Must provide either solPrimIn or solConsIn to solutionPhys")
 
 	def updateState(self, fromCons=True):
 		"""
@@ -60,12 +66,12 @@ class solutionPhys:
 		"""
 
 		if fromCons:
-			self.calcStateFromCons(calcR=True, calcEnthRef=True, calcCp=True, calcGamma=True)
+			self.calcStateFromCons(calcR=True, calcCp=True, calcGamma=True)
 		else:
-			self.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True, calcGamma=True)
+			self.calcStateFromPrim(calcR=True, calcCp=True, calcGamma=True)
 
 
-	def calcStateFromCons(self, calcR=False, calcEnthRef=False, calcCp=False, calcGamma=False):
+	def calcStateFromCons(self, calcR=False, calcCp=False, calcGamma=False):
 		"""
 		Compute primitive state from conservative state
 		"""
@@ -74,11 +80,11 @@ class solutionPhys:
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
 
 		# update thermo properties
+		self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcGamma:
 			calcR  = True
 			calcCp = True
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
-		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
 		if calcGamma:   self.gammaMix   = self.gasModel.calcMixGamma(self.RMix,self.CpMix)
 
@@ -90,7 +96,7 @@ class solutionPhys:
 		self.solPrim[0,:] = self.solCons[0,:] * self.RMix * self.solPrim[2,:]
 
 
-	def calcStateFromPrim(self, calcR=False, calcEnthRef=False, calcCp=False, calcGamma=False):
+	def calcStateFromPrim(self, calcR=False, calcCp=False, calcGamma=False):
 		"""
 		Compute state from primitive state
 		"""
@@ -98,11 +104,11 @@ class solutionPhys:
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
 
 		# update thermo properties
+		self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcGamma:
 			calcR  = True
 			calcCp = True
 		if calcR:       self.RMix       = self.gasModel.calcMixGasConstant(massFracs)
-		if calcEnthRef: self.enthRefMix = self.gasModel.calcMixEnthRef(massFracs)
 		if calcCp:      self.CpMix      = self.gasModel.calcMixCp(massFracs)
 		if calcGamma:   self.gammaMix   = self.gasModel.calcMixGamma(self.RMix,self.CpMix)
 

@@ -127,6 +127,7 @@ class romModel:
 		return arr
 
 
+
 	def decodeSol(self, codeIn):
 		"""
 		Compute full decoding of solution, including decentering and denormalization
@@ -175,6 +176,7 @@ class romModel:
 	def calcCodeNorms(self):
 		"""
 		Compute L1 and L2 norms of low-dimensional state linear solve residuals
+		Scaled by number of elements, so "L2 norm" here is really RMS
 		"""
 
 		resAbs = np.abs(self.res)

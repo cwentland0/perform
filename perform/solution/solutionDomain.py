@@ -49,12 +49,12 @@ class solutionDomain:
 		# average solution for Roe scheme
 		if (solver.spaceScheme == "roe"):
 			onesProf    = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
-			self.solAve  = solutionPhys(gas, onesProf, self.solInt.numCells+1)
+			self.solAve  = solutionPhys(gas, self.solInt.numCells+1, solPrimIn=onesProf)
 
 		# for flux calculations
 		onesProf = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
-		self.solL = solutionPhys(gas, onesProf, self.solInt.numCells+1)
-		self.solR = solutionPhys(gas, onesProf, self.solInt.numCells+1)
+		self.solL = solutionPhys(gas, self.solInt.numCells+1, solPrimIn=onesProf)
+		self.solR = solutionPhys(gas, self.solInt.numCells+1, solPrimIn=onesProf)
 
 		# to avoid repeated concatenation of ghost cell states
 		self.solPrimFull = np.zeros((self.gasModel.numEqs, self.solIn.numCells+self.solInt.numCells+self.solOut.numCells), dtype=const.realType)

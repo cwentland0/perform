@@ -6,6 +6,7 @@ from perform.rom.projectionROM.linearProjROM.linearSPLSVTProj import linearSPLSV
 # TensorFlow-Keras autoencoder models
 from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderGalerkinProjTFKeras import autoencoderGalerkinProjTFKeras
 from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderLSPGProjTFKeras import autoencoderLSPGProjTFKeras
+from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderSPLSVTProjTFKeras import autoencoderSPLSVTProjTFKeras
 
 def getROMModel(modelIdx, romDomain, solver, solDomain):
 	"""
@@ -27,6 +28,9 @@ def getROMModel(modelIdx, romDomain, solver, solDomain):
 
 	elif (romDomain.romMethod == "autoencoderLSPGProjTFKeras"):
 		model = autoencoderLSPGProjTFKeras(modelIdx, romDomain, solver, solDomain)
+
+	elif (romDomain.romMethod == "autoencoderSPLSVTProjTFKeras"):
+		model = autoencoderSPLSVTProjTFKeras(modelIdx, romDomain, solver, solDomain)
 
 	else:
 		raise ValueError("Invalid ROM method name: "+romDomain.romMethod)

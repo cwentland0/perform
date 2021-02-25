@@ -41,8 +41,8 @@ def calcRHS(solDomain, solver):
 		solPrimGrad = calcCellGradients(solDomain, solver)
 		solL.solPrim[:,solDomain.fluxLExtract] += (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradLExtract]
 		solR.solPrim[:,solDomain.fluxRExtract] -= (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradRExtract]
-		solL.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
-		solR.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
+		solL.calcStateFromPrim(calcR=True, calcCp=True)
+		solR.calcStateFromPrim(calcR=True, calcCp=True)
 
 	# compute fluxes
 	flux = calcInvFlux(solDomain, solver)
@@ -96,7 +96,7 @@ def calcInvFlux(solDomain, solver):
 	solAve.calcStateFromRhoH0()
 
 	# compute Roe average state at faces, associated fluid properties
-	solAve.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
+	solAve.calcStateFromPrim(calcR=True, calcCp=True)
 	solAve.gammaMix = solDomain.gasModel.calcMixGamma(solAve.RMix, solAve.CpMix)
 	solAve.c = solDomain.gasModel.calcSoundSpeed(solAve.solPrim[2,:], RMix=solAve.RMix, gammaMix=solAve.gammaMix,
 											 massFracs=solAve.solPrim[3:,:], CpMix=solAve.CpMix)

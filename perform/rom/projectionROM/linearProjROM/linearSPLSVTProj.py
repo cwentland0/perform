@@ -10,11 +10,11 @@ class linearSPLSVTProj(linearProjROM):
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		if ((romDomain.timeIntegrator.timeType == "implicit") and (not romDomain.timeIntegrator.dualTime)):
-			raise ValueError("SP-LSVT is intended for primitive variable evolution, please use Galerkin or LSPG, or set dualTime = True")
-
 		if (romDomain.timeIntegrator.timeType == "explicit"):
 			raise ValueError("Explicit SP-LSVT not implemented yet")
+
+		if ((romDomain.timeIntegrator.timeType == "implicit") and (not romDomain.timeIntegrator.dualTime)):
+			raise ValueError("SP-LSVT is intended for primitive variable evolution, please use Galerkin or LSPG, or set dualTime = True")
 
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 

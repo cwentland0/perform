@@ -82,7 +82,8 @@ class autoencoderTFKeras(autoencoderProjROM):
 		Compute raw decoding of code, without de-normalizing or de-centering
 		"""
 
-		sol = np.squeeze(self.decoder.predict(code[None,:]), axis=0)
+		# sol = np.squeeze(self.decoder.predict(code[None,:]), axis=0)
+		sol = np.squeeze(self.decoder(code[None,:]).numpy(), axis=0)
 		if (self.ioFormat == "NHWC"):
 			sol = sol.T
 
@@ -98,7 +99,7 @@ class autoencoderTFKeras(autoencoderProjROM):
 			solIn = (sol.copy()).T
 		else:
 			solIn = sol.copy()
-		code = np.squeeze(self.encoder.predict(solIn[None,:,:]), axis=0)
+		code = np.squeeze(self.encoder(solIn[None,:,:]).numpy(), axis=0)
 
 		return code
 
@@ -117,7 +118,7 @@ class autoencoderTFKeras(autoencoderProjROM):
 		return jacob
 
 
-	def calcNumericalTFJacobian(self, model, inputs):
+	def calcNumericalModelJacobian(self, model, inputs):
 		"""
 		Compute numerical Jacobian of TensorFlow-Keras models by finite difference approximation
 		NOTE: inputs is a np.ndarray
@@ -136,7 +137,7 @@ class autoencoderTFKeras(autoencoderProjROM):
 				jacob = np.zeros((self.numVars, self.numCells, inputs.shape[0]), dtype=realType)
 
 		# get initial prediction
-		outputsBase = np.squeeze(model.predict(inputs[None,:]), axis=0)
+		outputsBase = np.squeeze(model(inputs[None,:]).numpy(), axis=0)
 
 		# TODO: this does not generalize to encoder Jacobian
 		for elemIdx in range(0, inputs.shape[0]):
@@ -146,9 +147,52 @@ class autoencoderTFKeras(autoencoderProjROM):
 			inputsPert[elemIdx] = inputsPert[elemIdx] + self.fdStep
 
 			# make prediction at perturbed state
-			outputs = np.squeeze(model.predict(inputsPert[None,:]), axis=0)
+			outputs = np.squeeze(model(inputsPert[None,:]).numpy(), axis=0)
 
 			# compute finite difference approximation
 			jacob[:,:,elemIdx] = (outputs - outputsBase) / self.fdStep
+
+		return jacob
+
+
+	def calcModelJacobian(self):
+		"""
+		Helper function for calculating TensorFlow-Keras model Jacobian
+		"""
+
+		# TODO: generalize this for generic model, input
+
+		if self.encoderJacob:
+			# TODO: only calculate the standardized solution once, hang onto it
+			# 	don't have to pass solDomain, too
+			sol = self.standardizeData(solDomain.solInt.solCons[self.varIdxs, :],
+										normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons,
+										center=True, centProf=self.centProfCons, inverse=False)
+
+			if self.numericalJacob:
+				jacob = self.calcNumericalTFJacobian(self.encoder, sol)
+			else:
+				self.jacobInput.assign(sol[None,:,:])
+				jacobTF = self.calcAnalyticalModelJacobian(self.encoder, self.jacobInput)
+				jacob = tf.squeeze(jacobTF, axis=[0,2]).numpy()
+
+			if (self.ioFormat == "NHWC"):
+				jacob = np.transpose(jacob, axes=(0,2,1))
+
+			jacob = np.reshape(jacob, (self.latentDim, -1), order='C')
+
+		else:
+
+			if self.numericalJacob:
+				jacob = self.calcNumericalTFJacobian(self.decoder, self.code)
+			else:
+				self.jacobInput.assign(self.code[None,:])
+				jacobTF = self.calcAnalyticalModelJacobian(self.decoder, self.jacobInput)
+				jacob = tf.squeeze(jacobTF, axis=[0,3]).numpy()
+
+			if (self.ioFormat == "NHWC"):
+				jacob = np.transpose(jacob, axes=(1,0,2))
+
+			jacob = np.reshape(jacob, (-1, self.latentDim), order='C')
 
 		return jacob

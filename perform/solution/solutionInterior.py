@@ -12,7 +12,7 @@ class solutionInterior(solutionPhys):
 	"""
 
 	def __init__(self, gas, solPrimIn, solver, timeInt):
-		super().__init__(gas, solPrimIn, solver.mesh.numCells)
+		super().__init__(gas, solver.mesh.numCells, solPrimIn=solPrimIn)
 
 		gas = self.gasModel
 		numCells = solver.mesh.numCells 

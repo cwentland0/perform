@@ -7,9 +7,7 @@ from perform.Jacobians import calcDResDSolPrim
 from perform.rom import getROMModel
 
 import numpy as np
-from scipy.sparse.linalg import spsolve
 from time import sleep
-import pdb
 import os
 
 
@@ -180,14 +178,6 @@ class romDomain:
 			self.hasConsNorm 		= True
 			self.hasPrimNorm 		= True
 			self.hasPrimCent 		= True
-		elif (self.romMethod == "liftAndLearn"):
-			# TODO: the cons/prim dichotomy doesn't work for lifted variables
-			self.hasTimeIntegrator 	= True
-			raise ValueError("Finalize settings of method parameters for lift and learn")
-		elif (self.romMethod == "tcnNonintrusive"):
-			# TODO: TCN does not **need** to target one or the other
-			self.targetCons = catchInput(self.romDict, "targetCons", False)
-			self.targetPrim = catchInput(self.romDict, "targetPrim", False)
 		else:
 			raise ValueError("Invalid ROM method name: "+self.romMethod)
 
@@ -266,8 +256,8 @@ class romDomain:
 
 		# Roe average
 		if (solver.spaceScheme == "roe"):
-			zerosProf        = np.zeros((solDomain.gasModel.numEqs, solDomain.numFluxFaces), dtype=const.realType)
-			solDomain.solAve = solutionPhys(solDomain, zerosProf, zerosProf, solDomain.numFluxFaces, solver)
+			onesProf        = np.ones((solDomain.gasModel.numEqs, solDomain.numFluxFaces), dtype=const.realType)
+			solDomain.solAve = solutionPhys(solDomain.gasModel, solDomain.numFluxFaces, solPrimIn=onesProf)
 
 		# to slice flux when calculating RHS
 		solDomain.fluxRHSIdxs = np.zeros(solDomain.numSampCells, np.int32)
@@ -389,7 +379,7 @@ class romDomain:
 
 				# compute ROM residual for convergence measurement
 				model.res = codeLHS @ dCode - codeRHS
-				
+
 			solInt.updateState(fromCons = (not solDomain.timeIntegrator.dualTime))
 			solInt.solHistCons[0] = solInt.solCons.copy()
 			solInt.solHistPrim[0] = solInt.solPrim.copy()

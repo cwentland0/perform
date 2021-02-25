@@ -25,36 +25,13 @@ class autoencoderGalerkinProjTFKeras(autoencoderTFKeras):
 		Encoder projector is just encoder Jacobian
 		"""
 
-		# TODO: could probably move some of this stuff into autoencoderTFKeras
+		jacob = self.calcModelJacobian()
 
 		if self.encoderJacob:
-			# TODO: only calculate the standardized solution once, hang onto it
-			# 	don't have to pass solDomain, too
-			sol = self.standardizeData(solDomain.solInt.solCons[self.varIdxs, :], 
-										normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons, 
-										center=True, centProf=self.centProfCons, inverse=False)
 			
-			self.jacobInput.assign(sol[None,:,:])
-			jacobTF = self.calcAnalyticalModelJacobian(self.encoder, self.jacobInput)
-			jacob = tf.squeeze(jacobTF, axis=[0,2]).numpy()
-
-			if (self.ioFormat == "NHWC"):
-				jacob = np.transpose(jacob, axes=(0,2,1))
-
-			self.projector = np.reshape(jacob, (self.latentDim, -1), order='C')
+			self.projector = jacob
 
 		else:
-
-			if self.numericalJacob:
-				jacob = self.calcNumericalTFJacobian(self.decoder, self.code)
-			else:
-				self.jacobInput.assign(self.code[None,:])
-				jacobTF = self.calcAnalyticalModelJacobian(self.decoder, self.jacobInput)
-				jacob = tf.squeeze(jacobTF, axis=[0,3]).numpy()
-
-			if (self.ioFormat == "NHWC"):
-				jacob = np.transpose(jacob, axes=(1,0,2))
-			jacob = np.reshape(jacob, (-1, self.latentDim), order='C')
 
 			self.projector = pinv(jacob)
 
