@@ -98,8 +98,8 @@ class visualization:
 
 				# TODO: some way to incorporate actual species name
 				elif (varStr[:7] == "species"):
-					self.axLabels[axIdx] = "Species "+str(varStr[7:])+" Mass Fraction" 
+					self.axLabels[axIdx] = "Spec. "+str(varStr[7:])+" MF" 
 				elif (varStr[:15] == "density-species"):
-					self.axLabels[axIdx] = "Density-weighted Species "+str(varStr[7:])+" Mass Fraction (kg/m^3)"
+					self.axLabels[axIdx] = "Rho*Spec. "+str(varStr[15:])+" MF (kg/m^3)"
 				else:
 					raise ValueError("Invalid field visualization variable:"+str(varStr))
