@@ -1,5 +1,5 @@
 from perform.rom.linearProjROM.linearProjROM import linearProjROM
-# from perform.rom.ModelAdaption.adapt import adapt
+from perform.rom.ModelAdaption.adaptROM import adaptROM
 
 import numpy as np
 
@@ -19,7 +19,7 @@ class linearGalerkinProj(linearProjROM):
 
 		self.calcProjector(romDomain, runCalc=True)
 
-		if romDomain.adaptiveROM: self.adapt = adapt(self, solver, romDomain)
+		if romDomain.adaptiveROM: self.adapt = adaptROM(self, solver, romDomain)
 
 
 	def decodeSol(self, code):

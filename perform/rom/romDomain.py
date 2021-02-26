@@ -87,9 +87,14 @@ class romDomain:
 		# Adaptive ROM
 		self.adaptiveROM = catchInput(romDict, "adaptiveROM", False)
 		if self.adaptiveROM:
-				self.adaptiveROMMethod = catchInput(romDict, "adaptiveROMMethod", "OSAB")
-				self.adaptiveROMParams = catchInput(romDict, "adaptiveROMParams", [""])
-				self.staleConsFileName	   = catchInput(romDict, "staleConsFileName", "solCons_FOM.npy")
+				self.adaptiveROMMethod 				=	catchInput(romDict, "adaptiveROMMethod", "OSAB")
+				self.adaptROMstaleConsFName	  		=	catchInput(romDict, "adaptROMstaleConsFName", "solCons_FOM.npy")
+				self.adaptROMResidualSampStep		=	catchInput(romDict, "adaptROMResidualSampStep", 1)
+				self.adaptROMnumResSamp				=	catchInput(romDict, "adaptROMnumResSamp", solver.mesh.numCells)
+				self.adaptROMUpdateRank				=	catchInput(romDict, "adaptROMUpdateRank", 1)
+				assert(self.adaptROMUpdateRank > 0), '~adaptROMUpdateRank~ should be greater than zero'
+				self.adaptROMWindowSize				=	catchInput(romDict, "adaptROMWindowSize", 1)
+				assert(self.adaptROMWindowSize > 0), '~adaptROMWindowSize~ should be greater than zero'
 
 		# set up hyper-reduction, if necessary
 		self.hyperReduc = catchInput(romDict, "hyperReduc", False)
@@ -423,7 +428,7 @@ class romDomain:
 		else:
 
 			for modelIdx, model in enumerate(self.modelList):
-				if(self.adaptiveROM and model.adapt.subIteration):
+				if(self.adaptiveROM and model.adapt.adaptsubIteration):
 					model.adaptSubIteration(self, solDomain)
 				else:
 					model.calcRHSLowDim(self, solDomain)
