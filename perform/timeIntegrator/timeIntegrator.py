@@ -14,5 +14,5 @@ class timeIntegrator:
 		self.timeScheme = str(paramDict["timeScheme"])	# time integration scheme
 		self.timeOrder 	= int(paramDict["timeOrder"])	# time integration order of accuracy
 		assert (self.timeOrder >= 1), "timeOrder only accepts positive integer values."
-
+		self.staleStatetimeOrder = 1
 		self.subiter 	= 0		# subiteration number for multi-stage schemes

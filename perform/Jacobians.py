@@ -309,6 +309,9 @@ def calcDResDSolPrim(solDomain, solver):
 
 	# TODO: make this specific for each implicitIntegrator
 	dtCoeffIdx = min(solver.iter, solDomain.timeIntegrator.timeOrder) - 1
+	dtCoeffIdx = max(solDomain.timeIntegrator.staleStatetimeOrder-1, dtCoeffIdx) # updating timeOrder is stale solutions are available
+
+
 	dtInv = solDomain.timeIntegrator.coeffs[dtCoeffIdx][0] / solDomain.timeIntegrator.dt
 
 	# modifications depending on whether dual-time integration is being used

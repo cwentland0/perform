@@ -48,6 +48,8 @@ class bdf(implicitIntegrator):
 	def calcResidual(self, solHist, rhs, solver):
 		
 		timeOrder = min(solver.iter, self.timeOrder) 	# cold start
+		timeOrder = max(self.staleStatetimeOrder, timeOrder) # updating time order if stale states are avalilable
+
 		coeffs = self.coeffs[timeOrder-1]
 
 		residual = coeffs[0] * solHist[0]

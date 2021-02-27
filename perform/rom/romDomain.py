@@ -5,10 +5,12 @@ from perform.timeIntegrator import getTimeIntegrator
 from perform.solution.solutionPhys import solutionPhys
 from perform.spaceSchemes import calcRHS
 from perform.Jacobians import calcDResDSolPrim
+import perform.constants as const
 
 import numpy as np
 from time import sleep
 import os
+import pdb
 
 # TODO: when moving to multi-domain, it may be useful to just hold a solDomain inside romDomain for the associated full-dim solution
 # 		Still a pain to move around since it's associated with the romDomain and not the romModel, but whatever
@@ -129,7 +131,7 @@ class romDomain:
 				self.modelList[modelIdx].initFromCode(self.code0[modelIdx], solDomain, solver)
 			else:
 				self.modelList[modelIdx].initFromSol(solDomain, solver)
-		
+
 		solDomain.solInt.updateState(fromCons=self.targetCons)
 
 		# get time integrator, if necessary
@@ -148,6 +150,20 @@ class romDomain:
 		# overwrite history with initialized solution
 		solDomain.solInt.solHistCons = [solDomain.solInt.solCons.copy()] * (self.timeIntegrator.timeOrder+1)
 		solDomain.solInt.solHistPrim = [solDomain.solInt.solPrim.copy()] * (self.timeIntegrator.timeOrder+1)
+
+
+		# overwrite model and solution history with the stale solution history
+		if self.adaptiveROM and self.adaptiveROMMethod=='AADEIM':
+
+			assert (os.path.exists(os.path.join(const.unsteadyOutputDir, self.adaptROMstaleConsFName))), \
+				"Path : " + str(os.path.join(const.unsteadyOutputDir, self.adaptROMstaleConsFName)) + " does not exist"
+
+			self.staleSnaphots = np.load(os.path.join(const.unsteadyOutputDir, self.adaptROMstaleConsFName))
+			assert(self.staleSnaphots.shape[-1]>= self.adaptROMWindowSize), 'Insufficient stale snapshots to execute AADEIM'
+
+			for modelIdx, model in enumerate(self.modelList): model.adapt.gatherStaleCons(self, solDomain, solver, model)
+			solDomain.solInt.recalibrateSolutionHistory()
+
 
 
 	def setModelFlags(self):
@@ -366,6 +382,10 @@ class romDomain:
 
 		print("Iteration "+str(solver.iter))
 
+		solDomain.solInt.solCons = solDomain.solInt.solHistCons[0].copy()
+		solDomain.solInt.updateState(fromCons=True)
+
+
 		# update model which does NOT require numerical time integration
 		if not self.hasTimeIntegrator:
 			raise ValueError("Iteration advance for models without numerical time integration not yet implemented")
@@ -374,15 +394,17 @@ class romDomain:
 		else:
 		
 			for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
-
 				self.advanceSubiter(solDomain, solver)
 
 				if (self.timeIntegrator.timeType == "implicit"):
 					self.calcCodeResNorms(solDomain, solver, self.timeIntegrator.subiter)
-					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol): break
+					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol):
+						if self.isIntrusive: calcRHS(solDomain, solver)
+						break
 
 			if self.adaptiveROM:
 				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)
+				if self.adaptiveROMMethod == 'AADEIM': solDomain.solInt.recalibrateSolutionHistory()
 
 		solDomain.solInt.updateSolHist()
 		self.updateCodeHist()
@@ -422,7 +444,6 @@ class romDomain:
 			solInt.updateState(fromCons=True)
 			solInt.solHistCons[0] = solInt.solCons.copy()
 			solInt.solHistPrim[0] = solInt.solPrim.copy()
-
 
 		# explicit time integrator
 		else:

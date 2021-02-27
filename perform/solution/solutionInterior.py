@@ -118,13 +118,25 @@ class solutionInterior(solutionPhys):
 		# primitive and conservative state history
 		self.solHistCons[1:] = self.solHistCons[:-1]
 		self.solHistPrim[1:] = self.solHistPrim[:-1]
-		self.solHistCons[0]  = self.solCons.copy()
-		self.solHistPrim[0]  = self.solPrim.copy()
+		self.solHistCons[0]  = self.solHistCons[1].copy()
+		self.solHistPrim[0]  = self.solHistPrim[1].copy()
 
 		# RHS function history
 		self.rhsHist[1:] = self.rhsHist[:-1]
 		self.rhsHist[0]  = self.RHS.copy()
 
+	def recalibrateSolutionHistory(self):
+
+		retainedSolution = self.solCons.copy()
+
+		for timeIdx in range(len(self.solHistCons)):
+			self.solCons = self.solHistCons[timeIdx].copy()
+			self.updateState(fromCons=True)
+			self.solHistPrim[timeIdx] 	= self.solPrim.copy()
+			self.rhsHist[timeIdx]		= self.RHS.copy()
+
+		self.solCons = retainedSolution.copy()
+		self.updateState(fromCons=True)
 
 	def updateSnapshots(self, solver):
 

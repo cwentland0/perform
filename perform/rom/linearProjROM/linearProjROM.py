@@ -109,3 +109,4 @@ class linearProjROM(romModel):
 					self.adapt.trueStandardizedState = solCons
 					self.calcProjector(romDomain, romDomain.adaptiveROM)
 					self.code = self.projectToLowDim(self.projector, solCons, transpose=False)
+
