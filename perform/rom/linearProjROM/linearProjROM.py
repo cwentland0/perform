@@ -21,7 +21,7 @@ class linearProjROM(romModel):
 			" modes (" + str(numModesBasisIn) + " < " + str(self.latentDim) + ")")
 
 		# flatten first two dimensions for easier matmul
-		self.trialBasis = self.trialBasis[self.varIdxs,:,:self.latentDim]
+		self.trialBasis = self.trialBasis[:,:,:self.latentDim]
 		self.trialBasis = np.reshape(self.trialBasis, (-1, self.latentDim), order='C')
 
 		# load and check gappy POD basis

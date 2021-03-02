@@ -158,7 +158,7 @@ class solutionDomain:
 		if solver.runSteady:
 			self.solInt.calcDSolNorms(solver, self.timeIntegrator.timeType)
 
-		self.solInt.updateSolHist() 
+		self.solInt.updateSolHist()
 
 
 	def advanceSubiter(self, solver):
@@ -189,13 +189,14 @@ class solutionDomain:
 			# borrow solInt.res to store linear solve residual	
 			res = resJacob @ dSol - solInt.res.ravel('C')
 			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='C')
+			print(np.linalg.norm(self.solInt.solCons))
 
 		else:
 
 			dSol = self.timeIntegrator.solveSolChange(solInt.RHS)
 			solInt.solCons = solInt.solHistCons[0] + dSol
 			solInt.updateState(fromCons=True)
-
+			# print(np.linalg.norm(self.solInt.solCons))
 
 	def calcBoundaryCells(self, solver):
 		"""

@@ -3,6 +3,7 @@ from perform.inputFuncs import catchInput
 from perform.timeIntegrator.timeIntegrator import timeIntegrator
 
 import numpy as np
+import pdb
 
 class implicitIntegrator(timeIntegrator):
 	"""
@@ -48,7 +49,7 @@ class bdf(implicitIntegrator):
 	def calcResidual(self, solHist, rhs, solver):
 		
 		timeOrder = min(solver.iter, self.timeOrder) 	# cold start
-		timeOrder = max(self.staleStatetimeOrder, timeOrder) # updating time order if stale states are avalilable
+		timeOrder = max(self.staleStatetimeOrder, timeOrder) # updating time order if stale states are available
 
 		coeffs = self.coeffs[timeOrder-1]
 
@@ -59,3 +60,22 @@ class bdf(implicitIntegrator):
 		residual = -(residual / self.dt) + rhs
 
 		return residual
+
+	def calcReducedResidualVec(self, romDomain, solDomain, rhs, solver):
+
+		timeOrder = min(solver.iter, self.timeOrder) 	# cold start
+		timeOrder = max(self.staleStatetimeOrder, timeOrder) # updating time order if stale states are available
+
+		coeffs = self.coeffs[timeOrder - 1]
+		residual = []
+		for modelIdx, model in enumerate(romDomain.modelList):
+			model.calcRHSLowDim(romDomain, solDomain)
+			residual.append(((-sum([coeffs[timeIdx] * model.codeHist[timeIdx] for timeIdx in range(timeOrder+1)])) / self.dt ) + model.rhsLowDim)
+
+		return np.array(residual).ravel(order = 'C')
+
+
+
+
+
+

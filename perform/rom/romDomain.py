@@ -10,7 +10,9 @@ import perform.constants as const
 import numpy as np
 from time import sleep
 import os
+from scipy.sparse import block_diag, csr_matrix
 import pdb
+import matplotlib.pyplot as plt
 
 # TODO: when moving to multi-domain, it may be useful to just hold a solDomain inside romDomain for the associated full-dim solution
 # 		Still a pain to move around since it's associated with the romDomain and not the romModel, but whatever
@@ -152,18 +154,17 @@ class romDomain:
 		solDomain.solInt.solHistPrim = [solDomain.solInt.solPrim.copy()] * (self.timeIntegrator.timeOrder+1)
 
 
-		# overwrite model and solution history with the stale solution history
+		# gather solution history from stale solution data
 		if self.adaptiveROM and self.adaptiveROMMethod=='AADEIM':
 
 			assert (os.path.exists(os.path.join(const.unsteadyOutputDir, self.adaptROMstaleConsFName))), \
 				"Path : " + str(os.path.join(const.unsteadyOutputDir, self.adaptROMstaleConsFName)) + " does not exist"
 
-			self.staleSnaphots = np.load(os.path.join(const.unsteadyOutputDir, self.adaptROMstaleConsFName))
-			assert(self.staleSnaphots.shape[-1]>= self.adaptROMWindowSize), 'Insufficient stale snapshots to execute AADEIM'
+			self.staleSnapshots = np.load(os.path.join(const.unsteadyOutputDir, self.adaptROMstaleConsFName))
+
+			assert(self.staleSnapshots.shape[-1]>= self.adaptROMWindowSize), 'Insufficient stale snapshots for executing AADEIM'
 
 			for modelIdx, model in enumerate(self.modelList): model.adapt.gatherStaleCons(self, solDomain, solver, model)
-			solDomain.solInt.recalibrateSolutionHistory()
-
 
 
 	def setModelFlags(self):
@@ -382,17 +383,21 @@ class romDomain:
 
 		print("Iteration "+str(solver.iter))
 
-		solDomain.solInt.solCons = solDomain.solInt.solHistCons[0].copy()
-		solDomain.solInt.updateState(fromCons=True)
-
-
 		# update model which does NOT require numerical time integration
 		if not self.hasTimeIntegrator:
 			raise ValueError("Iteration advance for models without numerical time integration not yet implemented")
 
 		# if method requires numerical time integration
 		else:
-		
+			if self.adaptiveROM and self.adaptiveROMMethod == 'AADEIM':
+				if solDomain.timeIntegrator.dualTime: raise ValueError('AADEIM currently implemented for conservative variables...')
+				# pdb.set_trace()
+				for modelIdx, model in enumerate(self.modelList): model.adapt.HistoryInitialization(self, solDomain, solver, model)
+
+				solDomain.solInt.solCons = solDomain.solInt.solHistCons[0].copy()
+				solDomain.solInt.updateState(fromCons=True)
+				# pdb.set_trace()
+
 			for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
 				self.advanceSubiter(solDomain, solver)
 
@@ -401,10 +406,12 @@ class romDomain:
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol):
 						if self.isIntrusive: calcRHS(solDomain, solver)
 						break
-
+			# pdb.set_trace()
 			if self.adaptiveROM:
-				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)
-				if self.adaptiveROMMethod == 'AADEIM': solDomain.solInt.recalibrateSolutionHistory()
+				for modelIdx, model in enumerate(self.modelList):
+					model.adapt.adaptModel(self, solDomain, solver, model)
+
+			# pdb.set_trace()
 
 		solDomain.solInt.updateSolHist()
 		self.updateCodeHist()
@@ -428,18 +435,39 @@ class romDomain:
 			# compute residual and residual Jacobian, if required
 			if self.isIntrusive:
 				if solDomain.timeIntegrator.dualTime: raise ValueError('under construction')
-				res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
+				resVec = self.timeIntegrator.calcReducedResidualVec(self, solDomain, solInt.RHS, solver)
 				resJacob = calcDResDSolPrim(solDomain, solver)
 
 			# compute update to low-dimensional state
+			BasisList = []
+			scale = np.zeros((solDomain.gasModel.numEqs, solDomain.solInt.numCells))
 			for modelIdx, model in enumerate(self.modelList):
-				dCode, codeLHS, codeRHS = model.calcDCode(resJacob, res)
-				model.code = model.code + dCode
+				BasisList.append(model.trialBasis)
+				scale[model.varIdxs, :] = model.normFacProfCons
+			BasisMat = block_diag(BasisList)
+
+			LHS = BasisMat.T @ (resJacob / scale.ravel(order="C")[:, np.newaxis]) @ (BasisMat.toarray() * scale.ravel(order = 'C')[:, None])
+			RHS = resVec.reshape(-1)
+			dCodeVec = np.linalg.solve(LHS, RHS)
+
+			for modelIdx, model in enumerate(self.modelList):
+				model.code = model.code+dCodeVec[range(modelIdx*model.latentDim, (1 + modelIdx)*model.latentDim)]
 				model.codeHist[0] = model.code.copy()
 				model.updateSol(solDomain)
 
 				# compute ROM residual for convergence measurement
-				model.res = codeLHS @ dCode - codeRHS
+				model.res = (LHS @ dCodeVec[:, None] - RHS[:, None])[range(modelIdx*model.latentDim, (1 + modelIdx)*model.latentDim)]
+			# res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
+			# for modelIdx, model in enumerate(self.modelList):
+			# 	# print(np.linalg.norm(model.trialBasis))
+			# 	dCode, codeLHS, codeRHS = model.calcDCode(self, modelIdx, solDomain, resJacob, res)
+			# 	model.code = model.code + dCode
+			# 	model.codeHist[0] = model.code.copy()
+			# 	model.updateSol(solDomain)
+			#
+			# 	# compute ROM residual for convergence measurement
+			# 	model.res = codeLHS @ dCode - codeRHS
+			# 	print(model.res)
 
 			solInt.updateState(fromCons=True)
 			solInt.solHistCons[0] = solInt.solCons.copy()
