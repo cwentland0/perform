@@ -18,12 +18,23 @@ class gasModel:
 		self.numSpeciesFull     = int(gasDict["numSpecies"])				# total number of species in case
 		self.molWeights         = gasDict["molWeights"].astype(realType)	# molecular weights, g/mol
 
+		# species names for plotting and output
+		try:
+			self.speciesNames   = gasDict["speciesNames"]
+			assert (len(self.speciesNames) == self.numSpeciesFull)
+		except KeyError:
+			self.speciesNames   = ["Species_"+str(x+1) for x in range(self.numSpeciesFull)] 
+
 		# Arrhenius factors
 		# TODO: modify these to allow for multiple global reactions
 		self.nu                 = gasDict["nu"].astype(realType) 		# global reaction stoichiometric "forward" coefficients
 		self.nuArr              = gasDict["nuArr"].astype(realType) 	# global reaction concentration exponents
 		self.actEnergy          = float(gasDict["actEnergy"])			# global reaction Arrhenius activation energy, divided by RUniv, ?????
 		self.preExpFact         = float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
+
+		# check input lengths
+		assert(len(self.molWeights) == self.numSpeciesFull)
+		# TODO: check lengths of reaction inputs
 
 		# misc calculations
 		self.RGas               = RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)	
@@ -80,7 +91,7 @@ class gasModel:
 
 	def calcAllMassFracs(self, massFracsNS, threshold=True):
 		"""
-		Helper function to compute all numSpecies_full mass fraction fields from numSpecies fields
+		Helper function to compute all numSpeciesFull mass fraction fields from numSpecies fields
 		Thresholds all mass fraction fields between zero and unity 
 		"""
 

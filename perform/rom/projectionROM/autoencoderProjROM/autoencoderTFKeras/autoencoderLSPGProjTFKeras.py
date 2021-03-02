@@ -3,6 +3,7 @@ from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoder
 import numpy as np
 import tensorflow as tf
 
+
 class autoencoderLSPGProjTFKeras(autoencoderTFKeras):
 	"""
 	Class for computing non-linear least-squares Petrov-Galerkin ROMs via a TensorFlow autoencoder
@@ -18,27 +19,25 @@ class autoencoderLSPGProjTFKeras(autoencoderTFKeras):
 
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
+		if self.encoderJacob:
+			raise ValueError("LSPG is not equipped with an encoder Jacobian approximation, please set encoderJacob = False")
+
 	
-	def calcDCode(self, resJacob, res):
+	def calcDCode(self, resJacob, res, solDomain):
 		"""
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 
-		if (self.encoderJacob):
-			raise ValueError("Encoder Jacobian not implemented yet")
+		# decoder Jacobian, scaled
+		jacob = self.calcModelJacobian(solDomain)
+		scaledJacob = jacob * self.normFacProfCons.ravel(order="C")[:,None]
 
-		else:
+		# test basis
+		testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledJacob
 
-			# decoder Jacobian, scaled
-			jacob = self.calcModelJacobian()
-			scaledJacob = jacob * self.normFacProfCons.ravel(order="C")[:,None]
-
-			# test basis
-			testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledJacob
-
-			# Newton iteration linear solve
-			LHS = testBasis.T @ testBasis
-			RHS = testBasis.T @ (res / self.normFacProfCons).ravel(order="C")
-			dCode = np.linalg.solve(LHS, RHS)
+		# Newton iteration linear solve
+		LHS = testBasis.T @ testBasis
+		RHS = testBasis.T @ (res / self.normFacProfCons).ravel(order="C")
+		dCode = np.linalg.solve(LHS, RHS)
 		
 		return dCode, LHS, RHS

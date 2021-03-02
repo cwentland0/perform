@@ -372,7 +372,7 @@ class romDomain:
 
 			# compute change in low-dimensional state
 			for modelIdx, model in enumerate(self.modelList):
-				dCode, codeLHS, codeRHS = model.calcDCode(resJacob, res)
+				dCode, codeLHS, codeRHS = model.calcDCode(resJacob, res, solDomain)
 				model.code += dCode
 				model.codeHist[0] = model.code.copy()
 				model.updateSol(solDomain)

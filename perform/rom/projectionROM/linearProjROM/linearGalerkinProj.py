@@ -30,7 +30,7 @@ class linearGalerkinProj(linearProjROM):
 			self.projector = self.trialBasis.T
 
 
-	def calcDCode(self, resJacob, res):
+	def calcDCode(self, resJacob, res, solDomain):
 		"""
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""

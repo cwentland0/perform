@@ -58,11 +58,11 @@ class visualizationGroup:
 
 			if (visType == "field"):
 				self.visList[visIdx-1] = fieldPlot(visIdx, self.visInterval, solver.numSteps, solver.simType, 
-											visVars, visXBounds, visYBounds, solDomain.gasModel.numSpeciesFull)
+											visVars, visXBounds, visYBounds, solDomain.gasModel.speciesNames)
 			elif (visType == "probe"):
 				probeNum = catchInput(paramDict, "probeNum"+str(visIdx), -2) - 1
 				self.visList[visIdx-1] = probePlot(visIdx, solver.simType, solver.probeVars, visVars, probeNum, 
-											solver.numProbes, visXBounds, visYBounds, solDomain.gasModel.numSpeciesFull)
+											solver.numProbes, visXBounds, visYBounds, solDomain.gasModel.speciesNames)
 			elif (visType == "residual"):
 				raise ValueError("Residual plot not implemented yet")
 			else:

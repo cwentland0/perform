@@ -20,7 +20,7 @@ class linearLSPGProj(linearProjROM):
 		super().__init__(modelIdx, romDomain, solver, solDomain)
 
 
-	def calcDCode(self, resJacob, res):
+	def calcDCode(self, resJacob, res, solDomain):
 		"""
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""

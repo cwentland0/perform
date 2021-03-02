@@ -25,7 +25,7 @@ class autoencoderGalerkinProjTFKeras(autoencoderTFKeras):
 		Encoder projector is just encoder Jacobian
 		"""
 
-		jacob = self.calcModelJacobian()
+		jacob = self.calcModelJacobian(solDomain)
 
 		if self.encoderJacob:
 			
@@ -36,25 +36,26 @@ class autoencoderGalerkinProjTFKeras(autoencoderTFKeras):
 			self.projector = pinv(jacob)
 
 
-	def calcDCode(self, resJacob, res):
+	def calcDCode(self, resJacob, res, solDomain):
 		"""
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		TODO: this is non-general and janky, only valid for BDF 
 		"""
 
+		jacob = self.calcModelJacobian(solDomain)
+
 		if (self.encoderJacob):
-			raise ValueError("Encoder Jacobian not implemented yet")
+			jacobPinv = jacob * self.normFacProfCons.ravel(order="C")[None,:]
 
 		else:
 
 			# decoder Jacobian, scaled
-			jacob = self.calcModelJacobian()
 			scaledJacob = jacob * self.normFacProfCons.ravel(order="C")[:,None]
 			jacobPinv = pinv(scaledJacob)
 
-			# Newton iteration linear solve
-			LHS = jacobPinv @ (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledJacob
-			RHS = jacobPinv @ (res / self.normFacProfCons).ravel(order="C")
-			dCode = np.linalg.solve(LHS, RHS)
+		# Newton iteration linear solve
+		LHS = jacobPinv @ (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledJacob
+		RHS = jacobPinv @ (res / self.normFacProfCons).ravel(order="C")
+		dCode = np.linalg.solve(LHS, RHS)
 
 		return dCode, LHS, RHS

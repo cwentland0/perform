@@ -11,7 +11,7 @@ class fieldPlot(visualization):
 	Class for field plot image
 	"""
 
-	def __init__(self, visID, visInterval, numSteps, simType, visVars, visXBounds, visYBounds, numSpeciesFull):
+	def __init__(self, visID, visInterval, numSteps, simType, visVars, visXBounds, visYBounds, speciesNames):
 
 		self.visType 		= "field"
 		self.visInterval	= visInterval
@@ -24,7 +24,7 @@ class fieldPlot(visualization):
 		else:
 			self.imgString 	= None
 
-		super().__init__(visID, visVars, visXBounds, visYBounds, numSpeciesFull)
+		super().__init__(visID, visVars, visXBounds, visYBounds, speciesNames)
 
 		# set up output directory
 		visName = ""
@@ -114,13 +114,14 @@ class fieldPlot(visualization):
 		return yData
 
 
-	def save(self, iterNum):
+	def save(self, iterNum, dpi=100):
 		"""
 		Save plot to disk
 		"""
 
 		plt.figure(self.visID)
+		plt.tight_layout()
 		visIdx 	= int(iterNum / self.visInterval)
 		figNum 	= self.imgString % visIdx
 		figFile = os.path.join(self.imgDir, "fig_"+figNum+".png")
-		self.fig.savefig(figFile)
+		self.fig.savefig(figFile, dpi=dpi)

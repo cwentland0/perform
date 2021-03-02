@@ -7,7 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 import matplotlib.gridspec as gridspec
-mpl.rc('font', family='serif',size='8') 	# TODO: adapt axis label font size to number of subplots
+mpl.rc('font', family='serif',size='10') 	# TODO: adapt axis label font size to number of subplots
 mpl.rc('axes', labelsize='x-large')
 mpl.rc('figure', facecolor='w')
 mpl.rc('text', usetex=False)
@@ -19,7 +19,11 @@ mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 
 class visualization:
 
-	def __init__(self, visID, visVars, visXBounds, visYBounds, numSpeciesFull):
+	def __init__(self, visID, visVars, visXBounds, visYBounds, speciesNames, legendLabels=None):
+
+		self.speciesNames = speciesNames
+		numSpeciesFull = len(speciesNames)
+		self.legendLabels = legendLabels
 
 		if (self.visType in ["field","probe"]):
 
@@ -87,19 +91,18 @@ class visualization:
 					self.axLabels[axIdx] = "Velocity (m/s)"
 				elif (varStr == "temperature"):
 					self.axLabels[axIdx] = "Temperature (K)"
+				# TODO: source term needs to be generalized for multi-species
 				elif (varStr == "source"):
-					self.axLabels[axIdx] = "Reaction Source Term"
+					self.axLabels[axIdx] = "Source Term (kg/m^3-s)"
 				elif (varStr == "density"):
 					self.axLabels[axIdx] = "Density (kg/m^3)"
 				elif (varStr == "momentum"):
 					self.axLabels[axIdx] = "Momentum (kg/s-m^2)"
 				elif (varStr == "energy"):
 					self.axLabels[axIdx] = "Total Energy"
-
-				# TODO: some way to incorporate actual species name
 				elif (varStr[:7] == "species"):
-					self.axLabels[axIdx] = "Spec. "+str(varStr[7:])+" MF" 
+					self.axLabels[axIdx] = r"$Y_{%s}$"%(self.speciesNames[int(varStr[7:])-1])
 				elif (varStr[:15] == "density-species"):
-					self.axLabels[axIdx] = "Rho*Spec. "+str(varStr[15:])+" MF (kg/m^3)"
+					self.axLabels[axIdx] = r"$\rho Y_{%s}$"%(self.speciesNames[int(varStr[15:])-1])
 				else:
 					raise ValueError("Invalid field visualization variable:"+str(varStr))

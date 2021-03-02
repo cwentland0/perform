@@ -35,10 +35,18 @@ class autoencoderTFKeras(autoencoderProjROM):
 		# otherwise, recreating this will cause retracing of the computational graph
 		if (not self.numericalJacob):
 			if self.encoderJacob:
-				if self.targetCons:
-					self.jacobInput = tf.Variable(solDomain.solInt.solCons[None,self.varIdxs,:], dtype=self.encoderIODtypes[0])
+				if (self.ioFormat == "NHWC"):
+					if self.targetCons:
+						solInit = (solDomain.solInt.solCons.T)[None,:,self.varIdxs]
+					else:
+						solInit = (solDomain.solInt.solPrim.T)[None,:,self.varIdxs]
 				else:
-					self.jacobInput = tf.Variable(solDomain.solInt.solPrim[None,self.varIdxs,:], dtype=self.encoderIODtypes[0])
+					if self.targetCons:
+						solInit = (solDomain.solInt.solCons)[None,:,self.varIdxs]
+					else:
+						solInit = (solDomain.solInt.solPrim)[None,:,self.varIdxs]
+				self.jacobInput = tf.Variable(solInit, dtype=self.encoderIODtypes[0])
+
 			else:
 				self.jacobInput = tf.Variable(self.code[None,:], dtype=self.decoderIODtypes[0])
 
@@ -154,7 +162,7 @@ class autoencoderTFKeras(autoencoderProjROM):
 		return jacob
 
 
-	def calcModelJacobian(self):
+	def calcModelJacobian(self, solDomain):
 		"""
 		Helper function for calculating TensorFlow-Keras model Jacobian
 		"""
@@ -167,6 +175,9 @@ class autoencoderTFKeras(autoencoderProjROM):
 			sol = self.standardizeData(solDomain.solInt.solCons[self.varIdxs, :],
 										normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons,
 										center=True, centProf=self.centProfCons, inverse=False)
+
+			if (self.ioFormat == "NHWC"):
+					sol = np.transpose(sol, axes=(1,0))
 
 			if self.numericalJacob:
 				jacob = self.calcNumericalTFJacobian(self.encoder, sol)

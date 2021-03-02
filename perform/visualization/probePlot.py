@@ -12,7 +12,7 @@ import pdb
 
 class probePlot(visualization):
 
-	def __init__(self, visID, simType, probeVars, visVars, probeNum, numProbes, visXBounds, visYBounds, numSpeciesFull):
+	def __init__(self, visID, simType, probeVars, visVars, probeNum, numProbes, visXBounds, visYBounds, speciesNames):
 
 		self.visType = "probe"
 		self.visID   = visID
@@ -23,7 +23,7 @@ class probePlot(visualization):
 		assert (self.probeNum >= 0 ), "Must provide positive integer probe number for probe"+str(self.visID)
 		assert (self.probeNum < numProbes), "probeNum"+str(self.visID)+" must correspond to a valid probe"
 
-		super().__init__(visID, visVars, visXBounds, visYBounds, numSpeciesFull)
+		super().__init__(visID, visVars, visXBounds, visYBounds, speciesNames)
 
 		# image file on disk
 		visName = ""
@@ -85,9 +85,10 @@ class probePlot(visualization):
 		return yData
 
 
-	def save(self, iterNum):
+	def save(self, iterNum, dpi=100):
 
 		plt.figure(self.visID)
-		self.fig.savefig(self.figFile)
+		plt.tight_layout()
+		self.fig.savefig(self.figFile, dpi=dpi)
 
 		
