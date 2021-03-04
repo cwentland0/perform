@@ -166,6 +166,9 @@ class romDomain:
 
 			for modelIdx, model in enumerate(self.modelList): model.adapt.gatherStaleCons(self, solDomain, solver, model)
 
+			solDomain.solInt.updateState(fromCons=True)
+
+
 
 	def setModelFlags(self):
 		"""
@@ -391,12 +394,9 @@ class romDomain:
 		else:
 			if self.adaptiveROM and self.adaptiveROMMethod == 'AADEIM':
 				if solDomain.timeIntegrator.dualTime: raise ValueError('AADEIM currently implemented for conservative variables...')
-				# pdb.set_trace()
 				for modelIdx, model in enumerate(self.modelList): model.adapt.HistoryInitialization(self, solDomain, solver, model)
 
-				solDomain.solInt.solCons = solDomain.solInt.solHistCons[0].copy()
 				solDomain.solInt.updateState(fromCons=True)
-				# pdb.set_trace()
 
 			for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
 				self.advanceSubiter(solDomain, solver)
@@ -406,12 +406,11 @@ class romDomain:
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol):
 						if self.isIntrusive: calcRHS(solDomain, solver)
 						break
-			# pdb.set_trace()
-			if self.adaptiveROM:
-				for modelIdx, model in enumerate(self.modelList):
-					model.adapt.adaptModel(self, solDomain, solver, model)
 
-			# pdb.set_trace()
+			if self.adaptiveROM and self.adaptiveROMMethod == 'AADEIM':
+				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)
+
+
 
 		solDomain.solInt.updateSolHist()
 		self.updateCodeHist()
@@ -421,6 +420,8 @@ class romDomain:
 		"""
 		Advance physical solution forward one subiteration of time integrator
 		"""
+
+
 
 		solInt = solDomain.solInt
 		solInt.res, resJacob = None, None
@@ -457,17 +458,6 @@ class romDomain:
 
 				# compute ROM residual for convergence measurement
 				model.res = (LHS @ dCodeVec[:, None] - RHS[:, None])[range(modelIdx*model.latentDim, (1 + modelIdx)*model.latentDim)]
-			# res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
-			# for modelIdx, model in enumerate(self.modelList):
-			# 	# print(np.linalg.norm(model.trialBasis))
-			# 	dCode, codeLHS, codeRHS = model.calcDCode(self, modelIdx, solDomain, resJacob, res)
-			# 	model.code = model.code + dCode
-			# 	model.codeHist[0] = model.code.copy()
-			# 	model.updateSol(solDomain)
-			#
-			# 	# compute ROM residual for convergence measurement
-			# 	model.res = codeLHS @ dCode - codeRHS
-			# 	print(model.res)
 
 			solInt.updateState(fromCons=True)
 			solInt.solHistCons[0] = solInt.solCons.copy()
@@ -498,7 +488,6 @@ class romDomain:
 
 			model.codeHist[1:] = model.codeHist[:-1]
 			model.codeHist[0]  = model.code.copy()
-
 
 	def calcCodeResNorms(self, solDomain, solver, subiter):
 		"""
