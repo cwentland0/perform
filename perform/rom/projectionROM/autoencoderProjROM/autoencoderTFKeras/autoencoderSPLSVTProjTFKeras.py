@@ -1,7 +1,6 @@
-from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderTFKeras import autoencoderTFKeras
-
 import numpy as np
-import tensorflow as tf
+
+from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderTFKeras import autoencoderTFKeras
 
 
 class autoencoderSPLSVTProjTFKeras(autoencoderTFKeras):

@@ -1,11 +1,10 @@
+import numpy as np
+import tensorflow as tf
+
 from perform.constants import realType, fdStepDefault
 from perform.inputFuncs import catchInput
 from perform.rom.projectionROM.autoencoderProjROM.autoencoderProjROM import autoencoderProjROM
 from perform.rom.tfKerasFuncs import initDevice, loadModelObj, getIOShape
-
-import tensorflow as tf
-import numpy as np
-
 
 class autoencoderTFKeras(autoencoderProjROM):
 	"""
