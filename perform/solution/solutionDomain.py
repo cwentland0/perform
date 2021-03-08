@@ -48,12 +48,12 @@ class solutionDomain:
 		# average solution for Roe scheme
 		if (solver.spaceScheme == "roe"):
 			onesProf    = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
-			self.solAve  = solutionPhys(gas, onesProf, self.solInt.numCells+1)
+			self.solAve  = solutionPhys(gas, self.solInt.numCells+1, solPrimIn=onesProf)
 
 		# for flux calculations
 		onesProf = np.ones((self.gasModel.numEqs, self.solInt.numCells+1), dtype=const.realType)
-		self.solL = solutionPhys(gas, onesProf, self.solInt.numCells+1)
-		self.solR = solutionPhys(gas, onesProf, self.solInt.numCells+1)
+		self.solL = solutionPhys(gas, self.solInt.numCells+1, solPrimIn=onesProf)
+		self.solR = solutionPhys(gas, self.solInt.numCells+1, solPrimIn=onesProf)
 
 		# to avoid repeated concatenation of ghost cell states
 		self.solPrimFull = np.zeros((self.gasModel.numEqs, self.solIn.numCells+self.solInt.numCells+self.solOut.numCells), dtype=const.realType)
@@ -171,24 +171,24 @@ class solutionDomain:
 
 		if (self.timeIntegrator.timeType == "implicit"):
 
-			solInt.res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
+			res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 			resJacob = calcDResDSolPrim(self, solver)
 
-			dSol = spsolve(resJacob, solInt.res.ravel('F'))
+			dSol = spsolve(resJacob, res.ravel('C'))
 			
 			# if solving in dual time, solving for primitive state
 			if (self.timeIntegrator.dualTime):
-				solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+				solInt.solPrim += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='C')
 			else:
-				solInt.solCons += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='F')
+				solInt.solCons += dSol.reshape((self.gasModel.numEqs, solver.mesh.numCells), order='C')
 				
 			solInt.updateState(fromCons = (not self.timeIntegrator.dualTime))
 			solInt.solHistCons[0] = solInt.solCons.copy() 
 			solInt.solHistPrim[0] = solInt.solPrim.copy() 
 
-			# borrow solInt.res to store linear solve residual	
-			res = resJacob @ dSol - solInt.res.ravel('F')
-			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='F')
+			# use solInt.res to store linear solve residual	
+			res = resJacob @ dSol - res.ravel('C')
+			solInt.res = np.reshape(res, (self.gasModel.numEqs, solver.mesh.numCells), order='C')
 
 		else:
 

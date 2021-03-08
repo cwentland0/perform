@@ -7,34 +7,52 @@ import os
 
 class romModel:
 	"""
-	Base class for ROM model
+	Base class for any ROM model
+	Assumed that every model may be equipped with some sort of data standardization requirement
+	Also assumed that every model has some means of computing the full-dimensional state from the low
+		dimensional state, i.e. a "decoder"
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver):
+	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
 		self.modelIdx 	= modelIdx
 		self.latentDim 	= romDomain.latentDims[self.modelIdx]
 		self.varIdxs 	= np.array(romDomain.modelVarIdxs[self.modelIdx], dtype=np.int32)
 		self.numVars   	= len(self.varIdxs)
-		self.solShape 	= (self.numVars, solver.mesh.numCells)
+		self.numCells   = solver.mesh.numCells
+		self.solShape 	= (self.numVars, self.numCells)
+
+		# just copy some stuff for less clutter
 		self.modelDir 	= romDomain.modelDir
+		self.targetCons = romDomain.targetCons
+		self.hyperReduc = romDomain.hyperReduc
 
-		self.code = np.zeros(self.latentDim, dtype=realType) 	# low-dimensional state
+		self.code = np.zeros(self.latentDim, dtype=realType)	# low-dimensional state
+		self.res  = np.zeros(self.latentDim, dtype=realType) 	# Newton iteration linear solve residual 
 
-		# get standardization profiles, if necessary
+		# get normalization profiles, if necessary
 		self.normSubProfCons = None; self.normSubProfPrim = None
 		self.normFacProfCons = None; self.normFacProfPrim = None
 		self.centProfCons 	 = None; self.centProfPrim 	  = None
 		if romDomain.hasConsNorm:
 			self.normSubProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.normSubConsIn[self.modelIdx]), default="zeros")
 			self.normFacProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.normFacConsIn[self.modelIdx]), default="ones")
-		if romDomain.hasConsCent:
-			self.centProfCons    = self.loadStandardization(os.path.join(self.modelDir, romDomain.centConsIn[self.modelIdx]), default="zeros")
 		if romDomain.hasPrimNorm:
 			self.normSubProfPrim = self.loadStandardization(os.path.join(self.modelDir, romDomain.normSubPrimIn[self.modelIdx]), default="zeros")
 			self.normFacProfPrim = self.loadStandardization(os.path.join(self.modelDir, romDomain.normFacPrimIn[self.modelIdx]), default="ones")
+
+		# get centering profiles, if necessary
+		# if centIC, just use given initial conditions
+		if romDomain.hasConsCent:
+			if romDomain.centIC:
+				self.centProfCons = solDomain.solInt.solCons[self.varIdxs,:].copy()
+			else:
+				self.centProfCons = self.loadStandardization(os.path.join(self.modelDir, romDomain.centConsIn[self.modelIdx]), default="zeros")
 		if romDomain.hasPrimCent:
-			self.centProfPrim    = self.loadStandardization(os.path.join(self.modelDir, romDomain.centPrimIn[self.modelIdx]), default="zeros")
+			if romDomain.centIC:
+				self.centProfPrim = solDomain.solInt.solPrim[self.varIdxs,:].copy()
+			else:
+				self.centProfPrim    = self.loadStandardization(os.path.join(self.modelDir, romDomain.centPrimIn[self.modelIdx]), default="zeros")
 
 
 	def loadStandardization(self, standInput, default="zeros"):
@@ -107,3 +125,69 @@ class romModel:
 		else:
 			arr = (arr - normSubProf) / normFacProf
 		return arr
+
+
+
+	def decodeSol(self, codeIn):
+		"""
+		Compute full decoding of solution, including decentering and denormalization
+		"""
+
+		sol = self.applyDecoder(codeIn)
+
+		if (self.targetCons):
+			sol = self.standardizeData(sol, 
+								normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons,
+								center=True, centProf=self.centProfCons, inverse=True)
+		else:
+			sol = self.standardizeData(sol, 
+								normalize=True, normFacProf=self.normFacProfPrim, normSubProf=self.normSubProfPrim,
+								center=True, centProf=self.centProfPrim, inverse=True)
+
+		return sol
+
+
+	def initFromCode(self, code0, solDomain):
+		"""
+		Initialize full-order solution from input low-dimensional state
+		"""
+
+		self.code = code0.copy()
+
+		if (self.targetCons):
+			solDomain.solInt.solCons[self.varIdxs, :] = self.decodeSol(self.code)
+		else:
+			solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
+
+		
+	def updateSol(self, solDomain):
+		"""
+		Update solution after code has been updated
+		"""
+
+		# TODO: could just use this to replace initFromCode?
+
+		if (self.targetCons):
+			solDomain.solInt.solCons[self.varIdxs,:] = self.decodeSol(self.code)
+		else:
+			solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
+
+
+	def calcCodeNorms(self):
+		"""
+		Compute L1 and L2 norms of low-dimensional state linear solve residuals
+		Scaled by number of elements, so "L2 norm" here is really RMS
+		"""
+
+		resAbs = np.abs(self.res)
+
+		# L2 norm
+		resNormL2 = np.sum(np.square(resAbs))
+		resNormL2 /= self.latentDim
+		resNormL2 = np.sqrt(resNormL2)
+		
+		# L1 norm
+		resNormL1 = np.sum(resAbs)
+		resNormL1 /= self.latentDim
+		
+		return resNormL2, resNormL1

@@ -5,7 +5,6 @@ from perform.miscFuncs import writeToFile
 
 import numpy as np 
 import os
-import pdb	
 
 
 def calcRHS(solDomain, solver):
@@ -41,8 +40,8 @@ def calcRHS(solDomain, solver):
 		solPrimGrad = calcCellGradients(solDomain, solver)
 		solL.solPrim[:,solDomain.fluxLExtract] += (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradLExtract]
 		solR.solPrim[:,solDomain.fluxRExtract] -= (solver.mesh.dx / 2.0) * solPrimGrad[:, solDomain.gradRExtract]
-		solL.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
-		solR.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
+		solL.calcStateFromPrim(calcR=True, calcCp=True)
+		solR.calcStateFromPrim(calcR=True, calcCp=True)
 
 	# compute fluxes
 	flux = calcInvFlux(solDomain, solver)
@@ -96,7 +95,7 @@ def calcInvFlux(solDomain, solver):
 	solAve.calcStateFromRhoH0()
 
 	# compute Roe average state at faces, associated fluid properties
-	solAve.calcStateFromPrim(calcR=True, calcEnthRef=True, calcCp=True)
+	solAve.calcStateFromPrim(calcR=True, calcCp=True)
 	solAve.gammaMix = solDomain.gasModel.calcMixGamma(solAve.RMix, solAve.CpMix)
 	solAve.c = solDomain.gasModel.calcSoundSpeed(solAve.solPrim[2,:], RMix=solAve.RMix, gammaMix=solAve.gammaMix,
 											 massFracs=solAve.solPrim[3:,:], CpMix=solAve.CpMix)
@@ -217,7 +216,7 @@ def calcRoeDissipation(solAve):
 
 	return dissMat
 
- 
+
 def calcViscFlux(solDomain, solver):
 	"""
 	Compute viscous fluxes
@@ -234,7 +233,7 @@ def calcViscFlux(solDomain, solver):
 
 	# get gradient of last species for diffusion velocity term
 	# TODO: maybe a sneakier way to do this?
-	massFracs   = gas.calcAllMassFracs(solDomain.solPrimFull[3:,:])
+	massFracs   = gas.calcAllMassFracs(solDomain.solPrimFull[3:,:], threshold=False)
 	solPrimGrad[-1,:] = (massFracs[-1,solDomain.fluxSampRIdxs] - massFracs[-1,solDomain.fluxSampLIdxs]) / mesh.dx
 
 	# thermo and transport props
@@ -263,7 +262,7 @@ def calcViscFlux(solDomain, solver):
 
 	return Fv
 
- 
+
 def calcSource(solDomain, solver):
 	"""
 	Compute chemical source term
@@ -276,7 +275,7 @@ def calcSource(solDomain, solver):
 	gas = solDomain.gasModel
 
 	temp 	  = solDomain.solInt.solPrim[2,solDomain.directSampIdxs]
-	massFracs = gas.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs])
+	massFracs = gas.calcAllMassFracs(solDomain.solInt.solPrim[3:,solDomain.directSampIdxs], threshold=False)
 	rho 	  = solDomain.solInt.solCons[[0],solDomain.directSampIdxs]
 
 	# NOTE: actEnergy here is -Ea/R

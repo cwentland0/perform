@@ -21,6 +21,16 @@ class caloricallyPerfectGas(gasModel):
 		self.muRef   = gasDict["muRef"].astype(realType)		# reference dynamic viscosity for Sutherland model
 		self.tempRef = gasDict["tempRef"].astype(realType)		# reference temperature for Sutherland model, K
 
+		assert(self.enthRef.shape[0] == self.numSpeciesFull)
+		assert(self.Cp.shape[0] == self.numSpeciesFull)
+		assert(self.Pr.shape[0] == self.numSpeciesFull)
+		assert(self.Sc.shape[0] == self.numSpeciesFull)
+		assert(self.tempRef.shape[0] == self.numSpeciesFull)
+		assert(self.muRef.shape[0] == self.numSpeciesFull)
+
+		self.constViscIdxs = np.squeeze(np.argwhere(self.tempRef < 1.0e-7), axis=1)
+		self.suthViscIdxs  = np.squeeze(np.argwhere(self.tempRef >= 1.0e-7), axis=1)
+
 		self.CpDiffs        = self.Cp[self.massFracSlice] - self.Cp[-1]
 		self.enthRefDiffs   = self.enthRef[self.massFracSlice] - self.enthRef[-1]
 
@@ -103,7 +113,7 @@ class caloricallyPerfectGas(gasModel):
 			speciesEnth = self.calcSpeciesEnthalpies(solPrim[2,:])
 
 		# compute all mass fraction fields
-		massFracs = self.calcAllMassFracs(solPrim[3:,:])
+		massFracs = self.calcAllMassFracs(solPrim[3:,:], threshold=False)
 
 		assert (massFracs.shape == speciesEnth.shape)
 
@@ -124,17 +134,15 @@ class caloricallyPerfectGas(gasModel):
 		specDynVisc = np.zeros((self.numSpeciesFull, len(temperature)), dtype=realType)
 
 		# if reference temperature is (close to) zero, constant dynamic viscosity
-		idxsZeroTemp = np.squeeze(np.argwhere(self.tempRef < 1.0e-7), axis=1)
-		if (len(idxsZeroTemp) > 0):
-			specDynVisc[idxsZeroTemp, :] = self.muRef[idxsZeroTemp, None]
+		if (len(self.constViscIdxs) > 0):
+			specDynVisc[self.constViscIdxs, :] = self.muRef[self.constViscIdxs, None]
 
 		# otherwise apply Sutherland's law
-		idxsSuth = np.squeeze(np.argwhere(self.tempRef > 1.0e-7), axis=1)
-		if (len(idxsSuth) > 0):
-			tempFac = temperature[None,:] / self.tempRef[idxsSuth, None]
+		if (len(self.suthViscIdxs) > 0):
+			tempFac = temperature[None,:] / self.tempRef[self.suthViscIdxs, None]
 			tempFac = np.power(tempFac, 3./2.)
-			suthFac = (self.tempRef[idxsSuth, None] + suthTemp) / (temperature[None, :] + suthTemp)
-			specDynVisc[idxsSuth, :] = self.muRef[idxsSuth, None] * tempFac * suthFac
+			suthFac = (self.tempRef[self.suthViscIdxs, None] + suthTemp) / (temperature[None, :] + suthTemp)
+			specDynVisc[self.suthViscIdxs, :] = self.muRef[self.suthViscIdxs, None] * tempFac * suthFac
 
 		return specDynVisc
 
@@ -156,6 +164,7 @@ class caloricallyPerfectGas(gasModel):
 
 			if (moleFracs is None):
 				assert (massFracs is not None), "Must provide mass fractions if not providing mole fractions"
+				moleFracs = self.calcAllMoleFracs(massFracs)
 
 			phi = np.zeros((self.numSpeciesFull, specDynVisc.shape[1]), dtype=realType)
 			for specIdx in range(self.numSpeciesFull):

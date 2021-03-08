@@ -1,5 +1,3 @@
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2" # don't print all the TensorFlow warnings
 import perform.constants as const
 from perform.systemSolver import systemSolver
 from perform.solution.solutionDomain import solutionDomain
@@ -7,6 +5,7 @@ from perform.visualization.visualizationGroup import visualizationGroup
 from perform.rom.romDomain import romDomain
 from perform.miscFuncs import mkdirInWorkdir
 
+import os
 import numpy as np
 import argparse
 import traceback
@@ -14,9 +13,8 @@ import warnings
 warnings.filterwarnings("error")
 from time import time
 
-# TODO: make code general for more than two species, array broadcasts are different for 2 vs 3+ species
-#		idea: custom iterators for species-related slicing, or just squeeze any massfrac references
 # TODO: check all calls to calcDensityDerivatives and calcStagEnthalpyDerivatives, pass full massFrac array
+# TODO: ^^^^^ emphasizing this, this is a big contribution to Jacobian cost
 
 def main():
 

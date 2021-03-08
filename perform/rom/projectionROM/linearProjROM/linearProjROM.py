@@ -1,14 +1,18 @@
 from perform.constants import realType
-from perform.rom.romModel import romModel
+from perform.rom.projectionROM.projectionROM import projectionROM
 from perform.inputFuncs import catchInput
 
 import numpy as np
 
-class linearProjROM(romModel):
+class linearProjROM(projectionROM):
+	"""
+	Base class for all projection-based ROMs which use a linear basis representation
+	"""
+
 
 	def __init__(self, modelIdx, romDomain, solver, solDomain):
 
-		super().__init__(modelIdx, romDomain, solver)
+		super().__init__(modelIdx, romDomain, solver, solDomain)
 
 		# load and check trial basis
 		self.trialBasis = np.load(romDomain.modelFiles[self.modelIdx])
@@ -21,7 +25,7 @@ class linearProjROM(romModel):
 			" modes (" + str(numModesBasisIn) + " < " + str(self.latentDim) + ")")
 
 		# flatten first two dimensions for easier matmul
-		self.trialBasis = self.trialBasis[self.varIdxs,:,:self.latentDim]
+		self.trialBasis = self.trialBasis[:,:,:self.latentDim]
 		self.trialBasis = np.reshape(self.trialBasis, (-1, self.latentDim), order='C')
 
 		# load and check gappy POD basis
@@ -32,7 +36,7 @@ class linearProjROM(romModel):
 				"Hyper reduction basis must have shape [numEqs, numCells, numHRModes]"
 
 			self.hyperReducDim = romDomain.hyperReducDims[self.modelIdx]
-			hyperReducBasis = hyperReducBasis[self.varIdxs,:,:self.hyperReducDim]
+			hyperReducBasis = hyperReducBasis[:,:,:self.hyperReducDim]
 			self.hyperReducBasis = np.reshape(hyperReducBasis, (-1, self.hyperReducDim), order="C")
 
 			# indices for sampling flattened hyperReducBasis
@@ -43,7 +47,26 @@ class linearProjROM(romModel):
 				self.directHyperReducSampIdxs[idx1:idx2] = romDomain.directSampIdxs + varNum * solver.mesh.numCells
 
 
-	def applyTrialBasis(self, code):
+	def initFromSol(self, solDomain):
+		"""
+		Initialize full-order solution from projection of loaded full-order initial conditions
+		"""
+
+		if (self.targetCons):
+			sol = self.standardizeData(solDomain.solInt.solCons[self.varIdxs, :], 
+										normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons,
+										center=True, centProf=self.centProfCons, inverse=False)
+			self.code = self.projectToLowDim(self.trialBasis, sol, transpose=True)
+			solDomain.solInt.solCons[self.varIdxs, :] = self.decodeSol(self.code)
+		else:
+			sol = self.standardizeData(solDomain.solInt.solPrim[self.varIdxs, :], 
+										normalize=True, normFacProf=self.normFacProfPrim, normSubProf=self.normSubProfPrim,
+										center=True, centProf=self.centProfPrim, inverse=False)
+			self.code = self.projectToLowDim(self.trialBasis, sol, transpose=True)
+			solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
+
+
+	def applyDecoder(self, code):
 		"""
 		Compute raw decoding of code, without de-normalizing or de-centering
 		"""
@@ -51,41 +74,3 @@ class linearProjROM(romModel):
 		sol = self.trialBasis @ code
 		sol = np.reshape(sol, (self.numVars, -1), order="C")
 		return sol
-
-
-	def projectToLowDim(self, projector, fullDimArr, transpose=False):
-		"""
-		Project given full-dimensional vector onto low-dimensional space via given projector
-		Assumed that fullDimArr is either 1D array or is in [numVars, numCells] order
-		Assumed that projector is already in [numModes, numVars x numCells] order
-		"""
-		
-		if (fullDimArr.ndim == 2):
-			fullDimVec = fullDimArr.flatten(order="C")
-		elif (fullDimArr.ndim == 1):
-			fullDimVec = fullDimArr.copy()
-		else:
-			raise ValueError("fullDimArr must be one- or two-dimensional")
-
-		if transpose:
-			codeOut = projector.T @ fullDimVec
-		else:
-			codeOut = projector @ fullDimVec
-
-		return codeOut 
-
-
-	def calcRHSLowDim(self, romDomain, solDomain):
-		"""
-		Project RHS onto low-dimensional space
-		"""
-
-		# scale RHS
-		normSubProf = np.zeros(self.normFacProfCons.shape, dtype=realType)
-		rhsScaled = self.standardizeData(solDomain.solInt.RHS[self.varIdxs[:,None], solDomain.directSampIdxs[None,:]], 
-										 normalize=True, normFacProf=self.normFacProfCons[:,solDomain.directSampIdxs], normSubProf=normSubProf[:,solDomain.directSampIdxs],
-										 center=False, inverse=False)
-
-		# calc projection operator and project
-		self.calcProjector(romDomain, romDomain.adaptiveROM)
-		self.rhsLowDim = self.projectToLowDim(self.projector, rhsScaled, transpose=False)

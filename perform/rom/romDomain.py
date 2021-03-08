@@ -1,10 +1,10 @@
 
 from perform.inputFuncs import readInputFile, catchList, catchInput
-from perform.rom.linearProjROM.linearGalerkinProj import linearGalerkinProj
 from perform.timeIntegrator import getTimeIntegrator
 from perform.solution.solutionPhys import solutionPhys
 from perform.spaceSchemes import calcRHS
 from perform.Jacobians import calcDResDSolPrim
+from perform.rom import getROMModel
 
 import numpy as np
 from time import sleep
@@ -12,9 +12,8 @@ import os
 
 # TODO: when moving to multi-domain, it may be useful to just hold a solDomain inside romDomain for the associated full-dim solution
 # 		Still a pain to move around since it's associated with the romDomain and not the romModel, but whatever
+# TODO: need to eliminate normSubProf, just roll it into centProf (or reverse)
 
-# TODO: I'm making this too general, I think it's safe for now to assume that a single domain will have a single time integrator,
-#		single ROM method, single gas model, etc.
 
 class romDomain:
 	"""
@@ -74,6 +73,7 @@ class romDomain:
 			self.modelFiles[modelIdx] = inFile
 
 		# load standardization profiles, if they are required
+		self.centIC         = catchInput(romDict, "centIC", False)
 		self.normSubConsIn 	= catchList(romDict, "normSubConsIn", [""])
 		self.normFacConsIn 	= catchList(romDict, "normFacConsIn", [""])
 		self.centConsIn 	= catchList(romDict, "centConsIn", [""])
@@ -93,49 +93,35 @@ class romDomain:
 		if (self.isIntrusive and self.hyperReduc):
 			self.loadHyperReduc(solDomain, solver)
 
-		# initialize models for domain
-		self.modelList = [None] * self.numModels
-		for modelIdx in range(self.numModels):
-
-			if (self.romMethod == "linearGalerkinProj"):
-				self.modelList[modelIdx] = linearGalerkinProj(modelIdx, self, solver, solDomain)
-			elif (self.romMethod == "linearLSPGProj"):
-				raise ValueError("linearLSPGProj ROM not implemented yet")
-			elif (self.romMethod == "linearSPLSVTProj"):
-				raise ValueError("linearSPLSVTProj ROM not implemented yet")
-			elif (self.romMethod == "autoencoderGalerkinProjTF"):
-				raise ValueError("autoencoderGalerkinProjTF ROM not implemented yet")
-			elif (self.romMethod == "autoencoderLSPGProjTF"):
-				raise ValueError("autoencoderLSPGProjTF ROM not implemented yet")
-			elif (self.romMethod == "autoencoderSPLSVTProjTF"):
-				raise ValueError("autoencoderSPLSVTProjTF ROM not implemented yet")
-			elif (self.romMethod == "liftAndLearn"):
-				raise ValueError("liftAndLearn ROM not implemented yet")
-			elif (self.romMethod == "tcnNonintrusive"):
-				raise ValueError("tcnNonintrusive ROM not implemented yet")
-			else:
-				raise ValueError("Invalid ROM method name: "+self.romMethod)
-
-			# initialize state
-			if self.initROMFromFile[modelIdx]:
-				self.modelList[modelIdx].initFromCode(self.code0[modelIdx], solDomain, solver)
-			else:
-				self.modelList[modelIdx].initFromSol(solDomain, solver)
-		
-		solDomain.solInt.updateState(fromCons=self.targetCons)
-
 		# get time integrator, if necessary
 		# TODO: timeScheme should be specific to the romDomain, not the solver
 		if self.hasTimeIntegrator:
 			self.timeIntegrator = getTimeIntegrator(solver.timeScheme, solver.paramDict)
+		else:
+			self.timeIntegrator = None 	# TODO: this might be pointless
+
+		# initialize models for domain
+		self.modelList = [None] * self.numModels
+		for modelIdx in range(self.numModels):
+
+			self.modelList[modelIdx] = getROMModel(modelIdx, self, solver, solDomain)
+			model = self.modelList[modelIdx]
+
+			# initialize state
+			if self.initROMFromFile[modelIdx]:
+				model.initFromCode(self.code0[modelIdx], solDomain)
+			else:
+				model.initFromSol(solDomain)
 
 			# initialize code history
 			# TODO: this is necessary for non-time-integrated methods, e.g. TCN
-			for model in self.modelList:
-				model.codeHist = [model.code.copy()] * (self.timeIntegrator.timeOrder+1)
+			model.codeHist = [model.code.copy()] * (self.timeIntegrator.timeOrder+1)
 
-		else:
-			self.timeIntegrator = None 	# TODO: this might be pointless
+		solDomain.solInt.updateState(fromCons=self.targetCons)
+
+		# overwrite history with initialized solution
+		solDomain.solInt.solHistCons = [solDomain.solInt.solCons.copy()] * (self.timeIntegrator.timeOrder+1)
+		solDomain.solInt.solHistPrim = [solDomain.solInt.solPrim.copy()] * (self.timeIntegrator.timeOrder+1)
 
 
 	def setModelFlags(self):
@@ -172,33 +158,25 @@ class romDomain:
 			self.hasConsNorm 		= True
 			self.hasPrimNorm 		= True
 			self.hasPrimCent 		= True
-		elif (self.romMethod == "autoencoderGalerkinProjTF"):
+		elif (self.romMethod == "autoencoderGalerkinProjTFKeras"):
 			self.hasTimeIntegrator 	= True
 			self.isIntrusive 	   	= True
 			self.targetCons 		= True
 			self.hasConsNorm 		= True
 			self.hasConsCent 		= True
-		elif (self.romMethod == "autoencoderLSPGProjTF"):
+		elif (self.romMethod == "autoencoderLSPGProjTFKeras"):
 			self.hasTimeIntegrator 	= True
 			self.isIntrusive 	   	= True
 			self.targetCons 		= True
 			self.hasConsNorm 		= True
 			self.hasConsCent 		= True
-		elif (self.romMethod == "autoencoderSPLSVTProjTF"):
+		elif (self.romMethod == "autoencoderSPLSVTProjTFKeras"):
 			self.hasTimeIntegrator 	= True
 			self.isIntrusive 	   	= True
 			self.targetPrim 		= True
 			self.hasConsNorm 		= True
 			self.hasPrimNorm 		= True
 			self.hasPrimCent 		= True
-		elif (self.romMethod == "liftAndLearn"):
-			# TODO: the cons/prim dichotomy doesn't work for lifted variables
-			self.hasTimeIntegrator 	= True
-			raise ValueError("Finalize settings of method parameters for lift and learn")
-		elif (self.romMethod == "tcnNonintrusive"):
-			# TODO: TCN does not **need** to target one or the other
-			self.targetCons = catchInput(self.romDict, "targetCons", False)
-			self.targetPrim = catchInput(self.romDict, "targetPrim", False)
 		else:
 			raise ValueError("Invalid ROM method name: "+self.romMethod)
 
@@ -277,8 +255,8 @@ class romDomain:
 
 		# Roe average
 		if (solver.spaceScheme == "roe"):
-			zerosProf        = np.zeros((solDomain.gasModel.numEqs, solDomain.numFluxFaces), dtype=const.realType)
-			solDomain.solAve = solutionPhys(solDomain, zerosProf, zerosProf, solDomain.numFluxFaces, solver)
+			onesProf        = np.ones((solDomain.gasModel.numEqs, solDomain.numFluxFaces), dtype=const.realType)
+			solDomain.solAve = solutionPhys(solDomain.gasModel, solDomain.numFluxFaces, solPrimIn=onesProf)
 
 		# to slice flux when calculating RHS
 		solDomain.fluxRHSIdxs = np.zeros(solDomain.numSampCells, np.int32)
@@ -366,7 +344,7 @@ class romDomain:
 				self.advanceSubiter(solDomain, solver)
 				
 				if (self.timeIntegrator.timeType == "implicit"):
-					solDomain.solInt.calcResNorms(solver, self.timeIntegrator.subiter)
+					self.calcCodeResNorms(solDomain, solver, self.timeIntegrator.subiter)
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol): break
 
 		solDomain.solInt.updateSolHist()
@@ -386,23 +364,24 @@ class romDomain:
 
 		if (self.timeIntegrator.timeType == "implicit"):
 
-			raise ValueError("Implicit ROM under development")
-
+			# compute residual and residual Jacobian
 			if self.isIntrusive:
 				res = self.timeIntegrator.calcResidual(solInt.solHistCons, solInt.RHS, solver)
 				resJacob = calcDResDSolPrim(solDomain, solver)
 
+			# compute change in low-dimensional state
 			for modelIdx, model in enumerate(self.modelList):
-				dCode = model.calcDCode(resJacob, res)
+				dCode, codeLHS, codeRHS = model.calcDCode(resJacob, res, solDomain)
 				model.code += dCode
 				model.codeHist[0] = model.code.copy()
 				model.updateSol(solDomain)
-				
-			dSol = solInt.solPrim - solInt.solHistPrim[0]
-			res = resJacob @ dSol.ravel("F") - solInt.res.ravel("F")
-			solInt.res = np.reshape(res, (solDomain.gasModel.numEqs, solver.mesh.numCells), order='F')
 
-			solInt.updateState(fromCons=False) 	
+				# compute ROM residual for convergence measurement
+				model.res = codeLHS @ dCode - codeRHS
+
+			solInt.updateState(fromCons = (not solDomain.timeIntegrator.dualTime))
+			solInt.solHistCons[0] = solInt.solCons.copy()
+			solInt.solHistPrim[0] = solInt.solPrim.copy()
 
 		else:
 
@@ -415,6 +394,7 @@ class romDomain:
 			
 			solInt.updateState(fromCons=True)
 
+
 	def updateCodeHist(self):
 		"""
 		Update low-dimensional state history after physical time step
@@ -424,3 +404,42 @@ class romDomain:
 
 			model.codeHist[1:] = model.codeHist[:-1]
 			model.codeHist[0]  = model.code.copy()
+
+
+	def calcCodeResNorms(self, solDomain, solver, subiter):
+		"""
+		Calculate and print linear solve residual norms		
+		Note that output is ORDER OF MAGNITUDE of residual norm (i.e. 1e-X, where X is the order of magnitude)
+		"""
+
+		# compute residual norm for each model
+		normL2Sum = 0.0
+		normL1Sum = 0.0
+		for model in self.modelList:
+
+			normL2, normL1 = model.calcCodeNorms()
+
+			normL2Sum += normL2
+			normL1Sum += normL1
+
+		# average over all models
+		normL2 = normL2Sum / self.numModels
+		normL1 = normL1Sum / self.numModels
+
+		# norm is sometimes zero, just default to -16 for perfect double-precision convergence I guess
+		if (normL2 == 0.0):
+			normOutL2 = -16.0
+		else:
+			normOutL2 = np.log10(normL2)
+		
+		if (normL1 == 0.0):
+			normOutL1 = -16.0
+		else: 
+			normOutL1 = np.log10(normL1)
+
+		outString = (str(subiter+1)+":\tL2: %18.14f, \tL1: %18.14f") % (normOutL2, normOutL1)
+		print(outString)
+
+		solDomain.solInt.resNormL2 = normL2
+		solDomain.solInt.resNormL1 = normL1
+		solDomain.solInt.resNormHistory[solver.iter-1, :] = [normL2, normL1]
