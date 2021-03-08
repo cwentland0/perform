@@ -81,7 +81,9 @@ class solutionPhys:
 
 		# threshold
 		# TODO: is this valid? It shouldn't violate mass conservation since density stays the same
-		massFracs = self.gasModel.calcAllMassFracs(massFracs, threshold=True)[:-1,:]
+		massFracs = self.gasModel.calcAllMassFracs(massFracs, threshold=True)
+		if (self.gasModel.numSpeciesFull > 1):
+			massFracs = massFracs[:-1,:]
 		self.solPrim[3:,:] = massFracs
 		self.solCons[3:,:] = self.solPrim[3:,:] * self.solCons[[0],:]
 
@@ -108,7 +110,10 @@ class solutionPhys:
 		"""
 
 		massFracs = self.gasModel.getMassFracArray(solPrim=self.solPrim)
-		massFracs = self.gasModel.calcAllMassFracs(massFracs, threshold=True)[:-1,:] 		# threshold
+		# threshold
+		massFracs = self.gasModel.calcAllMassFracs(massFracs, threshold=True)
+		if (self.gasModel.numSpeciesFull > 1):
+			massFracs = massFracs[:-1,:]
 		self.solPrim[3:,:] = massFracs
 
 		# update thermo properties

@@ -97,7 +97,6 @@ class gasModel:
 
 		if (self.numSpeciesFull == 1):
 			massFracs = np.maximum(0.0, np.minimum(1.0, massFracsNS))
-
 		else:
 			numSpecies, numCells = massFracsNS.shape
 			assert (numSpecies == self.numSpecies), ("massFracsNS argument must have "+str(self.numSpecies)+" species")
