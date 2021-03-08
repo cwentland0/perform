@@ -4,7 +4,6 @@ from perform.inputFuncs import parseBC
 
 import numpy as np
 from math import sin, pi
-import pdb
 
 class solutionBoundary(solutionPhys):
 	"""

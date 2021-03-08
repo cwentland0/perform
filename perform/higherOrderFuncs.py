@@ -1,8 +1,6 @@
 from perform.constants import realType
 
 import numpy as np
-import pdb
-
 
 def calcCellGradients(solDomain, solver):
 	"""

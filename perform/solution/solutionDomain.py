@@ -16,7 +16,6 @@ import os
 import numpy as np
 from scipy.sparse.linalg import spsolve
 from scipy.linalg import solve
-import pdb
 
 class solutionDomain:
 	"""

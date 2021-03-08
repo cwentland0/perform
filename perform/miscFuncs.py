@@ -2,7 +2,6 @@ import perform.constants as const
 
 import os
 import struct
-import pdb
 
 def writeToFile(fid, array, order='F'):
 	"""

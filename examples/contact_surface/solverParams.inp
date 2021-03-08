@@ -6,7 +6,7 @@ initFile = "~/path/to/pygems/examples/contact_surface/Inputs/contact_surface_ic.
 # time discretization
 dt         = 5.0e-9
 numSteps   = 100000
-timeScheme = "rkExp"
+timeScheme = "sspRK3"
 timeOrder  = 3
 
 # space discretization

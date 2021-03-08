@@ -3,7 +3,6 @@ import perform.constants as const
 import re 
 import numpy as np
 import os
-import pdb
 
 def catchInput(inDict, inKey, defaultVal):
 	"""

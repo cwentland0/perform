@@ -3,7 +3,6 @@ from perform.inputFuncs import catchInput
 from perform.timeIntegrator.timeIntegrator import timeIntegrator
 
 import numpy as np
-import pdb
 
 class implicitIntegrator(timeIntegrator):
 	"""

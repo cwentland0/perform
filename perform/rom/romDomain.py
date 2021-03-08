@@ -10,7 +10,6 @@ import numpy as np
 from time import sleep
 import os
 
-
 # TODO: when moving to multi-domain, it may be useful to just hold a solDomain inside romDomain for the associated full-dim solution
 # 		Still a pain to move around since it's associated with the romDomain and not the romModel, but whatever
 # TODO: need to eliminate normSubProf, just roll it into centProf (or reverse)

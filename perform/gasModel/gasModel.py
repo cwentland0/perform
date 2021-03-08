@@ -2,7 +2,6 @@ from perform.constants import realType, RUniv
 from perform.inputFuncs import catchInput
 
 import numpy as np
-import pdb
 
 # TODO: some of the CPG functions can be generalized and placed here (e.g. calc sound speed in terms of enthalpy and density derivs) 
 

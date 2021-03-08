@@ -3,7 +3,6 @@ from perform.rom.projectionROM.projectionROM import projectionROM
 from perform.inputFuncs import catchInput
 
 import numpy as np
-import pdb
 
 class linearProjROM(projectionROM):
 	"""
