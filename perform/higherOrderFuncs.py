@@ -1,145 +1,146 @@
-from perform.constants import realType
-
 import numpy as np
 
-def calcCellGradients(solDomain, solver):
+from perform.constants import REAL_TYPE
+
+
+def calc_cell_gradients(sol_domain, solver):
 	"""
 	Compute cell-centered gradients for higher-order face reconstructions
 	Also calculate gradient limiters if requested
 	"""
 
-	# compute gradients via finite difference stencil
-	solPrimGrad = np.zeros((solDomain.gasModel.numEqs, solDomain.numGradCells), dtype=realType)
-	if (solver.spaceOrder == 2):
-		solPrimGrad = (0.5 / solver.mesh.dx) * (solDomain.solPrimFull[:, solDomain.gradIdxs + 1] - solDomain.solPrimFull[:, solDomain.gradIdxs - 1])
+	# Compute gradients via finite difference stencil
+	sol_prim_grad = np.zeros((sol_domain.gasModel.num_eqs, sol_domain.num_grad_cells), dtype=REAL_TYPE)
+	if (solver.space_order == 2):
+		sol_prim_grad = (0.5 / solver.mesh.dx) * (sol_domain.sol_prim_full[:, sol_domain.grad_idxs + 1] - sol_domain.sol_prim_full[:, sol_domain.grad_idxs - 1])
 	else:
-		raise ValueError("Order "+str(solver.spaceOrder)+" gradient calculations not implemented")
+		raise ValueError("Order "+str(solver.space_order)+" gradient calculations not implemented")
 
 	# compute gradient limiter and limit gradient, if requested
-	if (solver.gradLimiter != ""):
+	if (solver.grad_limiter != ""):
 
 		# Barth-Jespersen
-		if (solver.gradLimiter == "barth"):
-			phi = limiterBarthJespersen(solDomain, solPrimGrad, solver.mesh)
+		if (solver.grad_limiter == "barth"):
+			phi = limiter_barth_jespersen(sol_domain, sol_prim_grad, solver.mesh)
 
 		# Venkatakrishnan, no correction
-		elif (solver.gradLimiter == "venkat"):
-			phi = limiterVenkatakrishnan(solDomain, solPrimGrad, solver.mesh)
+		elif (solver.grad_limiter == "venkat"):
+			phi = limiter_venkatakrishnan(sol_domain, sol_prim_grad, solver.mesh)
 
 		else:
-			raise ValueError("Invalid input for gradLimiter: "+str(solver.gradLimiter))
+			raise ValueError("Invalid input for grad_limiter: "+str(solver.grad_limiter))
 
-		solPrimGrad = solPrimGrad * phi	# limit gradient
+		sol_prim_grad = sol_prim_grad * phi	# limit gradient
 
-	return solPrimGrad
+	return sol_prim_grad
 	
 
-def findNeighborMinMax(sol):
+def find_neighbor_minmax(sol):
 	"""
 	Find minimum and maximum of cell state and neighbor cell state
 	"""
 
 	# max and min of cell and neighbors
-	solMax = sol.copy()
-	solMin = sol.copy()
+	sol_max = sol.copy()
+	sol_min = sol.copy()
 
 	# first compare against right neighbor
-	solMax[:,:-1]  	= np.maximum(sol[:,:-1], sol[:,1:])
-	solMin[:,:-1]  	= np.minimum(sol[:,:-1], sol[:,1:])
+	sol_max[:,:-1] = np.maximum(sol[:,:-1], sol[:,1:])
+	sol_min[:,:-1] = np.minimum(sol[:,:-1], sol[:,1:])
 
 	# then compare agains left neighbor
-	solMax[:,1:] 	= np.maximum(solMax[:,1:], sol[:,:-1])
-	solMin[:,1:] 	= np.minimum(solMin[:,1:], sol[:,:-1])
+	sol_max[:,1:] = np.maximum(sol_max[:,1:], sol[:,:-1])
+	sol_min[:,1:] = np.minimum(sol_min[:,1:], sol[:,:-1])
 
-	return solMin, solMax
+	return sol_min, sol_max
 
 
-def limiterBarthJespersen(solDomain, grad, mesh):
+def limiter_barth_jespersen(sol_domain, grad, mesh):
 	"""
 	Barth-Jespersen limiter
 	Ensures that no new minima or maxima are introduced in reconstruction
 	"""
 
-	solPrim = solDomain.solPrimFull[:, solDomain.gradIdxs]
+	sol_prim = sol_domain.sol_prim_full[:, sol_domain.grad_idxs]
 
 	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solDomain.solPrimFull[:, solDomain.gradNeighIdxs])
+	sol_prim_min, sol_prim_max = find_neighbor_minmax(sol_domain.sol_prim_full[:, sol_domain.grad_neigh_idxs])
 
 	# extract gradient cells
-	solPrimMin = solPrimMin[:, solDomain.gradNeighExtract]
-	solPrimMax = solPrimMax[:, solDomain.gradNeighExtract]
+	sol_prim_min = sol_prim_min[:, sol_domain.grad_neigh_extract]
+	sol_prim_max = sol_prim_max[:, sol_domain.grad_neigh_extract]
 
 	# unconstrained reconstruction at neighboring cell centers
-	delSolPrim 		= grad * mesh.dx
-	solPrimL 		= solPrim - delSolPrim
-	solPrimR 		= solPrim + delSolPrim
+	d_sol_prim     = grad * mesh.dx
+	sol_prim_left  = sol_prim - d_sol_prim
+	sol_prim_right = sol_prim + d_sol_prim
 	
 	# limiter defaults to 1
-	phiL = np.ones(solPrim.shape, dtype=realType)
-	phiR = np.ones(solPrim.shape, dtype=realType)
+	phi_left  = np.ones(sol_prim.shape, dtype=REAL_TYPE)
+	phi_right = np.ones(sol_prim.shape, dtype=REAL_TYPE)
 	
 	# find indices where difference in reconstruction is either positive or negative
-	cond1L = ((solPrimL - solPrim) > 0)
-	cond1R = ((solPrimR - solPrim) > 0)
-	cond2L = ((solPrimL - solPrim) < 0)
-	cond2R = ((solPrimR - solPrim) < 0)
+	cond1_left  = ((sol_prim_left - sol_prim) > 0)
+	cond1_right = ((sol_prim_right - sol_prim) > 0)
+	cond2_left  = ((sol_prim_left - sol_prim) < 0)
+	cond2_right = ((sol_prim_right - sol_prim) < 0)
 
 	# threshold limiter for left and right reconstruction
-	phiL[cond1L] = np.minimum(1.0, (solPrimMax[cond1L] - solPrim[cond1L]) / (solPrimL[cond1L] - solPrim[cond1L]))
-	phiR[cond1R] = np.minimum(1.0, (solPrimMax[cond1R] - solPrim[cond1R]) / (solPrimR[cond1R] - solPrim[cond1R]))
-	phiL[cond2L] = np.minimum(1.0, (solPrimMin[cond2L] - solPrim[cond2L]) / (solPrimL[cond2L] - solPrim[cond2L]))
-	phiR[cond2R] = np.minimum(1.0, (solPrimMin[cond2R] - solPrim[cond2R]) / (solPrimR[cond2R] - solPrim[cond2R]))
+	phi_left[cond1_left]   = np.minimum(1.0, (sol_prim_max[cond1_left] - sol_prim[cond1_left]) / (sol_prim_left[cond1_left] - sol_prim[cond1_left]))
+	phi_right[cond1_right] = np.minimum(1.0, (sol_prim_max[cond1_right] - sol_prim[cond1_right]) / (sol_prim_right[cond1_right] - sol_prim[cond1_right]))
+	phi_left[cond2_left]   = np.minimum(1.0, (sol_prim_min[cond2_left] - sol_prim[cond2_left]) / (sol_prim_left[cond2_left] - sol_prim[cond2_left]))
+	phi_right[cond2_right] = np.minimum(1.0, (sol_prim_min[cond2_right] - sol_prim[cond2_right]) / (sol_prim_right[cond2_right] - sol_prim[cond2_right]))
 
 	# take minimum limiter from left and right
-	phi = np.minimum(phiL, phiR)
+	phi = np.minimum(phi_left, phi_right)
 	
 	return phi
 
 
-def limiterVenkatakrishnan(solDomain, grad, mesh):
+def limiter_venkatakrishnan(sol_domain, grad, mesh):
 	"""
 	Venkatakrishnan limiter
 	Differentiable, but limits in uniform regions
 	"""
 
-	solPrim = solDomain.solPrimFull[:, solDomain.gradIdxs]
+	sol_prim = sol_domain.sol_prim_full[:, sol_domain.grad_idxs]
 
 	# get min/max of cell and neighbors
-	solPrimMin, solPrimMax = findNeighborMinMax(solDomain.solPrimFull[:, solDomain.gradNeighIdxs])
+	sol_prim_min, sol_prim_max = find_neighbor_minmax(sol_domain.sol_prim_full[:, sol_domain.grad_neigh_idxs])
 
 	# extract gradient cells
-	solPrimMin = solPrimMin[:, solDomain.gradNeighExtract]
-	solPrimMax = solPrimMax[:, solDomain.gradNeighExtract]
+	sol_prim_min = sol_prim_min[:, sol_domain.grad_neigh_extract]
+	sol_prim_max = sol_prim_max[:, sol_domain.grad_neigh_extract]
 
 	# unconstrained reconstruction at neighboring cell centers
-	delSolPrim 		= grad * mesh.dx
-	solPrimL 		= solPrim - delSolPrim
-	solPrimR 		= solPrim + delSolPrim
+	d_sol_prim     = grad * mesh.dx
+	sol_prim_left  = sol_prim - d_sol_prim
+	sol_prim_right = sol_prim + d_sol_prim
 	
 	# limiter defaults to 1
-	phiL = np.ones(solPrim.shape, dtype=realType)
-	phiR = np.ones(solPrim.shape, dtype=realType)
+	phi_left  = np.ones(sol_prim.shape, dtype=REAL_TYPE)
+	phi_right = np.ones(sol_prim.shape, dtype=REAL_TYPE)
 	
 	# find indices where difference in reconstruction is either positive or negative
-	cond1L = ((solPrimL - solPrim) > 0)
-	cond1R = ((solPrimR - solPrim) > 0)
-	cond2L = ((solPrimL - solPrim) < 0)
-	cond2R = ((solPrimR - solPrim) < 0)
+	cond1_left  = ((sol_prim_left - sol_prim) > 0)
+	cond1_right = ((sol_prim_right - sol_prim) > 0)
+	cond2_left  = ((sol_prim_left - sol_prim) < 0)
+	cond2_right = ((sol_prim_right - sol_prim) < 0)
 	
 	# (y^2 + 2y) / (y^2 + y + 2)
-	def venkatakrishnanFunction(maxVals, cellVals, faceVals):
-		frac = (maxVals - cellVals) / (faceVals - cellVals)
-		fracSq = np.square(frac)
-		venkVals = (fracSq + 2.0 * frac) / (fracSq + frac + 2.0)
-		return venkVals
+	def venkatakrishnan_function(maxVals, cell_vals, face_vals):
+		frac = (maxVals - cell_vals) / (face_vals - cell_vals)
+		frac_sq = np.square(frac)
+		venk_vals = (frac_sq + 2.0 * frac) / (frac_sq + frac + 2.0)
+		return venk_vals
 
 	# apply smooth Venkatakrishnan function
-	phiL[cond1L] = venkatakrishnanFunction(solPrimMax[cond1L], solPrim[cond1L], solPrimL[cond1L]) 
-	phiR[cond1R] = venkatakrishnanFunction(solPrimMax[cond1R], solPrim[cond1R], solPrimR[cond1R]) 
-	phiL[cond2L] = venkatakrishnanFunction(solPrimMin[cond2L], solPrim[cond2L], solPrimL[cond2L])
-	phiR[cond2R] = venkatakrishnanFunction(solPrimMin[cond2R], solPrim[cond2R], solPrimR[cond2R])
+	phi_left[cond1_left]   = venkatakrishnan_function(sol_prim_max[cond1_left], sol_prim[cond1_left], sol_prim_left[cond1_left]) 
+	phi_right[cond1_right] = venkatakrishnan_function(sol_prim_max[cond1_right], sol_prim[cond1_right], sol_prim_right[cond1_right]) 
+	phi_left[cond2_left]   = venkatakrishnan_function(sol_prim_min[cond2_left], sol_prim[cond2_left], sol_prim_left[cond2_left])
+	phi_right[cond2_right] = venkatakrishnan_function(sol_prim_min[cond2_right], sol_prim[cond2_right], sol_prim_right[cond2_right])
 
 	# take minimum limiter from left and right
-	phi = np.minimum(phiL, phiR)
+	phi = np.minimum(phi_left, phi_right)
 
 	return phi

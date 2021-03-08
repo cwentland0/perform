@@ -1,27 +1,14 @@
+import os
+import re
+
+import numpy as np
+
 import perform.constants as const
 
-import re 
-import numpy as np
-import os
 
-def catchInput(inDict, inKey, defaultVal):
+def catch_input(in_dict, in_key, default_val):
 	"""
 	Assign default values if user does not provide a certain input
-	
-	Inputs
-	------
-	inDict : dict
-		Dictionary containing all input keys and values
-	inKey : str
-		Key to search inDict for
-	default : varies
-		Default value to assign if inKey is not found in inDict
-		Also implicitly defines type to interpret value associated with inKey as
-
-	Outputs
-	-------
-	outVal : varies
-		Either the input value associated with inKey or 
 	"""
 
 	# TODO: correct error handling if default type is not recognized
@@ -29,20 +16,20 @@ def catchInput(inDict, inKey, defaultVal):
 	# TODO: instead of trusting user for NoneType, could also use NaN/Inf to indicate int/float defaults without passing a numerical default
 	# 		or could just pass the actual default type lol, that'd be easier
 
-	defaultType = type(defaultVal)
+	default_type = type(default_val)
 	try:
 		# if NoneType passed as default, trust user
-		if (defaultType == type(None)):
-			outVal = inDict[inKey]
+		if (default_type == type(None)):
+			outVal = in_dict[in_key]
 		else:
-			outVal = defaultType(inDict[inKey])
+			outVal = default_type(in_dict[in_key])
 	except:
-		outVal = defaultVal
+		outVal = default_val
 
 	return outVal
 
 
-def catchList(inDict, inKey, default, lenHighest=1):
+def catch_list(in_dict, in_key, default, lenHighest=1):
 	"""
 	Input processor for reading lists or lists of lists
 	Default defines length of lists at lowest level
@@ -51,16 +38,16 @@ def catchList(inDict, inKey, default, lenHighest=1):
 	# TODO: needs to throw an error if input list of lists is longer than lenHighest
 	# TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
 
-	listOfListsFlag = (type(default[0]) == list)
+	list_of_lists_flag = (type(default[0]) == list)
 	
 	try:
-		inList = inDict[inKey]
+		inList = in_dict[in_key]
 
 		if (len(inList) == 0):
 			raise ValueError
 
 		# list of lists
-		if listOfListsFlag:
+		if list_of_lists_flag:
 			typeDefault = type(default[0][0])
 			valList = []
 			for listIdx in range(lenHighest):
@@ -81,7 +68,7 @@ def catchList(inDict, inKey, default, lenHighest=1):
 				valList = [typeDefault(inVal) for inVal in inList]
 
 	except:
-		if listOfListsFlag:
+		if list_of_lists_flag:
 			valList = []
 			for listIdx in range(lenHighest):
 				valList.append(default[0])
@@ -91,7 +78,7 @@ def catchList(inDict, inKey, default, lenHighest=1):
 	return valList
 
 
-def parseValue(expr):
+def parse_value(expr):
 	"""
 	Parse read text value into dict value
 	"""
@@ -104,7 +91,7 @@ def parseValue(expr):
 		return expr
 
 
-def parseLine(line):
+def parse_line(line):
 	"""
 	Parse read text line into dict key and value
 	"""
@@ -113,143 +100,143 @@ def parseLine(line):
 	if eq == -1: raise Exception()
 	key = line[:eq].strip()
 	value = line[eq+1:-1].strip()
-	return key, parseValue(value)
+	return key, parse_value(value)
 
 
-def readInputFile(inputFile):
+def read_input_file(input_file):
 	"""
 	Read input file
 	"""
 
 	# TODO: better exception handling besides just a pass
 
-	readDict = {}
-	with open(inputFile) as f:
+	read_dict = {}
+	with open(input_file) as f:
 		contents = f.readlines()
 
 	for line in contents: 
 		try:
-			key, val = parseLine(line)
-			readDict[key] = val
+			key, val = parse_line(line)
+			read_dict[key] = val
 			# convert lists to NumPy arrays
 			if (type(val) == list): 
-				readDict[key] = np.asarray(val)
+				read_dict[key] = np.asarray(val)
 		except:
 			pass 
 
-	return readDict
+	return read_dict
 
 
-def parseBC(bcName, inDict):
+def parse_bc(bc_name, in_dict):
 	"""
 	Parse boundary condition parameters from the input parameter dictionary
 	"""
 
 	# TODO: can definitely be made more general
 
-	if ("press_"+bcName in inDict): 
-		press = inDict["press_"+bcName]
+	if ("press_"+bc_name in in_dict): 
+		press = in_dict["press_"+bc_name]
 	else:
 		press = None 
-	if ("vel_"+bcName in inDict): 
-		vel = inDict["vel_"+bcName]
+	if ("vel_"+bc_name in in_dict): 
+		vel = in_dict["vel_"+bc_name]
 	else:
 		vel = None 
-	if ("temp_"+bcName in inDict):
-		temp = inDict["temp_"+bcName]
+	if ("temp_"+bc_name in in_dict):
+		temp = in_dict["temp_"+bc_name]
 	else:
 		temp = None 
-	if ("massFrac_"+bcName in inDict):
-		massFrac = inDict["massFrac_"+bcName]
+	if ("mass_frac_"+bc_name in in_dict):
+		mass_frac = in_dict["mass_frac_"+bc_name]
 	else:
-		massFrac = None
-	if ("rho_"+bcName in inDict):
-		rho = inDict["rho_"+bcName]
+		mass_frac = None
+	if ("rho_"+bc_name in in_dict):
+		rho = in_dict["rho_"+bc_name]
 	else:
 		rho = None
-	if ("pertType_"+bcName in inDict):
-		pertType = inDict["pertType_"+bcName]
+	if ("pert_type_"+bc_name in in_dict):
+		pert_type = in_dict["pert_type_"+bc_name]
 	else:
-		pertType = None
-	if ("pertPerc_"+bcName in inDict):
-		pertPerc = inDict["pertPerc_"+bcName]
+		pert_type = None
+	if ("pert_perc_"+bc_name in in_dict):
+		pert_perc = in_dict["pert_perc_"+bc_name]
 	else:
-		pertPerc = None
-	if ("pertFreq_"+bcName in inDict):
-		pertFreq = inDict["pertFreq_"+bcName]
+		pert_perc = None
+	if ("pert_freq_"+bc_name in in_dict):
+		pert_freq = in_dict["pert_freq_"+bc_name]
 	else:
-		pertFreq = None
+		pert_freq = None
 	
-	return press, vel, temp, massFrac, rho, pertType, pertPerc, pertFreq
+	return press, vel, temp, mass_frac, rho, pert_type, pert_perc, pert_freq
 
 
-def getInitialConditions(solDomain, solver):
+def get_initial_conditions(sol_domain, solver):
 	"""
-	Extract initial condition profile from two-zone initParamsFile, initFile .npy file, or restart file
+	Extract initial condition profile from two-zone initParamsFile, init_file .npy file, or restart file
 	"""
 
 	# TODO: add an option to interpolate a solution onto the given mesh, if different
 
 	# intialize from restart file
-	if solver.initFromRestart:
-		solver.solTime, solPrim0, solver.restartIter = readRestartFile()
+	if solver.init_from_restart:
+		solver.sol_time, sol_prim_init, solver.restart_iter = read_restart_file()
 
 	# otherwise init from scratch IC or custom IC file 
 	else:
-		if (solver.initFile == None):
-			solPrim0 = genPiecewiseUniformIC(solDomain, solver)
+		if (solver.init_file == None):
+			sol_prim_init = gen_piecewise_uniform_ic(sol_domain, solver)
 		else:
 			# TODO: change this to .npz format with physical time included
-			solPrim0 = np.load(solver.initFile)
-			assert (solPrim0.shape[0] == solDomain.gasModel.numEqs), ("Incorrect initFile numEqs: "+str(solPrim0.shape[0]))
+			sol_prim_init = np.load(solver.init_file)
+			assert (sol_prim_init.shape[0] == sol_domain.gas_model.num_eqs), ("Incorrect init_file num_eqs: "+str(sol_prim_init.shape[0]))
 
-		# attempt to get solver.solTime, if given
-		solver.solTime = catchInput(solver.paramDict, "solTimeInit", 0.0)
+		# attempt to get solver.sol_time, if given
+		solver.sol_time = catch_input(solver.param_dict, "sol_time_init", 0.0)
 
-	return solPrim0
+	return sol_prim_init
 
 
-def genPiecewiseUniformIC(solDomain, solver):
+def gen_piecewise_uniform_ic(sol_domain, solver):
 	"""
 	Generate "left" and "right" states
 	"""
 
 	# TODO: generalize to >2 uniform regions
 
-	if os.path.isfile(solver.icParamsFile):
-		icDict 	= readInputFile(solver.icParamsFile)
+	if os.path.isfile(solver.ic_params_file):
+		ic_dict 	= read_input_file(solver.ic_params_file)
 	else:
-		raise ValueError("Could not find initial conditions file at "+solver.icParamsFile)
+		raise ValueError("Could not find initial conditions file at "+solver.ic_params_file)
 
-	splitIdx 	= np.absolute(solver.mesh.xCell - icDict["xSplit"]).argmin()+1
-	solPrim 	= np.zeros((solDomain.gasModel.numEqs, solver.mesh.numCells), dtype=const.realType)
+	split_idx 	= np.absolute(solver.mesh.x_cell - ic_dict["xSplit"]).argmin()+1
+	sol_prim 	= np.zeros((sol_domain.gas_model.num_eqs, solver.mesh.num_cells), dtype=const.REAL_TYPE)
 
 	# TODO: error (or warning?) if xSplit is outside domain / doesn't split domain at all
 
-	gas = solDomain.gasModel
+	gas = sol_domain.gas_model
 
 	# left state
-	solPrim[0,:splitIdx] 	= icDict["pressLeft"]
-	solPrim[1,:splitIdx] 	= icDict["velLeft"]
-	solPrim[2,:splitIdx] 	= icDict["tempLeft"]
-	massFracLeft 			= icDict["massFracLeft"]
-	assert(np.sum(massFracLeft) == 1.0), "massFracLeft must sum to 1.0"
-	assert(len(massFracLeft) == gas.numSpeciesFull), "massFracLeft must have "+str(gas.numSpeciesFull)+" entries"
-	solPrim[3:,:splitIdx] 	= icDict["massFracLeft"][gas.massFracSlice, None]
+	sol_prim[0,:split_idx] 	= ic_dict["press_left"]
+	sol_prim[1,:split_idx] 	= ic_dict["vel_left"]
+	sol_prim[2,:split_idx] 	= ic_dict["temp_left"]
+	mass_frac_left          = ic_dict["mass_frac_left"]
+	assert(np.sum(mass_frac_left) == 1.0), "mass_frac_left must sum to 1.0"
+	assert(len(mass_frac_left) == gas.num_species_full), "mass_frac_left must have "+str(gas.num_species_full)+" entries"
+	sol_prim[3:,:split_idx] 	= ic_dict["mass_frac_left"][gas.mass_frac_slice, None]
 
 	# right state
-	solPrim[0,splitIdx:] 	= icDict["pressRight"]
-	solPrim[1,splitIdx:] 	= icDict["velRight"]
-	solPrim[2,splitIdx:] 	= icDict["tempRight"]
-	massFracRight 			= icDict["massFracRight"]
-	assert(np.sum(massFracRight) == 1.0), "massFracRight must sum to 1.0"
-	assert(len(massFracRight) == gas.numSpeciesFull), "massFracRight must have "+str(gas.numSpeciesFull)+" entries"
-	solPrim[3:,splitIdx:] 	= massFracRight[gas.massFracSlice, None]
+	sol_prim[0,split_idx:] 	= ic_dict["press_right"]
+	sol_prim[1,split_idx:] 	= ic_dict["vel_right"]
+	sol_prim[2,split_idx:] 	= ic_dict["temp_right"]
+	mass_frac_right         = ic_dict["mass_frac_right"]
+	assert(np.sum(mass_frac_right) == 1.0), "mass_frac_right must sum to 1.0"
+	assert(len(mass_frac_right) == gas.num_species_full), "mass_frac_right must have "+str(gas.num_species_full)+" entries"
+	sol_prim[3:,split_idx:] 	= mass_frac_right[gas.mass_frac_slice, None]
 	
-	return solPrim
+	return sol_prim
 
 
-def readRestartFile():
+def read_restart_file():
 	"""
 	Read solution state from restart file 
 	"""
@@ -257,16 +244,16 @@ def readRestartFile():
 	# TODO: if higher-order multistep scheme, load previous time steps to preserve time accuracy
 
 	# read text file for restart file iteration number
-	with open(os.path.join(const.restartOutputDir, "restartIter.dat"), "r") as f:
-		restartIter = int(f.read())
+	with open(os.path.join(const.restart_output_dir, "restart_iter.dat"), "r") as f:
+		restart_iter = int(f.read())
 
 	# read solution
-	restartFile = os.path.join(const.restartOutputDir, "restartFile_"+str(restartIter)+".npz")
-	restartIn = np.load(restartFile)
+	restartFile = os.path.join(const.restart_output_dir, "restartFile_"+str(restart_iter)+".npz")
+	restart_in = np.load(restartFile)
 
-	solTime = restartIn["solTime"].item() 	# convert array() to scalar
-	solPrim = restartIn["solPrim"]
+	sol_time = restart_in["sol_time"].item() 	# convert array() to scalar
+	sol_prim = restart_in["sol_prim"]
 
-	restartIter += 1 # so this restart file doesn't get overwritten on next restart write
+	restart_iter += 1 # so this restart file doesn't get overwritten on next restart write
 
-	return solTime, solPrim, restartIter
+	return sol_time, sol_prim, restart_iter

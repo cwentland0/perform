@@ -1,9 +1,10 @@
-import perform.constants as const
-
 import os
 import struct
 
-def writeToFile(fid, array, order='F'):
+import perform.constants as const
+
+
+def write_to_file(fid, array, order='F'):
 	"""
 	Write NumPy arrays to binary file using struct
 
@@ -40,8 +41,8 @@ def writeToFile(fid, array, order='F'):
 	fid.write(struct.pack(typeStr*array.shape[0], *(array)))
 
 
-def mkdirInWorkdir(dirName):
+def mkdir_in_workdir(dir_name):
 
-	newDir = os.path.join(const.workingDir, dirName)
-	if not os.path.isdir(newDir): os.mkdir(newDir)
-	return newDir
+	new_dir = os.path.join(const.working_dir, dir_name)
+	if not os.path.isdir(new_dir): os.mkdir(new_dir)
+	return new_dir

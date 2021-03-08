@@ -1,47 +1,44 @@
 # useful constants used throughout the code
 import numpy as np
 
-workingDir = None 	# working director, set at runtime
+# relevant directory absolute paths, set at runtime (not really constants)
+working_dir         = None 	
+unsteady_output_dir = None 
+probe_output_dir    = None 
+image_output_dir    = None 
+restart_output_dir  = None
 
-realType 	= np.float64 			# precision of real numbers
-complexType = np.complex128 		# precision of complex numbers
+# Precision of real and complex numbers
+REAL_TYPE 	 = np.float64
+COMPLEX_TYPE = np.complex128
 
-RUniv 		= 8314.4621 # universal gas constant, J/(K*kmol)
-enthRefTemp = 298.0 	# temperature at which reference enthalpy is measured
-						# TODO: make this the default, but make it possible to accept different values in parameters
-suthTemp 	= 110.4 	# Sutherland temperature
+R_UNIV 		= 8314.4621 # universal gas constant, J/(K*kmol)
+SUTH_TEMP 	= 110.4 	# Sutherland temperature
 
-tinyNum 	= 1.0e-25 	# very small number
-hugeNum 	= 1.0e25	# very large number
-
+TINY_NUM 	= 1.0e-25 	# very small number
+HUGE_NUM 	= 1.0e25	# very large number
 
 # time integrator defaults
-subiterMaxImpDefault 	= 50
-l2ResTolDefault 		= 1.0e-12
-l2SteadyTolDefault 		= 1.0e-12
-resNormPrimDefault 		= [1.0e5, 10.0, 300.0, 1.0]
-dtauDefault 			= 1.0e-5
-CFLDefault 				= 1.0
-VNNDefault 				= 20.0
+SUBITER_MAX_IMP_DEFAULT = 50
+L2_RES_TOL_DEFAULT      = 1.0e-12
+L2_STEADY_TOL_DEFAULT   = 1.0e-12
+RES_NORM_PRIM_DEFAULT   = [1.0e5, 10.0, 300.0, 1.0]
+DTAU_DEFAULT            = 1.0e-5
+CFL_DEFAULT             = 1.0
+VNN_DEFAULT             = 20.0
 
-fdStepDefault 			= 1.0e-6
+FD_STEP_DEFAULT = 1.0e-6
 
 # visualization constants
-figWidthDefault 	= 12
-figHeightDefault 	= 6
+FIG_WIDTH_DEFAULT  = 12
+FIG_HEIGHT_DEFAULT = 6
 
 # output directory names
-unsteadyOutputDirName   = "UnsteadyFieldResults"
-probeOutputDirName 		= "ProbeResults"
-imageOutputDirName 		= "ImageResults"
-restartOutputDirName 	= "RestartFiles"
-
-# working directory output directories, set at runtime
-unsteadyOutputDir 	= None 
-probeOutputDir 		= None 
-imageOutputDir 		= None 
-restartOutputDir 	= None
+UNSTEADY_OUTPUT_DIR_NAME = "UnsteadyFieldResults"
+PROBE_OUTPUT_DIR_NAME    = "ProbeResults"
+IMAGE_OUTPUT_DIR_NAME    = "ImageResults"
+RESTART_OUTPUT_DIR_NAME  = "RestartFiles"
 
 # input files
-paramInputs 	= "solverParams.inp"
-romInputs		= "romParams.inp"
+PARAM_INPUTS = "solverParams.inp"
+ROM_INPUTS   = "romParams.inp"
