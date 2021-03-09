@@ -1,170 +1,172 @@
-import perform.constants as const
-from perform.constants import realType, resNormPrimDefault
-from perform.solution.solutionPhys import solutionPhys
-
-import numpy as np
 import os
 
-class solutionInterior(solutionPhys):
+import numpy as np
+
+from perform.constants import REAL_TYPE, RES_NORM_PRIM_DEFAULT, unsteady_output_dir, restart_output_dir
+from perform.solution.solution_phys import SolutionPhys
+
+
+class SolutionInterior(SolutionPhys):
 	"""
 	Solution of interior domain
 	"""
 
-	def __init__(self, gas, solPrimIn, solver, timeInt):
-		super().__init__(gas, solver.mesh.numCells, solPrimIn=solPrimIn)
+	def __init__(self, gas, sol_prim_in, solver, time_int):
+		super().__init__(gas, solver.mesh.num_cells, sol_prim_in=sol_prim_in)
 
-		gas = self.gasModel
-		numCells = solver.mesh.numCells 
+		gas = self.gas_model
+		num_cells = solver.mesh.num_cells 
 
-		self.source = np.zeros((gas.numSpecies,numCells), dtype=realType)	# reaction source term
-		self.RHS 	= np.zeros((gas.numEqs,numCells), dtype=realType)		# RHS function
+		self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)	# reaction source term
+		self.rhs 	= np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)		# RHS function
 
 		# add bulk velocity and update state if requested
-		if (solver.velAdd != 0.0):
-			self.solPrim[1,:] += solver.velAdd
-			self.updateState(fromCons=False)
+		if (solver.vel_add != 0.0):
+			self.sol_prim[1,:] += solver.vel_add
+			self.update_state(from_cons=False)
 
 		# initializing time history
-		self.solHistCons = [self.solCons.copy()] * (timeInt.timeOrder+1)
-		self.solHistPrim = [self.solPrim.copy()] * (timeInt.timeOrder+1)
+		self.sol_hist_cons = [self.sol_cons.copy()] * (time_int.time_order+1)
+		self.sol_hist_prim = [self.sol_prim.copy()] * (time_int.time_order+1)
 
 		# RHS storage for multi-stage schemes
-		self.rhsHist     = [self.RHS.copy()] * (timeInt.timeOrder+1)
+		self.rhs_hist     = [self.rhs.copy()] * (time_int.time_order+1)
 
 		# snapshot storage matrices, store initial condition
-		if solver.primOut: 
-			self.primSnap = np.zeros((gas.numEqs, numCells, solver.numSnaps+1), dtype=realType)
-			self.primSnap[:,:,0] = self.solPrim.copy()
-		if solver.consOut: 
-			self.consSnap = np.zeros((gas.numEqs, numCells, solver.numSnaps+1), dtype=realType)
-			self.consSnap[:,:,0] = self.solCons.copy()
+		if solver.prim_out: 
+			self.prim_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps+1), dtype=REAL_TYPE)
+			self.prim_snap[:,:,0] = self.sol_prim.copy()
+		if solver.cons_out: 
+			self.cons_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps+1), dtype=REAL_TYPE)
+			self.cons_snap[:,:,0] = self.sol_cons.copy()
 
 		# these don't include the source/RHS associated with the final solution
 		# TODO: calculate at final solution? Doesn't really seem worth the bother to me
-		if solver.sourceOut: self.sourceSnap = np.zeros((gas.numSpecies, numCells, solver.numSnaps), dtype=realType)
-		if solver.RHSOut:  self.RHSSnap  = np.zeros((gas.numEqs, numCells, solver.numSnaps), dtype=realType)
+		if solver.source_out: self.source_snap = np.zeros((gas.num_species, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+		if solver.rhs_out:   self.rhs_snap  = np.zeros((gas.num_eqs, num_cells, solver.num_snaps), dtype=REAL_TYPE)
 
-		if ((timeInt.timeType == "implicit") or (solver.runSteady)):
+		if ((time_int.time_type == "implicit") or (solver.run_steady)):
 			# norm normalization constants
 			# TODO: will need a normalization constant for conservative residual when it's implemented
-			if ((len(solver.resNormPrim) == 1) and (solver.resNormPrim[0] == None)):
-				solver.resNormPrim = [None]*gas.numEqs
+			if ((len(solver.res_norm_prim) == 1) and (solver.res_norm_prim[0] == None)):
+				solver.res_norm_prim = [None]*gas.num_eqs
 			else:
-				assert(len(solver.resNormPrim) == gas.numEqs)
-			for varIdx in range(gas.numEqs):
-				if (solver.resNormPrim[varIdx] == None):
+				assert(len(solver.res_norm_prim) == gas.num_eqs)
+			for var_idx in range(gas.num_eqs):
+				if (solver.res_norm_prim[var_idx] == None):
 					# 0: pressure, 1: velocity, 2: temperature, >=3: species
-					solver.resNormPrim[varIdx] = resNormPrimDefault[min(varIdx,3)]
+					solver.res_norm_prim[var_idx] = RES_NORM_PRIM_DEFAULT[min(var_idx,3)]
 
 			# residual norm storage
-			if (timeInt.timeType == "implicit"):
+			if (time_int.time_type == "implicit"):
 
-				self.res 			= np.zeros((gas.numEqs,numCells), dtype=realType)
-				self.resNormL2 		= 0.0
-				self.resNormL1 		= 0.0
-				self.resNormHistory = np.zeros((solver.numSteps,2), dtype=realType) 
+				self.res              = np.zeros((gas.num_eqs,num_cells), dtype=REAL_TYPE)
+				self.res_norm_l2      = 0.0
+				self.res_norm_l1      = 0.0
+				self.res_norm_history = np.zeros((solver.num_steps,2), dtype=REAL_TYPE) 
 
-				if ((timeInt.dualTime) and (timeInt.adaptDTau)):
-					self.srf 	= np.zeros(numCells, dtype=realType)
+				if ((time_int.dual_time) and (time_int.adapt_dtau)):
+					self.srf = np.zeros(num_cells, dtype=REAL_TYPE)
 
 				# CSR matrix indices
-				numElements = gas.numEqs**2 * numCells
-				self.jacobDim    = gas.numEqs * numCells
+				num_elements   = gas.num_eqs**2 * num_cells
+				self.jacob_dim = gas.num_eqs * num_cells
 				
-				self.rowIdxsCenter = np.zeros(numElements, dtype=np.int32)
-				self.colIdxsCenter = np.zeros(numElements, dtype=np.int32)
-				self.rowIdxsUpper  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
-				self.colIdxsUpper  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
-				self.rowIdxsLower  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
-				self.colIdxsLower  = np.zeros(numElements - gas.numEqs**2, dtype=np.int32)
+				row_idxs_center = np.zeros(num_elements, dtype=np.int32)
+				col_idxs_center = np.zeros(num_elements, dtype=np.int32)
+				row_idxs_upper  = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
+				col_idxs_upper  = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
+				row_idxs_lower  = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
+				col_idxs_lower  = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
 
+				# TODO: definitely a faster way to do this
 				lin_idx_A = 0
 				lin_idx_B = 0
 				lin_idx_C = 0
-				for i in range(gas.numEqs):
-					for j in range(gas.numEqs):
-						for k in range(numCells):
+				for i in range(gas.num_eqs):
+					for j in range(gas.num_eqs):
+						for k in range(num_cells):
 
-							self.rowIdxsCenter[lin_idx_A] = i * numCells + k
-							self.colIdxsCenter[lin_idx_A] = j * numCells + k
+							row_idxs_center[lin_idx_A] = i * num_cells + k
+							col_idxs_center[lin_idx_A] = j * num_cells + k
 							lin_idx_A += 1
 
-							if (k < (numCells-1)):
-								self.rowIdxsUpper[lin_idx_B] = i * numCells + k
-								self.colIdxsUpper[lin_idx_B] = j * numCells + k + 1
+							if (k < (num_cells-1)):
+								row_idxs_upper[lin_idx_B] = i * num_cells + k
+								col_idxs_upper[lin_idx_B] = j * num_cells + k + 1
 								lin_idx_B += 1
 
 							if (k > 0):
-								self.rowIdxsLower[lin_idx_C] = i * numCells + k
-								self.colIdxsLower[lin_idx_C] = j * numCells + k - 1
+								row_idxs_lower[lin_idx_C] = i * num_cells + k
+								col_idxs_lower[lin_idx_C] = j * num_cells + k - 1
 								lin_idx_C += 1
 
-				self.rowIdxs = np.concatenate((self.rowIdxsCenter, self.rowIdxsLower, self.rowIdxsUpper))
-				self.colIdxs = np.concatenate((self.colIdxsCenter, self.colIdxsLower, self.colIdxsUpper))
+				self.jacob_row_idxs = np.concatenate((row_idxs_center, row_idxs_lower, row_idxs_upper))
+				self.jacob_col_idxs = np.concatenate((col_idxs_center, col_idxs_lower, col_idxs_upper))
 
 			# "steady" convergence measures
-			if solver.runSteady:
+			if solver.run_steady:
 
-				self.dSolNormL2 		= 0.0
-				self.dSolNormL1 		= 0.0
-				self.dSolNormHistory 	= np.zeros((solver.numSteps,2), dtype=realType)
+				self.d_sol_norm_l2      = 0.0
+				self.d_sol_norm_l1      = 0.0
+				self.d_sol_norm_history = np.zeros((solver.num_steps,2), dtype=REAL_TYPE)
 		
 	
-	def updateSolHist(self):
+	def update_sol_hist(self):
 		"""
 		Update time history of solution and RHS function for multi-stage time integrators
 		"""
 	
 		# primitive and conservative state history
-		self.solHistCons[1:] = self.solHistCons[:-1]
-		self.solHistPrim[1:] = self.solHistPrim[:-1]
-		self.solHistCons[0]  = self.solCons.copy()
-		self.solHistPrim[0]  = self.solPrim.copy()
+		self.sol_hist_cons[1:] = self.sol_hist_cons[:-1]
+		self.sol_hist_prim[1:] = self.sol_hist_prim[:-1]
+		self.sol_hist_cons[0]  = self.sol_cons.copy()
+		self.sol_hist_prim[0]  = self.sol_prim.copy()
 
 		# TODO: RHS update should occur at the FIRST subiteration right after the RHS is calculated
 		# RHS function history
-		self.rhsHist[1:] = self.rhsHist[:-1]
-		self.rhsHist[0]  = self.RHS.copy()
+		self.rhs_hist[1:] = self.rhs_hist[:-1]
+		self.rhs_hist[0]  = self.rhs.copy()
 
 
-	def updateSnapshots(self, solver):
+	def update_snapshots(self, solver):
 
-		storeIdx = int((solver.iter - 1) / solver.outInterval) + 1
+		store_idx = int((solver.iter - 1) / solver.out_interval) + 1
 
-		if solver.primOut: 		self.primSnap[:,:,storeIdx] 	= self.solPrim
-		if solver.consOut: 		self.consSnap[:,:,storeIdx] 	= self.solCons
-		if solver.sourceOut:	self.sourceSnap[:,:,storeIdx-1] = self.source
-		if solver.RHSOut:  		self.RHSSnap[:,:,storeIdx-1]  	= self.RHS
+		if solver.prim_out:  self.prim_snap[:,:,store_idx]      = self.sol_prim
+		if solver.cons_out:  self.cons_snap[:,:,store_idx]      = self.sol_cons
+		if solver.source_out: self.source_snap[:,:,store_idx-1]  = self.source
+		if solver.rhs_out:   self.rhs_snap[:,:,store_idx-1]  	= self.rhs
 
 
-	def writeSnapshots(self, solver, failed):
+	def write_snapshots(self, solver, failed):
 		"""
 		Save snapshot matrices to disk
 		"""
 
 		# account for failed simulation dump
-		# TODO: need to account for non-unity outInterval
+		# TODO: need to account for non-unity out_interval
 		if failed:
 			offset = 1
 		else:
 			offset = 2
-		finalIdx = int((solver.iter - 1) / solver.outInterval) + offset
+		final_idx = int((solver.iter - 1) / solver.out_interval) + offset
 
-		if solver.primOut:
-			solPrimFile = os.path.join(const.unsteadyOutputDir, "solPrim_"+solver.simType+".npy")
-			np.save(solPrimFile, self.primSnap[:,:,:finalIdx])
-		if solver.consOut:
-			solConsFile = os.path.join(const.unsteadyOutputDir, "solCons_"+solver.simType+".npy")
-			np.save(solConsFile, self.consSnap[:,:,:finalIdx]) 
-		if solver.sourceOut:
-			sourceFile = os.path.join(const.unsteadyOutputDir, "source_"+solver.simType+".npy")
-			np.save(sourceFile, self.sourceSnap[:,:,:finalIdx-1])
-		if solver.RHSOut:
-			solRHSFile = os.path.join(const.unsteadyOutputDir, "solRHS_"+solver.simType+".npy")
-			np.save(solRHSFile, self.RHSSnap[:,:,:finalIdx-1]) 
+		if solver.prim_out:
+			sol_prim_file = os.path.join(unsteady_output_dir, "solPrim_"+solver.sim_type+".npy")
+			np.save(sol_prim_file, self.prim_snap[:,:,:final_idx])
+		if solver.cons_out:
+			sol_cons_file = os.path.join(unsteady_output_dir, "solCons_"+solver.sim_type+".npy")
+			np.save(sol_cons_file, self.cons_snap[:,:,:final_idx]) 
+		if solver.source_out:
+			source_file = os.path.join(unsteady_output_dir, "source_"+solver.sim_type+".npy")
+			np.save(source_file, self.source_snap[:,:,:final_idx-1])
+		if solver.rhs_out:
+			sol_rhs_file = os.path.join(unsteady_output_dir, "solRHS_"+solver.sim_type+".npy")
+			np.save(sol_rhs_file, self.rhs_snap[:,:,:final_idx-1]) 
 
 
-	def writeRestartFile(self, solver):
+	def write_restart_file(self, solver):
 		"""
 		Write restart files containing primitive and conservative fields, and associated physical time
 		"""
@@ -172,66 +174,66 @@ class solutionInterior(solutionPhys):
 		# TODO: write previous time step(s) for multi-step methods, to preserve time accuracy at restart
 
 		# write restart file to zipped file
-		restartFile = os.path.join(const.restartOutputDir, "restartFile_"+str(solver.restartIter)+".npz")
-		np.savez(restartFile, solTime = solver.solTime, solPrim = self.solPrim, solCons = self.solCons)
+		restart_file = os.path.join(restart_output_dir, "restartFile_"+str(solver.restart_iter)+".npz")
+		np.savez(restart_file, solTime = solver.solTime, sol_prim = self.sol_prim, sol_cons = self.sol_cons)
 
 		# write iteration number files
-		restartIterFile = os.path.join(const.restartOutputDir, "restartIter.dat")
+		restartIterFile = os.path.join(restart_output_dir, "restart_iter.dat")
 		with open(restartIterFile, "w") as f:
-			f.write(str(solver.restartIter)+"\n")
+			f.write(str(solver.restart_iter)+"\n")
 
-		restartPhysIterFile = os.path.join(const.restartOutputDir, "restartIter_"+str(solver.restartIter)+".dat")
-		with open(restartPhysIterFile, "w") as f:
+		restart_phys_iter_file = os.path.join(restart_output_dir, "restart_iter_"+str(solver.restart_iter)+".dat")
+		with open(restart_phys_iter_file, "w") as f:
 			f.write(str(solver.iter)+"\n")
 
 		# iterate file count
-		if (solver.restartIter < solver.numRestarts):
-			solver.restartIter += 1
+		if (solver.restart_iter < solver.num_restarts):
+			solver.restart_iter += 1
 		else:
-			solver.restartIter = 1
+			solver.restart_iter = 1
 
 
-	def writeSteadyData(self, solver):
+	def write_steady_data(self, solver):
 
 		# write norm data to ASCII file
-		steadyFile = os.path.join(const.unsteadyOutputDir, "steadyConvergence.dat")
+		steady_file = os.path.join(unsteady_output_dir, "steady_convergence.dat")
 		if (solver.iter == 1):
-			f = open(steadyFile,"w")
+			f = open(steady_file,"w")
 		else:
-			f = open(steadyFile, "a")
-		outString = ("%8i %18.14f %18.14f\n") % (solver.timeIter-1, self.dSolNormL2, self.dSolNormL1)
-		f.write(outString)
+			f = open(steady_file, "a")
+		out_string = ("%8i %18.14f %18.14f\n") % (solver.time_iter-1, self.d_sol_norm_l2, self.d_sol_norm_l1)
+		f.write(out_string)
 		f.close()
 
 		# write field data
-		solPrimFile = os.path.join(const.unsteadyOutputDir, "solPrim_steady.npy")
-		np.save(solPrimFile, self.solPrim)
-		solConsFile = os.path.join(const.unsteadyOutputDir, "solCons_steady.npy")
-		np.save(solConsFile, self.solCons)
+		sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_steady.npy")
+		np.save(sol_prim_file, self.sol_prim)
+		sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_steady.npy")
+		np.save(sol_cons_file, self.sol_cons)
 
 
-	def calcDSolNorms(self, solver, timeType):
+	def calc_d_sol_norms(self, solver, time_type):
 		"""
 		Calculate and print solution change norms
 		Note that output is ORDER OF MAGNITUDE of residual norm (i.e. 1e-X, where X is the order of magnitude)
 		"""
 
-		if (timeType == "implicit"):
-			dSol = self.solHistPrim[0] - self.solHistPrim[1]
+		if (time_type == "implicit"):
+			d_sol = self.sol_hist_prim[0] - self.sol_hist_prim[1]
 		else:
 			# TODO: only valid for single-stage explicit schemes
-			dSol = self.solPrim - self.solHistPrim[0]
+			d_sol = self.sol_prim - self.sol_hist_prim[0]
 			
-		normL2, normL1 = self.calcNorms(dSol, solver.resNormPrim)
+		norm_l2, norm_l1 = self.calc_norms(d_sol, solver.res_norm_prim)
 
-		normOutL2 = np.log10(normL2)
-		normOutL1 = np.log10(normL1)
-		outString = ("%8i:   L2: %18.14f,   L1: %18.14f") % (solver.timeIter, normOutL2, normOutL1)
-		print(outString)
+		norm_out_l2 = np.log10(norm_l2)
+		norm_out_l1 = np.log10(norm_l1)
+		out_string = ("%8i:   L2: %18.14f,   L1: %18.14f") % (solver.time_iter, norm_out_l2, norm_out_l1)
+		print(out_string)
 
-		self.dSolNormL2 = normL2
-		self.dSolNormL1 = normL1
-		self.dSolNormHistory[solver.iter-1, :] = [normL2, normL1]
+		self.d_sol_norm_l2 = norm_l2
+		self.d_sol_norm_l1 = norm_l1
+		self.d_sol_norm_history[solver.iter-1, :] = [norm_l2, norm_l1]
 
 
 	def calcResNorms(self, solver, subiter):
@@ -241,39 +243,39 @@ class solutionInterior(solutionPhys):
 		"""
 
 		# TODO: pass conservative normalization factors if running conservative implicit solve
-		normL2, normL1 = self.calcNorms(self.res, solver.resNormPrim)
+		norm_l2, norm_l1 = self.calc_norms(self.res, solver.res_norm_prim)
 
 		# don't print for "steady" solve
-		if (not solver.runSteady):
-			normOutL2 = np.log10(normL2)
-			normOutL1 = np.log10(normL1)
-			outString = (str(subiter+1)+":\tL2: %18.14f, \tL1: %18.14f") % (normOutL2, normOutL1)
-			print(outString)
+		if (not solver.run_steady):
+			norm_out_l2 = np.log10(norm_l2)
+			norm_out_l1 = np.log10(norm_l1)
+			out_string = (str(subiter+1)+":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1)
+			print(out_string)
 
-		self.resNormL2 = normL2
-		self.resNormL1 = normL1
-		self.resNormHistory[solver.iter-1, :] = [normL2, normL1]
+		self.res_norm_l2 = norm_l2
+		self.res_norm_l1 = norm_l1
+		self.res_norm_history[solver.iter-1, :] = [norm_l2, norm_l1]
 
 
-	def calcNorms(self, arrIn, normFacs):
+	def calc_norms(self, arr_in, norm_facs):
 		"""
-		Compute L1 and L2 norms of arrIn
-		arrIn assumed to be in [numVars, numCells] order
+		Compute L1 and L2 norms of arr_in
+		arr_in assumed to be in [numVars, num_cells] order
 		"""
 
-		arrAbs = np.abs(arrIn)
+		arr_abs = np.abs(arr_in)
 
 		# L2 norm
-		arrNormL2 = np.sum(np.square(arrAbs), axis=1)
-		arrNormL2[:] /= arrIn.shape[1]
-		arrNormL2 /= np.square(normFacs)
-		arrNormL2 = np.sqrt(arrNormL2)
-		arrNormL2 = np.mean(arrNormL2)
+		arr_norm_l2     = np.sum(np.square(arr_abs), axis=1)
+		arr_norm_l2[:] /= arr_in.shape[1]
+		arr_norm_l2    /= np.square(norm_facs)
+		arr_norm_l2     = np.sqrt(arr_norm_l2)
+		arr_norm_l2     = np.mean(arr_norm_l2)
 		
 		# L1 norm
-		arrNormL1 = np.sum(arrAbs, axis=1)
-		arrNormL1[:] /= arrIn.shape[1]
-		arrNormL1 /= normFacs
-		arrNormL1 = np.mean(arrNormL1)
+		arr_norm_l1     = np.sum(arr_abs, axis=1)
+		arr_norm_l1[:] /= arr_in.shape[1]
+		arr_norm_l1    /= norm_facs
+		arr_norm_l1     = np.mean(arr_norm_l1)
 		
-		return arrNormL2, arrNormL1
+		return arr_norm_l2, arr_norm_l1

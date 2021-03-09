@@ -1,93 +1,94 @@
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 import perform.constants as const
 from perform.visualization.visualization import visualization
 from perform.inputFuncs import catchInput
 
-import os
-import matplotlib.pyplot as plt
-import numpy as np
-
 # TODO: might be easier to make probe and residual plots under some pointPlot class
 # TODO: move some of the init input arguments used for assertions outside
 
-class probePlot(visualization):
+class ProbePlot(visualization):
 
-	def __init__(self, visID, simType, probeVars, visVars, probeNum, numProbes, visXBounds, visYBounds, speciesNames):
+	def __init__(self, vis_id, sim_type, probe_vars, vis_vars, probe_num, num_probes, vis_x_bounds, vis_y_bounds, species_names):
 
-		self.visType = "probe"
-		self.visID   = visID
-		self.xLabel  = "t (s)"
+		self.vis_type = "probe"
+		self.vis_id   = vis_id
+		self.x_label  = "t (s)"
 
-		self.probeNum  = probeNum
-		self.probeVars = probeVars
-		assert (self.probeNum >= 0 ), "Must provide positive integer probe number for probe"+str(self.visID)
-		assert (self.probeNum < numProbes), "probeNum"+str(self.visID)+" must correspond to a valid probe"
+		self.probe_num  = probe_num
+		self.probe_vars = probe_vars
+		assert (self.probe_num >= 0 ), "Must provide positive integer probe number for probe"+str(self.vis_id)
+		assert (self.probe_num < num_probes), "probe_num"+str(self.vis_id)+" must correspond to a valid probe"
 
-		super().__init__(visID, visVars, visXBounds, visYBounds, speciesNames)
+		super().__init__(vis_id, vis_vars, vis_x_bounds, vis_y_bounds, species_names)
 
 		# image file on disk
-		visName = ""
-		for visVar in self.visVars:
-			visName += "_"+visVar
-		figName = "probe" + visName + "_" + str(self.probeNum) + "_" + simType + ".png"
-		self.figFile = os.path.join(const.imageOutputDir, figName) 
+		vis_name = ""
+		for vis_var in self.vis_vars:
+			vis_name += "_"+vis_var
+		fig_name = "probe" + vis_name + "_" + str(self.probe_num) + "_" + sim_type + ".png"
+		self.fig_file = os.path.join(const.image_output_dir, fig_name) 
 
 		# check that requested variables are being probed
-		for visVar in self.visVars:
-			assert (visVar in probeVars), "Must probe "+visVar+" to plot it"
+		for vis_var in self.vis_vars:
+			assert (vis_var in probe_vars), "Must probe "+vis_var+" to plot it"
 
 
-	def plot(self, probeVals, timeVals, iterNum, lineStyle):
+	def plot(self, probe_vals, time_vals, iter_num, line_style):
 		"""
 		Draw and display plot
 		"""
 
-		plt.figure(self.visID)
+		plt.figure(self.vis_id)
 
 		if (type(self.ax) != np.ndarray):
-			axList = [self.ax]
+			ax_list = [self.ax]
 		else:
-			axList = self.ax
+			ax_list = self.ax
 
-		for colIdx, col in enumerate(axList):
+		for col_idx, col in enumerate(ax_list):
 			if (type(col) != np.ndarray):
-				colList = [col]
+				col_list = [col]
 			else:
-				colList = col
-			for rowIdx, axVar in enumerate(colList):
+				col_list = col
+			for rowIdx, ax_var in enumerate(col_list):
 
-				linIdx = np.ravel_multi_index(([colIdx],[rowIdx]), (self.numRows, self.numCols))[0]
-				if ((linIdx+1) > self.numSubplots): 
-					axVar.axis("off")
+				lin_idx = np.ravel_multi_index(([col_idx],[rowIdx]), (self.num_rows, self.num_cols))[0]
+				if ((lin_idx+1) > self.numSubplots): 
+					ax_var.axis("off")
 					break
 
-				yData = self.getYData(probeVals, self.visVars[linIdx], iterNum)
-				xData = timeVals[:iterNum]
+				y_data = self.getYData(probe_vals, self.vis_vars[lin_idx], iter_num)
+				x_data = time_vals[:iter_num]
 
-				axVar.plot(xData, yData, lineStyle)
-				axVar.set_ylim(self.visYBounds[linIdx])
-				axVar.set_xlim(self.visXBounds[linIdx])
-				axVar.set_ylabel(self.axLabels[linIdx])
-				axVar.set_xlabel(self.xLabel)
+				ax_var.plot(x_data, y_data, line_style)
+				ax_var.set_ylim(self.vis_y_bounds[lin_idx])
+				ax_var.set_xlim(self.vis_x_bounds[lin_idx])
+				ax_var.set_ylabel(self.axLabels[lin_idx])
+				ax_var.set_xlabel(self.x_label)
 				
-				axVar.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+				ax_var.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 
 		self.fig.tight_layout()
 		self.fig.canvas.draw_idle()
 
 
-	def getYData(self, probeVals, varStr, iterNum):
+	def getYData(self, probe_vals, var_str, iter_num):
 
 		# data extraction of probes is done in solDomain 
-		varIdx = np.squeeze(np.argwhere(self.probeVars == varStr)[0])
-		yData = probeVals[self.probeNum, varIdx, :iterNum]
+		var_idx = np.squeeze(np.argwhere(self.probe_vars == var_str)[0])
+		y_data = probe_vals[self.probe_num, var_idx, :iter_num]
 
-		return yData
+		return y_data
 
 
-	def save(self, iterNum, dpi=100):
+	def save(self, iter_num, dpi=100):
 
-		plt.figure(self.visID)
+		plt.figure(self.vis_id)
 		plt.tight_layout()
-		self.fig.savefig(self.figFile, dpi=dpi)
+		self.fig.savefig(self.fig_file, dpi=dpi)
 
 		

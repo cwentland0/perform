@@ -365,7 +365,7 @@ def calc_adaptive_dtau(sol_domain, gamma_matrix, solver):
 	# limit by von Neumann number
 	if (solver.visc_scheme > 0):
 		# TODO: calculating this is stupidly expensive, figure out a workaround
-		sol_int.dyn_visc_mix = sol_domain.gas_model.calcMixDynamicVisc(temperature=sol_int.sol_prim[2,:],massFracs=sol_int.sol_prim[3:,:])
+		sol_int.dyn_visc_mix = sol_domain.gas_model.calc_mix_dynamic_visc(temperature=sol_int.sol_prim[2,:], massFracs=sol_int.sol_prim[3:,:])
 		nu = sol_int.dyn_visc_mix / sol_int.solCons[0,:]
 		dtau = np.minimum(dtau, sol_domain.time_integrator.vnn * np.square(solver.mesh.dx) / nu)
 		dtaum = np.minimum(dtaum, 3.0 / nu)

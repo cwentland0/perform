@@ -1,141 +1,139 @@
-from perform.constants import realType, RUniv
-from perform.inputFuncs import catchInput
-
 import numpy as np
+
+from perform.constants import REAL_TYPE, R_UNIV
 
 # TODO: some of the CPG functions can be generalized and placed here (e.g. calc sound speed in terms of enthalpy and density derivs) 
 
-class gasModel:
+class GasModel:
 	"""
 	Base class storing constant chemical properties of modeled species
 	Also includes universal gas methods (like calculating mixture molecular weight)
 	"""
 
-	def __init__(self, gasDict):
+	def __init__(self, gas_dict):
 
 		# gas composition
-		self.numSpeciesFull     = int(gasDict["numSpecies"])				# total number of species in case
-		self.molWeights         = gasDict["molWeights"].astype(realType)	# molecular weights, g/mol
+		self.num_species_full = int(gas_dict["num_species"])				# total number of species in case
+		self.mol_weights      = gas_dict["mol_weights"].astype(REAL_TYPE)	# molecular weights, g/mol
 
 		# species names for plotting and output
 		try:
-			self.speciesNames   = gasDict["speciesNames"]
-			assert (len(self.speciesNames) == self.numSpeciesFull)
+			self.species_names   = gas_dict["species_names"]
+			assert (len(self.species_names) == self.num_species_full)
 		except KeyError:
-			self.speciesNames   = ["Species_"+str(x+1) for x in range(self.numSpeciesFull)] 
+			self.species_names   = ["Species_"+str(x+1) for x in range(self.num_species_full)] 
 
 		# Arrhenius factors
 		# TODO: modify these to allow for multiple global reactions
-		self.nu                 = gasDict["nu"].astype(realType) 		# global reaction stoichiometric "forward" coefficients
-		self.nuArr              = gasDict["nuArr"].astype(realType) 	# global reaction concentration exponents
-		self.actEnergy          = float(gasDict["actEnergy"])			# global reaction Arrhenius activation energy, divided by RUniv, ?????
-		self.preExpFact         = float(gasDict["preExpFact"]) 			# global reaction Arrhenius pre-exponential factor		
+		self.nu           = gas_dict["nu"].astype(REAL_TYPE) 		# global reaction stoichiometric "forward" coefficients
+		self.nu_arr       = gas_dict["nu_arr"].astype(REAL_TYPE) 	# global reaction concentration exponents
+		self.act_energy   = float(gas_dict["act_energy"])			# global reaction Arrhenius activation energy, divided by R_UNIV, ?????
+		self.pre_exp_fact = float(gas_dict["pre_exp_fact"]) 		# global reaction Arrhenius pre-exponential factor		
 
 		# check input lengths
-		assert(len(self.molWeights) == self.numSpeciesFull)
+		assert(len(self.mol_weights) == self.num_species_full)
 		# TODO: check lengths of reaction inputs
 
 		# misc calculations
-		self.RGas               = RUniv / self.molWeights 			# specific gas constant of each species, J/(K*kg)	
-		self.molWeightNu        = self.molWeights * self.nu 
+		self.mol_weight_nu = self.mol_weights * self.nu 
 
 		# dealing with single-species option
-		if (self.numSpeciesFull == 1):
-			self.numSpecies	    = self.numSpeciesFull
+		if (self.num_species_full == 1):
+			self.num_species = self.num_species_full
 		else:
-			self.numSpecies     = self.numSpeciesFull - 1		# last species is not directly solved for
+			self.num_species = self.num_species_full - 1		# last species is not directly solved for
 
-		self.massFracSlice  = np.arange(self.numSpecies)
-		self.mwInv          = 1.0 / self.molWeights
-		self.mwInvDiffs     = self.mwInv[self.massFracSlice] - self.mwInv[-1]
+		self.mass_frac_slice = np.arange(self.num_species)
+		self.mw_inv          = 1.0 / self.mol_weights
+		self.mw_inv_diffs    = self.mw_inv[self.mass_frac_slice] - self.mw_inv[-1]
 
-		self.numEqs         = self.numSpecies + 3			# pressure, velocity, temperature, and species transport
+		self.numEqs = self.num_species + 3			# pressure, velocity, temperature, and species transport
 
 		# mass matrices for calculating viscosity and thermal conductivity mixing laws
-		self.mixMassMatrix 		= np.zeros((self.numSpeciesFull, self.numSpeciesFull), dtype=realType)
-		self.mixInvMassMatrix 	= np.zeros((self.numSpeciesFull, self.numSpeciesFull), dtype=realType)
-		self.precompMixMassMatrices()
+		self.mix_mass_matrix     = np.zeros((self.num_species_full, self.num_species_full), dtype=REAL_TYPE)
+		self.mix_inv_mass_matrix = np.zeros((self.num_species_full, self.num_species_full), dtype=REAL_TYPE)
+		self.precomp_mix_mass_matrices()
 
 
-	def precompMixMassMatrices(self):
+	def precomp_mix_mass_matrices(self):
 		"""
 		Precompute mass matrices for dynamic viscosity mixing law
 		"""
 
-		for specNum in range(self.numSpeciesFull):
-			self.mixMassMatrix[specNum, :] 	  = np.power((self.molWeights / self.molWeights[specNum]), 0.25)
-			self.mixInvMassMatrix[specNum, :] = (1.0 / (2.0 * np.sqrt(2.0))) * (1.0 / np.sqrt( 1.0 + self.molWeights[specNum] / self.molWeights)) 
+		for spec_idx in range(self.num_species_full):
+			self.mix_mass_matrix[spec_idx, :] 	  = np.power((self.mol_weights / self.mol_weights[spec_idx]), 0.25)
+			self.mix_inv_mass_matrix[spec_idx, :] = (1.0 / (2.0 * np.sqrt(2.0))) * (1.0 / np.sqrt( 1.0 + self.mol_weights[spec_idx] / self.mol_weights)) 
 
 
-	def getMassFracArray(self, solPrim=None, massFracs=None):
+	def get_mass_frac_array(self, sol_prim=None, mass_fracs=None):
 		"""
 		Helper function to handle array slicing to avoid weird NumPy array broadcasting issues
 		"""
 
 		# get all but last mass fraction field
-		if (solPrim is None):
-			assert (massFracs is not None), "Must provide mass fractions if not providing primitive solution"
-			if (massFracs.ndim == 1):
-				massFracs = np.reshape(massFracs, (1,-1))
+		if (sol_prim is None):
+			assert (mass_fracs is not None), "Must provide mass fractions if not providing primitive solution"
+			if (mass_fracs.ndim == 1):
+				mass_fracs = np.reshape(mass_fracs, (1,-1))
 
-			if (massFracs.shape[1] == self.numSpeciesFull):
-				massFracs = massFracs[self.massFracSlice,:]
+			if (mass_fracs.shape[1] == self.num_species_full):
+				mass_fracs = mass_fracs[self.mass_frac_slice,:]
 			else:
-				assert (massFracs.shape[0] == self.numSpecies), "If not passing full mass fraction array, must pass N-1 species"
+				assert (mass_fracs.shape[0] == self.num_species), "If not passing full mass fraction array, must pass N-1 species"
 		else:
-			massFracs = solPrim[3:,:]
+			mass_fracs = sol_prim[3:,:]
 
-		return massFracs
+		return mass_fracs
 
 
-	def calcAllMassFracs(self, massFracsNS, threshold=True):
+	def calcAllMassFracs(self, mass_fracs_ns, threshold=True):
 		"""
-		Helper function to compute all numSpeciesFull mass fraction fields from numSpecies fields
+		Helper function to compute all num_species_full mass fraction fields from num_species fields
 		Thresholds all mass fraction fields between zero and unity 
 		"""
 
-		if (self.numSpeciesFull == 1):
-			massFracs = np.maximum(0.0, np.minimum(1.0, massFracsNS))
+		if (self.num_species_full == 1):
+			mass_fracs = np.maximum(0.0, np.minimum(1.0, mass_fracs_ns))
 		else:
-			numSpecies, numCells = massFracsNS.shape
-			assert (numSpecies == self.numSpecies), ("massFracsNS argument must have "+str(self.numSpecies)+" species")
+			num_species, num_cells = mass_fracs_ns.shape
+			assert (num_species == self.num_species), ("mass_fracs_ns argument must have "+str(self.num_species)+" species")
 
-			massFracs = np.zeros((numSpecies+1,numCells), dtype=realType)
+			mass_fracs = np.zeros((num_species+1, num_cells), dtype=REAL_TYPE)
 			if threshold:
-				massFracs[:-1,:] = np.maximum(0.0, np.minimum(1.0, massFracsNS))
-				massFracs[-1,:]  = 1.0 - np.sum(massFracs[:-1,:], axis=0)
-				massFracs[-1,:]  = np.maximum(0.0, np.minimum(1.0, massFracs[-1,:]))
+				mass_fracs[:-1,:] = np.maximum(0.0, np.minimum(1.0, mass_fracs_ns))
+				mass_fracs[-1,:]  = 1.0 - np.sum(mass_fracs[:-1,:], axis=0)
+				mass_fracs[-1,:]  = np.maximum(0.0, np.minimum(1.0, mass_fracs[-1,:]))
 			else:
-				massFracs[:-1,:] = massFracsNS
-				massFracs[-1,:]  = 1.0 - np.sum(massFracs[:-1,:], axis=0)
+				mass_fracs[:-1,:] = mass_fracs_ns
+				mass_fracs[-1,:]  = 1.0 - np.sum(mass_fracs[:-1,:], axis=0)
 
-		return massFracs
+		return mass_fracs
 
 
-	def calcMixMolWeight(self, massFracs):
+	def calc_mix_mol_weight(self, mass_fracs):
 		"""
 		Compute mixture molecular weight
 		"""
 
-		if (massFracs.shape[0] == self.numSpecies):
-			massFracs = self.calcAllMassFracs(massFracs, threshold=False)
+		if (mass_fracs.shape[0] == self.num_species):
+			mass_fracs = self.calcAllMassFracs(mass_fracs, threshold=False)
 
-		mixMolWeight = 1.0 / np.sum(massFracs / self.molWeights[:, None], axis=0)
+		mix_mol_weight = 1.0 / np.sum(mass_fracs / self.mol_weights[:, None], axis=0)
 
-		return mixMolWeight
+		return mix_mol_weight
 
 
-	def calcAllMoleFracs(self, massFracs, mixMolWeight=None):
+	def calc_all_mole_fracs(self, mass_fracs, mix_mol_weight=None):
 		"""
 		Compute mole fractions of all species from mass fractions
 		"""
 
-		if (massFracs.shape[0] == self.numSpecies):
-			massFracs = self.calcAllMassFracs(massFracs, threshold=False)
+		if (mass_fracs.shape[0] == self.num_species):
+			mass_fracs = self.calcAllMassFracs(mass_fracs, threshold=False)
 
-		if (mixMolWeight is None):
-			mixMolWeight = self.calcMixMolWeight(massFracs)
+		if (mix_mol_weight is None):
+			mix_mol_weight = self.calc_mix_mol_weight(mass_fracs)
 
-		moleFracs = massFracs * mixMolWeight[None, :] * self.mwInv[:, None]
+		mole_fracs = mass_fracs * mix_mol_weight[None, :] * self.mw_inv[:, None]
 
-		return moleFracs
+		return mole_fracs

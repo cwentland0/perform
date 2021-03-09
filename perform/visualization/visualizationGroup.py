@@ -1,234 +1,236 @@
-from perform.constants import figWidthDefault, figHeightDefault
-from perform.visualization.fieldPlot import fieldPlot
-from perform.visualization.probePlot import probePlot
-# from perform.visualization.residualPlot import residualPlot
-from perform.inputFuncs import catchInput, catchList
+from time import sleep
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from time import sleep
 
-class visualizationGroup:
+from perform.constants import fig_width_default, fig_height_default
+from perform.visualization.field_plot import FieldPlot
+from perform.visualization.probe_plot import ProbePlot
+from perform.input_funcs import catch_input, catch_list
+
+
+class VisualizationGroup:
 	"""
 	Container class for all visualizations
 	"""
 
-	def __init__(self, solDomain, solver):
+	def __init__(self, sol_domain, solver):
 		
-		paramDict = solver.paramDict
+		param_dict = solver.param_dict
 
-		self.visShow 		= catchInput(paramDict, "visShow", True)
-		self.visSave 		= catchInput(paramDict, "visSave", False)
-		self.visInterval 	= catchInput(paramDict, "visInterval", 1)
-		self.niceVis 		= catchInput(paramDict, "niceVis", False)
+		self.vis_show 		= catch_input(param_dict, "vis_show", True)
+		self.vis_save 		= catch_input(param_dict, "vis_save", False)
+		self.vis_interval 	= catch_input(param_dict, "vis_interval", 1)
+		self.nice_vis 		= catch_input(param_dict, "nice_vis", False)
 
 		# if not saving or showing, don't even draw the plots
-		self.visDraw = True
-		if ((not self.visShow) and (not self.visSave)):
-			self.visDraw = False
+		self.vis_draw = True
+		if ((not self.vis_show) and (not self.vis_save)):
+			self.vis_draw = False
 			return
 
 		# count number of visualizations requested
-		self.numVisPlots = 0
-		plotCount = True
-		while plotCount:
+		self.num_vis_plots = 0
+		plot_count = True
+		while plot_count:
 			try:
-				keyName = "visType"+str(self.numVisPlots+1)
-				plotType = str(paramDict[keyName])
+				key_name = "vis_type"+str(self.num_vis_plots+1)
+				plot_type = str(param_dict[key_name])
 				# TODO: should honestly just fail for incorrect input
-				assert (plotType in ["field", "probe", "residual"]), (keyName+" must be either \"field\", \"probe\", or \"residual\"")
-				self.numVisPlots += 1
+				assert (plot_type in ["field", "probe", "residual"]), (key_name+" must be either \"field\", \"probe\", or \"residual\"")
+				self.num_vis_plots += 1
 			except:
-				plotCount = False
+				plot_count = False
 
-		if (self.numVisPlots == 0):
+		if (self.num_vis_plots == 0):
 			print("WARNING: No visualization plots selected...")
 			sleep(1.0)
-		self.visList = [None] * self.numVisPlots
+		self.vis_list = [None] * self.num_vis_plots
 
 		# initialize each figure object
-		for visIdx in range(1, self.numVisPlots+1):
+		for vis_idx in range(1, self.num_vis_plots+1):
 			
 			# some parameters all plots have
-			visType    = str(paramDict["visType"+str(visIdx)])
-			visVars	   = catchList(paramDict, "visVar"+str(visIdx), [None])
-			visXBounds = catchList(paramDict, "visXBounds"+str(visIdx), [[None,None]], lenHighest=len(visVars))
-			visYBounds = catchList(paramDict, "visYBounds"+str(visIdx), [[None,None]], lenHighest=len(visVars))
+			vis_type    = str(param_dict["vis_type"+str(vis_idx)])
+			vis_vars	   = catch_list(param_dict, "visVar"+str(vis_idx), [None])
+			vis_x_bounds = catch_list(param_dict, "vis_x_bounds"+str(vis_idx), [[None,None]], len_highest=len(vis_vars))
+			vis_y_bounds = catch_list(param_dict, "vis_y_bounds"+str(vis_idx), [[None,None]], len_highest=len(vis_vars))
 
-			if (visType == "field"):
-				self.visList[visIdx-1] = fieldPlot(visIdx, self.visInterval, solver.numSteps, solver.simType, 
-											visVars, visXBounds, visYBounds, solDomain.gasModel.speciesNames)
-			elif (visType == "probe"):
-				probeNum = catchInput(paramDict, "probeNum"+str(visIdx), -2) - 1
-				self.visList[visIdx-1] = probePlot(visIdx, solver.simType, solver.probeVars, visVars, probeNum, 
-											solver.numProbes, visXBounds, visYBounds, solDomain.gasModel.speciesNames)
-			elif (visType == "residual"):
+			if (vis_type == "field"):
+				self.vis_list[vis_idx-1] = FieldPlot(vis_idx, self.vis_interval, solver.num_steps, solver.sim_type, 
+											vis_vars, vis_x_bounds, vis_y_bounds, sol_domain.gas_model.species_names)
+			elif (vis_type == "probe"):
+				probe_num = catch_input(param_dict, "probe_num"+str(vis_idx), -2) - 1
+				self.vis_list[vis_idx-1] = ProbePlot(vis_idx, solver.sim_type, solver.probeVars, vis_vars, probe_num, 
+											solver.numProbes, vis_x_bounds, vis_y_bounds, sol_domain.gas_model.species_names)
+			elif (vis_type == "residual"):
 				raise ValueError("Residual plot not implemented yet")
 			else:
-				raise ValueError("Invalid visualization selection: "+visType)
+				raise ValueError("Invalid visualization selection: "+vis_type)
 
 		# set plot positions/dimensions
-		if (self.niceVis and self.visShow):
+		if (self.nice_vis and self.vis_show):
 			try:
-				self.movePlots()
+				raise ValueError("nice_vis is broken right now, please set nice_vis = False")
+				# self.movePlots()
 			except:
-				for vis in self.visList:
-					vis.fig, vis.ax = plt.subplots(nrows=vis.numRows, ncols=vis.numCols, num=vis.visID, figsize=(figWidthDefault,figHeightDefault))
+				for vis in self.vis_list:
+					vis.fig, vis.ax = plt.subplots(nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(fig_width_default,fig_height_default))
 		else:
-			for vis in self.visList:
-				vis.fig, vis.ax = plt.subplots(nrows=vis.numRows, ncols=vis.numCols, num=vis.visID, figsize=(figWidthDefault,figHeightDefault))	
+			for vis in self.vis_list:
+				vis.fig, vis.ax = plt.subplots(nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(fig_width_default,fig_height_default))	
 			
-		if self.visShow:
+		if self.vis_show:
 			plt.show(block=False)
 			plt.pause(0.001)
 
-	def drawPlots(self, solDomain, solver):
+	def drawPlots(self, sol_domain, solver):
 		""" 
 		Helper function to draw, display, and save plots
 		"""
 
-		if not self.visDraw: return
+		if not self.vis_draw: return
 
-		if (self.numVisPlots > 0):
-			if ((solver.iter % self.visInterval) != 0):
+		if (self.num_vis_plots > 0):
+			if ((solver.iter % self.vis_interval) != 0):
 				return
 
-			for vis in self.visList:
+			for vis in self.vis_list:
 
 				# clear plots
-				plt.figure(vis.visID)
+				plt.figure(vis.vis_id)
 				if (type(vis.ax) != np.ndarray):
-					axList = [vis.ax]
+					ax_list = [vis.ax]
 				else:
-					axList = vis.ax
-				for colIdx, col in enumerate(axList):
+					ax_list = vis.ax
+				for col_idx, col in enumerate(ax_list):
 					if (type(col) != np.ndarray):
-						colList = [col]
+						col_list = [col]
 					else:
-						colList = col
-					for rowIdx, axVar in enumerate(colList):
-						axVar.cla()
+						col_list = col
+					for rowIdx, ax_var in enumerate(col_list):
+						ax_var.cla()
 
 				# draw and save plots
-				if (vis.visType == "field"):
-					vis.plot(solDomain.solInt.solPrim, solDomain.solInt.solCons, solDomain.solInt.source, solDomain.solInt.RHS, 
-							solDomain.gasModel, solver.mesh.xCell, 'b-')
-				elif (vis.visType == "probe"):
-					vis.plot(solDomain.probeVals, solDomain.timeVals, solver.iter, 'b-')
+				if (vis.vis_type == "field"):
+					vis.plot(sol_domain.sol_int.sol_prim, sol_domain.sol_int.sol_cons, sol_domain.sol_int.source, sol_domain.sol_int.rhs, 
+							sol_domain.gas_model, solver.mesh.x_cell, 'b-')
+				elif (vis.vis_type == "probe"):
+					vis.plot(sol_domain.probe_vals, sol_domain.time_vals, solver.iter, 'b-')
 				else:
-					raise ValueError("Invalid visType:" + str(vis.visType))
-				if self.visSave: vis.save(solver.iter)
+					raise ValueError("Invalid vis_type:" + str(vis.vis_type))
+				if self.vis_save: vis.save(solver.iter)
 
-			if self.visShow:
+			if self.vis_show:
 				plt.show(block=False)
 				plt.pause(0.001)
 
 
-	def movePlots(self):
-		"""
-		Resizes and moves plots to positions in the window for better viewing
-		"""
+	# def movePlots(self):
+	# 	"""
+	# 	Resizes and moves plots to positions in the window for better viewing
+	# 	"""
 
-		backend = matplotlib.get_backend()
+	# 	backend = matplotlib.get_backend()
 
-		# check some options, do some math for plot placement
-		# TODO: this doesn't account for taskbar, overestimates the size of available screen size
-		fig = plt.figure(num=0)
-		dpi = fig.dpi
-		manager = plt.get_current_fig_manager()
-		if (backend == "TkAgg"):
-			manager.resize(*manager.window.maxsize())
-			plt.pause(0.01)
-			screenW = manager.window.winfo_width()
-			screenH = manager.window.winfo_height()
-		elif (backend == "WXAgg"):
-			import wx
-			screenW, screenH = wx.Display(0).GetGeometry().GetSize()
-		elif (backend in ["Qt4Agg","Qt5Agg"]):
-			# TODO: this is super sketchy and may give weird results
-			manager.full_screen_toggle()
-			plt.pause(0.01)
-			screenW = manager.canvas.width()
-			screenH = manager.canvas.height()
-		else:
-			raise ValueError("Nice plot positioning not supported for matplotlib backend "+backend)
-		plt.close(0)
+	# 	# check some options, do some math for plot placement
+	# 	# TODO: this doesn't account for taskbar, overestimates the size of available screen size
+	# 	fig = plt.figure(num=0)
+	# 	dpi = fig.dpi
+	# 	manager = plt.get_current_fig_manager()
+	# 	if (backend == "TkAgg"):
+	# 		manager.resize(*manager.window.maxsize())
+	# 		plt.pause(0.01)
+	# 		screenW = manager.window.winfo_width()
+	# 		screenH = manager.window.winfo_height()
+	# 	elif (backend == "WXAgg"):
+	# 		import wx
+	# 		screenW, screenH = wx.Display(0).GetGeometry().GetSize()
+	# 	elif (backend in ["Qt4Agg","Qt5Agg"]):
+	# 		# TODO: this is super sketchy and may give weird results
+	# 		manager.full_screen_toggle()
+	# 		plt.pause(0.01)
+	# 		screenW = manager.canvas.width()
+	# 		screenH = manager.canvas.height()
+	# 	else:
+	# 		raise ValueError("Nice plot positioning not supported for matplotlib backend "+backend)
+	# 	plt.close(0)
 
-		self.numSubplotsArr = np.zeros(self.numVisPlots, dtype=np.int32)
-		for visIdx, vis in enumerate(self.visList):
-			self.numSubplotsArr[visIdx] = vis.numSubplots
+	# 	self.numSubplotsArr = np.zeros(self.num_vis_plots, dtype=np.int32)
+	# 	for vis_idx, vis in enumerate(self.vis_list):
+	# 		self.numSubplotsArr[vis_idx] = vis.numSubplots
 
-		xBase = 50
-		yBase = 50
-		screenW -= xBase
-		screenH -= yBase
+	# 	xBase = 50
+	# 	yBase = 50
+	# 	screenW -= xBase
+	# 	screenH -= yBase
 
-		figX = [None] * self.numVisPlots
-		figY = [None] * self.numVisPlots
-		figW = [None] * self.numVisPlots
-		figH = [None] * self.numVisPlots
-		if (self.numVisPlots == 1):
-			# just fill the screen
-			figX[0], figY[0] = 0.0, 0.0
-			figW[0] = screenW
-			figH[0] = screenH
-		elif (self.numVisPlots == 2):
-			for figIdx in range(2):
-				figX[figIdx] = (figIdx / 2.0) * screenW
-				figY[figIdx] = 0.0
-				figW[figIdx] = screenW / 2.0
-				figH[figIdx] = screenH
-		elif (self.numVisPlots == 3):
-			allEqual = np.all(self.numSubplotsArr == self.numSubplotsArr[0])
-			if allEqual:
-				for figIdx in range(3):
-					figW[figIdx] = screenW / 2.0
-					figH[figIdx] = screenH / 2.0
-					if (figIdx < 2):
-						figX[figIdx] = (figIdx / 2.0) * screenW
-						figY[figIdx] = 0.0
-					else:
-						figX[figIdx] = 0.0
-						figY[figIdx] = screenH / 2.0
+	# 	figX = [None] * self.num_vis_plots
+	# 	figY = [None] * self.num_vis_plots
+	# 	figW = [None] * self.num_vis_plots
+	# 	figH = [None] * self.num_vis_plots
+	# 	if (self.num_vis_plots == 1):
+	# 		# just fill the screen
+	# 		figX[0], figY[0] = 0.0, 0.0
+	# 		figW[0] = screenW
+	# 		figH[0] = screenH
+	# 	elif (self.num_vis_plots == 2):
+	# 		for figIdx in range(2):
+	# 			figX[figIdx] = (figIdx / 2.0) * screenW
+	# 			figY[figIdx] = 0.0
+	# 			figW[figIdx] = screenW / 2.0
+	# 			figH[figIdx] = screenH
+	# 	elif (self.num_vis_plots == 3):
+	# 		allEqual = np.all(self.numSubplotsArr == self.numSubplotsArr[0])
+	# 		if allEqual:
+	# 			for figIdx in range(3):
+	# 				figW[figIdx] = screenW / 2.0
+	# 				figH[figIdx] = screenH / 2.0
+	# 				if (figIdx < 2):
+	# 					figX[figIdx] = (figIdx / 2.0) * screenW
+	# 					figY[figIdx] = 0.0
+	# 				else:
+	# 					figX[figIdx] = 0.0
+	# 					figY[figIdx] = screenH / 2.0
 
-			else:
-				largestPlot = np.argmax(self.numSubplotsArr)
-				smallCounter = 0
-				for figIdx in range(3):
-					figW[figIdx] = screenW / 2.0
-					if (figIdx == largestPlot):
-						figH[figIdx] = screenH
-						figX[figIdx] = 0.0
-						figY[figIdx] = 0.0
-					else:
-						figH[figIdx] = screenH / 2.0
-						figY[figIdx] = (smallCounter / 2.0) * screenH
-						smallCounter += 1
+	# 		else:
+	# 			largestPlot = np.argmax(self.numSubplotsArr)
+	# 			smallCounter = 0
+	# 			for figIdx in range(3):
+	# 				figW[figIdx] = screenW / 2.0
+	# 				if (figIdx == largestPlot):
+	# 					figH[figIdx] = screenH
+	# 					figX[figIdx] = 0.0
+	# 					figY[figIdx] = 0.0
+	# 				else:
+	# 					figH[figIdx] = screenH / 2.0
+	# 					figY[figIdx] = (smallCounter / 2.0) * screenH
+	# 					smallCounter += 1
 
-		elif (self.numVisPlots == 4):
-			for figIdx in range(4):
-				xIdx = figIdx % 2
-				yIdx = int(figIdx / 2)
-				figH[figIdx] = screenH / 2.0
-				figW[figIdx] = screenW / 2.0
+	# 	elif (self.num_vis_plots == 4):
+	# 		for figIdx in range(4):
+	# 			xIdx = figIdx % 2
+	# 			yIdx = int(figIdx / 2)
+	# 			figH[figIdx] = screenH / 2.0
+	# 			figW[figIdx] = screenW / 2.0
 
-		else:
-			raise ValueError("Nice plot position not supported for more than four plots")
+	# 	else:
+	# 		raise ValueError("Nice plot position not supported for more than four plots")
 
-		# convert pixels to inches
-		figW = [x/dpi for x in figW]
-		figH = [x/dpi for x in figH]
+	# 	# convert pixels to inches
+	# 	figW = [x/dpi for x in figW]
+	# 	figH = [x/dpi for x in figH]
 
-		# move plots
-		for visIdx, vis in enumerate(self.visList):
+	# 	# move plots
+	# 	for vis_idx, vis in enumerate(self.vis_list):
 
-			vis.fig, vis.ax = plt.subplots(nrows=vis.numRows, ncols=vis.numCols, num=vis.visID, figsize=(figW[visIdx],figH[visIdx]))
-			window = vis.fig.canvas.manager.window
-			if (backend == "TkAgg"):
-				window.wm_geometry("+%d+%d" % (figX[visIdx], figY[visIdx]))
-			elif (backend == "WXAgg"):
-				window.SetPosition((figX[visIdx], figY[visIdx]))
-			elif (backend in ["Qt4Agg","Qt5Agg"]):
-				window.move(figX[visIdx], figY[visIdx])
+	# 		vis.fig, vis.ax = plt.subplots(nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(figW[vis_idx],figH[vis_idx]))
+	# 		window = vis.fig.canvas.manager.window
+	# 		if (backend == "TkAgg"):
+	# 			window.wm_geometry("+%d+%d" % (figX[vis_idx], figY[vis_idx]))
+	# 		elif (backend == "WXAgg"):
+	# 			window.SetPosition((figX[vis_idx], figY[vis_idx]))
+	# 		elif (backend in ["Qt4Agg","Qt5Agg"]):
+	# 			window.move(figX[vis_idx], figY[vis_idx])
 			

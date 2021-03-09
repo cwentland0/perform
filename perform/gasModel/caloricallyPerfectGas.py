@@ -1,11 +1,11 @@
-from perform.constants import realType, RUniv, suthTemp
-from perform.gasModel.gasModel import gasModel
-
 import numpy as np
+
+from perform.constants import REAL_TYPE, R_UNIV, SUTH_TEMP
+from perform.gasModel.gasModel import GasModel
 
 # TODO: more options for passing arguments to avoid repeats in called methods
 
-class caloricallyPerfectGas(gasModel):
+class CaloricallyPerfectGas(GasModel):
 	"""
 	Container class for all CPG-specific thermo/transport property methods
 	"""
@@ -13,337 +13,337 @@ class caloricallyPerfectGas(gasModel):
 	def __init__(self, gasDict):
 		super().__init__(gasDict)
 
-		self.enthRef = gasDict["enthRef"].astype(realType) 		# reference enthalpy, J/kg
-		self.Cp      = gasDict["Cp"].astype(realType)			# heat capacity at constant pressure, J/(kg-K)
-		self.Pr      = gasDict["Pr"].astype(realType)			# Prandtl number
-		self.Sc      = gasDict["Sc"].astype(realType)			# Schmidt number
+		self.enth_ref = gasDict["enth_ref"].astype(REAL_TYPE) 	# reference enthalpy, J/kg
+		self.cp       = gasDict["cp"].astype(REAL_TYPE)			# heat capacity at constant pressure, J/(kg-K)
+		self.pr       = gasDict["pr"].astype(REAL_TYPE)			# Prandtl number
+		self.sc       = gasDict["sc"].astype(REAL_TYPE)			# Schmidt number
 
-		self.muRef   = gasDict["muRef"].astype(realType)		# reference dynamic viscosity for Sutherland model
-		self.tempRef = gasDict["tempRef"].astype(realType)		# reference temperature for Sutherland model, K
+		self.mu_ref   = gasDict["mu_ref"].astype(REAL_TYPE)		# reference dynamic viscosity for Sutherland model
+		self.temp_ref = gasDict["temp_ref"].astype(REAL_TYPE)	# reference temperature for Sutherland model, K
 
-		assert(self.enthRef.shape[0] == self.numSpeciesFull)
-		assert(self.Cp.shape[0] == self.numSpeciesFull)
-		assert(self.Pr.shape[0] == self.numSpeciesFull)
-		assert(self.Sc.shape[0] == self.numSpeciesFull)
-		assert(self.tempRef.shape[0] == self.numSpeciesFull)
-		assert(self.muRef.shape[0] == self.numSpeciesFull)
+		assert(self.enth_ref.shape[0] == self.num_species_full)
+		assert(self.cp.shape[0] == self.num_species_full)
+		assert(self.pr.shape[0] == self.num_species_full)
+		assert(self.sc.shape[0] == self.num_species_full)
+		assert(self.temp_ref.shape[0] == self.num_species_full)
+		assert(self.mu_ref.shape[0] == self.num_species_full)
 
-		self.constViscIdxs = np.squeeze(np.argwhere(self.tempRef < 1.0e-7), axis=1)
-		self.suthViscIdxs  = np.squeeze(np.argwhere(self.tempRef >= 1.0e-7), axis=1)
+		self.const_visc_idxs = np.squeeze(np.argwhere(self.temp_ref < 1.0e-7), axis=1)
+		self.suth_visc_idxs  = np.squeeze(np.argwhere(self.temp_ref >= 1.0e-7), axis=1)
 
-		self.CpDiffs        = self.Cp[self.massFracSlice] - self.Cp[-1]
-		self.enthRefDiffs   = self.enthRef[self.massFracSlice] - self.enthRef[-1]
+		self.cp_diffs       = self.cp[self.mass_frac_slice] - self.cp[-1]
+		self.enth_ref_diffs = self.enth_ref[self.mass_frac_slice] - self.enth_ref[-1]
 
-	def calcMixGasConstant(self, massFracs):
+	def calc_mix_gas_constant(self, mass_fracs):
 		"""
 		Compute mixture specific gas constant
 		"""
 
-		massFracsIn = massFracs.copy()
-		if (massFracs.shape[0] == self.numSpeciesFull):
-			massFracsIn = massFracsIn[self.massFracSlice,:]
+		mass_fracs_in = mass_fracs.copy()
+		if (mass_fracs.shape[0] == self.num_species_full):
+			mass_fracs_in = mass_fracs_in[self.mass_frac_slice,:]
 
-		RMix = RUniv * ( (1.0 / self.molWeights[-1]) + np.sum(massFracsIn * self.mwInvDiffs[:,None], axis=0) )
-		return RMix
+		r_mix = R_UNIV * ( (1.0 / self.mol_weights[-1]) + np.sum(mass_fracs_in * self.mw_inv_diffs[:,None], axis=0) )
+		return r_mix
 
 
-	def calcMixGamma(self, RMix, CpMix):
+	def calc_mix_gamma(self, r_mix, cp_mix):
 		"""
 		Compute mixture ratio of specific heats
 		"""
 
-		gammaMix = CpMix / (CpMix - RMix)
-		return gammaMix
+		gamma_mix = cp_mix / (cp_mix - r_mix)
+		return gamma_mix
 
 
-	def calcMixEnthRef(self, massFracs):
+	def calc_mix_enth_ref(self, mass_fracs):
 		"""
 		Compute mixture reference enthalpy
 		"""
 
-		assert(massFracs.shape[0] == self.numSpecies), "Only numSpecies species must be passed to calcMixEnthRef"
-		enthRefMix = self.enthRef[-1] + np.sum(massFracs * self.enthRefDiffs[:,None], axis=0)
-		return enthRefMix
+		assert(mass_fracs.shape[0] == self.num_species), "Only num_species species must be passed to calc_mix_enth_ref"
+		enth_ref_mix = self.enth_ref[-1] + np.sum(mass_fracs * self.enth_ref_diffs[:,None], axis=0)
+		return enth_ref_mix
 
 
-	def calcMixCp(self, massFracs):
+	def calc_mix_cp(self, mass_fracs):
 		"""
 		Compute mixture specific heat at constant pressure
 		"""
 
-		assert(massFracs.shape[0] == self.numSpecies), "Only numSpecies species must be passed to calcMixCp"
-		CpMix = self.Cp[-1] + np.sum(massFracs * self.CpDiffs[:,None], axis=0)
-		return CpMix
+		assert(mass_fracs.shape[0] == self.num_species), "Only num_species species must be passed to calc_mix_cp"
+		cp_mix = self.cp[-1] + np.sum(mass_fracs * self.cp_diffs[:,None], axis=0)
+		return cp_mix
 
 	
-	def calcDensity(self, solPrim, RMix=None):
+	def calc_density(self, sol_prim, r_mix=None):
 		"""
 		Compute density from ideal gas law
 		"""
 
 		# need to calculate mixture gas constant
-		if (RMix is None):
-			massFracs = self.getMassFracArray(solPrim=solPrim)
-			RMix = self.calcMixGasConstant(massFracs)
+		if (r_mix is None):
+			mass_fracs = self.get_mass_frac_array(sol_prim=sol_prim)
+			r_mix = self.calc_mix_gas_constant(mass_fracs)
 
 		# calculate directly from ideal gas
-		density = solPrim[0,:] / (RMix * solPrim[2,:])
+		density = sol_prim[0,:] / (r_mix * sol_prim[2,:])
 
 		return density
 
 
-	def calcSpeciesEnthalpies(self, temperature):
+	def calc_species_enthalpies(self, temperature):
 		"""
 		Compute individual enthalpies for each species
-		Returns values for ALL species, NOT numSpecies species
+		Returns values for ALL species, NOT num_species species
 		"""
 
-		speciesEnth = self.Cp[:,None] * np.repeat(np.reshape(temperature, (1,-1)), self.numSpeciesFull, axis=0) + self.enthRef[:,None]
+		species_enth = self.cp[:,None] * np.repeat(np.reshape(temperature, (1,-1)), self.num_species_full, axis=0) + self.enth_ref[:,None]
 
-		return speciesEnth
+		return species_enth
 
 
-	def calcStagnationEnthalpy(self, solPrim, speciesEnth=None):
+	def calc_stagnation_enthalpy(self, sol_prim, species_enth=None):
 		"""
 		Compute stagnation enthalpy from velocity and species enthalpies
 		"""
 
 		# get the species enthalpies if not provided
-		if (speciesEnth is None):
-			speciesEnth = self.calcSpeciesEnthalpies(solPrim[2,:])
+		if (species_enth is None):
+			species_enth = self.calc_species_enthalpies(sol_prim[2,:])
 
 		# compute all mass fraction fields
-		massFracs = self.calcAllMassFracs(solPrim[3:,:], threshold=False)
+		mass_fracs = self.calcAllMassFracs(sol_prim[3:,:], threshold=False)
 
-		assert (massFracs.shape == speciesEnth.shape)
+		assert (mass_fracs.shape == species_enth.shape)
 
-		stagEnth = np.sum(speciesEnth * massFracs, axis=0) + 0.5 * np.square(solPrim[1,:])
+		stag_enth = np.sum(species_enth * mass_fracs, axis=0) + 0.5 * np.square(sol_prim[1,:])
 
-		return stagEnth
+		return stag_enth
 
 
-	def calcSpeciesDynamicVisc(self, temperature):
+	def calc_species_dynamic_visc(self, temperature):
 		"""
 		Compute individual dynamic viscosities from Sutherland's law
 		Defaults to reference dynamic viscosity if reference temperature is zero
-		Returns values for ALL species, NOT numSpecies species
+		Returns values for ALL species, NOT num_species species
 		"""
 
 		# TODO: theoretically, I think this should account for species-specific Sutherland temperatures
 
-		specDynVisc = np.zeros((self.numSpeciesFull, len(temperature)), dtype=realType)
+		spec_dyn_visc = np.zeros((self.num_species_full, len(temperature)), dtype=REAL_TYPE)
 
 		# if reference temperature is (close to) zero, constant dynamic viscosity
-		if (len(self.constViscIdxs) > 0):
-			specDynVisc[self.constViscIdxs, :] = self.muRef[self.constViscIdxs, None]
+		if (len(self.const_visc_idxs) > 0):
+			spec_dyn_visc[self.const_visc_idxs, :] = self.mu_ref[self.const_visc_idxs, None]
 
 		# otherwise apply Sutherland's law
-		if (len(self.suthViscIdxs) > 0):
-			tempFac = temperature[None,:] / self.tempRef[self.suthViscIdxs, None]
-			tempFac = np.power(tempFac, 3./2.)
-			suthFac = (self.tempRef[self.suthViscIdxs, None] + suthTemp) / (temperature[None, :] + suthTemp)
-			specDynVisc[self.suthViscIdxs, :] = self.muRef[self.suthViscIdxs, None] * tempFac * suthFac
+		if (len(self.suth_visc_idxs) > 0):
+			temp_fac = temperature[None,:] / self.temp_ref[self.suth_visc_idxs, None]
+			temp_fac = np.power(temp_fac, 3./2.)
+			suth_fac = (self.temp_ref[self.suth_visc_idxs, None] + SUTH_TEMP) / (temperature[None, :] + SUTH_TEMP)
+			spec_dyn_visc[self.suth_visc_idxs, :] = self.mu_ref[self.suth_visc_idxs, None] * temp_fac * suth_fac
 
-		return specDynVisc
+		return spec_dyn_visc
 
 
-	def calcMixDynamicVisc(self, specDynVisc=None, temperature=None, moleFracs=None, massFracs=None):
+	def calc_mix_dynamic_visc(self, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None):
 		"""
 		Compute mixture dynamic viscosity from Wilkes mixing law
 		"""
 
-		if (specDynVisc is None):
+		if (spec_dyn_visc is None):
 			assert (temperature is not None), "Must provide temperature if not providing species dynamic viscosities"
-			specDynVisc = self.calcSpeciesDynamicVisc(temperature)
+			spec_dyn_visc = self.calc_species_dynamic_visc(temperature)
 
-		if (self.numSpeciesFull == 1):
+		if (self.num_species_full == 1):
 
-			mixDynVisc = np.squeeze(specDynVisc)
+			mix_dyn_visc = np.squeeze(spec_dyn_visc)
 
 		else:
 
-			if (moleFracs is None):
-				assert (massFracs is not None), "Must provide mass fractions if not providing mole fractions"
-				moleFracs = self.calcAllMoleFracs(massFracs)
+			if (mole_fracs is None):
+				assert (mass_fracs is not None), "Must provide mass fractions if not providing mole fractions"
+				mole_fracs = self.calc_all_mole_fracs(mass_fracs)
 
-			phi = np.zeros((self.numSpeciesFull, specDynVisc.shape[1]), dtype=realType)
-			for specIdx in range(self.numSpeciesFull):
+			phi = np.zeros((self.num_species_full, spec_dyn_visc.shape[1]), dtype=REAL_TYPE)
+			for spec_idx in range(self.num_species_full):
 
-				muFac = np.sqrt(specDynVisc[[specIdx],:] / specDynVisc)
-				phi[specIdx, :] = np.sum(moleFracs * np.square(1.0 + muFac * self.mixMassMatrix[[specIdx],:].T) * self.mixInvMassMatrix[[specIdx],:].T, axis=0)
+				muFac = np.sqrt(spec_dyn_visc[[spec_idx],:] / spec_dyn_visc)
+				phi[spec_idx, :] = np.sum(mole_fracs * np.square(1.0 + muFac * self.mix_mass_matrix[[spec_idx],:].T) * self.mix_inv_mass_matrix[[spec_idx],:].T, axis=0)
 
-			mixDynVisc = np.sum( moleFracs * specDynVisc / phi, axis=0)
+			mix_dyn_visc = np.sum( mole_fracs * spec_dyn_visc / phi, axis=0)
 
-		return mixDynVisc
+		return mix_dyn_visc
 
 
-	def calcSpeciesThermCond(self, specDynVisc=None, temperature=None):
+	def calc_species_therm_cond(self, spec_dyn_visc=None, temperature=None):
 		"""
 		Compute species thermal conductivities
-		Returns values for ALL species, NOT numSpecies species
+		Returns values for ALL species, NOT num_species species
 		"""
 
-		if (specDynVisc is None):
+		if (spec_dyn_visc is None):
 			assert (temperature is not None), "Must provide temperature if not providing species dynamic viscosities"
-			specDynVisc = self.calcSpeciesDynamicVisc(temperature)
+			spec_dyn_visc = self.calc_species_dynamic_visc(temperature)
 
-		specThermCond = specDynVisc * self.Cp[:, None] / self.Pr[:, None]
+		spec_therm_cond = spec_dyn_visc * self.cp[:, None] / self.pr[:, None]
 
-		return specThermCond
+		return spec_therm_cond
 
 
-	def calcMixThermalCond(self, specThermCond=None, specDynVisc=None, temperature=None, moleFracs=None, massFracs=None):
+	def calc_mix_thermal_cond(self, spec_therm_cond=None, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None):
 		"""
 		Compute mixture thermal conductivity
 		"""
 
-		if (specThermCond is None):
-			assert ((specDynVisc is not None) or (temperature is not None)), \
+		if (spec_therm_cond is None):
+			assert ((spec_dyn_visc is not None) or (temperature is not None)), \
 					"Must provide species dynamic viscosity or temperature if not providing species thermal conductivity"
-			specThermCond = self.calcSpeciesThermCond(specDynVisc=specDynVisc, temperature=temperature)
+			spec_therm_cond = self.calc_species_therm_cond(spec_dyn_visc=spec_dyn_visc, temperature=temperature)
 
-		if (self.numSpeciesFull == 1):
+		if (self.num_species_full == 1):
 
-			mixThermCond = np.squeeze(specThermCond)
+			mix_therm_cond = np.squeeze(spec_therm_cond)
 
 		else:
 
-			if (moleFracs is None):
-				assert (massFracs is not None), "Must provide mass fractions if not providing mole fractions"
-				moleFracs = self.calcAllMoleFracs(massFracs)
+			if (mole_fracs is None):
+				assert (mass_fracs is not None), "Must provide mass fractions if not providing mole fractions"
+				mole_fracs = self.calc_all_mole_fracs(mass_fracs)
 
-			mixThermCond = 0.5 * ( np.sum(moleFracs * specThermCond, axis=0) + 1.0 / np.sum(moleFracs / specThermCond, axis=0) )
+			mix_therm_cond = 0.5 * ( np.sum(mole_fracs * spec_therm_cond, axis=0) + 1.0 / np.sum(mole_fracs / spec_therm_cond, axis=0) )
 
-		return mixThermCond
+		return mix_therm_cond
 
 
-	def calcSpeciesMassDiffCoeff(self, density, specDynVisc=None, temperature=None):
+	def calc_species_mass_diff_coeff(self, density, spec_dyn_visc=None, temperature=None):
 		"""
 		Compute mass diffusivity coefficient of species into mixture
-		Returns values for ALL species, NOT numSpecies species
+		Returns values for ALL species, NOT num_species species
 		"""
 
-		if (specDynVisc is None):
+		if (spec_dyn_visc is None):
 			assert (temperature is not None), "Must provide temperature if not providing species dynamic viscosities"
-			specDynVisc = self.calcSpeciesDynamicVisc(temperature)
+			spec_dyn_visc = self.calc_species_dynamic_visc(temperature)
 		
-		specMassDiff = specDynVisc / (self.Sc[:, None] * density[None, :])
+		spec_mass_diff = spec_dyn_visc / (self.sc[:, None] * density[None, :])
 
-		return specMassDiff
+		return spec_mass_diff
 
 
-	def calcSoundSpeed(self, temperature, RMix=None, gammaMix=None, massFracs=None, CpMix=None):
+	def calc_sound_speed(self, temperature, r_mix=None, gamma_mix=None, mass_fracs=None, cp_mix=None):
 		"""
 		Compute sound speed
 		"""
 
 		# calculate mixture gas constant if not provided
-		massFracsSet = False
-		if (RMix is None):
-			assert (massFracs is not None), "Must provide mass fractions to calculate mixture gas constant..."
-			massFracs = self.getMassFracArray(massFracs=massFracs)
-			massFracsSet = True
-			RMix = self.calcMixGasConstant(massFracs)
+		mass_fracs_set = False
+		if (r_mix is None):
+			assert (mass_fracs is not None), "Must provide mass fractions to calculate mixture gas constant..."
+			mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
+			mass_fracs_set = True
+			r_mix = self.calc_mix_gas_constant(mass_fracs)
 		else:
-			RMix = np.squeeze(RMix)
+			r_mix = np.squeeze(r_mix)
 			
 		# calculate ratio of specific heats if not provided
-		if (gammaMix is None):
-			if (CpMix is None):
-				assert (massFracs is not None), "Must provide mass fractions to calculate mixture Cp..."
-				if (not massFracsSet): 
-					massFracs = self.getMassFracArray(massFracs=massFracs)
-				CpMix = self.calcMixCp(massFracs)
+		if (gamma_mix is None):
+			if (cp_mix is None):
+				assert (mass_fracs is not None), "Must provide mass fractions to calculate mixture cp..."
+				if (not mass_fracs_set): 
+					mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
+				cp_mix = self.calc_mix_cp(mass_fracs)
 			else:
-				CpMix = np.squeeze(CpMix)
+				cp_mix = np.squeeze(cp_mix)
 
-			gammaMix = self.calcMixGamma(RMix, CpMix)
+			gamma_mix = self.calc_mix_gamma(r_mix, cp_mix)
 		else:
-			gammaMix = np.squeeze(gammaMix)
+			gamma_mix = np.squeeze(gamma_mix)
 
-		soundSpeed = np.sqrt(gammaMix * RMix * temperature)
+		sound_speed = np.sqrt(gamma_mix * r_mix * temperature)
 
-		return soundSpeed
+		return sound_speed
 
 
 	def calcDensityDerivatives(self, density, 
-								wrtPress=False, pressure=None,
-								wrtTemp=False, temperature=None,
-								wrtSpec=False, mixMolWeight=None, massFracs=None):
+								wrt_press=False, pressure=None,
+								wrt_temp=False, temperature=None,
+								wrt_spec=False, mix_mol_weight=None, mass_fracs=None):
 
 		"""
 		Compute derivatives of density with respect to pressure, temperature, or species mass fraction
-		For species derivatives, returns numSpecies derivatives
+		For species derivatives, returns num_species derivatives
 		"""
 
-		assert any([wrtPress, wrtTemp, wrtSpec]), "Must compute at least one density derivative..."
+		assert any([wrt_press, wrt_temp, wrt_spec]), "Must compute at least one density derivative..."
 
 		derivs = tuple()
-		if (wrtPress):
+		if (wrt_press):
 			assert (pressure is not None), "Must provide pressure for pressure derivative..."
-			DDensDPress = density / pressure
-			derivs = derivs + (DDensDPress,)
+			d_dens_d_press = density / pressure
+			derivs = derivs + (d_dens_d_press,)
 
-		if (wrtTemp):
+		if (wrt_temp):
 			assert (temperature is not None), "Must provide temperature for temperature derivative..."
-			DDensDTemp = -density / temperature
-			derivs = derivs + (DDensDTemp,)
+			d_dens_d_temp = -density / temperature
+			derivs = derivs + (d_dens_d_temp,)
 
-		if (wrtSpec):
+		if (wrt_spec):
 			# calculate mixture molecular weight
-			if (mixMolWeight is None):
-				assert (massFracs is not None), "Must provide mass fractions to calculate mixture mol weight..."
-				mixMolWeight = self.calcMixMolWeight(massFracs)
+			if (mix_mol_weight is None):
+				assert (mass_fracs is not None), "Must provide mass fractions to calculate mixture mol weight..."
+				mix_mol_weight = self.calc_mix_mol_weight(mass_fracs)
 
-			DDensDSpec = np.zeros((self.numSpecies, density.shape[0]), dtype=realType)
-			for specNum in range(self.numSpecies):
-				DDensDSpec[specNum, :] = density * mixMolWeight * (1.0 / self.molWeights[-1] - 1.0 / self.molWeights[specNum])
-			derivs = derivs + (DDensDSpec,)
+			d_dens_d_mass_frac = np.zeros((self.num_species, density.shape[0]), dtype=REAL_TYPE)
+			for spec_idx in range(self.num_species):
+				d_dens_d_mass_frac[spec_idx, :] = density * mix_mol_weight * (1.0 / self.mol_weights[-1] - 1.0 / self.mol_weights[spec_idx])
+			derivs = derivs + (d_dens_d_mass_frac,)
 
 		return derivs
 
 
-	def calcStagEnthalpyDerivatives(self, wrtPress=False,
-									wrtTemp=False, massFracs=None,
-									wrtVel=False, velocity=None,
-									wrtSpec=False, speciesEnth=None, temperature=None):
+	def calc_stag_enth_derivs(self, wrt_press=False,
+							  wrt_temp=False, mass_fracs=None,
+							  wrt_vel=False, velocity=None,
+							  wrt_spec=False, species_enth=None, temperature=None):
 
 		"""
 		Compute derivatives of stagnation enthalpy with respect to pressure, temperature, velocity, or species mass fraction
-		For species derivatives, returns numSpecies derivatives
+		For species derivatives, returns num_species derivatives
 		"""
 
-		assert any([wrtPress, wrtTemp, wrtVel, wrtSpec]), "Must compute at least one density derivative..."
+		assert any([wrt_press, wrt_temp, wrt_vel, wrt_spec]), "Must compute at least one density derivative..."
 
 		derivs = tuple()
-		if (wrtPress):
-			DStagEnthDPress = 0.0
-			derivs = derivs + (DStagEnthDPress,)
+		if (wrt_press):
+			d_stag_enth_d_press = 0.0
+			derivs = derivs + (d_stag_enth_d_press,)
 		
-		if (wrtTemp):
-			assert (massFracs is not None), "Must provide mass fractions for temperature derivative..."
+		if (wrt_temp):
+			assert (mass_fracs is not None), "Must provide mass fractions for temperature derivative..."
 
-			massFracs = self.getMassFracArray(massFracs=massFracs)
-			DStagEnthDTemp = self.calcMixCp(massFracs)
-			derivs = derivs + (DStagEnthDTemp,)
+			mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
+			d_stag_enth_d_temp = self.calc_mix_cp(mass_fracs)
+			derivs = derivs + (d_stag_enth_d_temp,)
 
-		if (wrtVel):
+		if (wrt_vel):
 			assert (velocity is not None), "Must provide velocity for velocity derivative..."
-			DStagEnthDVel = velocity.copy()
-			derivs = derivs + (DStagEnthDVel,)
+			d_stag_enth_d_vel = velocity.copy()
+			derivs = derivs + (d_stag_enth_d_vel,)
 
-		if (wrtSpec):
-			if (speciesEnth is None):
+		if (wrt_spec):
+			if (species_enth is None):
 				assert (temperature is not None), "Must provide temperature if not providing species enthalpies..."
-				speciesEnth = self.calcSpeciesEnthalpies(temperature)
+				species_enth = self.calc_species_enthalpies(temperature)
 			
-			DStagEnthDSpec = np.zeros((self.numSpecies, speciesEnth.shape[1]), dtype=realType)
-			if (self.numSpeciesFull == 1):
-				DStagEnthDSpec[0,:] = speciesEnth[0,:]
+			d_stag_enth_d_mass_frac = np.zeros((self.num_species, species_enth.shape[1]), dtype=REAL_TYPE)
+			if (self.num_species_full == 1):
+				d_stag_enth_d_mass_frac[0,:] = species_enth[0,:]
 			else:
-				for specNum in range(self.numSpecies):
-					DStagEnthDSpec[specNum,:] = speciesEnth[specNum,:] - speciesEnth[-1,:]
+				for spec_idx in range(self.num_species):
+					d_stag_enth_d_mass_frac[spec_idx,:] = species_enth[spec_idx,:] - species_enth[-1,:]
 
-			derivs = derivs + (DStagEnthDSpec,)
+			derivs = derivs + (d_stag_enth_d_mass_frac,)
 
 		return derivs

@@ -1,155 +1,156 @@
-from perform.solution.solutionBoundary.solutionBoundary import solutionBoundary
-
 from math import pow, sqrt
 
-class solutionInlet(solutionBoundary):
+from perform.solution.solutionBoundary.solutionBoundary import SolutionBoundary
+
+
+class SolutionInlet(SolutionBoundary):
 	"""
 	Inlet ghost cell solution
 	"""
 
 	def __init__(self, gas, solver):
 
-		paramDict = solver.paramDict
-		self.boundCond = paramDict["boundCond_inlet"] 
+		param_dict = solver.param_dict
+		self.bound_cond = param_dict["bound_cond_inlet"] 
 
 		# add assertions to check that required properties are specified
-		if (self.boundCond == "stagnation"):
-			self.boundFunc = self.calcStagnationBC
-		elif (self.boundCond == "fullstate"):
-			self.boundFunc = self.calcFullStateBC
-		elif (self.boundCond == "meanflow"):
-			self.boundFunc = self.calcMeanFlowBC
+		if (self.bound_cond == "stagnation"):
+			self.bound_func = self.calc_stagnation_bc
+		elif (self.bound_cond == "fullstate"):
+			self.bound_func = self.calc_full_state_bc
+		elif (self.bound_cond == "meanflow"):
+			self.bound_func = self.calc_mean_flow_bc
 		else:
-			raise ValueError("Invalid inlet boundary condition selection: " + str(self.boundCond))
+			raise ValueError("Invalid inlet boundary condition selection: " + str(self.bound_cond))
 
 		super().__init__(gas, solver, "inlet")
 
 
-	def calcStagnationBC(self, solver, solPrim=None, solCons=None):
+	def calc_stagnation_bc(self, solver, sol_prim=None, sol_cons=None):
 		"""
 		Specify stagnation temperature and stagnation pressure
 		"""
 
-		assert (solPrim is not None), "Must provide primitive interior state"
+		assert (sol_prim is not None), "Must provide primitive interior state"
 
 		# chemical composition assumed constant near boundary
-		RMix = self.RMix[0]
-		gamma = self.gamma[0]
-		gammaM1 = gamma - 1.0
+		r_mix = self.r_mix[0]
+		gamma_mix = self.gamma_mix[0]
+		gamma_mix_m1 = gamma_mix - 1.0
 
 		# interior state
-		velP1 	= solPrim[1, 0]
-		velP2 	= solPrim[1, 1]
-		cP1 	= sqrt(gamma * RMix * solPrim[2, 0])
-		cP2 	= sqrt(gamma * RMix * solPrim[2, 1])
+		vel_p1 = sol_prim[1, 0]
+		vel_p2 = sol_prim[1, 1]
+		c_p1   = sqrt(gamma_mix * r_mix * sol_prim[2, 0])
+		c_p2   = sqrt(gamma_mix * r_mix * sol_prim[2, 1])
 
 		# interpolate outgoing Riemann invariant
 		# negative sign on velocity is to account for flux/boundary normal directions
-		J1 = -velP1 - (2.0 * cP1) / gammaM1
-		J2 = -velP2 - (2.0 * cP2) / gammaM1
+		j1 = -vel_p1 - (2.0 * c_p1) / gamma_mix_m1
+		j2 = -vel_p2 - (2.0 * c_p2) / gamma_mix_m1
 
 		# extrapolate to exterior
-		if (solver.spaceOrder == 1):
-			J = J1
-		elif (solver.spaceOrder == 2):
-			J  = 2.0 * J1 - J2
+		if (solver.space_order == 1):
+			J = j1
+		elif (solver.space_order == 2):
+			J  = 2.0 * j1 - j2
 		else:
-			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.space_order))
 
 		# quadratic form for exterior Mach number
-		c2 	 = gamma * RMix * self.temp
+		c2 	 = gamma_mix * r_mix * self.temp
 		
-		aVal = c2 - J**2 * gammaM1 / 2.0
-		bVal = (4.0 * c2) / gammaM1
-		cVal = (4.0 * c2) / gammaM1**2 - J**2
-		rad = bVal**2 - 4.0 * aVal * cVal 
+		a_val = c2 - J**2 * gamma_mix_m1 / 2.0
+		b_val = (4.0 * c2) / gamma_mix_m1
+		c_val = (4.0 * c2) / gamma_mix_m1**2 - J**2
+		rad = b_val**2 - 4.0 * a_val * c_val 
 
 		# check for non-physical solution (usually caused by reverse flow)
 		if (rad < 0.0):
-			print("aVal: "+str(aVal))
-			print("bVal: "+str(bVal))
-			print("cVal: "+str(cVal))
-			print("Boundary velocity: "+str(velP1))
+			print("a_val: "+str(a_val))
+			print("b_val: "+str(b_val))
+			print("c_val: "+str(c_val))
+			print("Boundary velocity: "+str(vel_p1))
 			raise ValueError("Non-physical inlet state")
 
 		# solve quadratic formula, assign Mach number depending on sign/magnitude 
 		# if only one positive, select that. If both positive, select smaller
 		rad = sqrt(rad)
-		mach1 = (-bVal - rad) / (2.0 * aVal) 
-		mach2 = (-bVal + rad) / (2.0 * aVal)
-		if ((mach1 > 0) and (mach2 > 0)):
-			machBound = min(mach1, mach2)
-		elif ((mach1 <= 0) and (mach2 <=0)):
+		mach_1 = (-b_val - rad) / (2.0 * a_val) 
+		mach_2 = (-b_val + rad) / (2.0 * a_val)
+		if ((mach_1 > 0) and (mach_2 > 0)):
+			mach_bound = min(mach_1, mach_2)
+		elif ((mach_1 <= 0) and (mach_2 <=0)):
 			raise ValueError("Non-physical Mach number at inlet")
 		else:
-			machBound = max(mach1, mach2)
+			mach_bound = max(mach_1, mach_2)
 
 		# compute exterior state
-		tempBound 			= self.temp / (1.0 +  gammaM1 / 2.0 * machBound**2) 
-		self.solPrim[2,0] 	= tempBound
-		self.solPrim[0,0] 	= self.press * pow(tempBound / self.temp, gamma / gammaM1) 
-		cBound 				= sqrt(gamma * RMix * tempBound)
-		self.solPrim[1,0] 	= machBound * cBound
+		temp_bound         = self.temp / (1.0 +  gamma_mix_m1 / 2.0 * mach_bound**2) 
+		self.sol_prim[2,0] = temp_bound
+		self.sol_prim[0,0] = self.press * pow(temp_bound / self.temp, gamma_mix / gamma_mix_m1) 
+		c_bound            = sqrt(gamma_mix * r_mix * temp_bound)
+		self.sol_prim[1,0] = mach_bound * c_bound
 
-	def calcFullStateBC(self, solver, solPrim=None, solCons=None):
+	def calc_full_state_bc(self, solver, sol_prim=None, sol_cons=None):
 		"""
 		Full state specification
 		Mostly just for perturbing inlet state to check for outlet reflections
 		"""
 
-		pressBound 	= self.press
-		velBound 	= self.vel
-		tempBound 	= self.temp
+		press_bound = self.press
+		vel_bound   = self.vel
+		temp_bound  = self.temp
 
 		# perturbation
 		
-		if (self.pertType == "pressure"):
-			pressBound *= (1.0 + self.calcPert(solver.solTime))
-		elif (self.pertType == "velocity"):
-			velBound *= (1.0 + self.calcPert(solver.solTime))
-		elif (self.pertType == "temperature"):
-			pressBound *= (1.0 + self.calcPert(solver.solTime))
+		if (self.pert_type == "pressure"):
+			press_bound *= (1.0 + self.calc_pert(solver.sol_time))
+		elif (self.pert_type == "velocity"):
+			vel_bound *= (1.0 + self.calc_pert(solver.sol_time))
+		elif (self.pert_type == "temperature"):
+			press_bound *= (1.0 + self.calc_pert(solver.sol_time))
 
 		# compute ghost cell state
-		self.solPrim[0,0] = pressBound
-		self.solPrim[1,0] = velBound
-		self.solPrim[2,0] = tempBound
+		self.sol_prim[0,0] = press_bound
+		self.sol_prim[1,0] = vel_bound
+		self.sol_prim[2,0] = temp_bound
 
-	def calcMeanFlowBC(self, solver, solPrim=None, solCons=None):
+	def calc_mean_flow_bc(self, solver, sol_prim=None, sol_cons=None):
 		"""
 		Non-reflective boundary, unsteady solution is perturbation about mean flow solution
 		Refer to documentation for derivation
 		"""
 
-		assert (solPrim is not None), "Must provide primitive interior state"
+		assert (sol_prim is not None), "Must provide primitive interior state"
 
 		# mean flow and infinitely-far upstream quantities
-		pressUp 	= self.press 
-		tempUp 		= self.temp
-		massFracUp	= self.massFrac[:-1]
-		rhoCMean 	= self.vel 
-		rhoCpMean 	= self.rho
+		press_up      = self.press 
+		temp_up       = self.temp
+		mass_fracs_up = self.mass_fracs[:-1]
+		rho_c_mean    = self.vel 
+		rho_cp_mean   = self.rho
 
-		if (self.pertType == "pressure"):
-			pressUp *= (1.0 + self.calcPert(solver.solTime))
+		if (self.pert_type == "pressure"):
+			press_up *= (1.0 + self.calc_pert(solver.sol_time))
 
 		# interior quantities
-		pressIn 	= solPrim[0,:2]
-		velIn 		= solPrim[1,:2]
+		press_in = sol_prim[0,:2]
+		vel_in   = sol_prim[1,:2]
 
 		# characteristic variables
-		w3In 	= velIn - pressIn / rhoCMean  
+		w_3_in = vel_in - press_in / rho_c_mean  
 
 		# extrapolate to exterior
-		if (solver.spaceOrder == 1):
-			w3Bound = w3In[0]
-		elif (solver.spaceOrder == 2):
-			w3Bound = 2.0*w3In[0] - w3In[1]
+		if (solver.space_order == 1):
+			w_3_bound = w_3_in[0]
+		elif (solver.space_order == 2):
+			w_3_bound = 2.0*w_3_in[0] - w_3_in[1]
 		else:
-			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.spaceOrder))
+			raise ValueError("Higher order extrapolation implementation required for spatial order "+str(solver.space_order))
 
 		# compute exterior state
-		pressBound 			= (pressUp - w3Bound * rhoCMean) / 2.0
-		self.solPrim[0,0] 	= pressBound
-		self.solPrim[1,0] 	= (pressUp - pressBound) / rhoCMean 
-		self.solPrim[2,0] 	= tempUp + (pressBound - pressUp) / rhoCpMean
+		press_bound        = (press_up - w_3_bound * rho_c_mean) / 2.0
+		self.sol_prim[0,0] = press_bound
+		self.sol_prim[1,0] = (press_up - press_bound) / rho_c_mean 
+		self.sol_prim[2,0] = temp_up + (press_bound - press_up) / rho_cp_mean

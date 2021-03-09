@@ -1,18 +1,15 @@
-import perform.constants
-from perform.inputFuncs import catchInput
 
-import numpy as np
 
-class timeIntegrator:
+class TimeIntegrator:
 	"""
 	Base class for time integrators
 	"""
 
-	def __init__(self, paramDict):
+	def __init__(self, param_dict):
 
-		self.dt 		= float(paramDict["dt"])		# physical time step
-		self.timeScheme = str(paramDict["timeScheme"])	# time integration scheme
-		self.timeOrder 	= int(paramDict["timeOrder"])	# time integration order of accuracy
-		assert (self.timeOrder >= 1), "timeOrder only accepts positive integer values."
+		self.dt 		= float(param_dict["dt"])           # physical time step
+		self.time_scheme = str(param_dict["time_scheme"])   # time integration scheme
+		self.time_order 	= int(param_dict["time_order"]) # time integration order of accuracy
+		assert (self.time_order >= 1), "time_order only accepts positive integer values."
 
-		self.subiter 	= 0		# subiteration number for multi-stage schemes
+		self.subiter 	= 0	    # subiteration number for multi-stage schemes
