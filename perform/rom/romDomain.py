@@ -166,7 +166,7 @@ class romDomain:
 
 			for modelIdx, model in enumerate(self.modelList): model.adapt.gatherStaleCons(self, solDomain, solver, model)
 
-			solDomain.solInt.updateState(fromCons=True)
+			# solDomain.solInt.updateState(fromCons=True)
 
 
 
@@ -420,8 +420,6 @@ class romDomain:
 		"""
 		Advance physical solution forward one subiteration of time integrator
 		"""
-
-
 
 		solInt = solDomain.solInt
 		solInt.res, resJacob = None, None

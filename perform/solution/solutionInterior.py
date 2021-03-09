@@ -114,18 +114,17 @@ class solutionInterior(solutionPhys):
 		"""
 		Update time history of solution and RHS function for multi-stage time integrators
 		"""
-	
+
 		# primitive and conservative state history
 		self.solHistCons[1:] = self.solHistCons[:-1]
 		self.solHistPrim[1:] = self.solHistPrim[:-1]
-		self.solHistCons[0]  = self.solCons.copy()
-		self.solHistPrim[0]  = self.solPrim.copy()
+		self.solHistCons[0]  = self.solHistCons[1].copy()
+		self.solHistPrim[0]  = self.solHistPrim[1].copy()
 
 
 		# RHS function history
 		self.rhsHist[1:] = self.rhsHist[:-1]
 		self.rhsHist[0]  = self.RHS.copy()
-
 
 	def updateSnapshots(self, solver):
 
