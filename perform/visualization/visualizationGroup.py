@@ -4,10 +4,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from perform.constants import fig_width_default, fig_height_default
-from perform.visualization.field_plot import FieldPlot
-from perform.visualization.probe_plot import ProbePlot
-from perform.input_funcs import catch_input, catch_list
+from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
+from perform.visualization.fieldPlot import FieldPlot
+from perform.visualization.probePlot import ProbePlot
+from perform.inputFuncs import catch_input, catch_list
 
 
 class VisualizationGroup:
@@ -35,7 +35,7 @@ class VisualizationGroup:
 		plot_count = True
 		while plot_count:
 			try:
-				key_name = "vis_type"+str(self.num_vis_plots+1)
+				key_name = "vis_type_"+str(self.num_vis_plots+1)
 				plot_type = str(param_dict[key_name])
 				# TODO: should honestly just fail for incorrect input
 				assert (plot_type in ["field", "probe", "residual"]), (key_name+" must be either \"field\", \"probe\", or \"residual\"")
@@ -52,18 +52,18 @@ class VisualizationGroup:
 		for vis_idx in range(1, self.num_vis_plots+1):
 			
 			# some parameters all plots have
-			vis_type    = str(param_dict["vis_type"+str(vis_idx)])
-			vis_vars	   = catch_list(param_dict, "visVar"+str(vis_idx), [None])
-			vis_x_bounds = catch_list(param_dict, "vis_x_bounds"+str(vis_idx), [[None,None]], len_highest=len(vis_vars))
-			vis_y_bounds = catch_list(param_dict, "vis_y_bounds"+str(vis_idx), [[None,None]], len_highest=len(vis_vars))
+			vis_type     = str(param_dict["vis_type_"+str(vis_idx)])
+			vis_vars	 = catch_list(param_dict, "vis_var_"+str(vis_idx), [None])
+			vis_x_bounds = catch_list(param_dict, "vis_x_bounds_"+str(vis_idx), [[None,None]], len_highest=len(vis_vars))
+			vis_y_bounds = catch_list(param_dict, "vis_y_bounds_"+str(vis_idx), [[None,None]], len_highest=len(vis_vars))
 
 			if (vis_type == "field"):
 				self.vis_list[vis_idx-1] = FieldPlot(vis_idx, self.vis_interval, solver.num_steps, solver.sim_type, 
 											vis_vars, vis_x_bounds, vis_y_bounds, sol_domain.gas_model.species_names)
 			elif (vis_type == "probe"):
-				probe_num = catch_input(param_dict, "probe_num"+str(vis_idx), -2) - 1
-				self.vis_list[vis_idx-1] = ProbePlot(vis_idx, solver.sim_type, solver.probeVars, vis_vars, probe_num, 
-											solver.numProbes, vis_x_bounds, vis_y_bounds, sol_domain.gas_model.species_names)
+				probe_num = catch_input(param_dict, "probe_num_"+str(vis_idx), -2) - 1
+				self.vis_list[vis_idx-1] = ProbePlot(vis_idx, solver.sim_type, solver.probe_vars, vis_vars, probe_num, 
+											solver.num_probes, vis_x_bounds, vis_y_bounds, sol_domain.gas_model.species_names)
 			elif (vis_type == "residual"):
 				raise ValueError("Residual plot not implemented yet")
 			else:
@@ -76,16 +76,16 @@ class VisualizationGroup:
 				# self.movePlots()
 			except:
 				for vis in self.vis_list:
-					vis.fig, vis.ax = plt.subplots(nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(fig_width_default,fig_height_default))
+					vis.fig, vis.ax = plt.subplots(nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(FIG_WIDTH_DEFAULT,FIG_HEIGHT_DEFAULT))
 		else:
 			for vis in self.vis_list:
-				vis.fig, vis.ax = plt.subplots(nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(fig_width_default,fig_height_default))	
+				vis.fig, vis.ax = plt.subplots(nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(FIG_WIDTH_DEFAULT,FIG_HEIGHT_DEFAULT))	
 			
 		if self.vis_show:
 			plt.show(block=False)
 			plt.pause(0.001)
 
-	def drawPlots(self, sol_domain, solver):
+	def draw_plots(self, sol_domain, solver):
 		""" 
 		Helper function to draw, display, and save plots
 		"""

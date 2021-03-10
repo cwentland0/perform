@@ -6,11 +6,11 @@ import warnings
 warnings.filterwarnings("error")
 
 import perform.constants as const
-from perform.system_solver import SystemSolver
-from perform.solution.solution_domain import SolutionDomain
-from perform.visualization.visualization_group import VisualizationGroup
-from perform.rom.rom_domain import RomDomain
-from perform.misc_funcs import mkdir_in_workdir
+from perform.systemSolver import SystemSolver
+from perform.solution.solutionDomain import SolutionDomain
+from perform.visualization.visualizationGroup import VisualizationGroup
+# from perform.rom.romDomain import RomDomain
+from perform.miscFuncs import mkdir_in_workdir
 
 # TODO: Check all calls to calcDensityDerivatives and calcStagEnthalpyDerivatives, pass full massFrac array
 # TODO: ^^^^^ Emphasizing this, this is a big contribution to Jacobian cost
@@ -27,10 +27,10 @@ def main():
 	assert (os.path.isdir(const.working_dir)), "Given working directory does not exist"
 
 	# Make output directories
-	const.unsteady_output_dir = mkdir_in_workdir(const.unsteady_output_dir_name)
-	const.probe_output_dir = mkdir_in_workdir(const.probeOutputDirName)
-	const.image_output_dir = mkdir_in_workdir(const.imageOutputDirName)
-	const.restart_output_dir = mkdir_in_workdir(const.restartOutputDirName)
+	const.unsteady_output_dir = mkdir_in_workdir(const.UNSTEADY_OUTPUT_DIR_NAME)
+	const.probe_output_dir = mkdir_in_workdir(const.PROBE_OUTPUT_DIR_NAME)
+	const.image_output_dir = mkdir_in_workdir(const.IMAGE_OUTPUT_DIR_NAME)
+	const.restart_output_dir = mkdir_in_workdir(const.RESTART_OUTPUT_DIR_NAME)
 
 	# Retrieve solver parameters and initialize mesh
 	# TODO: multi-domain solvers
@@ -39,13 +39,14 @@ def main():
 										
 	# Initialize physical and ROM solutions
 	sol_domain = SolutionDomain(solver)	
-	if solver.calcROM:
-		rom_domain = RomDomain(sol_domain, solver)
+	if solver.calc_rom:
+		raise ValueError("ROM temporarily offline")
+		# rom_domain = RomDomain(sol_domain, solver)
 	else:
 		rom_domain = None
 
 	# Initialize plots
-	visGroup = VisualizationGroup(solDomain, solver) 
+	visGroup = VisualizationGroup(sol_domain, solver) 
 
 	##### End setup #####
 
@@ -54,10 +55,10 @@ def main():
 	try:
 		# Loop over time iterations
 		time_start = time()
-		for solver.iter in range(1, solver.numSteps+1):
+		for solver.iter in range(1, solver.num_steps+1):
 			
 			# advance one physical time step
-			if (solver.calcROM):
+			if (solver.calc_rom):
 				rom_domain.advance_iter(sol_domain, solver)
 			else:
 				sol_domain.advance_iter(solver)
@@ -87,7 +88,7 @@ def main():
 
 	##### Start post-processing #####
 
-	solDomain.write_final_outputs(solver)
+	sol_domain.write_final_outputs(solver)
 
 	##### End post-processing #####
 

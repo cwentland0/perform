@@ -92,32 +92,32 @@ class CaloricallyPerfectGas(GasModel):
 		return density
 
 
-	def calc_species_enthalpies(self, temperature):
+	def calc_spec_enth(self, temperature):
 		"""
 		Compute individual enthalpies for each species
 		Returns values for ALL species, NOT num_species species
 		"""
 
-		species_enth = self.cp[:,None] * np.repeat(np.reshape(temperature, (1,-1)), self.num_species_full, axis=0) + self.enth_ref[:,None]
+		spec_enth = self.cp[:,None] * np.repeat(np.reshape(temperature, (1,-1)), self.num_species_full, axis=0) + self.enth_ref[:,None]
 
-		return species_enth
+		return spec_enth
 
 
-	def calc_stagnation_enthalpy(self, sol_prim, species_enth=None):
+	def calc_stag_enth(self, sol_prim, spec_enth=None):
 		"""
 		Compute stagnation enthalpy from velocity and species enthalpies
 		"""
 
 		# get the species enthalpies if not provided
-		if (species_enth is None):
-			species_enth = self.calc_species_enthalpies(sol_prim[2,:])
+		if (spec_enth is None):
+			spec_enth = self.calc_spec_enth(sol_prim[2,:])
 
 		# compute all mass fraction fields
-		mass_fracs = self.calcAllMassFracs(sol_prim[3:,:], threshold=False)
+		mass_fracs = self.calc_all_mass_fracs(sol_prim[3:,:], threshold=False)
 
-		assert (mass_fracs.shape == species_enth.shape)
+		assert (mass_fracs.shape == spec_enth.shape)
 
-		stag_enth = np.sum(species_enth * mass_fracs, axis=0) + 0.5 * np.square(sol_prim[1,:])
+		stag_enth = np.sum(spec_enth * mass_fracs, axis=0) + 0.5 * np.square(sol_prim[1,:])
 
 		return stag_enth
 
@@ -266,7 +266,7 @@ class CaloricallyPerfectGas(GasModel):
 		return sound_speed
 
 
-	def calcDensityDerivatives(self, density, 
+	def calc_dens_derivs(self, density, 
 								wrt_press=False, pressure=None,
 								wrt_temp=False, temperature=None,
 								wrt_spec=False, mix_mol_weight=None, mass_fracs=None):
@@ -306,7 +306,7 @@ class CaloricallyPerfectGas(GasModel):
 	def calc_stag_enth_derivs(self, wrt_press=False,
 							  wrt_temp=False, mass_fracs=None,
 							  wrt_vel=False, velocity=None,
-							  wrt_spec=False, species_enth=None, temperature=None):
+							  wrt_spec=False, spec_enth=None, temperature=None):
 
 		"""
 		Compute derivatives of stagnation enthalpy with respect to pressure, temperature, velocity, or species mass fraction
@@ -333,16 +333,16 @@ class CaloricallyPerfectGas(GasModel):
 			derivs = derivs + (d_stag_enth_d_vel,)
 
 		if (wrt_spec):
-			if (species_enth is None):
+			if (spec_enth is None):
 				assert (temperature is not None), "Must provide temperature if not providing species enthalpies..."
-				species_enth = self.calc_species_enthalpies(temperature)
+				spec_enth = self.calc_spec_enth(temperature)
 			
-			d_stag_enth_d_mass_frac = np.zeros((self.num_species, species_enth.shape[1]), dtype=REAL_TYPE)
+			d_stag_enth_d_mass_frac = np.zeros((self.num_species, spec_enth.shape[1]), dtype=REAL_TYPE)
 			if (self.num_species_full == 1):
-				d_stag_enth_d_mass_frac[0,:] = species_enth[0,:]
+				d_stag_enth_d_mass_frac[0,:] = spec_enth[0,:]
 			else:
 				for spec_idx in range(self.num_species):
-					d_stag_enth_d_mass_frac[spec_idx,:] = species_enth[spec_idx,:] - species_enth[-1,:]
+					d_stag_enth_d_mass_frac[spec_idx,:] = spec_enth[spec_idx,:] - spec_enth[-1,:]
 
 			derivs = derivs + (d_stag_enth_d_mass_frac,)
 

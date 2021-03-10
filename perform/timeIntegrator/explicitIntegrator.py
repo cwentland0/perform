@@ -2,8 +2,8 @@ import time
 
 import numpy as np
 
-import perform.constants as const
-from perform.time_integrator.time_integrator import TimeIntegrator
+from perform.constants import REAL_TYPE
+from perform.timeIntegrator.timeIntegrator import TimeIntegrator
 
 
 class ExplicitIntegrator(TimeIntegrator):
@@ -54,7 +54,7 @@ class RKExplicit(ExplicitIntegrator):
 		Change in intermediate solution for subiteration
 		"""
 
-		dsol = np.zeros(rhs.shape, dtype=const.real_type)
+		dsol = np.zeros(rhs.shape, dtype=REAL_TYPE)
 		for rk_iter in range(self.subiter+1):
 			rk_a = self.rk_a_vals[self.subiter+1][rk_iter]
 			if (rk_a != 0.0):
@@ -67,7 +67,7 @@ class RKExplicit(ExplicitIntegrator):
 		Change in physical solution
 		"""
 		
-		dsol = np.zeros(rhs.shape, dtype=const.real_type)
+		dsol = np.zeros(rhs.shape, dtype=REAL_TYPE)
 		for rk_iter in range(self.subiter_max):
 			rk_b = self.rk_b_vals[rk_iter]
 			if (rk_b != 0.0):
@@ -76,7 +76,7 @@ class RKExplicit(ExplicitIntegrator):
 		return dsol
 
 
-class classicRK4(rkExplicit):
+class ClassicRK4(RKExplicit):
 	"""
 	Classic explicit RK4 scheme
 	"""
@@ -149,9 +149,9 @@ class JamesonLowStore(RKExplicit):
 
 		self.rk_a_vals = self.rk_a_vals[-time_order:,-time_order:]
 
-		self.rk_b_vals = np.zeros(time_order, dtype=const.real_type)
+		self.rk_b_vals = np.zeros(time_order, dtype=REAL_TYPE)
 		self.rk_b_vals[-1] = 1.0
-		self.rk_c_vals = np.zeros(time_order, dtype=const.real_type)
+		self.rk_c_vals = np.zeros(time_order, dtype=REAL_TYPE)
 
 ########## End Runge-Kutta integrators ##########
 

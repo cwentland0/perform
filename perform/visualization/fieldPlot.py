@@ -20,6 +20,8 @@ class FieldPlot(Visualization):
 		self.vis_id         = vis_id
 		self.x_label         = "x (m)"
 
+		assert (vis_vars[0] is not None), "Must provide vis_vars for field plot "+str(self.vis_id)
+
 		self.num_imgs = int(num_steps / vis_interval)
 		if (self.num_imgs > 0):
 			self.img_string 	= '%0'+str(floor(log(self.num_imgs, 10))+1)+'d'
@@ -58,11 +60,10 @@ class FieldPlot(Visualization):
 			for row_idx, ax_var in enumerate(col_list):
 
 				lin_idx = np.ravel_multi_index(([col_idx],[row_idx]), (self.num_rows, self.num_cols))[0]
-				if ((lin_idx+1) > self.numSubplots): 
+				if ((lin_idx+1) > self.num_subplots): 
 					ax_var.axis("off")
 					break
 
-				
 				y_data = self.get_y_data(sol_prim, sol_cons, source, rhs, self.vis_vars[lin_idx], gas)
 				x_data = x_cell
 

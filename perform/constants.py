@@ -34,11 +34,11 @@ FIG_WIDTH_DEFAULT  = 12
 FIG_HEIGHT_DEFAULT = 6
 
 # output directory names
-UNSTEADY_OUTPUT_DIR_NAME = "UnsteadyFieldResults"
-PROBE_OUTPUT_DIR_NAME    = "ProbeResults"
-IMAGE_OUTPUT_DIR_NAME    = "ImageResults"
-RESTART_OUTPUT_DIR_NAME  = "RestartFiles"
+UNSTEADY_OUTPUT_DIR_NAME = "unsteady_field_results"
+PROBE_OUTPUT_DIR_NAME    = "probe_results"
+IMAGE_OUTPUT_DIR_NAME    = "image_results"
+RESTART_OUTPUT_DIR_NAME  = "restart_files"
 
 # input files
-PARAM_INPUTS = "solverParams.inp"
-ROM_INPUTS   = "romParams.inp"
+PARAM_INPUTS = "solver_params.inp"
+ROM_INPUTS   = "rom_params.inp"

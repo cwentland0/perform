@@ -29,13 +29,13 @@ def catch_input(in_dict, in_key, default_val):
 	return outVal
 
 
-def catch_list(in_dict, in_key, default, lenHighest=1):
+def catch_list(in_dict, in_key, default, len_highest=1):
 	"""
 	Input processor for reading lists or lists of lists
 	Default defines length of lists at lowest level
 	"""
 
-	# TODO: needs to throw an error if input list of lists is longer than lenHighest
+	# TODO: needs to throw an error if input list of lists is longer than len_highest
 	# TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
 
 	list_of_lists_flag = (type(default[0]) == list)
@@ -50,7 +50,7 @@ def catch_list(in_dict, in_key, default, lenHighest=1):
 		if list_of_lists_flag:
 			typeDefault = type(default[0][0])
 			valList = []
-			for listIdx in range(lenHighest):
+			for listIdx in range(len_highest):
 				# if default type is NoneType, trust user
 				if (typeDefault == type(None)):
 					valList.append(inList[listIdx])
@@ -70,7 +70,7 @@ def catch_list(in_dict, in_key, default, lenHighest=1):
 	except:
 		if list_of_lists_flag:
 			valList = []
-			for listIdx in range(lenHighest):
+			for listIdx in range(len_highest):
 				valList.append(default[0])
 		else:
 			valList = default
@@ -86,7 +86,7 @@ def parse_value(expr):
 	try:
 		return eval(expr)
 	except:
-		return eval(re.sub("\s+", ",", expr))
+		return eval(re.sub(r"\s+", ",", expr))
 	else:
 		return expr
 
@@ -146,10 +146,10 @@ def parse_bc(bc_name, in_dict):
 		temp = in_dict["temp_"+bc_name]
 	else:
 		temp = None 
-	if ("mass_frac_"+bc_name in in_dict):
-		mass_frac = in_dict["mass_frac_"+bc_name]
+	if ("mass_fracs_"+bc_name in in_dict):
+		mass_fracs = in_dict["mass_fracs_"+bc_name]
 	else:
-		mass_frac = None
+		mass_fracs = None
 	if ("rho_"+bc_name in in_dict):
 		rho = in_dict["rho_"+bc_name]
 	else:
@@ -167,7 +167,7 @@ def parse_bc(bc_name, in_dict):
 	else:
 		pert_freq = None
 	
-	return press, vel, temp, mass_frac, rho, pert_type, pert_perc, pert_freq
+	return press, vel, temp, mass_fracs, rho, pert_type, pert_perc, pert_freq
 
 
 def get_initial_conditions(sol_domain, solver):
@@ -208,10 +208,10 @@ def gen_piecewise_uniform_ic(sol_domain, solver):
 	else:
 		raise ValueError("Could not find initial conditions file at "+solver.ic_params_file)
 
-	split_idx 	= np.absolute(solver.mesh.x_cell - ic_dict["xSplit"]).argmin()+1
+	split_idx 	= np.absolute(solver.mesh.x_cell - ic_dict["x_split"]).argmin()+1
 	sol_prim 	= np.zeros((sol_domain.gas_model.num_eqs, solver.mesh.num_cells), dtype=const.REAL_TYPE)
 
-	# TODO: error (or warning?) if xSplit is outside domain / doesn't split domain at all
+	# TODO: error (or warning?) if x_split is outside domain / doesn't split domain at all
 
 	gas = sol_domain.gas_model
 
@@ -219,19 +219,19 @@ def gen_piecewise_uniform_ic(sol_domain, solver):
 	sol_prim[0,:split_idx] 	= ic_dict["press_left"]
 	sol_prim[1,:split_idx] 	= ic_dict["vel_left"]
 	sol_prim[2,:split_idx] 	= ic_dict["temp_left"]
-	mass_frac_left          = ic_dict["mass_frac_left"]
-	assert(np.sum(mass_frac_left) == 1.0), "mass_frac_left must sum to 1.0"
-	assert(len(mass_frac_left) == gas.num_species_full), "mass_frac_left must have "+str(gas.num_species_full)+" entries"
-	sol_prim[3:,:split_idx] 	= ic_dict["mass_frac_left"][gas.mass_frac_slice, None]
+	mass_fracs_left         = ic_dict["mass_fracs_left"]
+	assert(np.sum(mass_fracs_left) == 1.0), "mass_fracs_left must sum to 1.0"
+	assert(len(mass_fracs_left) == gas.num_species_full), "mass_fracs_left must have "+str(gas.num_species_full)+" entries"
+	sol_prim[3:,:split_idx] 	= ic_dict["mass_fracs_left"][gas.mass_frac_slice, None]
 
 	# right state
 	sol_prim[0,split_idx:] 	= ic_dict["press_right"]
 	sol_prim[1,split_idx:] 	= ic_dict["vel_right"]
 	sol_prim[2,split_idx:] 	= ic_dict["temp_right"]
-	mass_frac_right         = ic_dict["mass_frac_right"]
-	assert(np.sum(mass_frac_right) == 1.0), "mass_frac_right must sum to 1.0"
-	assert(len(mass_frac_right) == gas.num_species_full), "mass_frac_right must have "+str(gas.num_species_full)+" entries"
-	sol_prim[3:,split_idx:] 	= mass_frac_right[gas.mass_frac_slice, None]
+	mass_fracs_right        = ic_dict["mass_fracs_right"]
+	assert(np.sum(mass_fracs_right) == 1.0), "mass_fracs_right must sum to 1.0"
+	assert(len(mass_fracs_right) == gas.num_species_full), "mass_fracs_right must have "+str(gas.num_species_full)+" entries"
+	sol_prim[3:,split_idx:] 	= mass_fracs_right[gas.mass_frac_slice, None]
 	
 	return sol_prim
 

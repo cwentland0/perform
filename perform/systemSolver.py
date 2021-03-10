@@ -42,7 +42,7 @@ class SystemSolver:
 		self.time_iter 		= 1 							# physical time iteration number
 
 		if self.run_steady:
-			self.steady_tol = catch_input(param_dict, "steady_tol", const.l2SteadyTolDefault) # threshold on convergence
+			self.steady_tol = catch_input(param_dict, "steady_tol", const.L2_STEADY_TOL_DEFAULT) # threshold on convergence
 		
 		# spatial discretization parameters
 		self.space_scheme 	= catch_input(param_dict, "space_scheme", "roe")	# spatial discretization scheme (string)

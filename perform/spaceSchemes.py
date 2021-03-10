@@ -17,14 +17,14 @@ def calc_rhs(sol_domain, solver):
 
 	# compute ghost cell state (if adjacent cell is sampled)
 	# TODO: update this after higher-order contribution?
-	# TODO: need to adapt sol_prim and sol_cons pass to calc_bound_state() depending on space scheme
+	# TODO: need to adapt sol_prim and sol_cons pass to calc_boundary_state() depending on space scheme
 	# TODO: will have to assign more than just one ghost cell for higher-order schemes
 	if (sol_domain.direct_samp_idxs[0] == 0):
-		sol_domain.sol_inlet.calc_bound_state(solver, sol_prim=sol_int.sol_prim[:,:2], sol_cons=sol_int.sol_cons[:,:2])
+		sol_domain.sol_inlet.calc_boundary_state(solver, sol_prim=sol_int.sol_prim[:,:2], sol_cons=sol_int.sol_cons[:,:2])
 	if (sol_domain.direct_samp_idxs[-1] == (solver.mesh.num_cells-1)):
-		sol_domain.sol_outlet.calc_bound_state(solver, sol_prim=sol_int.sol_prim[:,-2:], sol_cons=sol_int.sol_cons[:,-2:])
+		sol_domain.sol_outlet.calc_boundary_state(solver, sol_prim=sol_int.sol_prim[:,-2:], sol_cons=sol_int.sol_cons[:,-2:])
 
-	sol_domain.fillSolFull() # fill sol_prim_full and sol_cons_full
+	sol_domain.fill_sol_full() # fill sol_prim_full and sol_cons_full
 
 	# first-order approx at faces
 	sol_left  = sol_domain.sol_left
@@ -142,13 +142,13 @@ def calc_roe_diss(sol_ave):
 
 	# derivatives of density and enthalpy
 	d_rho_d_press, d_rho_d_temp, d_rho_d_mass_frac = sol_ave.gas_model.calc_dens_derivs(sol_ave.sol_cons[0,:],
-																						wrtPress=True, pressure=sol_ave.sol_prim[0,:],
-																						wrtTemp=True, temperature=sol_ave.sol_prim[2,:],
-																						wrtSpec=True, mass_fracs=sol_ave.sol_prim[3:,:])
+																						wrt_press=True, pressure=sol_ave.sol_prim[0,:],
+																						wrt_temp=True, temperature=sol_ave.sol_prim[2,:],
+																						wrt_spec=True, mass_fracs=sol_ave.sol_prim[3:,:])
 
-	d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac = sol_ave.gas_model.calc_stag_enth_derivs(wrtPress=True,
-																								wrtTemp=True, mass_fracs=sol_ave.sol_prim[3:,:],
-																								wrtSpec=True, temperature=sol_ave.sol_prim[2,:])
+	d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac = sol_ave.gas_model.calc_stag_enth_derivs(wrt_press=True,
+																								wrt_temp=True, mass_fracs=sol_ave.sol_prim[3:,:],
+																								wrt_spec=True, temperature=sol_ave.sol_prim[2,:])
 
 	# save for Jacobian calculations
 	sol_ave.d_rho_d_press = d_rho_d_press; sol_ave.d_rho_d_temp = d_rho_d_temp; sol_ave.d_rho_d_mass_frac = d_rho_d_mass_frac
@@ -236,12 +236,12 @@ def calc_visc_flux(sol_domain, solver):
 	sol_prim_grad[-1,:] = (mass_fracs[-1,sol_domain.flux_samp_right_idxs] - mass_fracs[-1,sol_domain.flux_samp_left_idxs]) / mesh.dx
 
 	# thermo and transport props
-	mole_fracs     = gas.calcAllMoleFracs(sol_ave.sol_prim[3:,:])
-	spec_dyn_visc  = gas.calcSpeciesDynamicVisc(sol_ave.sol_prim[2,:])
-	therm_cond_mix = gas.calcMixThermalCond(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
-	dyn_visc_mix   = gas.calcMixDynamicVisc(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
-	mass_diff_mix  = gas.calcSpeciesMassDiffCoeff(sol_ave.sol_cons[0,:], spec_dyn_visc=spec_dyn_visc)
-	hi             = gas.calcSpeciesEnthalpies(sol_ave.sol_prim[2,:])
+	mole_fracs     = gas.calc_all_mole_fracs(sol_ave.sol_prim[3:,:])
+	spec_dyn_visc  = gas.calc_species_dynamic_visc(sol_ave.sol_prim[2,:])
+	therm_cond_mix = gas.calc_mix_thermal_cond(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
+	dyn_visc_mix   = gas.calc_mix_dynamic_visc(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
+	mass_diff_mix  = gas.calc_species_mass_diff_coeff(sol_ave.sol_cons[0,:], spec_dyn_visc=spec_dyn_visc)
+	hi             = gas.calc_spec_enth(sol_ave.sol_prim[2,:])
 
 	# copy for use later
 	sol_ave.dyn_visc_mix   = dyn_visc_mix

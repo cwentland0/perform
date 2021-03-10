@@ -4,18 +4,19 @@ import numpy as np
 from scipy.sparse.linalg import spsolve
 from scipy.linalg import solve
 
-from perform.constants import REAL_TYPE, probe_output_dir
+import perform.constants as const
+from perform.constants import REAL_TYPE
 from perform.inputFuncs import get_initial_conditions, catch_list, catch_input, read_input_file
-from perform.solution.SolutionPhys import SolutionPhys
+from perform.solution.solutionPhys import SolutionPhys
 from perform.solution.solutionInterior import SolutionInterior
 from perform.solution.solutionBoundary.solutionInlet import SolutionInlet 
 from perform.solution.solutionBoundary.solutionOutlet import SolutionOutlet
 from perform.spaceSchemes import calc_rhs
 from perform.Jacobians import calc_d_res_d_sol_prim
-from perform.time_integrator import get_time_integrator
+from perform.timeIntegrator import get_time_integrator
 # gas models
 # TODO: make an __init__.py with getGasModel()
-from perform.gas_model.caloricallyPerfectGas import CaloricallyPerfectGas
+from perform.gasModel.caloricallyPerfectGas import CaloricallyPerfectGas
 
 
 class SolutionDomain:
@@ -43,22 +44,22 @@ class SolutionDomain:
 		# solution
 		sol_prim_init   = get_initial_conditions(self, solver)
 		self.sol_int    = SolutionInterior(gas, sol_prim_init, solver, self.time_integrator)
-		self.sol_inlet  = solutionInlet(gas, solver)
-		self.sol_outlet = solutionOutlet(gas, solver)
+		self.sol_inlet  = SolutionInlet(gas, solver)
+		self.sol_outlet = SolutionOutlet(gas, solver)
 
 		# average solution for Roe scheme
 		if (solver.space_scheme == "roe"):
-			ones_prof    = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells+1), dtype=const.REAL_TYPE)
-			self.solAve  = SolutionPhys(gas, self.sol_int.num_cells+1, solPrimIn=ones_prof)
+			ones_prof    = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells+1), dtype=REAL_TYPE)
+			self.sol_ave  = SolutionPhys(gas, self.sol_int.num_cells+1, sol_prim_in=ones_prof)
 
 		# for flux calculations
-		ones_prof = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells+1), dtype=const.REAL_TYPE)
-		self.sol_left  = SolutionPhys(gas, self.sol_int.num_cells+1, solPrimIn=ones_prof)
-		self.sol_right = SolutionPhys(gas, self.sol_int.num_cells+1, solPrimIn=ones_prof)
+		ones_prof = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells+1), dtype=REAL_TYPE)
+		self.sol_left  = SolutionPhys(gas, self.sol_int.num_cells+1, sol_prim_in=ones_prof)
+		self.sol_right = SolutionPhys(gas, self.sol_int.num_cells+1, sol_prim_in=ones_prof)
 
 		# to avoid repeated concatenation of ghost cell states
-		self.sol_prim_full = np.zeros((self.gas_model.num_eqs, self.sol_inlet.num_cells+self.sol_int.num_cells+self.sol_outlet.num_cells), dtype=const.REAL_TYPE)
-		self.sol_cons_full = np.zeros(self.sol_prim_full.shape, dtype=const.REAL_TYPE)
+		self.sol_prim_full = np.zeros((self.gas_model.num_eqs, self.sol_inlet.num_cells+self.sol_int.num_cells+self.sol_outlet.num_cells), dtype=REAL_TYPE)
+		self.sol_cons_full = np.zeros(self.sol_prim_full.shape, dtype=REAL_TYPE)
 
 		# probe storage (as this can include boundaries as well)
 		self.probe_locs = catch_list(param_dict, "probe_locs", [None])
@@ -66,19 +67,19 @@ class SolutionDomain:
 		if ((self.probe_locs[0] is not None) and (self.probe_vars[0] is not None)): 
 			self.num_probes     = len(self.probe_locs)
 			self.num_probe_vars = len(self.probe_vars)
-			self.probe_vals     = np.zeros((self.num_probes, self.num_probe_vars, solver.num_steps), dtype=const.REAL_TYPE)
+			self.probe_vals     = np.zeros((self.num_probes, self.num_probe_vars, solver.num_steps), dtype=REAL_TYPE)
 
 			# get probe locations
 			self.probe_idxs = [None] * self.num_probes
 			self.probe_secs = [None] * self.num_probes
-			for idx, probe_coc in enumerate(self.probe_locs):
-				if (probe_coc > solver.mesh.xR):
+			for idx, probe_loc in enumerate(self.probe_locs):
+				if (probe_loc > solver.mesh.x_right):
 					self.probe_secs[idx] = "outlet"
-				elif (probe_coc < solver.mesh.xL):
+				elif (probe_loc < solver.mesh.x_left):
 					self.probe_secs[idx] = "inlet"
 				else:
 					self.probe_secs[idx] = "interior"
-					self.probe_idxs[idx] = np.absolute(solver.mesh.x_cell - probe_coc).argmin()
+					self.probe_idxs[idx] = np.absolute(solver.mesh.x_cell - probe_loc).argmin()
 
 			assert (not ((("outlet" in self.probe_secs) or ("inlet" in self.probe_secs)) 
 						and (("source" in self.probe_vars) or ("rhs" in self.probe_vars))) ), \
@@ -94,7 +95,7 @@ class SolutionDomain:
 		# TODO: include initial conditions in probe_vals, time_vals
 		self.time_vals = np.linspace(solver.dt * (solver.time_iter),
 									solver.dt * (solver.time_iter - 1 + solver.num_steps),
-								 	solver.num_steps, dtype = const.REAL_TYPE)
+								 	solver.num_steps, dtype = REAL_TYPE)
 
 
 		# for compatability with hyper-reduction
@@ -172,18 +173,18 @@ class SolutionDomain:
 
 		if (self.time_integrator.time_type == "implicit"):
 
-			res = self.time_integrator.calcResidual(sol_int.sol_hist_cons, sol_int.rhs, solver)
+			res = self.time_integrator.calc_residual(sol_int.sol_hist_cons, sol_int.rhs, solver)
 			res_jacob = calc_d_res_d_sol_prim(self, solver)
 
 			d_sol = spsolve(res_jacob, res.ravel('C'))
 			
 			# if solving in dual time, solving for primitive state
-			if (self.time_integrator.dualTime):
+			if (self.time_integrator.dual_time):
 				sol_int.sol_prim += d_sol.reshape((self.gas_model.num_eqs, solver.mesh.num_cells), order='C')
 			else:
 				sol_int.sol_cons += d_sol.reshape((self.gas_model.num_eqs, solver.mesh.num_cells), order='C')
 				
-			sol_int.update_state(from_cons = (not self.time_integrator.dualTime))
+			sol_int.update_state(from_cons = (not self.time_integrator.dual_time))
 			sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy() 
 			sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy() 
 
@@ -326,7 +327,7 @@ class SolutionDomain:
 			probe_out = self.probe_vals[probe_num,:,:solver.iter]
 
 			probe_file_name = probe_file_base_name + "_" + str(probe_num+1) + "_" + solver.sim_type + ".npy"
-			probe_file = os.path.join(probe_output_dir, probe_file_name)
+			probe_file = os.path.join(const.probe_output_dir, probe_file_name)
 
 			probe_save = np.concatenate((time_out[None,:], probe_out), axis=0) 
 			np.save(probe_file, probe_save)

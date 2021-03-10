@@ -2,8 +2,9 @@ import os
 
 import numpy as np
 
-from perform.constants import REAL_TYPE, RES_NORM_PRIM_DEFAULT, unsteady_output_dir, restart_output_dir
-from perform.solution.solution_phys import SolutionPhys
+import perform.constants as const
+from perform.constants import REAL_TYPE, RES_NORM_PRIM_DEFAULT
+from perform.solution.solutionPhys import SolutionPhys
 
 
 class SolutionInterior(SolutionPhys):
@@ -153,16 +154,16 @@ class SolutionInterior(SolutionPhys):
 		final_idx = int((solver.iter - 1) / solver.out_interval) + offset
 
 		if solver.prim_out:
-			sol_prim_file = os.path.join(unsteady_output_dir, "solPrim_"+solver.sim_type+".npy")
+			sol_prim_file = os.path.join(const.unsteady_output_dir, "solPrim_"+solver.sim_type+".npy")
 			np.save(sol_prim_file, self.prim_snap[:,:,:final_idx])
 		if solver.cons_out:
-			sol_cons_file = os.path.join(unsteady_output_dir, "solCons_"+solver.sim_type+".npy")
+			sol_cons_file = os.path.join(const.unsteady_output_dir, "solCons_"+solver.sim_type+".npy")
 			np.save(sol_cons_file, self.cons_snap[:,:,:final_idx]) 
 		if solver.source_out:
-			source_file = os.path.join(unsteady_output_dir, "source_"+solver.sim_type+".npy")
+			source_file = os.path.join(const.unsteady_output_dir, "source_"+solver.sim_type+".npy")
 			np.save(source_file, self.source_snap[:,:,:final_idx-1])
 		if solver.rhs_out:
-			sol_rhs_file = os.path.join(unsteady_output_dir, "solRHS_"+solver.sim_type+".npy")
+			sol_rhs_file = os.path.join(const.unsteady_output_dir, "solRHS_"+solver.sim_type+".npy")
 			np.save(sol_rhs_file, self.rhs_snap[:,:,:final_idx-1]) 
 
 
@@ -174,15 +175,15 @@ class SolutionInterior(SolutionPhys):
 		# TODO: write previous time step(s) for multi-step methods, to preserve time accuracy at restart
 
 		# write restart file to zipped file
-		restart_file = os.path.join(restart_output_dir, "restartFile_"+str(solver.restart_iter)+".npz")
-		np.savez(restart_file, solTime = solver.solTime, sol_prim = self.sol_prim, sol_cons = self.sol_cons)
+		restart_file = os.path.join(const.restart_output_dir, "restartFile_"+str(solver.restart_iter)+".npz")
+		np.savez(restart_file, sol_time = solver.sol_time, sol_prim = self.sol_prim, sol_cons = self.sol_cons)
 
 		# write iteration number files
-		restartIterFile = os.path.join(restart_output_dir, "restart_iter.dat")
+		restartIterFile = os.path.join(const.restart_output_dir, "restart_iter.dat")
 		with open(restartIterFile, "w") as f:
 			f.write(str(solver.restart_iter)+"\n")
 
-		restart_phys_iter_file = os.path.join(restart_output_dir, "restart_iter_"+str(solver.restart_iter)+".dat")
+		restart_phys_iter_file = os.path.join(const.restart_output_dir, "restart_iter_"+str(solver.restart_iter)+".dat")
 		with open(restart_phys_iter_file, "w") as f:
 			f.write(str(solver.iter)+"\n")
 
@@ -196,7 +197,7 @@ class SolutionInterior(SolutionPhys):
 	def write_steady_data(self, solver):
 
 		# write norm data to ASCII file
-		steady_file = os.path.join(unsteady_output_dir, "steady_convergence.dat")
+		steady_file = os.path.join(const.unsteady_output_dir, "steady_convergence.dat")
 		if (solver.iter == 1):
 			f = open(steady_file,"w")
 		else:
@@ -206,9 +207,9 @@ class SolutionInterior(SolutionPhys):
 		f.close()
 
 		# write field data
-		sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_steady.npy")
+		sol_prim_file = os.path.join(const.unsteady_output_dir, "sol_prim_steady.npy")
 		np.save(sol_prim_file, self.sol_prim)
-		sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_steady.npy")
+		sol_cons_file = os.path.join(const.unsteady_output_dir, "sol_cons_steady.npy")
 		np.save(sol_cons_file, self.sol_cons)
 
 
@@ -236,7 +237,7 @@ class SolutionInterior(SolutionPhys):
 		self.d_sol_norm_history[solver.iter-1, :] = [norm_l2, norm_l1]
 
 
-	def calcResNorms(self, solver, subiter):
+	def calc_res_norms(self, solver, subiter):
 		"""
 		Calculate and print linear solve residual norms		
 		Note that output is ORDER OF MAGNITUDE of residual norm (i.e. 1e-X, where X is the order of magnitude)

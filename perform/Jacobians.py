@@ -8,7 +8,7 @@ import perform.constants as const
 def calc_d_sol_prim_d_sol_cons(sol_int):
 	"""
 	Compute the Jacobian of the conservative state w/r/t/ the primitive state
-	This appears as \Gamma^{-1} in the pyGEMS documentation
+	This appears as Gamma^{-1} in the pyGEMS documentation
 	"""
 
 	# TODO: some repeated calculations
@@ -65,7 +65,7 @@ def calc_d_sol_prim_d_sol_cons(sol_int):
 def calc_d_sol_cons_d_sol_prim(sol_int):
 	"""
 	Compute the Jacobian of conservative state w/r/t the primitive state
-	This appears as \Gamma in the pyGEMS documentation
+	This appears as Gamma in the pyGEMS documentation
 	"""
 
 	# TODO: add option for preconditioning d_rho_d_press
@@ -144,7 +144,7 @@ def calc_d_source_d_sol_prim(sol_int, dt):
 
 	# TODO: not correct for multi-reaction, this should be [numSpec, numReac, num_cells] 
 	d_wf_d_mass_frac = wf_div_rho * d_rho_d_mass_frac
-	for i in range(gas.numSpecies):
+	for i in range(gas.num_species):
 		pos_mf_idxs = np.nonzero(mass_fracs[i,:] > 0.0)[0]
 		d_wf_d_mass_frac[i,pos_mf_idxs] += wf[pos_mf_idxs] * gas.nu_arr[i] / mass_fracs[i,pos_mf_idxs]
 	
@@ -153,18 +153,13 @@ def calc_d_source_d_sol_prim(sol_int, dt):
 	d_source_d_sol_prim[3:,2,:]  = -gas.mol_weight_nu[gas.mass_frac_slice,None] * d_wf_d_temp
 
 	# TODO: this is totally wrong for multi-reaction
-	for i in range(gas.numSpecies):
+	for i in range(gas.num_species):
 		d_source_d_sol_prim[3:,3+i,:] = -gas.mol_weight_nu[[i],None] * d_wf_d_mass_frac[[i],:]
 	
 	return d_source_d_sol_prim
 	
-<<<<<<< HEAD
-
-def calcDInvFluxDSolPrim(sol):
-=======
    
 def calc_d_inv_flux_d_sol_prim(sol):
->>>>>>> initial PEP 8 conformity
 	"""
 	Compute Jacobian of inviscid flux vector with respect to primitive state
 	Here, sol should be the solutionPhys associated with the left/right face state
@@ -184,13 +179,13 @@ def calc_d_inv_flux_d_sol_prim(sol):
 	h0         = sol.h0
 
 	d_rho_d_press, d_rho_d_temp, d_rho_d_mass_frac = gas.calc_dens_derivs(rho,
-								wrtPress=True, pressure=press,
-								wrtTemp=True, temperature=temp,
-								wrtSpec=True, mass_fracs=mass_fracs)
+								wrt_press=True, pressure=press,
+								wrt_temp=True, temperature=temp,
+								wrt_spec=True, mass_fracs=mass_fracs)
 
-	d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac = gas.calc_stag_enth_derivs(wrtPress=True,
-							wrtTemp=True, mass_fracs=mass_fracs, 
-							wrtSpec=True, temperature=temp)
+	d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac = gas.calc_stag_enth_derivs(wrt_press=True,
+							wrt_temp=True, mass_fracs=mass_fracs, 
+							wrt_spec=True, temperature=temp)
 	
 	# continuity equation row
 	d_flux_d_sol_prim[0,0,:]  = vel * d_rho_d_press
@@ -292,15 +287,15 @@ def calc_d_res_d_sol_prim(sol_domain, solver):
 	gas        = sol_domain.gas_model
 
 	# stagnation enthalpy and derivatives of density and enthalpy, will need these regardless
-	sol_int.h0 = gas.calc_stagnation_enthalpy(sol_int.sol_prim)
+	sol_int.h0 = gas.calc_stag_enth(sol_int.sol_prim)
 	sol_int.d_rho_d_press, sol_int.d_rho_d_temp, sol_int.d_rho_d_mass_frac = gas.calc_dens_derivs(sol_int.sol_cons[0,:],
-													wrtPress=True, pressure=sol_int.sol_prim[0,:],
-													wrtTemp=True, temperature=sol_int.sol_prim[2,:],
-													wrtSpec=True, mass_fracs=sol_int.sol_prim[3:,:])
+													wrt_press=True, pressure=sol_int.sol_prim[0,:],
+													wrt_temp=True, temperature=sol_int.sol_prim[2,:],
+													wrt_spec=True, mass_fracs=sol_int.sol_prim[3:,:])
 
-	sol_int.d_enth_d_press, sol_int.d_enth_d_temp, sol_int.d_enth_d_mass_frac = gas.calc_stag_enth_derivs(wrtPress=True,
-												wrtTemp=True, mass_fracs=sol_int.sol_prim[3:,:], 
-												wrtSpec=True, temperature=sol_int.sol_prim[2,:])
+	sol_int.d_enth_d_press, sol_int.d_enth_d_temp, sol_int.d_enth_d_mass_frac = gas.calc_stag_enth_derivs(wrt_press=True,
+												wrt_temp=True, mass_fracs=sol_int.sol_prim[3:,:], 
+												wrt_spec=True, temperature=sol_int.sol_prim[2,:])
 
 
 	# TODO: conditional path for other flux schemes
@@ -309,12 +304,12 @@ def calc_d_res_d_sol_prim(sol_domain, solver):
 	d_rhs_d_sol_prim = d_flux_d_sol_prim.copy()
 
 	# contribution to main block diagonal from source term Jacobian
-	if solver.sourceOn:
+	if solver.source_on:
 		d_source_d_sol_prim = calc_d_source_d_sol_prim(sol_int, sol_domain.time_integrator.dt)
 		d_rhs_d_sol_prim -= d_source_d_sol_prim
 
 	# TODO: make this specific for each implicitIntegrator
-	dt_coeff_idx = min(solver.iter, sol_domain.time_integrator.timeOrder) - 1
+	dt_coeff_idx = min(solver.iter, sol_domain.time_integrator.time_order) - 1
 	dt_inv = sol_domain.time_integrator.coeffs[dt_coeff_idx][0] / sol_domain.time_integrator.dt
 
 	# modifications depending on whether dual-time integration is being used
@@ -365,8 +360,8 @@ def calc_adaptive_dtau(sol_domain, gamma_matrix, solver):
 	# limit by von Neumann number
 	if (solver.visc_scheme > 0):
 		# TODO: calculating this is stupidly expensive, figure out a workaround
-		sol_int.dyn_visc_mix = sol_domain.gas_model.calc_mix_dynamic_visc(temperature=sol_int.sol_prim[2,:], massFracs=sol_int.sol_prim[3:,:])
-		nu = sol_int.dyn_visc_mix / sol_int.solCons[0,:]
+		sol_int.dyn_visc_mix = sol_domain.gas_model.calc_mix_dynamic_visc(temperature=sol_int.sol_prim[2,:], mass_fracs=sol_int.sol_prim[3:,:])
+		nu = sol_int.dyn_visc_mix / sol_int.sol_cons[0,:]
 		dtau = np.minimum(dtau, sol_domain.time_integrator.vnn * np.square(solver.mesh.dx) / nu)
 		dtaum = np.minimum(dtaum, 3.0 / nu)
 

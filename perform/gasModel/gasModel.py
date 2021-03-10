@@ -47,7 +47,7 @@ class GasModel:
 		self.mw_inv          = 1.0 / self.mol_weights
 		self.mw_inv_diffs    = self.mw_inv[self.mass_frac_slice] - self.mw_inv[-1]
 
-		self.numEqs = self.num_species + 3			# pressure, velocity, temperature, and species transport
+		self.num_eqs = self.num_species + 3			# pressure, velocity, temperature, and species transport
 
 		# mass matrices for calculating viscosity and thermal conductivity mixing laws
 		self.mix_mass_matrix     = np.zeros((self.num_species_full, self.num_species_full), dtype=REAL_TYPE)
@@ -86,7 +86,7 @@ class GasModel:
 		return mass_fracs
 
 
-	def calcAllMassFracs(self, mass_fracs_ns, threshold=True):
+	def calc_all_mass_fracs(self, mass_fracs_ns, threshold=True):
 		"""
 		Helper function to compute all num_species_full mass fraction fields from num_species fields
 		Thresholds all mass fraction fields between zero and unity 
@@ -116,7 +116,7 @@ class GasModel:
 		"""
 
 		if (mass_fracs.shape[0] == self.num_species):
-			mass_fracs = self.calcAllMassFracs(mass_fracs, threshold=False)
+			mass_fracs = self.calc_all_mass_fracs(mass_fracs, threshold=False)
 
 		mix_mol_weight = 1.0 / np.sum(mass_fracs / self.mol_weights[:, None], axis=0)
 
@@ -129,7 +129,7 @@ class GasModel:
 		"""
 
 		if (mass_fracs.shape[0] == self.num_species):
-			mass_fracs = self.calcAllMassFracs(mass_fracs, threshold=False)
+			mass_fracs = self.calc_all_mass_fracs(mass_fracs, threshold=False)
 
 		if (mix_mol_weight is None):
 			mix_mol_weight = self.calc_mix_mol_weight(mass_fracs)

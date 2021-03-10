@@ -87,7 +87,7 @@ class SolutionPhys:
 		self.sol_cons[3:,:] = self.sol_prim[3:,:] * self.sol_cons[[0],:]
 
 		# update thermo properties
-		self.enth_ref_mix = self.gas_model.calcMixEnthRef(mass_fracs)
+		self.enth_ref_mix = self.gas_model.calc_mix_enth_ref(mass_fracs)
 		if calc_gamma:
 			calc_r  = True
 			calc_cp = True
@@ -116,7 +116,7 @@ class SolutionPhys:
 		self.sol_prim[3:,:] = mass_fracs
 
 		# update thermo properties
-		self.enth_ref_mix = self.gas_model.calcMixEnthRef(mass_fracs)
+		self.enth_ref_mix = self.gas_model.calc_mix_enth_ref(mass_fracs)
 		if calc_gamma:
 			calc_r  = True
 			calc_cp = True
@@ -164,11 +164,11 @@ class SolutionPhys:
 			# compute derivatives of density and stagnation enthalpy with respect to pressure and temperature
 			d_dens_d_press, d_dens_d_temp = \
 				self.gas_model.calc_dens_derivs(dens_curr, 
-												wrtPress=True, pressure=self.sol_prim[0,:], 
-												wrtTemp=True, temperature=self.sol_prim[2,:])
+												wrt_press=True, pressure=self.sol_prim[0,:], 
+												wrt_temp=True, temperature=self.sol_prim[2,:])
 
 			d_stag_enth_d_press, d_stag_enth_d_temp = \
-				self.gas_model.calc_stag_enth_derivs(wrtPress=True, wrtTemp=True, mass_fracs=self.sol_prim[3:,:])
+				self.gas_model.calc_stag_enth_derivs(wrt_press=True, wrt_temp=True, mass_fracs=self.sol_prim[3:,:])
 
 			# compute change in temperature and pressure 
 			d_factor = 1.0 / (d_dens_d_press * d_stag_enth_d_temp - d_dens_d_temp * d_stag_enth_d_press)

@@ -9,8 +9,6 @@ mpl.rc('figure', facecolor='w')
 mpl.rc('text', usetex=False)
 mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
 
-from perform.inputFuncs import catchList
-
 # TODO: add RHS, flux plotting
 
 class Visualization:

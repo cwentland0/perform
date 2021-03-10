@@ -10,7 +10,7 @@ def calc_cell_gradients(sol_domain, solver):
 	"""
 
 	# Compute gradients via finite difference stencil
-	sol_prim_grad = np.zeros((sol_domain.gasModel.num_eqs, sol_domain.num_grad_cells), dtype=REAL_TYPE)
+	sol_prim_grad = np.zeros((sol_domain.gas_model.num_eqs, sol_domain.num_grad_cells), dtype=REAL_TYPE)
 	if (solver.space_order == 2):
 		sol_prim_grad = (0.5 / solver.mesh.dx) * (sol_domain.sol_prim_full[:, sol_domain.grad_idxs + 1] - sol_domain.sol_prim_full[:, sol_domain.grad_idxs - 1])
 	else:
