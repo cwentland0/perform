@@ -15,7 +15,7 @@ from perform.miscFuncs import mkdir_in_workdir
 # TODO: Check all calls to calcDensityDerivatives and calcStagEnthalpyDerivatives, pass full massFrac array
 # TODO: ^^^^^ Emphasizing this, this is a big contribution to Jacobian cost
 
-
+@profile
 def main():
 
 	##### Start setup #####

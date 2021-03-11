@@ -25,6 +25,8 @@ class ProbePlot(Visualization):
 
 		super().__init__(vis_id, vis_vars, vis_x_bounds, vis_y_bounds, species_names)
 
+		self.ax_line = [None] * self.num_subplots
+
 		# image file on disk
 		vis_name = ""
 		for vis_var in self.vis_vars:
@@ -36,10 +38,11 @@ class ProbePlot(Visualization):
 		for vis_var in self.vis_vars:
 			assert (vis_var in probe_vars), "Must probe "+vis_var+" to plot it"
 
-
-	def plot(self, probe_vals, time_vals, iter_num, line_style):
+	def plot(self, probe_vals, time_vals, iter_num, line_style, first_plot):
 		"""
-		Draw and display plot
+		Draw and display probe plot
+		Since shape of plotted data changes every time, can't use set_data
+		As a result, probe plotting can be pretty slow
 		"""
 
 		plt.figure(self.vis_id)
@@ -61,20 +64,22 @@ class ProbePlot(Visualization):
 					ax_var.axis("off")
 					break
 
+				ax_var.cla()
+
 				y_data = self.getYData(probe_vals, self.vis_vars[lin_idx], iter_num)
 				x_data = time_vals[:iter_num]
 
-				ax_var.plot(x_data, y_data, line_style)
-				ax_var.set_ylim(self.vis_y_bounds[lin_idx])
-				ax_var.set_xlim(self.vis_x_bounds[lin_idx])
+				self.ax_line[lin_idx], = ax_var.plot(x_data, y_data, line_style)
+				
 				ax_var.set_ylabel(self.ax_labels[lin_idx])
 				ax_var.set_xlabel(self.x_label)
-				
+				ax_var.set_ylim(self.vis_y_bounds[lin_idx])
+				ax_var.set_xlim(self.vis_x_bounds[lin_idx])
 				ax_var.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 
-		self.fig.tight_layout()
-		self.fig.canvas.draw_idle()
-
+		if first_plot:
+			self.fig.tight_layout()
+		self.fig.canvas.draw()
 
 	def getYData(self, probe_vals, var_str, iter_num):
 
@@ -84,11 +89,9 @@ class ProbePlot(Visualization):
 
 		return y_data
 
-
 	def save(self, iter_num, dpi=100):
 
 		plt.figure(self.vis_id)
-		plt.tight_layout()
 		self.fig.savefig(self.fig_file, dpi=dpi)
 
 		

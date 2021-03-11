@@ -96,36 +96,26 @@ class VisualizationGroup:
 			if ((solver.iter % self.vis_interval) != 0):
 				return
 
-			for vis in self.vis_list:
+			# decide whether to draw plot for first time or update y-data
+			if (int(solver.iter / self.vis_interval) == 1):
+				first_plot = True
+			else:
+				first_plot = False
 
-				# clear plots
-				plt.figure(vis.vis_id)
-				if (type(vis.ax) != np.ndarray):
-					ax_list = [vis.ax]
-				else:
-					ax_list = vis.ax
-				for col_idx, col in enumerate(ax_list):
-					if (type(col) != np.ndarray):
-						col_list = [col]
-					else:
-						col_list = col
-					for rowIdx, ax_var in enumerate(col_list):
-						ax_var.cla()
+			for vis in self.vis_list:
 
 				# draw and save plots
 				if (vis.vis_type == "field"):
 					vis.plot(sol_domain.sol_int.sol_prim, sol_domain.sol_int.sol_cons, sol_domain.sol_int.source, sol_domain.sol_int.rhs, 
-							sol_domain.gas_model, solver.mesh.x_cell, 'b-')
+							sol_domain.gas_model, solver.mesh.x_cell, 'b-', first_plot)
 				elif (vis.vis_type == "probe"):
-					vis.plot(sol_domain.probe_vals, sol_domain.time_vals, solver.iter, 'b-')
+					vis.plot(sol_domain.probe_vals, sol_domain.time_vals, solver.iter, 'b-', first_plot)
 				else:
 					raise ValueError("Invalid vis_type:" + str(vis.vis_type))
 				if self.vis_save: vis.save(solver.iter)
 
-			if self.vis_show:
-				plt.show(block=False)
-				plt.pause(0.001)
-
+				if self.vis_show:
+					vis.fig.canvas.flush_events()
 
 	# def movePlots(self):
 	# 	"""

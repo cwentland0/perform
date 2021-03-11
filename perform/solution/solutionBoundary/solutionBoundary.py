@@ -38,7 +38,7 @@ class SolutionBoundary(SolutionPhys):
 		super().__init__(gas, 1, sol_prim_in=sol_dummy)
 		self.sol_prim[3:,0] = self.mass_fracs[gas.mass_frac_slice]
 
-	
+	@profile
 	def calc_pert(self, t):
 		"""
 		Compute sinusoidal perturbation factor 

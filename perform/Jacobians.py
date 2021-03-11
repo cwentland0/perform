@@ -181,11 +181,11 @@ def calc_d_inv_flux_d_sol_prim(sol):
 	d_rho_d_press, d_rho_d_temp, d_rho_d_mass_frac = gas.calc_dens_derivs(rho,
 								wrt_press=True, pressure=press,
 								wrt_temp=True, temperature=temp,
-								wrt_spec=True, mass_fracs=mass_fracs)
+								wrt_spec=True, mass_fracs=sol.mass_fracs_full)
 
 	d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac = gas.calc_stag_enth_derivs(wrt_press=True,
 							wrt_temp=True, mass_fracs=mass_fracs, 
-							wrt_spec=True, temperature=temp)
+							wrt_spec=True, spec_enth=sol.hi)
 	
 	# continuity equation row
 	d_flux_d_sol_prim[0,0,:]  = vel * d_rho_d_press
@@ -275,7 +275,7 @@ def calc_d_roe_flux_d_sol_prim(sol_domain, solver):
     	
 	return d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right
 
-
+@profile
 def calc_d_res_d_sol_prim(sol_domain, solver):
 	"""
 	Compute Jacobian of the RHS function (i.e. fluxes and sources)  
@@ -287,15 +287,16 @@ def calc_d_res_d_sol_prim(sol_domain, solver):
 	gas        = sol_domain.gas_model
 
 	# stagnation enthalpy and derivatives of density and enthalpy, will need these regardless
-	sol_int.h0 = gas.calc_stag_enth(sol_int.sol_prim)
+	sol_int.hi = gas.calc_spec_enth(sol_int.sol_prim[2,:])
+	sol_int.h0 = gas.calc_stag_enth(sol_int.sol_prim[1,:], sol_int.mass_fracs_full, spec_enth=sol_int.hi)
 	sol_int.d_rho_d_press, sol_int.d_rho_d_temp, sol_int.d_rho_d_mass_frac = gas.calc_dens_derivs(sol_int.sol_cons[0,:],
 													wrt_press=True, pressure=sol_int.sol_prim[0,:],
 													wrt_temp=True, temperature=sol_int.sol_prim[2,:],
-													wrt_spec=True, mass_fracs=sol_int.sol_prim[3:,:])
+													wrt_spec=True, mix_mol_weight=sol_int.mw_mix)
 
 	sol_int.d_enth_d_press, sol_int.d_enth_d_temp, sol_int.d_enth_d_mass_frac = gas.calc_stag_enth_derivs(wrt_press=True,
 												wrt_temp=True, mass_fracs=sol_int.sol_prim[3:,:], 
-												wrt_spec=True, temperature=sol_int.sol_prim[2,:])
+												wrt_spec=True, spec_enth=sol_int.hi)
 
 
 	# TODO: conditional path for other flux schemes

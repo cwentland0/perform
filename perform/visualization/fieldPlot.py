@@ -30,6 +30,8 @@ class FieldPlot(Visualization):
 
 		super().__init__(vis_id, vis_vars, vis_x_bounds, vis_y_bounds, species_names)
 
+		self.ax_line = [None] * self.num_subplots
+
 		# Set up output directory
 		vis_name = ""
 		for visVar in self.vis_vars:
@@ -38,14 +40,13 @@ class FieldPlot(Visualization):
 		self.img_dir = os.path.join(const.image_output_dir, "field"+vis_name)
 		if not os.path.isdir(self.img_dir): os.mkdir(self.img_dir)
 		
-
-	def plot(self, sol_prim, sol_cons, source, rhs, gas, x_cell, line_style):
+	def plot(self, sol_prim, sol_cons, source, rhs, gas, x_cell, line_style, first_plot):
 		"""
-		Draw and display plot
+		Draw and display field plot
 		"""
 
 		plt.figure(self.vis_id)
-
+			
 		# TODO: Just aggregate axes into a list during __init__
 		if (type(self.ax) != np.ndarray):
 			ax_list = [self.ax]
@@ -65,22 +66,22 @@ class FieldPlot(Visualization):
 					break
 
 				y_data = self.get_y_data(sol_prim, sol_cons, source, rhs, self.vis_vars[lin_idx], gas)
-				x_data = x_cell
 
-				ax_var.plot(x_data, y_data, line_style)
+				if first_plot:
+					x_data = x_cell
+					self.ax_line[lin_idx], = ax_var.plot(x_data, y_data, line_style)
+					ax_var.set_ylabel(self.ax_labels[lin_idx])
+					ax_var.set_xlabel(self.x_label)
+				else:
+					self.ax_line[lin_idx].set_ydata(y_data)
+
 				ax_var.set_ylim(self.vis_y_bounds[lin_idx])
 				ax_var.set_xlim(self.vis_x_bounds[lin_idx])
-				ax_var.set_ylabel(self.ax_labels[lin_idx])
-				ax_var.set_xlabel(self.x_label)
-				
-				if (self.vis_type == "field"):
-					ax_var.ticklabel_format(useOffset=False)
-				else:
-					ax_var.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+				ax_var.ticklabel_format(useOffset=False)
 
-		self.fig.tight_layout()
-		self.fig.canvas.draw_idle()
-
+		if first_plot:
+			self.fig.tight_layout()
+		self.fig.canvas.draw()
 
 	def get_y_data(self, sol_prim, sol_cons, source, rhs, var_str, gas):
 		"""
@@ -120,14 +121,12 @@ class FieldPlot(Visualization):
 
 		return y_data
 
-
 	def save(self, iter_num, dpi=100):
 		"""
 		Save plot to disk
 		"""
 
 		plt.figure(self.vis_id)
-		plt.tight_layout()
 		visIdx 	= int(iter_num / self.vis_interval)
 		fig_num 	= self.img_string % visIdx
 		fig_file = os.path.join(self.img_dir, "fig_"+fig_num+".png")

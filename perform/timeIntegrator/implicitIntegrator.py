@@ -45,7 +45,6 @@ class BDF(ImplicitIntegrator):
 		self.coeffs[3] = np.array([25./12., -4.0, 3.0, -4./3., 0.25], dtype=REAL_TYPE)
 		assert (self.time_order <= 4), str(self.time_order)+"th-order accurate scheme not implemented for "+self.time_scheme+" scheme"
 
-
 	def calc_residual(self, solHist, rhs, solver):
 		
 		# Account for cold start

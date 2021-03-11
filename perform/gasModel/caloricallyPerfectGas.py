@@ -102,26 +102,26 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_enth
 
-
-	def calc_stag_enth(self, sol_prim, spec_enth=None):
+	@profile
+	def calc_stag_enth(self, velocity, mass_fracs, temperature=None, spec_enth=None):
 		"""
 		Compute stagnation enthalpy from velocity and species enthalpies
 		"""
 
 		# get the species enthalpies if not provided
 		if (spec_enth is None):
-			spec_enth = self.calc_spec_enth(sol_prim[2,:])
+			assert (temperature is not None), "Must provide temperature if not providing species enthalpies"
+			spec_enth = self.calc_spec_enth(temperature)
 
 		# compute all mass fraction fields
-		mass_fracs = self.calc_all_mass_fracs(sol_prim[3:,:], threshold=False)
+		if (mass_fracs.shape[0] == self.num_species):
+			mass_fracs = self.calc_all_mass_fracs(mass_fracs, threshold=False)
 
-		assert (mass_fracs.shape == spec_enth.shape)
-
-		stag_enth = np.sum(spec_enth * mass_fracs, axis=0) + 0.5 * np.square(sol_prim[1,:])
+		stag_enth = np.sum(spec_enth * mass_fracs, axis=0) + 0.5 * np.square(velocity)
 
 		return stag_enth
 
-
+	@profile
 	def calc_species_dynamic_visc(self, temperature):
 		"""
 		Compute individual dynamic viscosities from Sutherland's law
@@ -146,8 +146,8 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_dyn_visc
 
-
-	def calc_mix_dynamic_visc(self, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None):
+	@profile
+	def calc_mix_dynamic_visc(self, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None, mw_mix=None):
 		"""
 		Compute mixture dynamic viscosity from Wilkes mixing law
 		"""
@@ -164,7 +164,7 @@ class CaloricallyPerfectGas(GasModel):
 
 			if (mole_fracs is None):
 				assert (mass_fracs is not None), "Must provide mass fractions if not providing mole fractions"
-				mole_fracs = self.calc_all_mole_fracs(mass_fracs)
+				mole_fracs = self.calc_all_mole_fracs(mass_fracs, mw_mix)
 
 			phi = np.zeros((self.num_species_full, spec_dyn_visc.shape[1]), dtype=REAL_TYPE)
 			for spec_idx in range(self.num_species_full):
@@ -176,7 +176,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return mix_dyn_visc
 
-
+	@profile
 	def calc_species_therm_cond(self, spec_dyn_visc=None, temperature=None):
 		"""
 		Compute species thermal conductivities
@@ -191,8 +191,8 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_therm_cond
 
-
-	def calc_mix_thermal_cond(self, spec_therm_cond=None, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None):
+	@profile
+	def calc_mix_thermal_cond(self, spec_therm_cond=None, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None, mw_mix=None):
 		"""
 		Compute mixture thermal conductivity
 		"""
@@ -210,13 +210,13 @@ class CaloricallyPerfectGas(GasModel):
 
 			if (mole_fracs is None):
 				assert (mass_fracs is not None), "Must provide mass fractions if not providing mole fractions"
-				mole_fracs = self.calc_all_mole_fracs(mass_fracs)
+				mole_fracs = self.calc_all_mole_fracs(mass_fracs, mix_mol_weight=mw_mix)
 
 			mix_therm_cond = 0.5 * ( np.sum(mole_fracs * spec_therm_cond, axis=0) + 1.0 / np.sum(mole_fracs / spec_therm_cond, axis=0) )
 
 		return mix_therm_cond
 
-
+	@profile
 	def calc_species_mass_diff_coeff(self, density, spec_dyn_visc=None, temperature=None):
 		"""
 		Compute mass diffusivity coefficient of species into mixture
@@ -231,7 +231,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_mass_diff
 
-
+	@profile
 	def calc_sound_speed(self, temperature, r_mix=None, gamma_mix=None, mass_fracs=None, cp_mix=None):
 		"""
 		Compute sound speed
@@ -265,7 +265,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return sound_speed
 
-
+	@profile
 	def calc_dens_derivs(self, density, 
 								wrt_press=False, pressure=None,
 								wrt_temp=False, temperature=None,
@@ -302,7 +302,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return derivs
 
-
+	@profile
 	def calc_stag_enth_derivs(self, wrt_press=False,
 							  wrt_temp=False, mass_fracs=None,
 							  wrt_vel=False, velocity=None,
@@ -323,7 +323,8 @@ class CaloricallyPerfectGas(GasModel):
 		if (wrt_temp):
 			assert (mass_fracs is not None), "Must provide mass fractions for temperature derivative..."
 
-			mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
+			if (mass_fracs.shape[0] != self.num_species):
+				mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
 			d_stag_enth_d_temp = self.calc_mix_cp(mass_fracs)
 			derivs = derivs + (d_stag_enth_d_temp,)
 

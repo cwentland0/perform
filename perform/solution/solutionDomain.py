@@ -138,7 +138,7 @@ class SolutionDomain:
 		self.sol_cons_full[:,idx_in:idx_int] = sol_int.sol_cons.copy()
 		self.sol_cons_full[:,idx_int:]       = sol_outlet.sol_cons.copy()
 
-
+	@profile
 	def advance_iter(self, solver):
 		"""
 		Advance physical solution forward one time iteration
@@ -161,7 +161,7 @@ class SolutionDomain:
 
 		self.sol_int.update_sol_hist() 
 
-
+	@profile
 	def advance_subiter(self, solver):
 		"""
 		Advance physical solution forward one subiteration of time integrator

@@ -74,7 +74,7 @@ class SolutionOutlet(SolutionBoundary):
 		self.sol_prim[1,0] = j - 2.0 * c_bound / gamma_mix_m1
 		self.sol_prim[2,0] = press_bound / (r_mix * rho_bound)		
 
-
+	@profile
 	def calc_mean_flow_bc(self, solver, sol_prim=None, sol_cons=None):
 		"""
 		Non-reflective boundary, unsteady solution is perturbation about mean flow solution

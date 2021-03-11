@@ -2,7 +2,7 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 
-
+@profile
 def calc_cell_gradients(sol_domain, solver):
 	"""
 	Compute cell-centered gradients for higher-order face reconstructions
@@ -96,7 +96,7 @@ def limiter_barth_jespersen(sol_domain, grad, mesh):
 	
 	return phi
 
-
+@profile
 def limiter_venkatakrishnan(sol_domain, grad, mesh):
 	"""
 	Venkatakrishnan limiter

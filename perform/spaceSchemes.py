@@ -5,7 +5,7 @@ import numpy as np
 from perform.constants import REAL_TYPE, R_UNIV
 from perform.higherOrderFuncs import calc_cell_gradients
 
-
+@profile
 def calc_rhs(sol_domain, solver):
 	"""
 	Compute rhs function
@@ -57,7 +57,7 @@ def calc_rhs(sol_domain, solver):
 		calc_source(sol_domain, solver)
 		sol_int.rhs[3:, sol_domain.direct_samp_idxs] += sol_int.source[:, sol_domain.direct_samp_idxs]
 
-
+@profile
 def calc_inv_flux(sol_domain, solver):
 	"""
 	Compute inviscid fluxes
@@ -66,9 +66,11 @@ def calc_inv_flux(sol_domain, solver):
 	# TODO: generalize to other flux schemes, expand beyond Roe flux
 	# TODO: entropy fix
 
-	sol_prim_left  = sol_domain.sol_left.sol_prim
-	sol_cons_left  = sol_domain.sol_left.sol_cons
-	sol_prim_right = sol_domain.sol_right.sol_prim
+	sol_left       = sol_domain.sol_left
+	sol_right      = sol_domain.sol_right
+	sol_prim_left  = sol_left.sol_prim
+	sol_cons_left  = sol_left.sol_cons
+	sol_prim_right = sol_right.sol_prim
 	sol_cons_right = sol_domain.sol_right.sol_cons
 
 	# inviscid flux vector
@@ -82,15 +84,18 @@ def calc_inv_flux(sol_domain, solver):
 	fac1 = 1.0 - fac
 
 	# Roe average stagnation enthalpy and density
-	sol_domain.sol_left.h0 = sol_domain.gas_model.calc_stag_enth(sol_prim_left)
-	sol_domain.sol_right.h0 = sol_domain.gas_model.calc_stag_enth(sol_prim_right)
+	sol_left.hi = sol_domain.gas_model.calc_spec_enth(sol_prim_left[2,:])
+	sol_left.h0 = sol_domain.gas_model.calc_stag_enth(sol_prim_left[1,:], sol_left.mass_fracs_full, spec_enth=sol_left.hi)
+	sol_right.hi = sol_domain.gas_model.calc_spec_enth(sol_prim_right[2,:])
+	sol_right.h0 = sol_domain.gas_model.calc_stag_enth(sol_prim_right[1,:], sol_right.mass_fracs_full, spec_enth=sol_right.hi)
 
 	sol_ave = sol_domain.sol_ave
-	sol_ave.h0 = fac * sol_domain.sol_left.h0 + fac1 * sol_domain.sol_right.h0 
+	sol_ave.h0 = fac * sol_left.h0 + fac1 * sol_right.h0 
 	sol_ave.sol_cons[0,:] = sqrhol * sqrhor
 
 	# compute Roe average primitive state, adjust iteratively to conform to Roe average density and enthalpy
 	sol_ave.sol_prim = fac[None,:] * sol_prim_left + fac1[None,:] * sol_prim_right
+	sol_ave.mass_fracs_full = sol_ave.gas_model.calc_all_mass_fracs(sol_ave.sol_prim[3:,:], threshold=True)
 	sol_ave.calc_state_from_rho_h0()
 
 	# compute Roe average state at faces, associated fluid properties
@@ -102,11 +107,11 @@ def calc_inv_flux(sol_domain, solver):
 	# compute inviscid flux vectors of left and right state
 	flux_left[0,:]   = sol_cons_left[1,:]
 	flux_left[1,:]   = sol_cons_left[1,:] * sol_prim_left[1,:] + sol_prim_left[0,:]
-	flux_left[2,:]   = sol_cons_left[0,:] * sol_domain.sol_left.h0 * sol_prim_left[1,:]
+	flux_left[2,:]   = sol_cons_left[0,:] * sol_left.h0 * sol_prim_left[1,:]
 	flux_left[3:,:]  = sol_cons_left[3:,:] * sol_prim_left[[1],:]
 	flux_right[0,:]  = sol_cons_right[1,:]
 	flux_right[1,:]  = sol_cons_right[1,:] * sol_prim_right[1,:] + sol_prim_right[0,:]
-	flux_right[2,:]  = sol_cons_right[0,:] * sol_domain.sol_right.h0 * sol_prim_right[1,:]
+	flux_right[2,:]  = sol_cons_right[0,:] * sol_right.h0 * sol_prim_right[1,:]
 	flux_right[3:,:] = sol_cons_right[3:,:] * sol_prim_right[[1],:]
 
 	# maximum wave speed for adapting dtau, if needed
@@ -125,7 +130,7 @@ def calc_inv_flux(sol_domain, solver):
 
 	return flux
 
-
+@profile
 def calc_roe_diss(sol_ave):
 	"""
 	Compute dissipation term of Roe flux
@@ -141,14 +146,16 @@ def calc_roe_diss(sol_ave):
 	mass_fracs = sol_ave.sol_prim[3:,:]
 
 	# derivatives of density and enthalpy
-	d_rho_d_press, d_rho_d_temp, d_rho_d_mass_frac = sol_ave.gas_model.calc_dens_derivs(sol_ave.sol_cons[0,:],
-																						wrt_press=True, pressure=sol_ave.sol_prim[0,:],
-																						wrt_temp=True, temperature=sol_ave.sol_prim[2,:],
-																						wrt_spec=True, mass_fracs=sol_ave.sol_prim[3:,:])
+	d_rho_d_press, d_rho_d_temp, d_rho_d_mass_frac = \
+		sol_ave.gas_model.calc_dens_derivs(sol_ave.sol_cons[0,:],
+											wrt_press=True, pressure=sol_ave.sol_prim[0,:],
+											wrt_temp=True, temperature=sol_ave.sol_prim[2,:],
+											wrt_spec=True, mix_mol_weight=sol_ave.mw_mix)
 
-	d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac = sol_ave.gas_model.calc_stag_enth_derivs(wrt_press=True,
-																								wrt_temp=True, mass_fracs=sol_ave.sol_prim[3:,:],
-																								wrt_spec=True, temperature=sol_ave.sol_prim[2,:])
+	d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac = \
+		sol_ave.gas_model.calc_stag_enth_derivs(wrt_press=True,
+												wrt_temp=True, mass_fracs=sol_ave.sol_prim[3:,:],
+												wrt_spec=True, temperature=sol_ave.sol_prim[2,:])
 
 	# save for Jacobian calculations
 	sol_ave.d_rho_d_press = d_rho_d_press; sol_ave.d_rho_d_temp = d_rho_d_temp; sol_ave.d_rho_d_mass_frac = d_rho_d_mass_frac
@@ -215,7 +222,7 @@ def calc_roe_diss(sol_ave):
 
 	return diss_matrix
 
- 
+@profile
 def calc_visc_flux(sol_domain, solver):
 	"""
 	Compute viscous fluxes
@@ -236,7 +243,7 @@ def calc_visc_flux(sol_domain, solver):
 	sol_prim_grad[-1,:] = (mass_fracs[-1,sol_domain.flux_samp_right_idxs] - mass_fracs[-1,sol_domain.flux_samp_left_idxs]) / mesh.dx
 
 	# thermo and transport props
-	mole_fracs     = gas.calc_all_mole_fracs(sol_ave.sol_prim[3:,:])
+	mole_fracs     = gas.calc_all_mole_fracs(sol_ave.mass_fracs_full, mix_mol_weight=sol_ave.mw_mix)
 	spec_dyn_visc  = gas.calc_species_dynamic_visc(sol_ave.sol_prim[2,:])
 	therm_cond_mix = gas.calc_mix_thermal_cond(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
 	dyn_visc_mix   = gas.calc_mix_dynamic_visc(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
@@ -261,7 +268,7 @@ def calc_visc_flux(sol_domain, solver):
 
 	return flux_visc
 
- 
+@profile
 def calc_source(sol_domain, solver):
 	"""
 	Compute chemical source term
@@ -274,16 +281,17 @@ def calc_source(sol_domain, solver):
 	gas = sol_domain.gas_model
 
 	temp 	   = sol_domain.sol_int.sol_prim[2,sol_domain.direct_samp_idxs]
-	mass_fracs = gas.calc_all_mass_fracs(sol_domain.sol_int.sol_prim[3:,sol_domain.direct_samp_idxs], threshold=False)
 	rho 	   = sol_domain.sol_int.sol_cons[[0],sol_domain.direct_samp_idxs]
 
 	# NOTE: act_energy here is -Ea/R
 	# TODO: account for temperature exponential
 	wf = gas.pre_exp_fact * np.exp(gas.act_energy / temp)
 	
-	rho_mass_frac = rho * mass_fracs
+	rho_mass_frac = rho * sol_domain.sol_int.mass_fracs_full
 
+	# TODO: this can be done in pre-processing
 	spec_idxs = np.squeeze(np.argwhere(gas.nu_arr != 0.0))
+
 	wf        = np.product( wf[None,:] * np.power((rho_mass_frac[spec_idxs,:] / gas.mol_weights[spec_idxs, None]), gas.nu_arr[spec_idxs, None]), axis=0)
 	wf        = np.amin(np.minimum(wf[None,:], rho_mass_frac[spec_idxs,:] / solver.dt), axis=0)
 	sol_domain.sol_int.wf = wf

@@ -17,7 +17,10 @@ class SolutionPhys:
 		# primitive and conservative state
 		self.sol_prim = np.zeros((self.gas_model.num_eqs, num_cells), dtype=REAL_TYPE)		# solution in primitive variables
 		self.sol_cons = np.zeros((self.gas_model.num_eqs, num_cells), dtype=REAL_TYPE)		# solution in conservative variables
-		
+
+		# all species mass fractions, to avoid repeated calculation of last species
+		self.mass_fracs_full = np.zeros((self.gas_model.num_species_full, num_cells), dtype=REAL_TYPE)
+
 		# chemical properties
 		self.mw_mix    = np.zeros(num_cells, dtype=REAL_TYPE)								# mixture molecular weight
 		self.r_mix     = np.zeros(num_cells, dtype=REAL_TYPE)								# mixture specific gas constant
@@ -69,18 +72,21 @@ class SolutionPhys:
 		else:
 			self.calc_state_from_prim(calc_r=True, calc_cp=True, calc_gamma=True)
 
-
+	@profile
 	def calc_state_from_cons(self, calc_r=False, calc_cp=False, calc_gamma=False):
 		"""
 		Compute primitive state from conservative state
 		"""
 
+		# TODO: store some other things by default
+		#	mixture molecular weight
+		#	species enthalpies
+
+		# mass fractions
 		self.sol_prim[3:,:] = self.sol_cons[3:,:] / self.sol_cons[[0],:]
 		mass_fracs = self.gas_model.get_mass_frac_array(sol_prim=self.sol_prim)
-
-		# threshold
-		# TODO: is this valid? It shouldn't violate mass conservation since density stays the same
 		mass_fracs = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
+		self.mass_fracs_full[:,:] = mass_fracs.copy()
 		if (self.gas_model.num_species_full > 1):
 			mass_fracs = mass_fracs[:-1,:]
 		self.sol_prim[3:,:] = mass_fracs
@@ -102,18 +108,23 @@ class SolutionPhys:
 							 self.enth_ref_mix) / (self.cp_mix - self.r_mix) 
 		self.sol_prim[0,:] = self.sol_cons[0,:] * self.r_mix * self.sol_prim[2,:]
 
-
+	@profile
 	def calc_state_from_prim(self, calc_r=False, calc_cp=False, calc_gamma=False):
 		"""
 		Compute state from primitive state
 		"""
 
+		# TODO: store some other things by default
+		#	species enthalpies
+
+		# mass fractions
 		mass_fracs = self.gas_model.get_mass_frac_array(sol_prim=self.sol_prim)
-		# threshold
 		mass_fracs = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
+		self.mass_fracs_full[:,:] = mass_fracs.copy()
 		if (self.gas_model.num_species_full > 1):
 			mass_fracs = mass_fracs[:-1,:]
 		self.sol_prim[3:,:] = mass_fracs
+		self.mw_mix = self.gas_model.calc_mix_mol_weight(self.mass_fracs_full)
 
 		# update thermo properties
 		self.enth_ref_mix = self.gas_model.calc_mix_enth_ref(mass_fracs)
@@ -122,7 +133,7 @@ class SolutionPhys:
 			calc_cp = True
 		if calc_r:       self.r_mix       = self.gas_model.calc_mix_gas_constant(mass_fracs)
 		if calc_cp:      self.cp_mix      = self.gas_model.calc_mix_cp(mass_fracs)
-		if calc_gamma:   self.gamma_mix   = self.gas_model.calc_mix_gamma(self.r_mix,self.cp_mix)
+		if calc_gamma:   self.gamma_mix   = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
 
 		# update conservative variables
 		# TODO: gas_model references
@@ -132,7 +143,7 @@ class SolutionPhys:
 												 np.power(self.sol_prim[1,:], 2.0) / 2.0 ) - self.sol_prim[0,:]
 		self.sol_cons[3:,:] = self.sol_cons[[0],:] * self.sol_prim[3:,:]
  
-
+	@profile
 	def calc_state_from_rho_h0(self):
 		"""
 		Adjust pressure and temperature iteratively to agree with a fixed density and stagnation enthalpy
@@ -155,7 +166,10 @@ class SolutionPhys:
 
 			# compute density and stagnation enthalpy from current state
 			dens_curr = self.gas_model.calc_density(self.sol_prim)
-			h0_curr   = self.gas_model.calc_stag_enth(self.sol_prim)
+			# breakpoint()
+
+			hi_curr   = self.gas_model.calc_spec_enth(self.sol_prim[2,:])
+			h0_curr   = self.gas_model.calc_stag_enth(self.sol_prim[1,:], self.mass_fracs_full, spec_enth=hi_curr)
 
 			# compute difference between current and fixed density/stagnation enthalpy
 			d_dens      = rho_fixed - dens_curr 
@@ -168,7 +182,7 @@ class SolutionPhys:
 												wrt_temp=True, temperature=self.sol_prim[2,:])
 
 			d_stag_enth_d_press, d_stag_enth_d_temp = \
-				self.gas_model.calc_stag_enth_derivs(wrt_press=True, wrt_temp=True, mass_fracs=self.sol_prim[3:,:])
+				self.gas_model.calc_stag_enth_derivs(wrt_press=True, wrt_temp=True, mass_fracs=self.mass_fracs_full)
 
 			# compute change in temperature and pressure 
 			d_factor = 1.0 / (d_dens_d_press * d_stag_enth_d_temp - d_dens_d_temp * d_stag_enth_d_press)
