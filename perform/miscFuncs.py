@@ -26,7 +26,7 @@ def write_to_file(fid, array, order='F'):
 
 	if (array.ndim > 1):
 		array = array.flatten(order=order)
-	dtype = array.dtype 
+	dtype = array.dtype
 	if (dtype == "float64"):
 		typeStr = "d"
 	elif (dtype == "float32"):
@@ -36,13 +36,14 @@ def write_to_file(fid, array, order='F'):
 	elif (dtype == "int16"):
 		typeStr = "h"
 	else:
-		raise ValueError ("Did not recognize array type "+dtype)
+		raise ValueError("Did not recognize array type " + dtype)
 
-	fid.write(struct.pack(typeStr*array.shape[0], *(array)))
+	fid.write(struct.pack(typeStr * array.shape[0], *(array)))
 
 
-def mkdir_in_workdir(dir_name):
+def mkdir_shallow(base_dir, new_dir_name):
 
-	new_dir = os.path.join(const.working_dir, dir_name)
-	if not os.path.isdir(new_dir): os.mkdir(new_dir)
+	new_dir = os.path.join(base_dir, new_dir_name)
+	if not os.path.isdir(new_dir):
+		os.mkdir(new_dir)
 	return new_dir

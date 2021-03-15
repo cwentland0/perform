@@ -2,58 +2,63 @@ import numpy as np
 
 from perform.constants import REAL_TYPE, R_UNIV
 
-# TODO: some of the CPG functions can be generalized and placed here (e.g. calc sound speed in terms of enthalpy and density derivs) 
+# TODO: some of the CPG functions can be generalized and placed here
+# 	(e.g. calc sound speed in terms of enthalpy and density derivs)
+
 
 class GasModel:
 	"""
 	Base class storing constant chemical properties of modeled species
-	Also includes universal gas methods (like calculating mixture molecular weight)
+	Also includes universal gas methods (e.g. calc mixture molecular weight)
 	"""
 
 	def __init__(self, gas_dict):
 
-		# gas composition
-		self.num_species_full = int(gas_dict["num_species"])				# total number of species in case
-		self.mol_weights      = gas_dict["mol_weights"].astype(REAL_TYPE)	# molecular weights, g/mol
+		# Gas composition
+		self.num_species_full = int(gas_dict["num_species"])
+		self.mol_weights = gas_dict["mol_weights"].astype(REAL_TYPE)
 
-		# species names for plotting and output
+		# Species names for plotting and output
 		try:
-			self.species_names   = gas_dict["species_names"]
+			self.species_names = gas_dict["species_names"]
 			assert (len(self.species_names) == self.num_species_full)
 		except KeyError:
-			self.species_names   = ["Species_"+str(x+1) for x in range(self.num_species_full)] 
+			self.species_names = \
+				["Species_" + str(x + 1) for x in range(self.num_species_full)]
 
 		# Arrhenius factors
 		# TODO: modify these to allow for multiple global reactions
-		self.nu           = gas_dict["nu"].astype(REAL_TYPE) 		# global reaction stoichiometric "forward" coefficients
-		self.nu_arr       = gas_dict["nu_arr"].astype(REAL_TYPE) 	# global reaction concentration exponents
-		self.act_energy   = float(gas_dict["act_energy"])			# global reaction Arrhenius activation energy, divided by R_UNIV, ?????
-		self.pre_exp_fact = float(gas_dict["pre_exp_fact"]) 		# global reaction Arrhenius pre-exponential factor		
+		self.nu = gas_dict["nu"].astype(REAL_TYPE)
+		self.nu_arr = gas_dict["nu_arr"].astype(REAL_TYPE)
+		self.act_energy = float(gas_dict["act_energy"])
+		self.pre_exp_fact = float(gas_dict["pre_exp_fact"])
 
-		# check input lengths
-		assert(len(self.mol_weights) == self.num_species_full)
+		# Check input lengths
+		assert (len(self.mol_weights) == self.num_species_full)
 		# TODO: check lengths of reaction inputs
 
-		# misc calculations
-		self.mol_weight_nu = self.mol_weights * self.nu 
+		# Misc calculations
+		self.mol_weight_nu = self.mol_weights * self.nu
 
-		# dealing with single-species option
-		if (self.num_species_full == 1):
+		# Dealing with single-species option
+		if self.num_species_full == 1:
 			self.num_species = self.num_species_full
 		else:
-			self.num_species = self.num_species_full - 1		# last species is not directly solved for
+			self.num_species = self.num_species_full - 1
 
 		self.mass_frac_slice = np.arange(self.num_species)
-		self.mw_inv          = 1.0 / self.mol_weights
-		self.mw_inv_diffs    = self.mw_inv[self.mass_frac_slice] - self.mw_inv[-1]
+		self.mw_inv = 1.0 / self.mol_weights
+		self.mw_inv_diffs = self.mw_inv[self.mass_frac_slice] - self.mw_inv[-1]
 
-		self.num_eqs = self.num_species + 3			# pressure, velocity, temperature, and species transport
+		self.num_eqs = self.num_species + 3
 
-		# mass matrices for calculating viscosity and thermal conductivity mixing laws
-		self.mix_mass_matrix     = np.zeros((self.num_species_full, self.num_species_full), dtype=REAL_TYPE)
-		self.mix_inv_mass_matrix = np.zeros((self.num_species_full, self.num_species_full), dtype=REAL_TYPE)
+		# Mass matrices for calculating
+		# 	viscosity and thermal conductivity mixing laws
+		self.mix_mass_matrix = \
+			np.zeros((self.num_species_full, self.num_species_full), dtype=REAL_TYPE)
+		self.mix_inv_mass_matrix = \
+			np.zeros((self.num_species_full, self.num_species_full), dtype=REAL_TYPE)
 		self.precomp_mix_mass_matrices()
-
 
 	def precomp_mix_mass_matrices(self):
 		"""
@@ -61,49 +66,59 @@ class GasModel:
 		"""
 
 		for spec_idx in range(self.num_species_full):
-			self.mix_mass_matrix[spec_idx, :] 	  = np.power((self.mol_weights / self.mol_weights[spec_idx]), 0.25)
-			self.mix_inv_mass_matrix[spec_idx, :] = (1.0 / (2.0 * np.sqrt(2.0))) * (1.0 / np.sqrt( 1.0 + self.mol_weights[spec_idx] / self.mol_weights)) 
+			self.mix_mass_matrix[spec_idx, :] = \
+				np.power((self.mol_weights / self.mol_weights[spec_idx]), 0.25)
+			self.mix_inv_mass_matrix[spec_idx, :] = \
+				((1.0 / (2.0 * np.sqrt(2.0)))
+				* (1.0 / np.sqrt(1.0 + self.mol_weights[spec_idx] / self.mol_weights)))
 
 	def get_mass_frac_array(self, sol_prim=None, mass_fracs=None):
 		"""
-		Helper function to handle array slicing to avoid weird NumPy array broadcasting issues
+		Helper function to handle array slicing
+		to avoid weird NumPy array broadcasting issues
 		"""
 
-		# get all but last mass fraction field
+		# Get all but last mass fraction field
 		if (sol_prim is None):
-			assert (mass_fracs is not None), "Must provide mass fractions if not providing primitive solution"
+			assert (mass_fracs is not None), \
+				"Must provide mass fractions if not providing primitive solution"
 			if (mass_fracs.ndim == 1):
-				mass_fracs = np.reshape(mass_fracs, (1,-1))
+				mass_fracs = np.reshape(mass_fracs, (1, -1))
 
 			if (mass_fracs.shape[0] == self.num_species_full):
-				mass_fracs = mass_fracs[self.mass_frac_slice,:]
+				mass_fracs = mass_fracs[self.mass_frac_slice, :]
 			else:
-				assert (mass_fracs.shape[0] == self.num_species), "If not passing full mass fraction array, must pass N-1 species"
+				assert (mass_fracs.shape[0] == self.num_species), \
+					"If not passing full mass fraction array, must pass N-1 species"
 		else:
-			mass_fracs = sol_prim[3:,:]
+			mass_fracs = sol_prim[3:, :]
 
 		return mass_fracs
 
 	def calc_all_mass_fracs(self, mass_fracs_ns, threshold=True):
 		"""
-		Helper function to compute all num_species_full mass fraction fields from num_species fields
-		Thresholds all mass fraction fields between zero and unity 
+		Helper function to compute all num_species_full
+		mass fraction fields from num_species fields
+
+		Thresholds all mass fraction fields between zero and unity
 		"""
 
 		if (self.num_species_full == 1):
 			mass_fracs = np.maximum(0.0, np.minimum(1.0, mass_fracs_ns))
 		else:
 			num_species, num_cells = mass_fracs_ns.shape
-			assert (num_species == self.num_species), ("mass_fracs_ns argument must have "+str(self.num_species)+" species")
+			assert (num_species == self.num_species), \
+				("mass_fracs_ns argument must have "
+				+ str(self.num_species) + " species")
 
-			mass_fracs = np.zeros((num_species+1, num_cells), dtype=REAL_TYPE)
+			mass_fracs = np.zeros((num_species + 1, num_cells), dtype=REAL_TYPE)
 			if threshold:
-				mass_fracs[:-1,:] = np.maximum(0.0, np.minimum(1.0, mass_fracs_ns))
-				mass_fracs[-1,:]  = 1.0 - np.sum(mass_fracs[:-1,:], axis=0)
-				mass_fracs[-1,:]  = np.maximum(0.0, np.minimum(1.0, mass_fracs[-1,:]))
+				mass_fracs[:-1, :] = np.maximum(0.0, np.minimum(1.0, mass_fracs_ns))
+				mass_fracs[-1, :] = 1.0 - np.sum(mass_fracs[:-1, :], axis=0)
+				mass_fracs[-1, :] = np.maximum(0.0, np.minimum(1.0, mass_fracs[-1, :]))
 			else:
-				mass_fracs[:-1,:] = mass_fracs_ns
-				mass_fracs[-1,:]  = 1.0 - np.sum(mass_fracs[:-1,:], axis=0)
+				mass_fracs[:-1, :] = mass_fracs_ns
+				mass_fracs[-1, :] = 1.0 - np.sum(mass_fracs[:-1, :], axis=0)
 
 		return mass_fracs
 

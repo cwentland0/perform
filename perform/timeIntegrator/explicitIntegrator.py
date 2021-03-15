@@ -14,13 +14,13 @@ class ExplicitIntegrator(TimeIntegrator):
 	def __init__(self, param_dict):
 
 		super().__init__(param_dict)
-		
+
 		self.time_type = "explicit"
-		self.dual_time 	= False
-		self.adapt_dtau 	= False
+		self.dual_time = False
+		self.adapt_dtau = False
 
 
-########## Runge-Kutta integrators ##########
+# ----- Runge-Kutta integrators -----
 
 class RKExplicit(ExplicitIntegrator):
 	"""
@@ -31,7 +31,7 @@ class RKExplicit(ExplicitIntegrator):
 
 		super().__init__(param_dict)
 
-		self.rk_rhs = [None] * self.subiter_max # subiteration RHS history
+		self.rk_rhs = [None] * self.subiter_max  # subiteration RHS history
 
 	def solve_sol_change(self, rhs):
 		"""
@@ -40,7 +40,7 @@ class RKExplicit(ExplicitIntegrator):
 
 		self.rk_rhs[self.subiter] = rhs.copy()
 
-		if (self.subiter == (self.subiter_max-1)):
+		if (self.subiter == (self.subiter_max - 1)):
 			dsol = self.solve_sol_change_iter(rhs)
 		else:
 			dsol = self.solve_sol_change_subiter(rhs)
@@ -55,8 +55,8 @@ class RKExplicit(ExplicitIntegrator):
 		"""
 
 		dsol = np.zeros(rhs.shape, dtype=REAL_TYPE)
-		for rk_iter in range(self.subiter+1):
-			rk_a = self.rk_a_vals[self.subiter+1][rk_iter]
+		for rk_iter in range(self.subiter + 1):
+			rk_a = self.rk_a_vals[self.subiter + 1, rk_iter]
 			if (rk_a != 0.0):
 				dsol += rk_a * self.rk_rhs[rk_iter]
 
@@ -66,7 +66,7 @@ class RKExplicit(ExplicitIntegrator):
 		"""
 		Change in physical solution
 		"""
-		
+
 		dsol = np.zeros(rhs.shape, dtype=REAL_TYPE)
 		for rk_iter in range(self.subiter_max):
 			rk_b = self.rk_b_vals[rk_iter]
@@ -87,18 +87,18 @@ class ClassicRK4(RKExplicit):
 
 		super().__init__(param_dict)
 
-		# warn user
 		if (self.time_order != 4):
-			print("classicRK4 is fourth-order accurate, but you set time_order = "+str(self.time_order))
+			print("classic_rk4 is fourth-order accurate, "
+					+ "but you set time_order = " + str(self.time_order))
 			print("Continuing, set time_order = 4 to get rid of this warning")
 			time.sleep(0.5)
 
-		self.rk_a_vals = [[0.0, 0.0, 0.0, 0.0],
-						[0.5, 0.0, 0.0, 0.0],
-				   		[0.0, 0.5, 0.0, 0.0],
-						[0.0, 0.0, 1.0, 0.0]]
-		self.rk_b_vals = [1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0]
-		self.rk_c_vals = [0.0, 0.5, 0.5, 1.0]
+		self.rk_a_vals = np.array([[0.0, 0.0, 0.0, 0.0],
+									[0.5, 0.0, 0.0, 0.0],
+									[0.0, 0.5, 0.0, 0.0],
+									[0.0, 0.0, 1.0, 0.0]])
+		self.rk_b_vals = np.array([1.0/6.0, 1.0/3.0, 1.0/3.0, 1.0/6.0])
+		self.rk_c_vals = np.array([0.0, 0.5, 0.5, 1.0])
 
 
 class SSPRK3(RKExplicit):
@@ -113,50 +113,54 @@ class SSPRK3(RKExplicit):
 		super().__init__(param_dict)
 
 		if (self.time_order != 3):
-			print("sspRK3 is third-order accurate, but you set time_order = "+str(self.time_order))
+			print("ssp_rk3 is third-order accurate, "
+					+ "but you set time_order = " + str(self.time_order))
 			print("Continuing, set time_order = 3 to get rid of this warning")
 			time.sleep(0.5)
 
-		self.rk_a_vals = [[0.0,  0.0,  0.0],
-						[1.0,  0.0,  0.0],
-				   		[0.25, 0.25, 0.0]]
-		self.rk_b_vals = [1.0/6.0, 1.0/6.0, 2.0/3.0]
-		self.rk_c_vals = [0.0, 1.0, 0.5]
+		self.rk_a_vals = np.array([[0.0, 0.0, 0.0],
+									[1.0, 0.0, 0.0],
+									[0.25, 0.25, 0.0]])
+		self.rk_b_vals = np.array([1.0/6.0, 1.0/6.0, 2.0/3.0])
+		self.rk_c_vals = np.array([0.0, 1.0, 0.5])
 
 
 class JamesonLowStore(RKExplicit):
 	"""
 	"Low-storage" class of RK schemes by Jameson
 	Not actually appropriate for unsteady problems, supposedly
-	Not actually low-storage to work with general RK format, 
-		just maintained here for consistency with old code
+	Not actually low-storage to work with general RK format,
+	just maintained here for consistency with old code
 	"""
 
 	def __init__(self, param_dict):
 
-		time_order 	= int(param_dict["time_order"]) # have to get this early to set subiter_max
+		# have to get this early to set subiter_max
+		time_order = int(param_dict["time_order"])
 		self.subiter_max = time_order
 
 		super().__init__(param_dict)
 
 		# if you add another row and column to rk_a_vals, update this assertion
-		assert (time_order <= 4), "Jameson low-storage RK scheme for order "+str(time_order)+" not yet implemented"
-		
-		self.rk_a_vals = np.array([[0.0,  0.0,   0.0, 0.0],
-								 [0.25, 0.0,   0.0, 0.0],
-				   				 [0.0,  1./3., 0.0, 0.0],
-								 [0.0,  0.0,   0.5, 0.0]])
+		assert (time_order <= 4), ("Jameson low-storage RK scheme for order "
+									+ str(time_order) + " not yet implemented")
 
-		self.rk_a_vals = self.rk_a_vals[-time_order:,-time_order:]
+		self.rk_a_vals = np.array([[0.0, 0.0, 0.0, 0.0],
+									[0.25, 0.0, 0.0, 0.0],
+									[0.0, 1./3., 0.0, 0.0],
+									[0.0, 0.0, 0.5, 0.0]])
+
+		self.rk_a_vals = self.rk_a_vals[-time_order:, -time_order:]
 
 		self.rk_b_vals = np.zeros(time_order, dtype=REAL_TYPE)
 		self.rk_b_vals[-1] = 1.0
 		self.rk_c_vals = np.zeros(time_order, dtype=REAL_TYPE)
 
-########## End Runge-Kutta integrators ##########
+# ----- End Runge-Kutta integrators -----
 
-
-# TODO: Add "integrator" for ROM models that just update from one state to the next,
-# 		presumably calls some generic update method.
-#		This way, can still have a code history for methods that need the history but don't
-# 		need numerical time integration (e.g. TCN)
+# TODO: Add "integrator" for ROM models that just
+# 	update from one state to the next,
+# 	presumably calls some generic update method.
+# 	This way, can still have a code history for
+# 	methods that need the history but don't
+# 	need numerical time integration (e.g. TCN)
