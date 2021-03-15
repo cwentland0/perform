@@ -5,7 +5,7 @@ import numpy as np
 from perform.constants import REAL_TYPE, R_UNIV
 from perform.higherOrderFuncs import calc_cell_gradients
 
-@profile
+
 def calc_rhs(sol_domain, solver):
 	"""
 	Compute rhs function
@@ -57,7 +57,7 @@ def calc_rhs(sol_domain, solver):
 		calc_source(sol_domain, solver)
 		sol_int.rhs[3:, sol_domain.direct_samp_idxs] += sol_int.source[:, sol_domain.direct_samp_idxs]
 
-@profile
+
 def calc_inv_flux(sol_domain, solver):
 	"""
 	Compute inviscid fluxes
@@ -130,7 +130,7 @@ def calc_inv_flux(sol_domain, solver):
 
 	return flux
 
-@profile
+
 def calc_roe_diss(sol_ave):
 	"""
 	Compute dissipation term of Roe flux
@@ -222,7 +222,7 @@ def calc_roe_diss(sol_ave):
 
 	return diss_matrix
 
-@profile
+
 def calc_visc_flux(sol_domain, solver):
 	"""
 	Compute viscous fluxes
@@ -268,7 +268,7 @@ def calc_visc_flux(sol_domain, solver):
 
 	return flux_visc
 
-@profile
+
 def calc_source(sol_domain, solver):
 	"""
 	Compute chemical source term

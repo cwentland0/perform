@@ -64,7 +64,6 @@ class GasModel:
 			self.mix_mass_matrix[spec_idx, :] 	  = np.power((self.mol_weights / self.mol_weights[spec_idx]), 0.25)
 			self.mix_inv_mass_matrix[spec_idx, :] = (1.0 / (2.0 * np.sqrt(2.0))) * (1.0 / np.sqrt( 1.0 + self.mol_weights[spec_idx] / self.mol_weights)) 
 
-	@profile
 	def get_mass_frac_array(self, sol_prim=None, mass_fracs=None):
 		"""
 		Helper function to handle array slicing to avoid weird NumPy array broadcasting issues
@@ -85,7 +84,6 @@ class GasModel:
 
 		return mass_fracs
 
-	@profile
 	def calc_all_mass_fracs(self, mass_fracs_ns, threshold=True):
 		"""
 		Helper function to compute all num_species_full mass fraction fields from num_species fields
@@ -109,7 +107,6 @@ class GasModel:
 
 		return mass_fracs
 
-	@profile
 	def calc_mix_mol_weight(self, mass_fracs):
 		"""
 		Compute mixture molecular weight
@@ -122,7 +119,6 @@ class GasModel:
 
 		return mix_mol_weight
 
-	@profile
 	def calc_all_mole_fracs(self, mass_fracs, mix_mol_weight=None):
 		"""
 		Compute mole fractions of all species from mass fractions

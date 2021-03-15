@@ -275,7 +275,7 @@ def calc_d_roe_flux_d_sol_prim(sol_domain, solver):
     	
 	return d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right
 
-@profile
+
 def calc_d_res_d_sol_prim(sol_domain, solver):
 	"""
 	Compute Jacobian of the RHS function (i.e. fluxes and sources)  

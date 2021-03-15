@@ -72,7 +72,7 @@ class SolutionPhys:
 		else:
 			self.calc_state_from_prim(calc_r=True, calc_cp=True, calc_gamma=True)
 
-	@profile
+	
 	def calc_state_from_cons(self, calc_r=False, calc_cp=False, calc_gamma=False):
 		"""
 		Compute primitive state from conservative state
@@ -108,7 +108,7 @@ class SolutionPhys:
 							 self.enth_ref_mix) / (self.cp_mix - self.r_mix) 
 		self.sol_prim[0,:] = self.sol_cons[0,:] * self.r_mix * self.sol_prim[2,:]
 
-	@profile
+	
 	def calc_state_from_prim(self, calc_r=False, calc_cp=False, calc_gamma=False):
 		"""
 		Compute state from primitive state
@@ -143,7 +143,7 @@ class SolutionPhys:
 												 np.power(self.sol_prim[1,:], 2.0) / 2.0 ) - self.sol_prim[0,:]
 		self.sol_cons[3:,:] = self.sol_cons[[0],:] * self.sol_prim[3:,:]
  
-	@profile
+	
 	def calc_state_from_rho_h0(self):
 		"""
 		Adjust pressure and temperature iteratively to agree with a fixed density and stagnation enthalpy

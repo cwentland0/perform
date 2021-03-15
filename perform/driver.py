@@ -15,7 +15,6 @@ from perform.miscFuncs import mkdir_in_workdir
 # TODO: Check all calls to calcDensityDerivatives and calcStagEnthalpyDerivatives, pass full massFrac array
 # TODO: ^^^^^ Emphasizing this, this is a big contribution to Jacobian cost
 
-@profile
 def main():
 
 	##### Start setup #####
@@ -25,12 +24,6 @@ def main():
 	parser.add_argument('working_dir', type = str, default = "./", help="runtime working directory")
 	const.working_dir = os.path.expanduser(parser.parse_args().working_dir)
 	assert (os.path.isdir(const.working_dir)), "Given working directory does not exist"
-
-	# Make output directories
-	const.unsteady_output_dir = mkdir_in_workdir(const.UNSTEADY_OUTPUT_DIR_NAME)
-	const.probe_output_dir = mkdir_in_workdir(const.PROBE_OUTPUT_DIR_NAME)
-	const.image_output_dir = mkdir_in_workdir(const.IMAGE_OUTPUT_DIR_NAME)
-	const.restart_output_dir = mkdir_in_workdir(const.RESTART_OUTPUT_DIR_NAME)
 
 	# Retrieve solver parameters and initialize mesh
 	# TODO: multi-domain solvers
@@ -47,6 +40,12 @@ def main():
 
 	# Initialize plots
 	visGroup = VisualizationGroup(sol_domain, solver) 
+
+	# Make output directories
+	const.unsteady_output_dir = mkdir_in_workdir(const.UNSTEADY_OUTPUT_DIR_NAME)
+	const.probe_output_dir = mkdir_in_workdir(const.PROBE_OUTPUT_DIR_NAME)
+	const.image_output_dir = mkdir_in_workdir(const.IMAGE_OUTPUT_DIR_NAME)
+	const.restart_output_dir = mkdir_in_workdir(const.RESTART_OUTPUT_DIR_NAME)
 
 	##### End setup #####
 

@@ -102,7 +102,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_enth
 
-	@profile
+	
 	def calc_stag_enth(self, velocity, mass_fracs, temperature=None, spec_enth=None):
 		"""
 		Compute stagnation enthalpy from velocity and species enthalpies
@@ -121,7 +121,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return stag_enth
 
-	@profile
+	
 	def calc_species_dynamic_visc(self, temperature):
 		"""
 		Compute individual dynamic viscosities from Sutherland's law
@@ -146,7 +146,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_dyn_visc
 
-	@profile
+	
 	def calc_mix_dynamic_visc(self, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None, mw_mix=None):
 		"""
 		Compute mixture dynamic viscosity from Wilkes mixing law
@@ -176,7 +176,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return mix_dyn_visc
 
-	@profile
+	
 	def calc_species_therm_cond(self, spec_dyn_visc=None, temperature=None):
 		"""
 		Compute species thermal conductivities
@@ -191,7 +191,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_therm_cond
 
-	@profile
+	
 	def calc_mix_thermal_cond(self, spec_therm_cond=None, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None, mw_mix=None):
 		"""
 		Compute mixture thermal conductivity
@@ -216,7 +216,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return mix_therm_cond
 
-	@profile
+	
 	def calc_species_mass_diff_coeff(self, density, spec_dyn_visc=None, temperature=None):
 		"""
 		Compute mass diffusivity coefficient of species into mixture
@@ -231,7 +231,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return spec_mass_diff
 
-	@profile
+	
 	def calc_sound_speed(self, temperature, r_mix=None, gamma_mix=None, mass_fracs=None, cp_mix=None):
 		"""
 		Compute sound speed
@@ -265,7 +265,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return sound_speed
 
-	@profile
+	
 	def calc_dens_derivs(self, density, 
 								wrt_press=False, pressure=None,
 								wrt_temp=False, temperature=None,
@@ -302,7 +302,7 @@ class CaloricallyPerfectGas(GasModel):
 
 		return derivs
 
-	@profile
+	
 	def calc_stag_enth_derivs(self, wrt_press=False,
 							  wrt_temp=False, mass_fracs=None,
 							  wrt_vel=False, velocity=None,

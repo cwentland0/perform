@@ -236,7 +236,7 @@ class SolutionInterior(SolutionPhys):
 		self.d_sol_norm_l1 = norm_l1
 		self.d_sol_norm_history[solver.iter-1, :] = [norm_l2, norm_l1]
 
-	@profile
+	
 	def calc_res_norms(self, solver, subiter):
 		"""
 		Calculate and print linear solve residual norms		
@@ -257,7 +257,7 @@ class SolutionInterior(SolutionPhys):
 		self.res_norm_l1 = norm_l1
 		self.res_norm_history[solver.iter-1, :] = [norm_l2, norm_l1]
 
-	@profile
+	
 	def calc_norms(self, arr_in, norm_facs):
 		"""
 		Compute L1 and L2 norms of arr_in
