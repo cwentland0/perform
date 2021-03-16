@@ -67,14 +67,14 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 				+ str(input_shape[-1]) + ", " + str(self.latent_dim))
 
 			if self.io_format == "nchw":
-				assert(output_shape[-2:] == self.solShape), \
+				assert(output_shape[-2:] == self.sol_shape), \
 					("Mismatched decoder output shape: "
-					+ str(output_shape[-2:]) + ", " + str(self.solShape))
+					+ str(output_shape[-2:]) + ", " + str(self.sol_shape))
 
 			else:
-				assert(output_shape[-2:] == self.solShape[::-1]), \
+				assert(output_shape[-2:] == self.sol_shape[::-1]), \
 					("Mismatched decoder output shape: "
-					+ str(output_shape[-2:]) + ", " + str(self.solShape[::-1]))
+					+ str(output_shape[-2:]) + ", " + str(self.sol_shape[::-1]))
 
 			input_dtype = self.decoder.layers[0].dtype
 			output_dtype = self.decoder.layers[-1].dtype
@@ -88,13 +88,13 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 				+ str(output_shape[-1]) + ", " + str(self.latent_dim))
 
 			if self.io_format == "nchw":
-				assert(input_shape[-2:] == self.solShape), \
+				assert(input_shape[-2:] == self.sol_shape), \
 					("Mismatched encoder output shape: "
-					+ str(input_shape[-2:]) + ", " + str(self.solShape))
+					+ str(input_shape[-2:]) + ", " + str(self.sol_shape))
 			else:
-				assert(input_shape[-2:] == self.solShape[::-1]), \
+				assert(input_shape[-2:] == self.sol_shape[::-1]), \
 					("Mismatched encoder output shape: "
-					+ str(input_shape[-2:]) + ", " + str(self.solShape[::-1]))
+					+ str(input_shape[-2:]) + ", " + str(self.sol_shape[::-1]))
 
 			input_dtype = self.encoder.layers[0].dtype
 			output_dtype = self.encoder.layers[-1].dtype
@@ -182,7 +182,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 
 		return jacob
 
-	def calcModelJacobian(self, sol_domain):
+	def calc_model_jacobian(self, sol_domain):
 		"""
 		Helper function for calculating TensorFlow-Keras model Jacobian
 		"""

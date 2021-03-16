@@ -20,8 +20,8 @@ class AutoencoderProjROM(ProjectionROM):
 		rom_dict = rom_domain.rom_dict
 
 		# Load decoder
-		decoder_path = os.path.join(rom_domain.modelDir,
-									rom_domain.modelFiles[model_idx])
+		decoder_path = os.path.join(rom_domain.model_dir,
+									rom_domain.model_files[model_idx])
 		assert(os.path.isfile(decoder_path)), \
 			"Invalid decoder file path"
 		self.decoder = self.load_model_obj(decoder_path)
@@ -38,7 +38,7 @@ class AutoencoderProjROM(ProjectionROM):
 			encoder_files = rom_dict["encoder_files"]
 			assert (len(encoder_files) == rom_domain.num_models), \
 				"Must provide encoder_files for each model"
-			encoder_path = os.path.join(rom_domain.modelDir,
+			encoder_path = os.path.join(rom_domain.model_dir,
 										encoder_files[model_idx])
 			assert (os.path.isfile(encoder_path)), \
 				"Could not find encoder file at " + encoder_path
@@ -62,7 +62,7 @@ class AutoencoderProjROM(ProjectionROM):
 					normalize=True,
 					norm_fac_prof=self.norm_fac_prof_cons,
 					norm_sub_prof=self.norm_sub_prof_cons,
-					center=True, centProf=self.cent_prof_cons,
+					center=True, cent_prof=self.cent_prof_cons,
 					inverse=False
 				)
 
@@ -87,7 +87,7 @@ class AutoencoderProjROM(ProjectionROM):
 		loaded full-order initial conditions
 		"""
 
-		sol_int = sol_int
+		sol_int = sol_domain.sol_int
 
 		if self.target_cons:
 			self.code = self.encode_sol(sol_int.sol_cons[self.var_idxs, :])

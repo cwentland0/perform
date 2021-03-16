@@ -33,7 +33,7 @@ def get_rom_model(model_idx, rom_domain, solver, sol_domain):
 		model = LinearSPLSVTProj(model_idx, rom_domain, solver, sol_domain)
 
 	# TensorFlow-Keras autoencoder models
-	elif rom_domain.rom_method[-7:] == "TFKeras":
+	elif rom_domain.rom_method[-7:] == "tfkeras":
 		if TFKERAS_IMPORT_SUCCESS:
 
 			if rom_domain.rom_method == "autoencoder_galerkin_proj_tfkeras":

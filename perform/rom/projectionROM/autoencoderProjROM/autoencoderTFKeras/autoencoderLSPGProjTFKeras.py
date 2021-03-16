@@ -27,7 +27,7 @@ class AutoencoderLSPGProjTFKeras(AutoencoderTFKeras):
 			raise ValueError("LSPG is not equipped with an encoder Jacobian"
 							+ " approximation, please set encoder_jacob = False")
 
-	def calcDCode(self, res_jacob, res, sol_domain):
+	def calc_d_code(self, res_jacob, res, sol_domain):
 		"""
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
