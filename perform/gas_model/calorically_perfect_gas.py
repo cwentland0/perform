@@ -1,7 +1,7 @@
 import numpy as np
 
 from perform.constants import REAL_TYPE, R_UNIV, SUTH_TEMP
-from perform.gasModel.gasModel import GasModel
+from perform.gas_model.gas_model import GasModel
 
 # TODO: more options for passing arguments to avoid repeats in called methods
 

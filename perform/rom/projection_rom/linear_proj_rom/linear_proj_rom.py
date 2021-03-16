@@ -1,6 +1,6 @@
 import numpy as np
 
-from perform.rom.projectionROM.projectionROM import ProjectionROM
+from perform.rom.projection_rom.projection_rom import ProjectionROM
 
 
 class LinearProjROM(ProjectionROM):

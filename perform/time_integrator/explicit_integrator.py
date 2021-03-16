@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from perform.constants import REAL_TYPE
-from perform.timeIntegrator.timeIntegrator import TimeIntegrator
+from perform.time_integrator.time_integrator import TimeIntegrator
 
 
 class ExplicitIntegrator(TimeIntegrator):

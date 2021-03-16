@@ -1,16 +1,16 @@
 # linear models
-from perform.rom.projectionROM.linearProjROM.linearGalerkinProj import LinearGalerkinProj
-from perform.rom.projectionROM.linearProjROM.linearLSPGProj import LinearLSPGProj
-from perform.rom.projectionROM.linearProjROM.linearSPLSVTProj import LinearSPLSVTProj
+from perform.rom.projection_rom.linear_proj_rom.linear_galerkin_proj import LinearGalerkinProj
+from perform.rom.projection_rom.linear_proj_rom.linear_lspg_proj import LinearLSPGProj
+from perform.rom.projection_rom.linear_proj_rom.linear_splsvt_proj import LinearSPLSVTProj
 
 # TensorFlow-Keras autoencoder models
 TFKERAS_IMPORT_SUCCESS = True
 try:
 	import os
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"  # don't print all the TensorFlow warnings
-	from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderGalerkinProjTFKeras import AutoencoderGalerkinProjTFKeras
-	from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderLSPGProjTFKeras import AutoencoderLSPGProjTFKeras
-	from perform.rom.projectionROM.autoencoderProjROM.autoencoderTFKeras.autoencoderSPLSVTProjTFKeras import AutoencoderSPLSVTProjTFKeras
+	from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_galerkin_proj_tfkeras import AutoencoderGalerkinProjTFKeras
+	from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_lspg_proj_tfkeras import AutoencoderLSPGProjTFKeras
+	from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_splsvt_proj_tfkeras import AutoencoderSPLSVTProjTFKeras
 
 except ImportError:
 	TFKERAS_IMPORT_SUCCESS = False

@@ -1,6 +1,6 @@
 from math import pow, sqrt
 
-from perform.solution.solutionBoundary.solutionBoundary import SolutionBoundary
+from perform.solution.solution_boundary.solution_boundary import SolutionBoundary
 
 
 class SolutionOutlet(SolutionBoundary):

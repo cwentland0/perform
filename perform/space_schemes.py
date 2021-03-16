@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from perform.constants import REAL_TYPE, R_UNIV
-from perform.higherOrderFuncs import calc_cell_gradients
+from perform.higher_order_funcs import calc_cell_gradients
 
 
 def calc_rhs(sol_domain, solver):

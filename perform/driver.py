@@ -4,10 +4,10 @@ import argparse
 import traceback
 import warnings
 
-from perform.systemSolver import SystemSolver
-from perform.solution.solutionDomain import SolutionDomain
-from perform.visualization.visualizationGroup import VisualizationGroup
-from perform.rom.romDomain import RomDomain
+from perform.system_solver import SystemSolver
+from perform.solution.solution_domain import SolutionDomain
+from perform.visualization.visualization_group import VisualizationGroup
+from perform.rom.rom_domain import RomDomain
 
 warnings.filterwarnings("error")
 

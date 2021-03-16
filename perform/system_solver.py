@@ -4,9 +4,9 @@ from math import floor, log
 import numpy as np
 
 import perform.constants as const
-from perform.inputFuncs import read_input_file, catch_input, catch_list
+from perform.input_funcs import read_input_file, catch_input, catch_list
 from perform.mesh import Mesh
-from perform.miscFuncs import mkdir_shallow
+from perform.misc_funcs import mkdir_shallow
 
 
 class SystemSolver:

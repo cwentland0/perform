@@ -2,9 +2,9 @@ import numpy as np
 import tensorflow as tf
 
 from perform.constants import REAL_TYPE
-from perform.inputFuncs import catch_input
-from perform.rom.projectionROM.autoencoderProjROM.autoencoderProjROM import AutoencoderProjROM
-from perform.rom.tfKerasFuncs import init_device, load_model_obj, get_io_shape
+from perform.input_funcs import catch_input
+from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_proj_rom import AutoencoderProjROM
+from perform.rom.tf_keras_funcs import init_device, load_model_obj, get_io_shape
 
 
 class AutoencoderTFKeras(AutoencoderProjROM):

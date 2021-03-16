@@ -1,9 +1,9 @@
-from perform.timeIntegrator.explicitIntegrator import (
+from perform.time_integrator.explicit_integrator import (
 	ClassicRK4,
 	SSPRK3,
 	JamesonLowStore
 )
-from perform.timeIntegrator.implicitIntegrator import (
+from perform.time_integrator.implicit_integrator import (
 	BDF
 )
 

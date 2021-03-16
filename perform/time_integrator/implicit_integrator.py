@@ -2,8 +2,8 @@ import numpy as np
 
 import perform.constants as const
 from perform.constants import REAL_TYPE
-from perform.inputFuncs import catch_input
-from perform.timeIntegrator.timeIntegrator import TimeIntegrator
+from perform.input_funcs import catch_input
+from perform.time_integrator.time_integrator import TimeIntegrator
 
 
 class ImplicitIntegrator(TimeIntegrator):

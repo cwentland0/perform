@@ -4,11 +4,11 @@ from time import sleep
 import numpy as np
 
 from perform.constants import REAL_TYPE
-from perform.inputFuncs import read_input_file, catch_list, catch_input
-from perform.timeIntegrator import get_time_integrator
-from perform.solution.solutionPhys import SolutionPhys
-from perform.spaceSchemes import calc_rhs
-from perform.Jacobians import calc_d_res_d_sol_prim
+from perform.input_funcs import read_input_file, catch_list, catch_input
+from perform.time_integrator import get_time_integrator
+from perform.solution.solution_phys import SolutionPhys
+from perform.space_schemes import calc_rhs
+from perform.jacobians import calc_d_res_d_sol_prim
 from perform.rom import get_rom_model
 
 # TODO: when moving to multi-domain, it may be useful to just

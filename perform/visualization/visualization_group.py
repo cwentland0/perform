@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
-from perform.visualization.fieldPlot import FieldPlot
-from perform.visualization.probePlot import ProbePlot
-from perform.inputFuncs import catch_input, catch_list
+from perform.visualization.field_plot import FieldPlot
+from perform.visualization.probe_plot import ProbePlot
+from perform.input_funcs import catch_input, catch_list
 
 
 class VisualizationGroup:

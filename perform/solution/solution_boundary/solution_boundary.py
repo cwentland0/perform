@@ -3,8 +3,8 @@ from math import sin, pi
 import numpy as np
 
 from perform.constants import REAL_TYPE
-from perform.solution.solutionPhys import SolutionPhys
-from perform.inputFuncs import parse_bc
+from perform.solution.solution_phys import SolutionPhys
+from perform.input_funcs import parse_bc
 
 
 class SolutionBoundary(SolutionPhys):

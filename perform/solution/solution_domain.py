@@ -5,18 +5,18 @@ from scipy.sparse.linalg import spsolve
 from scipy.linalg import solve
 
 from perform.constants import REAL_TYPE
-from perform.inputFuncs import get_initial_conditions, catch_list, \
+from perform.input_funcs import get_initial_conditions, catch_list, \
 	catch_input, read_input_file
-from perform.solution.solutionPhys import SolutionPhys
-from perform.solution.solutionInterior import SolutionInterior
-from perform.solution.solutionBoundary.solutionInlet import SolutionInlet
-from perform.solution.solutionBoundary.solutionOutlet import SolutionOutlet
-from perform.spaceSchemes import calc_rhs
-from perform.Jacobians import calc_d_res_d_sol_prim
-from perform.timeIntegrator import get_time_integrator
+from perform.solution.solution_phys import SolutionPhys
+from perform.solution.solution_interior import SolutionInterior
+from perform.solution.solution_boundary.solution_inlet import SolutionInlet
+from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
+from perform.space_schemes import calc_rhs
+from perform.jacobians import calc_d_res_d_sol_prim
+from perform.time_integrator import get_time_integrator
 # gas models
 # TODO: make an __init__.py with getGasModel()
-from perform.gasModel.caloricallyPerfectGas import CaloricallyPerfectGas
+from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
 
 class SolutionDomain:

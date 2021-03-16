@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from perform.constants import REAL_TYPE, RES_NORM_PRIM_DEFAULT
-from perform.solution.solutionPhys import SolutionPhys
+from perform.solution.solution_phys import SolutionPhys
 
 
 class SolutionInterior(SolutionPhys):

@@ -1,8 +1,8 @@
 import os
 
 from perform.constants import FD_STEP_DEFAULT
-from perform.rom.projectionROM.projectionROM import ProjectionROM
-from perform.inputFuncs import catch_input
+from perform.rom.projection_rom.projection_rom import ProjectionROM
+from perform.input_funcs import catch_input
 
 
 class AutoencoderProjROM(ProjectionROM):

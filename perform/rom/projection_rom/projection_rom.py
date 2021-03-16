@@ -1,6 +1,6 @@
 import numpy as np
 
-from perform.rom.romModel import RomModel
+from perform.rom.rom_model import RomModel
 from perform.constants import REAL_TYPE
 
 

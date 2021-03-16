@@ -1,8 +1,6 @@
 import os
 import struct
 
-import perform.constants as const
-
 
 def write_to_file(fid, array, order='F'):
 	"""

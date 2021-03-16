@@ -1,6 +1,6 @@
 import numpy as np
 
-from perform.rom.projectionROM.linearProjROM.linearProjROM import LinearProjROM
+from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearProjROM
 
 
 class LinearGalerkinProj(LinearProjROM):
