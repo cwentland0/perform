@@ -1,107 +1,116 @@
-from perform.inputFuncs import catchList
-
 import numpy as np
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as plticker
 import matplotlib.gridspec as gridspec
-mpl.rc('font', family='serif',size='10') 	# TODO: adapt axis label font size to number of subplots
+
+mpl.rc('font', family='serif', size='10')
 mpl.rc('axes', labelsize='x-large')
 mpl.rc('figure', facecolor='w')
 mpl.rc('text', usetex=False)
-mpl.rc('text.latex',preamble=r'\usepackage{amsmath}')
+mpl.rc('text.latex', preamble=r'\usepackage{amsmath}')
 
-# TODO: this is kind of a mess
-# 	I'm struggling to write effective hierarchy for field, probe, and residual, as probe shares similarities with field and residual plots
+# TODO: adapt axis label font size to number of subplots
 # TODO: add RHS, flux plotting
 
-class visualization:
 
-	def __init__(self, visID, visVars, visXBounds, visYBounds, speciesNames, legendLabels=None):
+class Visualization:
 
-		self.speciesNames = speciesNames
-		numSpeciesFull = len(speciesNames)
-		self.legendLabels = legendLabels
+	def __init__(self, vis_id, vis_vars, vis_x_bounds,
+				vis_y_bounds, species_names, legend_labels=None):
 
-		if (self.visType in ["field","probe"]):
+		self.species_names = species_names
+		num_species_full = len(species_names)
+		self.legend_labels = legend_labels
+
+		if self.vis_type in ["field", "probe"]:
 
 			# check requested variables
-			self.visVars	= visVars
-			for visVar in self.visVars:
-				if (visVar in ["pressure","velocity","temperature","source","density","momentum","energy"]):
+			self.vis_vars = vis_vars
+			for vis_var in self.vis_vars:
+				if vis_var in ["pressure", "velocity", "temperature",
+								"source", "density", "momentum", "energy"]:
 					pass
-				elif ((visVar[:7] == "species") or (visVar[:15] == "density-species")):
+				elif ((vis_var[:7] == "species") or (vis_var[:15] == "density-species")):
 					try:
-						if (visVar[:7] == "species"):
-							speciesIdx = int(visVar[7:])
-						elif (visVar[:15] == "density-species"):
-							speciesIdx = int(visVar[15:])
+						if (vis_var[:7] == "species"):
+							species_idx = int(vis_var[7:])
+						elif (vis_var[:15] == "density-species"):
+							species_idx = int(vis_var[15:])
 
-						assert ((speciesIdx > 0) and (speciesIdx <= numSpeciesFull)), \
-							"Species number must be a positive integer less than or equal to the number of chemical species"
-					except:
-						raise ValueError("visVar entry " + visVar + " must be formated as speciesX or density-speciesX, where X is an integer")
+						assert ((species_idx > 0) and (species_idx <= num_species_full)), \
+							("Species number must be a positive integer "
+							+ "less than or equal to the number of chemical species")
+					except ValueError:
+						raise ValueError("vis_var entry "
+							+ vis_var + " must be formated as speciesX "
+							+ "or density-speciesX, where X is an integer")
 				else:
-					raise ValueError("Invalid entry in visVar"+str(visID))
+					raise ValueError("Invalid entry in vis_var" + str(vis_id))
 
-			self.numSubplots = len(self.visVars)
+			self.num_subplots = len(self.vis_vars)
 
 		# residual plot
 		else:
-			self.visVars = ["residual"]
-			self.numSubplots = 1
+			self.vis_vars = ["residual"]
+			self.num_subplots = 1
 
-		self.visXBounds = visXBounds
-		assert(len(self.visXBounds) == self.numSubplots), "Length of visXBounds"+str(visID)+" must match number of subplots: "+str(self.numSubplots)
-		self.visYBounds = visYBounds
-		assert(len(self.visYBounds) == self.numSubplots), "Length of visYBounds"+str(visID)+" must match number of subplots: "+str(self.numSubplots)
+		self.vis_x_bounds = vis_x_bounds
+		assert (len(self.vis_x_bounds) == self.num_subplots), \
+			("Length of vis_x_bounds" + str(vis_id)
+			+ " must match number of subplots: " + str(self.num_subplots))
+		self.vis_y_bounds = vis_y_bounds
+		assert (len(self.vis_y_bounds) == self.num_subplots), \
+			("Length of vis_y_bounds" + str(vis_id)
+			+ " must match number of subplots: " + str(self.num_subplots))
 
-		if (self.numSubplots == 1):
-			self.numRows = 1 
-			self.numCols = 1
-		elif (self.numSubplots == 2):
-			self.numRows = 2
-			self.numCols = 1
-		elif (self.numSubplots <= 4):
-			self.numRows = 2
-			self.numCols = 2
-		elif (self.numSubplots <= 6):
-			self.numRows = 3
-			self.numCols = 2
-		elif (self.numSubplots <= 9):
+		if self.num_subplots == 1:
+			self.num_rows = 1
+			self.num_cols = 1
+		elif self.num_subplots == 2:
+			self.num_rows = 2
+			self.num_cols = 1
+		elif self.num_subplots <= 4:
+			self.num_rows = 2
+			self.num_cols = 2
+		elif self.num_subplots <= 6:
+			self.num_rows = 3
+			self.num_cols = 2
+		elif self.num_subplots <= 9:
 			# TODO: an extra, empty subplot shows up with 7 subplots
-			self.numRows = 3
-			self.numCols = 3
+			self.num_rows = 3
+			self.num_cols = 3
 		else:
 			raise ValueError("Cannot plot more than nine subplots in the same image")
 
 		# axis labels
 		# TODO: could change this to a dictionary reference
-		self.axLabels = [None] * self.numSubplots
-		if (self.visType == "residual"):
-			self.axLabels[0] = "Residual History"
+		self.ax_labels = [None] * self.num_subplots
+		if self.vis_type == "residual":
+			self.ax_labels[0] = "Residual History"
 		else:
-			for axIdx in range(self.numSubplots):
-				varStr = self.visVars[axIdx]
-				if (varStr == "pressure"):
-					self.axLabels[axIdx] = "Pressure (Pa)"
-				elif (varStr == "velocity"):
-					self.axLabels[axIdx] = "Velocity (m/s)"
-				elif (varStr == "temperature"):
-					self.axLabels[axIdx] = "Temperature (K)"
+			for ax_idx in range(self.num_subplots):
+				var_str = self.vis_vars[ax_idx]
+				if var_str == "pressure":
+					self.ax_labels[ax_idx] = "Pressure (Pa)"
+				elif var_str == "velocity":
+					self.ax_labels[ax_idx] = "Velocity (m/s)"
+				elif var_str == "temperature":
+					self.ax_labels[ax_idx] = "Temperature (K)"
 				# TODO: source term needs to be generalized for multi-species
-				elif (varStr == "source"):
-					self.axLabels[axIdx] = "Source Term (kg/m^3-s)"
-				elif (varStr == "density"):
-					self.axLabels[axIdx] = "Density (kg/m^3)"
-				elif (varStr == "momentum"):
-					self.axLabels[axIdx] = "Momentum (kg/s-m^2)"
-				elif (varStr == "energy"):
-					self.axLabels[axIdx] = "Total Energy"
-				elif (varStr[:7] == "species"):
-					self.axLabels[axIdx] = r"$Y_{%s}$"%(self.speciesNames[int(varStr[7:])-1])
-				elif (varStr[:15] == "density-species"):
-					self.axLabels[axIdx] = r"$\rho Y_{%s}$"%(self.speciesNames[int(varStr[15:])-1])
+				elif var_str == "source":
+					self.ax_labels[ax_idx] = "Source Term (kg/m^3-s)"
+				elif var_str == "density":
+					self.ax_labels[ax_idx] = "Density (kg/m^3)"
+				elif var_str == "momentum":
+					self.ax_labels[ax_idx] = "Momentum (kg/s-m^2)"
+				elif var_str == "energy":
+					self.ax_labels[ax_idx] = "Total Energy"
+				elif var_str[:7] == "species":
+					self.ax_labels[ax_idx] = \
+						r"$Y_{%s}$" % (self.species_names[int(var_str[7:]) - 1])
+				elif var_str[:15] == "density-species":
+					self.ax_labels[ax_idx] = \
+						r"$\rho Y_{%s}$" % (self.species_names[int(var_str[15:]) - 1])
 				else:
-					raise ValueError("Invalid field visualization variable:"+str(varStr))
+					raise ValueError("Invalid field visualization variable:" + str(var_str))

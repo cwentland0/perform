@@ -1,92 +1,89 @@
-import perform.constants as const
-from perform.systemSolver import systemSolver
-from perform.solution.solutionDomain import solutionDomain
-from perform.visualization.visualizationGroup import visualizationGroup
-from perform.rom.romDomain import romDomain
-from perform.miscFuncs import mkdirInWorkdir
-
 import os
-import numpy as np
+from time import time
 import argparse
 import traceback
 import warnings
-warnings.filterwarnings("error")
-from time import time
 
-# TODO: check all calls to calcDensityDerivatives and calcStagEnthalpyDerivatives, pass full massFrac array
-# TODO: ^^^^^ emphasizing this, this is a big contribution to Jacobian cost
+from perform.system_solver import SystemSolver
+from perform.solution.solution_domain import SolutionDomain
+from perform.visualization.visualization_group import VisualizationGroup
+from perform.rom.rom_domain import RomDomain
+
+warnings.filterwarnings("error")
+
 
 def main():
 
-	##### START SETUP #####
+	# ----- Start setup -----
 
-	# read working directory input
-	parser = argparse.ArgumentParser(description = "Read working directory")
-	parser.add_argument('workingDir', type = str, default = "./", help="runtime working directory")
-	const.workingDir = os.path.expanduser(parser.parse_args().workingDir)
-	assert (os.path.isdir(const.workingDir)), "Given working directory does not exist"
+	# Read working directory input
+	parser = argparse.ArgumentParser(description="Read working directory")
+	parser.add_argument('working_dir', type=str,
+						default="./", help="runtime working directory")
+	working_dir = os.path.expanduser(parser.parse_args().working_dir)
+	assert (os.path.isdir(working_dir)),\
+			"Given working directory does not exist"
 
-	# make output directories
-	const.unsteadyOutputDir = mkdirInWorkdir(const.unsteadyOutputDirName)
-	const.probeOutputDir = mkdirInWorkdir(const.probeOutputDirName)
-	const.imageOutputDir = mkdirInWorkdir(const.imageOutputDirName)
-	const.restartOutputDir = mkdirInWorkdir(const.restartOutputDirName)
+	# Retrieve solver parameters and initialize mesh
+	# TODO: multi-domain solvers
+	# TODO: move mesh to solution_domain
+	solver = SystemSolver(working_dir)
 
-	solver = systemSolver()				# mesh, gas model, and time integrator
-										# TODO: multi-domain solvers
-
-	# physical and ROM solutions
-	solDomain = solutionDomain(solver)	
-	if solver.calcROM:
-		rom = romDomain(solDomain, solver)
+	# Initialize physical and ROM solutions
+	sol_domain = SolutionDomain(solver)
+	if solver.calc_rom:
+		rom_domain = RomDomain(sol_domain, solver)
 	else:
-		rom = None
+		rom_domain = None
 
-	visGroup = visualizationGroup(solDomain, solver) # plots
+	# Initialize plots
+	visGroup = VisualizationGroup(sol_domain, solver)
 
-	##### END SETUP #####
+	# ----- End setup -----
 
-	##### START UNSTEADY SOLUTION #####
+	# ----- Start unsteady solution -----
 
 	try:
-		# loop over time iterations
-		t1 = time()
-		for solver.iter in range(1, solver.numSteps+1):
-			
-			# advance one physical time step
-			if (solver.calcROM):
-				rom.advanceIter(solDomain, solver)
+		# Loop over time iterations
+		time_start = time()
+		for solver.iter in range(1, solver.num_steps + 1):
+
+			# Advance one physical time step
+			if (solver.calc_rom):
+				rom_domain.advance_iter(sol_domain, solver)
 			else:
-				solDomain.advanceIter(solver)
-			solver.timeIter += 1
-			solver.solTime  += solver.dt
+				sol_domain.advance_iter(solver)
+			solver.time_iter += 1
+			solver.sol_time += solver.dt
 
-			# write unsteady solution outputs
-			solDomain.writeIterOutputs(solver)
+			# Write unsteady solution outputs
+			sol_domain.write_iter_outputs(solver)
 
-			# check "steady" solve
-			if (solver.runSteady):
-				breakFlag = solDomain.writeSteadyOutputs(solver)
-				if breakFlag: break
+			# Check "steady" solve
+			if solver.run_steady:
+				break_flag = sol_domain.write_steady_outputs(solver)
+				if break_flag:
+					break
 
-			# visualization
-			visGroup.drawPlots(solDomain, solver)
+			# Visualization
+			visGroup.draw_plots(sol_domain, solver)
 
-		runtime = time() - t1
+		runtime = time() - time_start
 		print("Solve finished in %.8f seconds, writing to disk" % runtime)
 
 	except RuntimeWarning:
-		solver.solveFailed = True
+		solver.solve_failed = True
 		print(traceback.format_exc())
 		print("Solve failed, dumping solution so far to disk")
 
-	##### END UNSTEADY SOLUTION #####
+	# ----- End unsteady solution -----
 
-	##### START POST-PROCESSING #####
+	# ----- Start post-processing -----
 
-	solDomain.writeFinalOutputs(solver)
+	sol_domain.write_final_outputs(solver)
 
-	##### END POST-PROCESSING #####
+	# ----- End post-processing -----
+
 
 if __name__ == "__main__":
 	try:
