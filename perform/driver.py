@@ -7,7 +7,7 @@ import warnings
 from perform.systemSolver import SystemSolver
 from perform.solution.solutionDomain import SolutionDomain
 from perform.visualization.visualizationGroup import VisualizationGroup
-# from perform.rom.romDomain import RomDomain
+from perform.rom.romDomain import RomDomain
 
 warnings.filterwarnings("error")
 
@@ -32,8 +32,7 @@ def main():
 	# Initialize physical and ROM solutions
 	sol_domain = SolutionDomain(solver)
 	if solver.calc_rom:
-		raise ValueError("ROM temporarily offline")
-		# rom_domain = RomDomain(sol_domain, solver)
+		rom_domain = RomDomain(sol_domain, solver)
 	else:
 		rom_domain = None
 

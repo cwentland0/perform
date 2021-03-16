@@ -53,7 +53,7 @@ class ProjectionROM(RomModel):
 		# scale RHS
 		norm_sub_prof = np.zeros(self.norm_fac_prof_cons.shape, dtype=REAL_TYPE)
 		rhs_scaled = \
-			self.standardizeData(
+			self.standardize_data(
 				sol_domain.sol_int.rhs[self.var_idxs[:, None],
 				sol_domain.direct_samp_idxs[None, :]],
 				normalize=True,

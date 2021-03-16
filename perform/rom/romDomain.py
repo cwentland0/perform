@@ -5,7 +5,7 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.inputFuncs import read_input_file, catch_list, catch_input
-from perform.time_integrator import get_time_integrator
+from perform.timeIntegrator import get_time_integrator
 from perform.solution.solutionPhys import SolutionPhys
 from perform.spaceSchemes import calc_rhs
 from perform.Jacobians import calc_d_res_d_sol_prim

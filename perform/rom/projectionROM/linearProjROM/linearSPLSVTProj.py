@@ -22,7 +22,7 @@ class LinearSPLSVTProj(LinearProjROM):
 
 		super().__init__(model_idx, rom_domain, solver, sol_domain)
 
-	def calcDCode(self, res_jacob, res, sol_domain):
+	def calc_d_code(self, res_jacob, res, sol_domain):
 		"""
 		Compute change in low-dimensional state for implicit scheme
 		Newton iteration
@@ -32,7 +32,7 @@ class LinearSPLSVTProj(LinearProjROM):
 
 		# TODO: scaled_trial_basis should be calculated once
 		scaled_trial_basis = \
-			self.trial_basis * self.normFacProfPrim.ravel(order="C")[:, None]
+			self.trial_basis * self.norm_fac_prof_prim.ravel(order="C")[:, None]
 
 		# compute test basis
 		test_basis = (

@@ -69,28 +69,28 @@ class LinearProjROM(ProjectionROM):
 		if self.target_cons:
 			sol = \
 				self.standardize_data(
-					sol_domain.sol_int.sol_cons[self.varIdxs, :],
+					sol_domain.sol_int.sol_cons[self.var_idxs, :],
 					normalize=True,
 					norm_fac_prof=self.norm_fac_prof_cons,
 					norm_sub_prof=self.norm_sub_prof_cons,
-					center=True, centProf=self.cent_prof_cons,
+					center=True, cent_prof=self.cent_prof_cons,
 					inverse=False
 				)
 			self.code = self.project_to_low_dim(self.trial_basis, sol, transpose=True)
-			sol_domain.sol_int.sol_cons[self.varIdxs, :] = self.decode_sol(self.code)
+			sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
 
 		else:
 			sol = \
 				self.standardize_data(
-					sol_domain.sol_int.sol_prim[self.varIdxs, :],
+					sol_domain.sol_int.sol_prim[self.var_idxs, :],
 					normalize=True,
 					norm_fac_prof=self.norm_fac_prof_prim,
 					norm_sub_prof=self.norm_sub_prof_prim,
-					center=True, centProf=self.centProfPrim,
+					center=True, cent_prof=self.cent_prof_prim,
 					inverse=False
 				)
 			self.code = self.project_to_low_dim(self.trial_basis, sol, transpose=True)
-			sol_domain.sol_int.sol_prim[self.varIdxs, :] = self.decode_sol(self.code)
+			sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
 
 	def apply_decoder(self, code):
 		"""

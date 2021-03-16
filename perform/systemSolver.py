@@ -100,4 +100,4 @@ class SystemSolver:
 			self.sim_type = "FOM"
 		else:
 			self.sim_type = "ROM"
-			self.romInputs = os.path.join(const.working_dir, const.ROM_INPUTS)
+			self.rom_inputs = os.path.join(self.working_dir, const.ROM_INPUTS)

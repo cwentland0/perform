@@ -34,7 +34,7 @@ class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
 
 		# decoder Jacobian, scaled
 		jacob = self.calc_model_jacobian(sol_domain)
-		scaled_jacob = jacob * self.normFacProfPrim.ravel(order="C")[:, None]
+		scaled_jacob = jacob * self.norm_fac_prof_prim.ravel(order="C")[:, None]
 
 		# test basis
 		test_basis = (

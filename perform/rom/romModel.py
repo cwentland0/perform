@@ -42,7 +42,7 @@ class RomModel:
 		self.norm_fac_prof_prim = None
 		self.cent_prof_cons = None
 		self.cent_prof_prim = None
-		if rom_domain.hasConsNorm:
+		if rom_domain.has_cons_norm:
 			self.norm_sub_prof_cons = \
 				self.load_standardization(
 					os.path.join(self.model_dir, rom_domain.norm_sub_cons_in[self.model_idx]),
@@ -53,7 +53,7 @@ class RomModel:
 					os.path.join(self.model_dir, rom_domain.norm_fac_cons_in[self.model_idx]),
 					default="ones"
 				)
-		if rom_domain.hasPrimNorm:
+		if rom_domain.has_prim_norm:
 			self.norm_sub_prof_prim = \
 				self.load_standardization(
 					os.path.join(self.model_dir, rom_domain.norm_sub_prim_in[self.model_idx]),

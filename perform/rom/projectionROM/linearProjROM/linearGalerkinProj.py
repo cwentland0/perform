@@ -11,7 +11,7 @@ class LinearGalerkinProj(LinearProjROM):
 
 	def __init__(self, model_idx, rom_domain, solver, sol_domain):
 
-		if ((rom_domain.time_integrator.timeType == "implicit")
+		if ((rom_domain.time_integrator.time_type == "implicit")
 				and (rom_domain.time_integrator.dual_time)):
 			raise ValueError("Galerkin is intended for conservative"
 							+ " variable evolution, please set dual_time = False")

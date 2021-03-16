@@ -24,7 +24,7 @@ def get_rom_model(model_idx, rom_domain, solver, sol_domain):
 
 	# linear subspace methods
 	if rom_domain.rom_method == "linear_galerkin_proj":
-		model = linearGalerkinProj(model_idx, rom_domain, solver, sol_domain)
+		model = LinearGalerkinProj(model_idx, rom_domain, solver, sol_domain)
 
 	elif rom_domain.rom_method == "linear_lspg_proj":
 		model = LinearLSPGProj(model_idx, rom_domain, solver, sol_domain)
