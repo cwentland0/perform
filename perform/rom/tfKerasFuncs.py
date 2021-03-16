@@ -1,16 +1,18 @@
-# Collection of generic functions that any TensorFlow-Keras model-based method can use
+# Collection of generic functions that
+# 	any TensorFlow-Keras model-based method can use
+import os
+
 import tensorflow as tf
 from tensorflow.keras.models import load_model
 
-import os
 
-def initDevice(runGPU):
+def init_device(run_gpu):
 	"""
 	If running on GPU, limit GPU memory growth
 	If running on CPU, hide any GPUs from TF
 	"""
 
-	if runGPU:
+	if run_gpu:
 		# make sure TF doesn't gobble up device memory
 		gpus = tf.config.experimental.list_physical_devices('GPU')
 		if gpus:
@@ -24,22 +26,23 @@ def initDevice(runGPU):
 				print(e)
 	else:
 		# If GPU is available, TF will automatically run there
-		#	This forces to run on CPU even if GPU is available
-		os.environ["CUDA_VISIBLE_DEVICES"] = "-1" 
+		# 	This forces to run on CPU even if GPU is available
+		os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
-def loadModelObj(modelPath):
+def load_model_obj(model_path):
 	"""
-	Load Keras SavedModel object from file specified by modelPath
+	Load Keras SavedModel object from file specified by model_path
 	"""
 
-	modelObj = load_model(modelPath, compile=False)
-	return modelObj
+	model_obj = load_model(model_path, compile=False)
+	return model_obj
 
 
-def getIOShape(shape):
+def get_io_shape(shape):
 	"""
-	Gets model I/O shape, handles situations in which layer shape is returned as a list instead of a tuple
+	Gets model I/O shape, handles situations in which
+	layer shape is returned as a list instead of a tuple
 	"""
 
 	if type(shape) is list:

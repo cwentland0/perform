@@ -1,44 +1,54 @@
-from perform.rom.projectionROM.linearProjROM.linearProjROM import linearProjROM
-
 import numpy as np
 
-class linearSPLSVTProj(linearProjROM):
+from perform.rom.projectionROM.linearProjROM.linearProjROM import LinearProjROM
+
+
+class LinearSPLSVTProj(LinearProjROM):
 	"""
 	Class for linear decoder and SP-LSVT formulation
 	Trial basis is assumed to represent the conserved variables
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver, solDomain):
+	def __init__(self, model_idx, rom_domain, solver, sol_domain):
 
-		if (romDomain.timeIntegrator.timeType == "explicit"):
+		if rom_domain.time_integrator.time_type == "explicit":
 			raise ValueError("Explicit SP-LSVT not implemented yet")
 
-		if ((romDomain.timeIntegrator.timeType == "implicit") and (not romDomain.timeIntegrator.dualTime)):
-			raise ValueError("SP-LSVT is intended for primitive variable evolution, please use Galerkin or LSPG, or set dualTime = True")
+		if ((rom_domain.time_integrator.time_type == "implicit")
+				and (not rom_domain.time_integrator.dual_time)):
+			raise ValueError("SP-LSVT is intended for primitive variable"
+							+ "evolution, please use Galerkin or LSPG,"
+							+ " or set dual_time = True")
 
-		super().__init__(modelIdx, romDomain, solver, solDomain)
+		super().__init__(model_idx, rom_domain, solver, sol_domain)
 
-
-	def calcDCode(self, resJacob, res, solDomain):
+	def calcDCode(self, res_jacob, res, sol_domain):
 		"""
-		Compute change in low-dimensional state for implicit scheme Newton iteration
+		Compute change in low-dimensional state for implicit scheme
+		Newton iteration
 		"""
 
 		# TODO: add hyper-reduction
 
-		# TODO: scaledTrialBasis should be calculated once
-		scaledTrialBasis = self.trialBasis * self.normFacProfPrim.ravel(order="C")[:,None]
+		# TODO: scaled_trial_basis should be calculated once
+		scaled_trial_basis = \
+			self.trial_basis * self.normFacProfPrim.ravel(order="C")[:, None]
 
 		# compute test basis
-		# TODO: using resJacob.toarray(), otherwise this operation returns type np.matrix, which is undesirable
-		# 	need to figure out a more efficient method, if possible
-		testBasis = (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledTrialBasis
+		test_basis = (
+			(res_jacob.toarray()
+			/ self.norm_fac_prof_cons.ravel(order="C")[:, None])
+			@ scaled_trial_basis
+		)
 
-		# LHS and RHS of Newton iteration
-		LHS = testBasis.T @ testBasis
-		RHS = testBasis.T @ (res / self.normFacProfCons).ravel(order="C")
+		# lhs and rhs of Newton iteration
+		lhs = test_basis.T @ test_basis
+		rhs = (
+			test_basis.T
+			@ (res / self.norm_fac_prof_cons).ravel(order="C")
+		)
 
 		# linear solve
-		dCode = np.linalg.solve(LHS, RHS)
-		
-		return dCode, LHS, RHS
+		dCode = np.linalg.solve(lhs, rhs)
+
+		return dCode, lhs, rhs

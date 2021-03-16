@@ -1,71 +1,97 @@
-from perform.constants import fdStepDefault
-from perform.rom.projectionROM.projectionROM import projectionROM
-from perform.inputFuncs import catchInput
-
 import os
 
-class autoencoderProjROM(projectionROM):
+from perform.constants import FD_STEP_DEFAULT
+from perform.rom.projectionROM.projectionROM import ProjectionROM
+from perform.inputFuncs import catch_input
+
+
+class AutoencoderProjROM(ProjectionROM):
 	"""
 	Base class for any non-linear manifold ROM using autoencoders
-	Child classes simply supply library-dependent functions (e.g. for TensorFlow, PyTorch)
+
+	Child classes simply supply library-dependent functions
+	(e.g. for TensorFlow, PyTorch)
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver, solDomain):
+	def __init__(self, model_idx, rom_domain, solver, sol_domain):
 
-		super().__init__(modelIdx, romDomain, solver, solDomain)
+		super().__init__(model_idx, rom_domain, solver, sol_domain)
 
-		romDict = romDomain.romDict
+		rom_dict = rom_domain.rom_dict
 
-		# load decoder
-		decoderPath = os.path.join(romDomain.modelDir, romDomain.modelFiles[modelIdx])
-		assert(os.path.isfile(decoderPath)), "Invalid decoder file path"
-		self.decoder = self.loadModelObj(decoderPath)
-		self.decoderIODtypes = self.checkModel(decoder=True)
+		# Load decoder
+		decoder_path = os.path.join(rom_domain.modelDir,
+									rom_domain.modelFiles[model_idx])
+		assert(os.path.isfile(decoder_path)), \
+			"Invalid decoder file path"
+		self.decoder = self.load_model_obj(decoder_path)
+		self.decoder_io_dtypes = self.check_model(decoder=True)
 
-		# if required, load encoder
-		# encoder is required for encoder Jacobian or initializing from projection of full ICs
-		self.encoderJacob = catchInput(romDict, "encoderJacob", False)
+		# If required, load encoder
+		# Encoder is required for encoder Jacobian
+		# 	or initializing from projection of full ICs
+		self.encoder_jacob = catch_input(rom_dict, "encoder_jacob", False)
 		self.encoder = None
-		if (self.encoderJacob or (not romDomain.initROMFromFile[modelIdx])):
-			encoderFiles = romDict["encoderFiles"]
-			assert (len(encoderFiles) == romDomain.numModels), "Must provide encoderFiles for each model"
-			encoderPath = os.path.join(romDomain.modelDir, encoderFiles[modelIdx])
-			assert (os.path.isfile(encoderPath)), "Could not find encoder file at " + encoderPath
-			self.encoder = self.loadModelObj(encoderPath)
-			self.encoderIODtypes = self.checkModel(decoder=False)
+		if (self.encoder_jacob
+				or (not rom_domain.init_rom_from_file[model_idx])):
+
+			encoder_files = rom_dict["encoder_files"]
+			assert (len(encoder_files) == rom_domain.num_models), \
+				"Must provide encoder_files for each model"
+			encoder_path = os.path.join(rom_domain.modelDir,
+										encoder_files[model_idx])
+			assert (os.path.isfile(encoder_path)), \
+				"Could not find encoder file at " + encoder_path
+			self.encoder = self.load_model_obj(encoder_path)
+			self.encoder_io_dtypes = self.check_model(decoder=False)
 
 		# numerical Jacobian params
-		self.numericalJacob = catchInput(romDict, "numericalJacob", False)
-		self.fdStep = catchInput(romDict, "fdStep", fdStepDefault)
+		self.numerical_jacob = catch_input(rom_dict, "numerical_jacob", False)
+		self.fd_step = catch_input(rom_dict, "fd_step", FD_STEP_DEFAULT)
 
-
-	def encodeSol(self, solIn):
+	def encode_sol(self, solIn):
 		"""
-		Compute encoding of full-dimensional state, including centering and normalization
+		Compute encoding of full-dimensional state,
+		including centering and normalization
 		"""
 
-		if (self.targetCons):
-			sol = self.standardizeData(solIn, 
-										normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons, 
-										center=True, centProf=self.centProfCons, inverse=False)
+		if self.target_cons:
+			sol = \
+				self.standardize_data(
+					solIn,
+					normalize=True,
+					norm_fac_prof=self.norm_fac_prof_cons,
+					norm_sub_prof=self.norm_sub_prof_cons,
+					center=True, centProf=self.cent_prof_cons,
+					inverse=False
+				)
+
 		else:
-			sol = self.standardizeData(solIn, 
-										normalize=True, normFacProf=self.normFacProfPrim, normSubProf=self.normSubProfPrim, 
-										center=True, centProf=self.centProfPrim, inverse=False)
+			sol = \
+				self.standardize_data(
+					solIn,
+					normalize=True,
+					norm_fac_prof=self.norm_fac_prof_prim,
+					norm_sub_prof=self.norm_sub_prof_prim,
+					center=True, cent_prof=self.cent_prof_prim,
+					inverse=False
+				)
 
-		code = self.applyEncoder(sol)
+		code = self.apply_encoder(sol)
 
 		return code
 
-
-	def initFromSol(self, solDomain):
+	def init_from_sol(self, sol_domain):
 		"""
-		Initialize full-order solution from projection of loaded full-order initial conditions
+		Initialize full-order solution from projection of
+		loaded full-order initial conditions
 		"""
 
-		if (self.targetCons):
-			self.code = self.encodeSol(solDomain.solInt.solCons[self.varIdxs, :])
-			solDomain.solInt.solCons[self.varIdxs, :] = self.decodeSol(self.code)
+		sol_int = sol_int
+
+		if self.target_cons:
+			self.code = self.encode_sol(sol_int.sol_cons[self.var_idxs, :])
+			sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
 		else:
-			self.code = self.encodeSol(solDomain.solInt.solPrim[self.varIdxs, :])
-			solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
+			self.code = self.encode_sol(sol_int.sol_prim[self.var_idxs, :])
+			sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)

@@ -1,49 +1,62 @@
-from perform.rom.projectionROM.linearProjROM.linearProjROM import linearProjROM
-
 import numpy as np
 
-class linearGalerkinProj(linearProjROM):
+from perform.rom.projectionROM.linearProjROM.linearProjROM import LinearProjROM
+
+
+class LinearGalerkinProj(LinearProjROM):
 	"""
 	Class for linear decoder and Galerkin projection
 	Trial basis is assumed to represent the conserved variables
 	"""
 
-	def __init__(self, modelIdx, romDomain, solver, solDomain):
+	def __init__(self, model_idx, rom_domain, solver, sol_domain):
 
-		if ((romDomain.timeIntegrator.timeType == "implicit") and (romDomain.timeIntegrator.dualTime)):
-			raise ValueError("Galerkin is intended for conservative variable evolution, please set dualTime = False")
+		if ((rom_domain.time_integrator.timeType == "implicit")
+				and (rom_domain.time_integrator.dual_time)):
+			raise ValueError("Galerkin is intended for conservative"
+							+ " variable evolution, please set dual_time = False")
 
-		super().__init__(modelIdx, romDomain, solver, solDomain)
+		super().__init__(model_idx, rom_domain, solver, sol_domain)
 
-
-	def calcProjector(self, solDomain):
+	def calc_projector(self, sol_domain):
 		"""
-		Compute RHS projection operator
+		Compute rhs projection operator
 		"""
 
-		if self.hyperReduc:
+		if self.hyper_reduc:
 			# V^T * U * [S^T * U]^+
-			self.projector = self.trialBasis.T @ self.hyperReducBasis @ np.linalg.pinv(self.hyperReducBasis[self.directHyperReducSampIdxs,:])
+			self.projector = (
+				self.trial_basis.T @ self.hyper_reduc_basis
+				@ np.linalg.pinv(self.hyper_reduc_basis[self.direct_hyper_reduc_samp_idxs, :])
+			)
 
 		else:
 			# V^T
-			self.projector = self.trialBasis.T
+			self.projector = self.trial_basis.T
 
-
-	def calcDCode(self, resJacob, res, solDomain):
+	def calc_d_code(self, res_jacob, res, sol_domain):
 		"""
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 
 		# TODO: should be calculated once
-		scaledTrialBasis = self.trialBasis * self.normFacProfCons.ravel(order="C")[:,None]
+		scaled_trial_basis = \
+			self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
-		# TODO: using resJacob.toarray(), otherwise this operation returns type np.matrix, which is undesirable
-		# 	need to figure out a more efficient method, if possible
-		LHS = self.trialBasis.T @ (resJacob.toarray() / self.normFacProfCons.ravel(order="C")[:,None]) @ scaledTrialBasis
-		RHS = self.trialBasis.T @ (res / self.normFacProfCons).ravel(order="C")
+		# TODO: using res_jacob.toarray(), otherwise this
+		# 	operation returns type np.matrix, which is undesirable
+		# 	Need to figure out a more efficient method, if possible
+		lhs = (
+			self.trial_basis.T @ (res_jacob.toarray()
+			/ self.norm_fac_prof_cons.ravel(order="C")[:, None])
+			@ scaled_trial_basis
+		)
 
-		dCode = np.linalg.solve(LHS, RHS)
-		
-		return dCode, LHS, RHS
+		rhs = (
+			self.trial_basis.T
+			@ (res / self.norm_fac_prof_cons).ravel(order="C")
+		)
 
+		d_code = np.linalg.solve(lhs, rhs)
+
+		return d_code, lhs, rhs

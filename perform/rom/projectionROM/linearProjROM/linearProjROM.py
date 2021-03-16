@@ -1,76 +1,102 @@
-from perform.constants import realType
-from perform.rom.projectionROM.projectionROM import projectionROM
-from perform.inputFuncs import catchInput
-
 import numpy as np
 
-class linearProjROM(projectionROM):
+from perform.rom.projectionROM.projectionROM import ProjectionROM
+
+
+class LinearProjROM(ProjectionROM):
 	"""
-	Base class for all projection-based ROMs which use a linear basis representation
+	Base class for all projection-based ROMs
+	which use a linear basis representation
 	"""
 
+	def __init__(self, model_idx, rom_domain, solver, sol_domain):
 
-	def __init__(self, modelIdx, romDomain, solver, solDomain):
-
-		super().__init__(modelIdx, romDomain, solver, solDomain)
+		super().__init__(model_idx, rom_domain, solver, sol_domain)
 
 		# load and check trial basis
-		self.trialBasis = np.load(romDomain.modelFiles[self.modelIdx])
-		numVarsBasisIn, numCellsBasisIn, numModesBasisIn = self.trialBasis.shape
-		assert (numVarsBasisIn == self.numVars), ("Basis at " + romDomain.modelFiles[self.modelIdx] + " represents a different number of variables " +
-			"than specified by modelVarIdxs (" + str(numVarsBasisIn) + " != " + str(self.numVars) + ")")
-		assert (numCellsBasisIn == solver.mesh.numCells), ("Basis at " + romDomain.modelFiles[self.modelIdx] + " has a different number of cells " +
-			"than the physical domain (" + str(numCellsBasisIn) + " != " + str(solver.mesh.numCells) + ")")
-		assert (numModesBasisIn >= self.latentDim), ("Basis at " + romDomain.modelFiles[self.modelIdx] + " must have at least " + str(self.latentDim) +
-			" modes (" + str(numModesBasisIn) + " < " + str(self.latentDim) + ")")
+		self.trial_basis = np.load(rom_domain.model_files[self.model_idx])
+		num_vars_basis_in, num_cells_basis_in, num_modes_basis_in = \
+			self.trial_basis.shape
+
+		assert (num_vars_basis_in == self.num_vars), \
+			("Basis at " + rom_domain.model_files[self.model_idx]
+			+ " represents a different number of variables "
+			+ "than specified by modelVarIdxs ("
+			+ str(num_vars_basis_in) + " != " + str(self.num_vars) + ")")
+		assert (num_cells_basis_in == solver.mesh.num_cells), \
+			("Basis at " + rom_domain.model_files[self.model_idx]
+			+ " has a different number of cells than the physical domain ("
+			+ str(num_cells_basis_in) + " != " + str(solver.mesh.num_cells) + ")")
+		assert (num_modes_basis_in >= self.latent_dim), \
+			("Basis at " + rom_domain.model_files[self.model_idx]
+			+ " must have at least " + str(self.latent_dim) + " modes ("
+			+ str(num_modes_basis_in) + " < " + str(self.latent_dim) + ")")
 
 		# flatten first two dimensions for easier matmul
-		self.trialBasis = self.trialBasis[:,:,:self.latentDim]
-		self.trialBasis = np.reshape(self.trialBasis, (-1, self.latentDim), order='C')
+		self.trial_basis = self.trial_basis[:, :, :self.latent_dim]
+		self.trial_basis = \
+			np.reshape(self.trial_basis, (-1, self.latent_dim), order='C')
 
 		# load and check gappy POD basis
-		if romDomain.hyperReduc:
-			hyperReducBasis = np.load(romDomain.hyperReducFiles[self.modelIdx])
-			assert (hyperReducBasis.ndim == 3), "Hyper-reduction basis must have three axes"
-			assert (hyperReducBasis.shape[:2] == (solDomain.gasModel.numEqs, solver.mesh.numCells)), \
-				"Hyper reduction basis must have shape [numEqs, numCells, numHRModes]"
+		if rom_domain.hyper_reduc:
+			hyper_reduc_basis = np.load(rom_domain.hyper_reduc_files[self.model_idx])
+			assert (hyper_reduc_basis.ndim == 3), \
+				"Hyper-reduction basis must have three axes"
+			assert (hyper_reduc_basis.shape[:2]
+					== (sol_domain.gas_model.num_eqs, solver.mesh.num_cells)), \
+				"Hyper reduction basis must have shape [num_eqs, num_cells, numHRModes]"
 
-			self.hyperReducDim = romDomain.hyperReducDims[self.modelIdx]
-			hyperReducBasis = hyperReducBasis[:,:,:self.hyperReducDim]
-			self.hyperReducBasis = np.reshape(hyperReducBasis, (-1, self.hyperReducDim), order="C")
+			self.hyper_reduc_dim = rom_domain.hyper_reduc_dims[self.model_idx]
+			hyper_reduc_basis = hyper_reduc_basis[:, :, :self.hyper_reduc_dim]
+			self.hyper_reduc_basis = \
+				np.reshape(hyper_reduc_basis, (-1, self.hyper_reduc_dim), order="C")
 
-			# indices for sampling flattened hyperReducBasis
-			self.directHyperReducSampIdxs = np.zeros(romDomain.numSampCells * self.numVars, dtype=np.int32)
-			for varNum in range(self.numVars):
-				idx1 = varNum * romDomain.numSampCells
-				idx2 = (varNum+1) * romDomain.numSampCells
-				self.directHyperReducSampIdxs[idx1:idx2] = romDomain.directSampIdxs + varNum * solver.mesh.numCells
+			# indices for sampling flattened hyper_reduc_basis
+			self.direct_hyper_reduc_samp_idxs = \
+				np.zeros(rom_domain.num_samp_cells * self.num_vars, dtype=np.int32)
+			for var_num in range(self.num_vars):
+				idx1 = var_num * rom_domain.num_samp_cells
+				idx2 = (var_num + 1) * rom_domain.num_samp_cells
+				self.direct_hyper_reduc_samp_idxs[idx1:idx2] = \
+					rom_domain.direct_samp_idxs + var_num * solver.mesh.num_cells
 
-
-	def initFromSol(self, solDomain):
+	def init_from_sol(self, sol_domain):
 		"""
-		Initialize full-order solution from projection of loaded full-order initial conditions
+		Initialize full-order solution from projection of
+		loaded full-order initial conditions
 		"""
 
-		if (self.targetCons):
-			sol = self.standardizeData(solDomain.solInt.solCons[self.varIdxs, :], 
-										normalize=True, normFacProf=self.normFacProfCons, normSubProf=self.normSubProfCons,
-										center=True, centProf=self.centProfCons, inverse=False)
-			self.code = self.projectToLowDim(self.trialBasis, sol, transpose=True)
-			solDomain.solInt.solCons[self.varIdxs, :] = self.decodeSol(self.code)
+		if self.target_cons:
+			sol = \
+				self.standardize_data(
+					sol_domain.sol_int.sol_cons[self.varIdxs, :],
+					normalize=True,
+					norm_fac_prof=self.norm_fac_prof_cons,
+					norm_sub_prof=self.norm_sub_prof_cons,
+					center=True, centProf=self.cent_prof_cons,
+					inverse=False
+				)
+			self.code = self.project_to_low_dim(self.trial_basis, sol, transpose=True)
+			sol_domain.sol_int.sol_cons[self.varIdxs, :] = self.decode_sol(self.code)
+
 		else:
-			sol = self.standardizeData(solDomain.solInt.solPrim[self.varIdxs, :], 
-										normalize=True, normFacProf=self.normFacProfPrim, normSubProf=self.normSubProfPrim,
-										center=True, centProf=self.centProfPrim, inverse=False)
-			self.code = self.projectToLowDim(self.trialBasis, sol, transpose=True)
-			solDomain.solInt.solPrim[self.varIdxs, :] = self.decodeSol(self.code)
+			sol = \
+				self.standardize_data(
+					sol_domain.sol_int.sol_prim[self.varIdxs, :],
+					normalize=True,
+					norm_fac_prof=self.norm_fac_prof_prim,
+					norm_sub_prof=self.norm_sub_prof_prim,
+					center=True, centProf=self.centProfPrim,
+					inverse=False
+				)
+			self.code = self.project_to_low_dim(self.trial_basis, sol, transpose=True)
+			sol_domain.sol_int.sol_prim[self.varIdxs, :] = self.decode_sol(self.code)
 
-
-	def applyDecoder(self, code):
+	def apply_decoder(self, code):
 		"""
 		Compute raw decoding of code, without de-normalizing or de-centering
 		"""
 
-		sol = self.trialBasis @ code
-		sol = np.reshape(sol, (self.numVars, -1), order="C")
+		sol = self.trial_basis @ code
+		sol = np.reshape(sol, (self.num_vars, -1), order="C")
 		return sol
