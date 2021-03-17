@@ -12,13 +12,17 @@ from perform.solution.solution_phys import SolutionPhys
 from perform.solution.solution_interior import SolutionInterior
 from perform.solution.solution_boundary.solution_inlet import SolutionInlet
 from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
-from perform.higher_order_funcs import calc_cell_gradients
 from perform.time_integrator import get_time_integrator
 
 # flux schemes
 # TODO: make an __init__.py with get_flux_scheme()
 from perform.flux.invisc_flux.roe_invisc_flux import RoeInviscFlux
 from perform.flux.visc_flux.standard_visc_flux import StandardViscFlux
+
+# gradient limiters
+# TODO: make an __init__.py with get_limiter()
+from perform.limiter.barth_jesp_limiter import BarthJespLimiter
+from perform.limiter.venkat_limiter import VenkatLimiter
 
 # gas models
 # TODO: make an __init__.py with get_gas_model()
@@ -98,8 +102,21 @@ class SolutionDomain:
 			raise ValueError("Invalid entry for visc_flux_name: "
 							+ str(self.visc_flux_name))
 		
+		# higher-order reconstructions and gradient limiters
 		self.space_order = catch_input(param_dict, "space_order", 1)
-		self.grad_limiter = catch_input(param_dict, "grad_limiter", "")
+		assert (self.space_order >= 1), \
+			"space_order must be a positive integer"
+		if self.space_order > 1:
+			self.grad_limiter_type = catch_input(param_dict, "grad_limiter_type", "")
+			if self.grad_limiter_type == "":
+				pass
+			elif self.grad_limiter_type == "barth":
+				self.grad_limiter = BarthJespLimiter()
+			elif self.grad_limiter_type == "venkat":
+				self.grad_limiter = VenkatLimiter()
+			else:
+				raise ValueError("Invalid entry for grad_limiter_type: "
+								+ str(self.grad_limiter_type))
 
 		# for flux calculations
 		ones_prof = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells + 1),
@@ -297,7 +314,7 @@ class SolutionDomain:
 
 		# add higher-order contribution
 		if (self.space_order > 1):
-			sol_prim_grad = calc_cell_gradients(self)
+			sol_prim_grad = self.calc_cell_gradients()
 			sol_left.sol_prim[:, self.flux_left_extract] += \
 				(self.mesh.dx / 2.0) * sol_prim_grad[:, self.grad_left_extract]
 			sol_right.sol_prim[:, self.flux_right_extract] -= \
@@ -322,6 +339,33 @@ class SolutionDomain:
 			sol_int.wf[:, direct_samp_idxs] = wf
 
 			sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]
+
+	def calc_cell_gradients(self):
+		"""
+		Compute cell-centered gradients for higher-order face reconstructions
+		Also calculate gradient limiters if requested
+		"""
+
+		# TODO: for dual_time = False,
+		# 	should be calculating conservative variable gradients
+
+		# Compute gradients via finite difference stencil
+		sol_prim_grad = np.zeros((self.gas_model.num_eqs,
+									self.num_grad_cells), dtype=REAL_TYPE)
+		if self.space_order == 2:
+			sol_prim_grad = ((0.5 / self.mesh.dx)
+				* (self.sol_prim_full[:, self.grad_idxs + 1]
+				- self.sol_prim_full[:, self.grad_idxs - 1]))
+		else:
+			raise ValueError("Order " + str(self.space_order)
+								+ " gradient calculations not implemented")
+
+		# compute gradient limiter and limit gradient, if requested
+		if self.grad_limiter_type != "":
+			phi = self.grad_limiter.calc_limiter(self, sol_prim_grad)
+			sol_prim_grad = sol_prim_grad * phi
+
+		return sol_prim_grad
 
 	def calc_res_jacob(self, solver):
 		"""
