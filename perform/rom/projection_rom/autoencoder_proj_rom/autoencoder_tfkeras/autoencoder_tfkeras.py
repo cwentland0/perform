@@ -13,7 +13,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 	See user guide for notes on expected input format
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
 		self.run_gpu = catch_input(rom_domain.rom_dict, "run_gpu", False)
 		init_device(self.run_gpu)
@@ -31,7 +31,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 			raise ValueError("io_format must be either \"nchw\" or \"nhwc\";"
 							+ "you entered " + str(self.io_format))
 
-		super().__init__(model_idx, rom_domain, solver, sol_domain)
+		super().__init__(model_idx, rom_domain, sol_domain)
 
 		# initialize tf.Variable for Jacobian calculations
 		# otherwise, recreating this will cause retracing of the computational graph

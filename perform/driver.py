@@ -7,7 +7,7 @@ import warnings
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
 from perform.visualization.visualization_group import VisualizationGroup
-# from perform.rom.rom_domain import RomDomain
+from perform.rom.rom_domain import RomDomain
 
 warnings.filterwarnings("error")
 
@@ -31,8 +31,7 @@ def main():
 	# Initialize physical and ROM solutions
 	sol_domain = SolutionDomain(solver)
 	if solver.calc_rom:
-		raise ValueError("ROM temporarily out of comission")
-		# rom_domain = RomDomain(sol_domain, solver)
+		rom_domain = RomDomain(sol_domain, solver)
 	else:
 		rom_domain = None
 

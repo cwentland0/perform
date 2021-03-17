@@ -5,7 +5,7 @@ import numpy as np
 from perform.constants import REAL_TYPE
 
 
-class RomModel:
+class RomModel():
 	"""
 	Base class for any ROM model
 
@@ -17,14 +17,14 @@ class RomModel:
 	dimensional state, i.e. a "decoder"
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
 		self.model_idx = model_idx
 		self.latent_dim = rom_domain.latent_dims[self.model_idx]
 		self.var_idxs = np.array(rom_domain.model_var_idxs[self.model_idx],
 									dtype=np.int32)
 		self.num_vars = len(self.var_idxs)
-		self.num_cells = solver.mesh.num_cells
+		self.num_cells = sol_domain.mesh.num_cells
 		self.sol_shape = (self.num_vars, self.num_cells)
 
 		# Just copy some stuff for less clutter

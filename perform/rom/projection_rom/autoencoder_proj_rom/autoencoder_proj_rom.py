@@ -13,9 +13,9 @@ class AutoencoderProjROM(ProjectionROM):
 	(e.g. for TensorFlow, PyTorch)
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
-		super().__init__(model_idx, rom_domain, solver, sol_domain)
+		super().__init__(model_idx, rom_domain, sol_domain)
 
 		rom_dict = rom_domain.rom_dict
 

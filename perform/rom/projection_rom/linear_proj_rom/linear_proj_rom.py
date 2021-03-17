@@ -9,9 +9,9 @@ class LinearProjROM(ProjectionROM):
 	which use a linear basis representation
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
-		super().__init__(model_idx, rom_domain, solver, sol_domain)
+		super().__init__(model_idx, rom_domain, sol_domain)
 
 		# load and check trial basis
 		self.trial_basis = np.load(rom_domain.model_files[self.model_idx])
@@ -23,10 +23,10 @@ class LinearProjROM(ProjectionROM):
 			+ " represents a different number of variables "
 			+ "than specified by modelVarIdxs ("
 			+ str(num_vars_basis_in) + " != " + str(self.num_vars) + ")")
-		assert (num_cells_basis_in == solver.mesh.num_cells), \
+		assert (num_cells_basis_in == sol_domain.mesh.num_cells), \
 			("Basis at " + rom_domain.model_files[self.model_idx]
 			+ " has a different number of cells than the physical domain ("
-			+ str(num_cells_basis_in) + " != " + str(solver.mesh.num_cells) + ")")
+			+ str(num_cells_basis_in) + " != " + str(sol_domain.mesh.num_cells) + ")")
 		assert (num_modes_basis_in >= self.latent_dim), \
 			("Basis at " + rom_domain.model_files[self.model_idx]
 			+ " must have at least " + str(self.latent_dim) + " modes ("
@@ -43,7 +43,7 @@ class LinearProjROM(ProjectionROM):
 			assert (hyper_reduc_basis.ndim == 3), \
 				"Hyper-reduction basis must have three axes"
 			assert (hyper_reduc_basis.shape[:2]
-					== (sol_domain.gas_model.num_eqs, solver.mesh.num_cells)), \
+					== (sol_domain.gas_model.num_eqs, sol_domain.mesh.num_cells)), \
 				"Hyper reduction basis must have shape [num_eqs, num_cells, numHRModes]"
 
 			self.hyper_reduc_dim = rom_domain.hyper_reduc_dims[self.model_idx]
@@ -58,7 +58,7 @@ class LinearProjROM(ProjectionROM):
 				idx1 = var_num * rom_domain.num_samp_cells
 				idx2 = (var_num + 1) * rom_domain.num_samp_cells
 				self.direct_hyper_reduc_samp_idxs[idx1:idx2] = \
-					rom_domain.direct_samp_idxs + var_num * solver.mesh.num_cells
+					rom_domain.direct_samp_idxs + var_num * sol_domain.mesh.num_cells
 
 	def init_from_sol(self, sol_domain):
 		"""

@@ -8,7 +8,7 @@ class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
 	Class for computing non-linear Galerkin ROMs via a TensorFlow autoencoder
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
 		if (rom_domain.time_integrator.time_type == "explicit"):
 			raise ValueError("Explicit NLM SP-LSVT not implemented yet")
@@ -19,7 +19,7 @@ class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
 							+ " evolution, please use Galerkin or LSPG,"
 							+ " or set dual_time = True")
 
-		super().__init__(model_idx, rom_domain, solver, sol_domain)
+		super().__init__(model_idx, rom_domain, sol_domain)
 
 		if self.encoder_jacob:
 			raise ValueError("SP-LSVT is not equipped with an encoder"

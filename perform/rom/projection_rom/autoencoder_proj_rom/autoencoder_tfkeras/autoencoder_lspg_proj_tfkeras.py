@@ -10,7 +10,7 @@ class AutoencoderLSPGProjTFKeras(AutoencoderTFKeras):
 	via a TensorFlow autoencoder
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
 		if (rom_domain.time_integrator.time_type == "explicit"):
 			raise ValueError("NLM LSPG with an explicit time integrator"
@@ -21,7 +21,7 @@ class AutoencoderLSPGProjTFKeras(AutoencoderTFKeras):
 			raise ValueError("LSPG is intended for conservative variable"
 							+ " evolution, please set dual_time = False")
 
-		super().__init__(model_idx, rom_domain, solver, sol_domain)
+		super().__init__(model_idx, rom_domain, sol_domain)
 
 		if self.encoder_jacob:
 			raise ValueError("LSPG is not equipped with an encoder Jacobian"

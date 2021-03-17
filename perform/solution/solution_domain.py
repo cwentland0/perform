@@ -461,7 +461,7 @@ class SolutionDomain:
 			# 	Transposes are due to matmul assuming
 			# 	stacks are in first index, maybe a better way to do this?
 			gamma_matrix_inv = \
-				np.transpose(self.calc_d_sol_prim_d_sol_cons(),
+				np.transpose(sol_int.calc_d_sol_prim_d_sol_cons(),
 							axes=(2, 0, 1))
 			d_rhs_d_sol_cons = \
 				np.transpose(np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1))
