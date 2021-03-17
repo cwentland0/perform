@@ -56,12 +56,6 @@ class SystemSolver:
 			self.steady_tol = \
 				catch_input(param_dict, "steady_tol", const.L2_STEADY_TOL_DEFAULT)
 
-		# spatial discretization parameters
-		self.space_scheme = catch_input(param_dict, "space_scheme", "roe")
-		self.space_order = catch_input(param_dict, "space_order", 1)
-		self.grad_limiter = catch_input(param_dict, "grad_limiter", "")
-		self.visc_scheme = catch_input(param_dict, "visc_scheme", 0)
-
 		# restart files
 		# TODO: could move this to solutionDomain, not terribly necessary
 		self.save_restarts = catch_input(param_dict, "save_restarts", False)

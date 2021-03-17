@@ -297,7 +297,7 @@ def calc_d_roe_flux_d_sol_prim(sol_domain, solver):
 	d_flux_right_d_sol_prim_right = \
 		calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
 
-	if solver.visc_scheme > 0:
+	if sol_domain.visc_flux_name != "invisc":
 		d_visc_flux_d_sol_prim = \
 			calc_d_visc_flux_d_sol_prim(sol_domain.sol_ave)
 		d_flux_left_d_sol_prim_left -= d_visc_flux_d_sol_prim
@@ -435,7 +435,7 @@ def calc_adaptive_dtau(sol_domain, gamma_matrix, solver):
 	dtau = sol_domain.time_integrator.cfl * dtaum
 
 	# limit by von Neumann number
-	if solver.visc_scheme > 0:
+	if sol_domain.visc_flux_name != "invisc":
 		# TODO: calculating this is stupidly expensive, figure out a workaround
 		sol_int.dyn_visc_mix = \
 			gas_model.calc_mix_dynamic_visc(temperature=sol_int.sol_prim[2, :],

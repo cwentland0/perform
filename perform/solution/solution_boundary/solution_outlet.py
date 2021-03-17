@@ -24,7 +24,7 @@ class SolutionOutlet(SolutionBoundary):
 
 		super().__init__(gas, solver, "outlet")
 
-	def calc_subsonic_bc(self, solver, sol_prim=None, sol_cons=None):
+	def calc_subsonic_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
 		"""
 		Subsonic outflow, specify outlet static pressure
 		"""
@@ -36,7 +36,7 @@ class SolutionOutlet(SolutionBoundary):
 
 		press_bound = self.press
 		if self.pert_type == "pressure":
-			press_bound *= (1.0 + self.calc_pert(solver.sol_time))
+			press_bound *= (1.0 + self.calc_pert(sol_time))
 
 		# chemical composition assumed constant near boundary
 		r_mix = self.r_mix[0]
@@ -60,15 +60,15 @@ class SolutionOutlet(SolutionBoundary):
 		j_p2 = vel_p2 + 2.0 * c_p2 / gamma_mix_m1
 
 		# extrapolate to exterior
-		if solver.space_order == 1:
+		if space_order == 1:
 			s = s_p1
 			j = j_p1
-		elif solver.space_order == 2:
+		elif space_order == 2:
 			s = 2.0 * s_p1 - s_p2
 			j = 2.0 * j_p1 - j_p2
 		else:
 			raise ValueError("Higher order extrapolation implementation "
-							+ "required for spatial order " + str(solver.space_order))
+							+ "required for spatial order " + str(space_order))
 
 		# compute exterior state
 		self.sol_prim[0, 0] = press_bound
@@ -77,7 +77,7 @@ class SolutionOutlet(SolutionBoundary):
 		self.sol_prim[1, 0] = j - 2.0 * c_bound / gamma_mix_m1
 		self.sol_prim[2, 0] = press_bound / (r_mix * rho_bound)
 
-	def calc_mean_flow_bc(self, solver, sol_prim=None, sol_cons=None):
+	def calc_mean_flow_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
 		"""
 		Non-reflective boundary, unsteady solution is
 		perturbation about mean flow solution
@@ -91,7 +91,7 @@ class SolutionOutlet(SolutionBoundary):
 		press_back = self.press
 
 		if self.pert_type == "pressure":
-			press_back *= (1.0 + self.calc_pert(solver.sol_time))
+			press_back *= (1.0 + self.calc_pert(sol_time))
 
 		# interior quantities
 		press_out = sol_prim[0, -2:]
@@ -105,17 +105,17 @@ class SolutionOutlet(SolutionBoundary):
 		w_4_out = mass_frac_out
 
 		# extrapolate to exterior
-		if solver.space_order == 1:
+		if space_order == 1:
 			w_1_bound = w_1_out[0]
 			w_2_bound = w_2_out[0]
 			w_4_bound = w_4_out[:, 0]
-		elif solver.space_order == 2:
+		elif space_order == 2:
 			w_1_bound = 2.0 * w_1_out[0] - w_1_out[1]
 			w_2_bound = 2.0 * w_2_out[0] - w_2_out[1]
 			w_4_bound = 2.0 * w_4_out[:, 0] - w_4_out[:, 0]
 		else:
 			raise ValueError("Higher order extrapolation implementation "
-							+ "required for spatial order " + str(solver.space_order))
+							+ "required for spatial order " + str(space_order))
 
 		# compute exterior state
 		press_bound = (w_2_bound * rho_c_mean + press_back) / 2.0

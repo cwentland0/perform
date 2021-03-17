@@ -300,7 +300,7 @@ class RomDomain:
 		sol_domain.num_flux_faces = len(sol_domain.flux_samp_left_idxs)
 
 		# Roe average
-		if solver.spaceScheme == "roe":
+		if sol_domain.invisc_flux_name == "roe":
 			ones_prof = \
 				np.ones((sol_domain.gas_model.num_eqs, sol_domain.num_flux_faces),
 						dtype=const.REAL_TYPE)
@@ -320,8 +320,8 @@ class RomDomain:
 		# compute indices for gradient calculations
 		# NOTE: also need to account for prepended/appended boundary cells
 		# TODO: generalize for higher-order schemes
-		if solver.space_order > 1:
-			if solver.space_order == 2:
+		if sol_domain.space_order > 1:
+			if sol_domain.space_order == 2:
 				sol_domain.grad_idxs = \
 					np.concatenate((sol_domain.direct_samp_idxs + 1,
 									sol_domain.direct_samp_idxs,

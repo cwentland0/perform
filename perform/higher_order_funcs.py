@@ -12,34 +12,33 @@ def calc_cell_gradients(sol_domain, solver):
 	# Compute gradients via finite difference stencil
 	sol_prim_grad = np.zeros((sol_domain.gas_model.num_eqs,
 								sol_domain.num_grad_cells), dtype=REAL_TYPE)
-	if solver.space_order == 2:
+	if sol_domain.space_order == 2:
 		sol_prim_grad = ((0.5 / solver.mesh.dx)
 			* (sol_domain.sol_prim_full[:, sol_domain.grad_idxs + 1]
 			- sol_domain.sol_prim_full[:, sol_domain.grad_idxs - 1]))
 	else:
-		raise ValueError("Order " + str(solver.space_order)
+		raise ValueError("Order " + str(sol_domain.space_order)
 							+ " gradient calculations not implemented")
 
 	# compute gradient limiter and limit gradient, if requested
-	if solver.grad_limiter != "":
+	if sol_domain.grad_limiter != "":
 
 		# Barth-Jespersen
-		if solver.grad_limiter == "barth":
+		if sol_domain.grad_limiter == "barth":
 			phi = limiter_barth_jespersen(sol_domain, sol_prim_grad, solver.mesh)
 
 		# Venkatakrishnan, no correction
-		elif solver.grad_limiter == "venkat":
+		elif sol_domain.grad_limiter == "venkat":
 			phi = limiter_venkatakrishnan(sol_domain, sol_prim_grad, solver.mesh)
 
 		else:
 			raise ValueError("Invalid input for grad_limiter: "
-								+ str(solver.grad_limiter))
+								+ str(sol_domain.grad_limiter))
 
 		# limit gradient
 		sol_prim_grad = sol_prim_grad * phi
 
 	return sol_prim_grad
-
 
 def find_neighbor_minmax(sol):
 	"""
@@ -59,7 +58,6 @@ def find_neighbor_minmax(sol):
 	sol_min[:, 1:] = np.minimum(sol_min[:, 1:], sol[:, :-1])
 
 	return sol_min, sol_max
-
 
 def limiter_barth_jespersen(sol_domain, grad, mesh):
 	"""
@@ -110,7 +108,6 @@ def limiter_barth_jespersen(sol_domain, grad, mesh):
 	phi = np.minimum(phi_left, phi_right)
 
 	return phi
-
 
 def limiter_venkatakrishnan(sol_domain, grad, mesh):
 	"""

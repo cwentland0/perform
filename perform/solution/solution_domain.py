@@ -14,8 +14,15 @@ from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
 from perform.space_schemes import calc_rhs
 from perform.jacobians import calc_d_res_d_sol_prim
 from perform.time_integrator import get_time_integrator
+
+# flux schemes
+# TODO: make an __init__.py with get_flux_scheme()
+from perform.flux.invisc_flux.roe_invisc_flux import RoeInviscFlux
+from perform.flux.visc_flux.standard_visc_flux import StandardViscFlux
+from perform.flux.visc_flux.invisc_visc_flux import InviscViscFlux
+
 # gas models
-# TODO: make an __init__.py with getGasModel()
+# TODO: make an __init__.py with get_gas_model()
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
 
@@ -28,9 +35,6 @@ class SolutionDomain:
 
 		param_dict = solver.param_dict
 
-		# time integrator
-		self.time_integrator = get_time_integrator(solver.time_scheme, param_dict)
-
 		# gas model
 		gas_file = str(param_dict["gas_file"])
 		gas_dict = read_input_file(gas_file)
@@ -41,6 +45,9 @@ class SolutionDomain:
 			raise ValueError("Ivalid choice of gas_type: " + gas_type)
 		gas = self.gas_model
 
+		# time integrator
+		self.time_integrator = get_time_integrator(solver.time_scheme, param_dict)
+
 		# solution
 		sol_prim_init = get_initial_conditions(self, solver)
 		self.sol_int = SolutionInterior(gas, sol_prim_init,
@@ -48,12 +55,33 @@ class SolutionDomain:
 		self.sol_inlet = SolutionInlet(gas, solver)
 		self.sol_outlet = SolutionOutlet(gas, solver)
 
-		# average solution for Roe scheme
-		if solver.space_scheme == "roe":
+		# flux scheme
+		self.invisc_flux_name = catch_input(param_dict, "invisc_flux_name", "roe")
+		self.visc_flux_name = catch_input(param_dict, "visc_flux_name", "none")
+		
+		# inviscid flux scheme
+		if self.invisc_flux_name == "roe":
+			self.invisc_flux_scheme = RoeInviscFlux(self, solver)
+			# TODO: move this to the actual flux class
 			ones_prof = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells + 1),
 								dtype=REAL_TYPE)
 			self.sol_ave = SolutionPhys(gas, self.sol_int.num_cells + 1,
 										sol_prim_in=ones_prof)
+		else:
+			raise ValueError("Invalid entry for invisc_flux_name: "
+							+ str(self.invisc_flux_name))
+
+		# viscous flux scheme
+		if self.visc_flux_name == "invisc":
+			self.visc_flux_scheme = InviscViscFlux(self, solver)
+		elif self.visc_flux_name == "standard":
+			self.visc_flux_scheme = StandardViscFlux(self, solver)
+		else:
+			raise ValueError("Invalid entry for visc_flux_name: "
+							+ str(self.visc_flux_name))
+		
+		self.space_order = catch_input(param_dict, "space_order", 1)
+		self.grad_limiter = catch_input(param_dict, "grad_limiter", "")
 
 		# for flux calculations
 		ones_prof = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells + 1),
@@ -213,17 +241,17 @@ class SolutionDomain:
 			sol_int.sol_cons = sol_int.sol_hist_cons[0] + d_sol
 			sol_int.update_state(from_cons=True)
 
-	def calc_boundary_cells(self, solver):
+	def calc_flux(self, sol_domain, solver):
 		"""
-		Helper function to update boundary ghost cells
+		Compute cell face fluxes
 		"""
 
-		self.sol_inlet.calc_boundary_state(solver,
-											sol_prim=self.sol_int.sol_prim,
-											sol_cons=self.sol_int.sol_cons)
-		self.sol_outlet.calc_boundary_state(solver,
-											sol_prim=self.sol_int.sol_prim,
-											sol_cons=self.sol_int.sol_cons)
+		invisc_flux = self.invisc_flux_scheme.calc_flux(sol_domain, solver)
+		visc_flux = self.visc_flux_scheme.calc_flux(sol_domain, solver)
+
+		flux = invisc_flux - visc_flux
+
+		return flux
 
 	def write_iter_outputs(self, solver):
 		"""
