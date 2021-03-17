@@ -24,9 +24,8 @@ def main():
 	assert (os.path.isdir(working_dir)),\
 			"Given working directory does not exist"
 
-	# Retrieve solver parameters and initialize mesh
+	# Retrieve global solver parameters
 	# TODO: multi-domain solvers
-	# TODO: move mesh to solution_domain
 	solver = SystemSolver(working_dir)
 
 	# Initialize physical and ROM solutions

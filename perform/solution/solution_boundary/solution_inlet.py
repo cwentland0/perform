@@ -26,7 +26,7 @@ class SolutionInlet(SolutionBoundary):
 
 		super().__init__(gas, solver, "inlet")
 
-	def calc_stagnation_bc(self, solver, sol_prim=None, sol_cons=None):
+	def calc_stagnation_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
 		"""
 		Specify stagnation temperature and stagnation pressure
 		"""
@@ -50,13 +50,13 @@ class SolutionInlet(SolutionBoundary):
 		j2 = -vel_p2 - (2.0 * c_p2) / gamma_mix_m1
 
 		# extrapolate to exterior
-		if solver.space_order == 1:
+		if space_order == 1:
 			J = j1
-		elif solver.space_order == 2:
+		elif space_order == 2:
 			J = 2.0 * j1 - j2
 		else:
 			raise ValueError("Higher order extrapolation implementation "
-							+ "required for spatial order " + str(solver.space_order))
+							+ "required for spatial order " + str(space_order))
 
 		# quadratic form for exterior Mach number
 		c2 = gamma_mix * r_mix * self.temp
@@ -94,7 +94,7 @@ class SolutionInlet(SolutionBoundary):
 		c_bound = sqrt(gamma_mix * r_mix * temp_bound)
 		self.sol_prim[1, 0] = mach_bound * c_bound
 
-	def calc_full_state_bc(self, solver, sol_prim=None, sol_cons=None):
+	def calc_full_state_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
 		"""
 		Full state specification
 		Mostly just for perturbing inlet state to check for outlet reflections
@@ -106,18 +106,18 @@ class SolutionInlet(SolutionBoundary):
 
 		# perturbation
 		if self.pert_type == "pressure":
-			press_bound *= (1.0 + self.calc_pert(solver.sol_time))
+			press_bound *= (1.0 + self.calc_pert(sol_time))
 		elif self.pert_type == "velocity":
-			vel_bound *= (1.0 + self.calc_pert(solver.sol_time))
+			vel_bound *= (1.0 + self.calc_pert(sol_time))
 		elif self.pert_type == "temperature":
-			press_bound *= (1.0 + self.calc_pert(solver.sol_time))
+			press_bound *= (1.0 + self.calc_pert(sol_time))
 
 		# compute ghost cell state
 		self.sol_prim[0, 0] = press_bound
 		self.sol_prim[1, 0] = vel_bound
 		self.sol_prim[2, 0] = temp_bound
 
-	def calc_mean_flow_bc(self, solver, sol_prim=None, sol_cons=None):
+	def calc_mean_flow_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
 		"""
 		Non-reflective boundary, unsteady solution
 		is perturbation about mean flow solution
@@ -134,7 +134,7 @@ class SolutionInlet(SolutionBoundary):
 		rho_cp_mean = self.rho
 
 		if self.pert_type == "pressure":
-			press_up *= (1.0 + self.calc_pert(solver.sol_time))
+			press_up *= (1.0 + self.calc_pert(sol_time))
 
 		# interior quantities
 		press_in = sol_prim[0, :2]
@@ -144,13 +144,13 @@ class SolutionInlet(SolutionBoundary):
 		w_3_in = vel_in - press_in / rho_c_mean
 
 		# extrapolate to exterior
-		if solver.space_order == 1:
+		if space_order == 1:
 			w_3_bound = w_3_in[0]
-		elif solver.space_order == 2:
+		elif space_order == 2:
 			w_3_bound = 2.0 * w_3_in[0] - w_3_in[1]
 		else:
 			raise ValueError("Higher order extrapolation implementation "
-							+ "required for spatial order " + str(solver.space_order))
+							+ "required for spatial order " + str(space_order))
 
 		# compute exterior state
 		press_bound = (press_up - w_3_bound * rho_c_mean) / 2.0

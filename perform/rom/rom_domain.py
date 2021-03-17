@@ -5,10 +5,8 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.input_funcs import read_input_file, catch_list, catch_input
-from perform.time_integrator import get_time_integrator
 from perform.solution.solution_phys import SolutionPhys
-from perform.space_schemes import calc_rhs
-from perform.jacobians import calc_d_res_d_sol_prim
+from perform.time_integrator import get_time_integrator
 from perform.rom import get_rom_model
 
 # TODO: when moving to multi-domain, it may be useful to just
@@ -109,7 +107,7 @@ class RomDomain:
 		# set up hyper-reduction, if necessary
 		self.hyper_reduc = catch_input(rom_dict, "hyper_reduc", False)
 		if self.is_intrusive and self.hyper_reduc:
-			self.load_hyper_reduc(sol_domain, solver)
+			self.load_hyper_reduc(sol_domain)
 
 		# get time integrator, if necessary
 		# TODO: time_scheme should be specific to the RomDomain, not the solver
@@ -124,7 +122,7 @@ class RomDomain:
 		for model_idx in range(self.num_models):
 
 			self.model_list[model_idx] = \
-				get_rom_model(model_idx, self, solver, sol_domain)
+				get_rom_model(model_idx, self, sol_domain)
 			model = self.model_list[model_idx]
 
 			# initialize state
@@ -243,7 +241,7 @@ class RomDomain:
 					self.code_init[model_idx] = np.load(init_file)
 					self.init_rom_from_file[model_idx] = True
 
-	def load_hyper_reduc(self, sol_domain, solver):
+	def load_hyper_reduc(self, sol_domain):
 		"""
 		Loads direct sampling indices and
 		determines cell indices for calculating fluxes and gradients
@@ -267,13 +265,13 @@ class RomDomain:
 			(np.sort(sol_domain.direct_samp_idxs)).astype(np.int32)
 		sol_domain.num_samp_cells = len(sol_domain.direct_samp_idxs)
 		assert (sol_domain.num_samp_cells
-				<= solver.mesh.num_cells), \
+				<= sol_domain.mesh.num_cells), \
 			"Cannot supply more sampling points than cells in domain."
 		assert (np.amin(sol_domain.direct_samp_idxs)
 				>= 0), \
 			"Sampling indices must be non-negative integers"
 		assert (np.amax(sol_domain.direct_samp_idxs)
-				< solver.mesh.num_cells), \
+				< sol_domain.mesh.num_cells), \
 			"Sampling indices must be less than the number of cells in the domain"
 		assert (len(np.unique(sol_domain.direct_samp_idxs))
 				== sol_domain.num_samp_cells), \
@@ -300,7 +298,7 @@ class RomDomain:
 		sol_domain.num_flux_faces = len(sol_domain.flux_samp_left_idxs)
 
 		# Roe average
-		if solver.spaceScheme == "roe":
+		if sol_domain.invisc_flux_name == "roe":
 			ones_prof = \
 				np.ones((sol_domain.gas_model.num_eqs, sol_domain.num_flux_faces),
 						dtype=const.REAL_TYPE)
@@ -320,8 +318,8 @@ class RomDomain:
 		# compute indices for gradient calculations
 		# NOTE: also need to account for prepended/appended boundary cells
 		# TODO: generalize for higher-order schemes
-		if solver.space_order > 1:
-			if solver.space_order == 2:
+		if sol_domain.space_order > 1:
+			if sol_domain.space_order == 2:
 				sol_domain.grad_idxs = \
 					np.concatenate((sol_domain.direct_samp_idxs + 1,
 									sol_domain.direct_samp_idxs,
@@ -330,7 +328,7 @@ class RomDomain:
 				# exclude left neighbor of inlet, right neighbor of outlet
 				if sol_domain.grad_idxs[0] == 0:
 					sol_domain.grad_idxs = sol_domain.grad_idxs[1:]
-				if sol_domain.grad_idxs[-1] == (solver.mesh.num_cells + 1):
+				if sol_domain.grad_idxs[-1] == (sol_domain.mesh.num_cells + 1):
 					sol_domain.grad_idxs = sol_domain.grad_idxs[:-1]
 				sol_domain.num_grad_cells = len(sol_domain.grad_idxs)
 
@@ -341,7 +339,7 @@ class RomDomain:
 				# exclude left neighbor of inlet, right neighbor of outlet
 				if sol_domain.grad_neigh_idxs[0] == -1:
 					sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[1:]
-				if (sol_domain.grad_neigh_idxs[-1] == (solver.mesh.num_cells + 2)):
+				if (sol_domain.grad_neigh_idxs[-1] == (sol_domain.mesh.num_cells + 2)):
 					sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[:-1]
 
 				# indices of grad_idxs in grad_neigh_idxs
@@ -438,7 +436,7 @@ class RomDomain:
 		res, res_jacob = None, None
 
 		if self.is_intrusive:
-			calc_rhs(sol_domain, solver)
+			sol_domain.calc_rhs(solver)
 
 		if self.time_integrator.time_type == "implicit":
 
@@ -447,7 +445,7 @@ class RomDomain:
 				res = self.time_integrator.calc_residual(sol_int.sol_hist_cons,
 														sol_int.rhs,
 														solver)
-				res_jacob = calc_d_res_d_sol_prim(sol_domain, solver)
+				res_jacob = sol_domain.calc_res_jacob(solver)
 
 			# compute change in low-dimensional state
 			for model_idx, model in enumerate(self.model_list):

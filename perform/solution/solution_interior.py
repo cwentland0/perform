@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from scipy.sparse import csr_matrix
 
 from perform.constants import REAL_TYPE, RES_NORM_PRIM_DEFAULT
 from perform.solution.solution_phys import SolutionPhys
@@ -11,11 +12,10 @@ class SolutionInterior(SolutionPhys):
 	Solution of interior domain
 	"""
 
-	def __init__(self, gas, sol_prim_in, solver, time_int):
-		super().__init__(gas, solver.mesh.num_cells, sol_prim_in=sol_prim_in)
+	def __init__(self, gas, sol_prim_in, solver, num_cells, time_int):
+		super().__init__(gas, num_cells, sol_prim_in=sol_prim_in)
 
 		gas = self.gas_model
-		num_cells = solver.mesh.num_cells
 
 		self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)
 		self.rhs = np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)
@@ -118,6 +118,176 @@ class SolutionInterior(SolutionPhys):
 				self.d_sol_norm_l2 = 0.0
 				self.d_sol_norm_l1 = 0.0
 				self.d_sol_norm_history = np.zeros((solver.num_steps, 2), dtype=REAL_TYPE)
+
+	def calc_d_sol_prim_d_sol_cons(self):
+		"""
+		Compute the Jacobian of the conservative state w/r/t/ the primitive state
+		This appears as Gamma^{-1} in the PERFORM documentation
+		"""
+
+		# TODO: some repeated calculations
+		# TODO: add option for preconditioning d_rho_d_press
+
+		gas = self.gas_model
+
+		gamma_matrix_inv = np.zeros((gas.num_eqs, gas.num_eqs, self.num_cells))
+
+		# for clarity
+		rho = self.sol_cons[0, :]
+		press = self.sol_prim[0, :]
+		vel = self.sol_prim[1, :]
+		temp = self.sol_prim[2, :]
+		mass_fracs = self.sol_prim[3:, :]
+
+		d_rho_d_press = self.d_rho_d_press
+		d_rho_d_temp = self.d_rho_d_temp
+		d_rho_d_mass_frac = self.d_rho_d_mass_frac
+		d_enth_d_press = self.d_enth_d_press
+		d_enth_d_temp = self.d_enth_d_temp
+		d_enth_d_mass_frac = self.d_enth_d_mass_frac
+		h0 = self.h0
+
+		# some reused terms
+		d = (rho * d_rho_d_press * d_enth_d_temp
+			- d_rho_d_temp * (rho * d_enth_d_press - 1.0))
+		vel_sq = np.square(vel)
+
+		# density row
+		gamma_matrix_inv[0, 0, :] = \
+			(rho * d_enth_d_temp + d_rho_d_temp * (h0 - vel_sq)
+			+ np.sum(mass_fracs * (d_rho_d_mass_frac * d_enth_d_temp[None, :]
+			- d_rho_d_temp[None, :] * d_enth_d_mass_frac), axis=0)) / d
+		gamma_matrix_inv[0, 1, :] = vel * d_rho_d_temp / d
+		gamma_matrix_inv[0, 2, :] = -d_rho_d_temp / d
+		gamma_matrix_inv[0, 3:, :] = \
+			(d_rho_d_temp[None, :] * d_enth_d_mass_frac
+			- d_rho_d_mass_frac * d_enth_d_temp[None, :]) / d[None, :]
+
+		# momentum row
+		gamma_matrix_inv[1, 0, :] = -vel / rho
+		gamma_matrix_inv[1, 1, :] = 1.0 / rho
+
+		# energy row
+		gamma_matrix_inv[2, 0, :] = \
+			((-d_rho_d_press * (h0 - vel_sq) - (rho * d_enth_d_press - 1.0)
+			+ np.sum(mass_fracs * ((rho * d_rho_d_press)[None, :] * d_enth_d_mass_frac
+			+ d_rho_d_mass_frac * (rho * d_enth_d_press - 1.0)[None, :]), axis=0) / rho)
+			/ d)
+		gamma_matrix_inv[2, 1, :] = -vel * d_rho_d_press / d
+		gamma_matrix_inv[2, 2, :] = d_rho_d_press / d
+		gamma_matrix_inv[2, 3:, :] = \
+			(-((rho * d_rho_d_press)[None, :] * d_enth_d_mass_frac
+			+ d_rho_d_mass_frac * (rho * d_enth_d_press - 1.0)[None, :])
+			/ (rho * d)[None, :])
+
+		# species row(s)
+		gamma_matrix_inv[3:, 0, :] = -mass_fracs / rho[None, :]
+		for i in range(3, gas.num_eqs):
+			gamma_matrix_inv[i, i, :] = 1.0 / rho
+
+		return gamma_matrix_inv
+
+	def calc_d_sol_cons_d_sol_prim(self):
+		"""
+		Compute the Jacobian of conservative state w/r/t the primitive state
+		This appears as Gamma in the PERFORM documentation
+		"""
+
+		# TODO: add option for preconditioning d_rho_d_press
+
+		gas = self.gas_model
+
+		gamma_matrix = np.zeros((gas.num_eqs, gas.num_eqs, self.num_cells))
+
+		# for clarity
+		rho = self.sol_cons[0, :]
+		press = self.sol_prim[0, :]
+		vel = self.sol_prim[1, :]
+		temp = self.sol_prim[2, :]
+		mass_fracs = self.sol_prim[3:, :]
+
+		d_rho_d_press = self.d_rho_d_press
+		d_rho_d_temp = self.d_rho_d_temp
+		d_rho_d_mass_frac = self.d_rho_d_mass_frac
+		d_enth_d_press = self.d_enth_d_press
+		d_enth_d_temp = self.d_enth_d_temp
+		d_enth_d_mass_frac = self.d_enth_d_mass_frac
+		h0 = self.h0
+
+		# density row
+		gamma_matrix[0, 0, :] = d_rho_d_press
+		gamma_matrix[0, 2, :] = d_rho_d_temp
+		gamma_matrix[0, 3:, :] = d_rho_d_mass_frac
+
+		# momentum row
+		gamma_matrix[1, 0, :] = vel * d_rho_d_press
+		gamma_matrix[1, 1, :] = rho
+		gamma_matrix[1, 2, :] = vel * d_rho_d_temp
+		gamma_matrix[1, 3:, :] = vel[None, :] * d_rho_d_mass_frac
+
+		# total energy row
+		gamma_matrix[2, 0, :] = d_rho_d_press * h0 + rho * d_enth_d_press - 1.0
+		gamma_matrix[2, 1, :] = rho * vel
+		gamma_matrix[2, 2, :] = d_rho_d_temp * h0 + rho * d_enth_d_temp
+		gamma_matrix[2, 3:, :] = (h0[None, :] * d_rho_d_mass_frac
+								+ rho[None, :] * d_enth_d_mass_frac)
+
+		# species row
+		gamma_matrix[3:, 0, :] = \
+			mass_fracs[gas.mass_frac_slice, :] * d_rho_d_press[None, :]
+		gamma_matrix[3:, 2, :] = \
+			mass_fracs[gas.mass_frac_slice, :] * d_rho_d_temp[None, :]
+		for i in range(3, gas.num_eqs):
+			for j in range(3, gas.num_eqs):
+				gamma_matrix[i, j, :] = ((i == j) * rho
+										+ mass_fracs[i - 3, :] * d_rho_d_mass_frac[j - 3, :])
+
+		return gamma_matrix
+
+	def res_jacob_assemble(self, center_block, lower_block, upper_block):
+		'''
+		Reassemble residual Jacobian into a sparse 2D array for linear solve
+		'''
+
+		# TODO: my God, this is still the single most expensive operation
+		# 	How can this be any simpler/faster??? Preallocating "data" is *slower*
+
+		data = np.concatenate((center_block.ravel("C"),
+								lower_block.ravel("C"),
+								upper_block.ravel("C")))
+		res_jacob = \
+			csr_matrix((data, (self.jacob_row_idxs, self.jacob_col_idxs)),
+						shape=(self.jacob_dim, self.jacob_dim), dtype=REAL_TYPE)
+
+		return res_jacob
+
+	def calc_adaptive_dtau(self, mesh):
+		"""
+		Adapt dtau for each cell based on user input constraints and local wave speed
+		"""
+
+		gas_model = self.gas_model
+
+		# compute initial dtau from input cfl and srf (max characteristic speed)
+		# srf is computed in calcInvFlux
+		dtaum = 1.0 * mesh.dx / self.srf
+		dtau = self.time_integrator.cfl * dtaum
+
+		# limit by von Neumann number
+		if self.visc_flux_name != "invisc":
+			# TODO: calculating this is stupidly expensive, figure out a workaround
+			self.dyn_visc_mix = \
+				gas_model.calc_mix_dynamic_visc(temperature=self.sol_prim[2, :],
+												mass_fracs=self.sol_prim[3:, :])
+			nu = self.dyn_visc_mix / self.sol_cons[0, :]
+			dtau = np.minimum(dtau,
+					self.time_integrator.vnn * np.square(mesh.dx) / nu)
+			dtaum = np.minimum(dtaum, 3.0 / nu)
+
+		# limit dtau
+		# TODO: implement solutionChangeLimitedTimeStep from gems_precon.f90
+
+		return 1.0 / dtau
 
 	def update_sol_hist(self):
 		"""

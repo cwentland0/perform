@@ -26,19 +26,9 @@ class GasModel:
 			self.species_names = \
 				["Species_" + str(x + 1) for x in range(self.num_species_full)]
 
-		# Arrhenius factors
-		# TODO: modify these to allow for multiple global reactions
-		self.nu = gas_dict["nu"].astype(REAL_TYPE)
-		self.nu_arr = gas_dict["nu_arr"].astype(REAL_TYPE)
-		self.act_energy = float(gas_dict["act_energy"])
-		self.pre_exp_fact = float(gas_dict["pre_exp_fact"])
-
 		# Check input lengths
 		assert (len(self.mol_weights) == self.num_species_full)
 		# TODO: check lengths of reaction inputs
-
-		# Misc calculations
-		self.mol_weight_nu = self.mol_weights * self.nu
 
 		# Dealing with single-species option
 		if self.num_species_full == 1:

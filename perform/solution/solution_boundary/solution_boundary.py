@@ -57,11 +57,11 @@ class SolutionBoundary(SolutionPhys):
 
 		return pert
 
-	def calc_boundary_state(self, solver, sol_prim=None, sol_cons=None):
+	def calc_boundary_state(self, sol_time, space_order, sol_prim=None, sol_cons=None):
 		"""
 		Run boundary calculation and update ghost cell state
 		Assumed that boundary function sets primitive state
 		"""
 
-		self.bound_func(solver, sol_prim, sol_cons)
+		self.bound_func(sol_time, space_order, sol_prim=sol_prim, sol_cons=sol_cons)
 		self.update_state(from_cons=False)

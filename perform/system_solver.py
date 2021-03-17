@@ -32,11 +32,6 @@ class SystemSolver:
 		self.restart_output_dir = mkdir_shallow(self.working_dir,
 												const.RESTART_OUTPUT_DIR_NAME)
 
-		# spatial domain
-		mesh_file = str(param_dict["mesh_file"])
-		mesh_dict = read_input_file(mesh_file)
-		self.mesh = Mesh(mesh_dict)
-
 		# initial condition file
 		try:
 			self.init_file = str(param_dict["init_file"])
@@ -55,12 +50,6 @@ class SystemSolver:
 		if self.run_steady:
 			self.steady_tol = \
 				catch_input(param_dict, "steady_tol", const.L2_STEADY_TOL_DEFAULT)
-
-		# spatial discretization parameters
-		self.space_scheme = catch_input(param_dict, "space_scheme", "roe")
-		self.space_order = catch_input(param_dict, "space_order", 1)
-		self.grad_limiter = catch_input(param_dict, "grad_limiter", "")
-		self.visc_scheme = catch_input(param_dict, "visc_scheme", 0)
 
 		# restart files
 		# TODO: could move this to solutionDomain, not terribly necessary
@@ -87,7 +76,7 @@ class SystemSolver:
 		# misc
 		self.vel_add = catch_input(param_dict, "vel_add", 0.0)
 		self.res_norm_prim = catch_input(param_dict, "res_norm_prim", [None])
-		self.source_on = catch_input(param_dict, "source_on", True)
+		self.source_off = catch_input(param_dict, "source_off", False)
 		self.solve_failed = False
 
 		# visualization

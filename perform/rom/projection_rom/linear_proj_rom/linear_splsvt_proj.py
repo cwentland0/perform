@@ -9,7 +9,7 @@ class LinearSPLSVTProj(LinearProjROM):
 	Trial basis is assumed to represent the conserved variables
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
 		if rom_domain.time_integrator.time_type == "explicit":
 			raise ValueError("Explicit SP-LSVT not implemented yet")
@@ -20,7 +20,7 @@ class LinearSPLSVTProj(LinearProjROM):
 							+ "evolution, please use Galerkin or LSPG,"
 							+ " or set dual_time = True")
 
-		super().__init__(model_idx, rom_domain, solver, sol_domain)
+		super().__init__(model_idx, rom_domain, sol_domain)
 
 	def calc_d_code(self, res_jacob, res, sol_domain):
 		"""

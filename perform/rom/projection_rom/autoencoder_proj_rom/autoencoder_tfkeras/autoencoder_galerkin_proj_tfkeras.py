@@ -10,13 +10,13 @@ class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
 	Class for computing non-linear Galerkin ROMs via a TensorFlow autoencoder
 	"""
 
-	def __init__(self, model_idx, rom_domain, solver, sol_domain):
+	def __init__(self, model_idx, rom_domain, sol_domain):
 
 		if rom_domain.time_integrator.dual_time:
 			raise ValueError("Galerkin is intended for conservative"
 							+ "variable evolution, please set dual_time = False")
 
-		super().__init__(model_idx, rom_domain, solver, sol_domain)
+		super().__init__(model_idx, rom_domain, sol_domain)
 
 	def calc_projector(self, sol_domain):
 		"""
