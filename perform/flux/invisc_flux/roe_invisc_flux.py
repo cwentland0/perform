@@ -1,10 +1,10 @@
 import numpy as np
 
 from perform.constants import REAL_TYPE
-from perform.flux.flux import Flux
+from perform.flux.invisc_flux.invisc_flux import InviscFlux
 
 
-class RoeInviscFlux(Flux):
+class RoeInviscFlux(InviscFlux):
 	"""
 	Roe's flux difference scheme
 	"""
@@ -205,5 +205,25 @@ class RoeInviscFlux(Flux):
 
 		return diss_matrix
 
+	def calc_jacob_prim(self, sol_domain, solver):
+		"""
+		Compute flux Jacobian with respect to the primitive variables
+		"""
 
-	
+		roe_diss = sol_domain.roe_diss.copy()
+
+		jacob_left_face = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
+		jacob_right_face = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
+
+		# Jacobian wrt current cell
+		jacob_center_cell = \
+			((jacob_left_face[:, :, 1:] + roe_diss[:, :, 1:])
+			+ (-jacob_right_face[:, :, :-1] + roe_diss[:, :, :-1]))
+
+		# Jacobian wrt left neighbor
+		jacob_left_cell = -jacob_left_face[:, :, 1:-1] - roe_diss[:, :, :-2]
+
+		# Jacobian wrt right neighbor
+		jacob_right_cell = jacob_right_face[:, :, 1:-1] - roe_diss[:, :, 2:]
+
+		return jacob_center_cell, jacob_left_cell, jacob_right_cell

@@ -49,7 +49,7 @@ def calc_rhs(sol_domain, solver):
 		sol_right.calc_state_from_prim(calc_r=True, calc_cp=True)
 
 	# compute fluxes
-	flux = sol_domain.calc_flux(sol_domain, solver)
+	flux = sol_domain.calc_flux(solver)
 
 	# compute rhs
 	sol_domain.sol_int.rhs[:, sol_domain.direct_samp_idxs] = \

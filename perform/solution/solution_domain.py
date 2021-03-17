@@ -12,7 +12,7 @@ from perform.solution.solution_interior import SolutionInterior
 from perform.solution.solution_boundary.solution_inlet import SolutionInlet
 from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
 from perform.space_schemes import calc_rhs
-from perform.jacobians import calc_d_res_d_sol_prim
+from perform.jacobians import calc_d_source_d_sol_prim
 from perform.time_integrator import get_time_integrator
 
 # flux schemes
@@ -57,7 +57,7 @@ class SolutionDomain:
 
 		# flux scheme
 		self.invisc_flux_name = catch_input(param_dict, "invisc_flux_name", "roe")
-		self.visc_flux_name = catch_input(param_dict, "visc_flux_name", "none")
+		self.visc_flux_name = catch_input(param_dict, "visc_flux_name", "invisc")
 		
 		# inviscid flux scheme
 		if self.invisc_flux_name == "roe":
@@ -73,7 +73,7 @@ class SolutionDomain:
 
 		# viscous flux scheme
 		if self.visc_flux_name == "invisc":
-			self.visc_flux_scheme = InviscViscFlux(self, solver)
+			pass
 		elif self.visc_flux_name == "standard":
 			self.visc_flux_scheme = StandardViscFlux(self, solver)
 		else:
@@ -214,7 +214,7 @@ class SolutionDomain:
 
 			res = self.time_integrator.calc_residual(sol_int.sol_hist_cons,
 													sol_int.rhs, solver)
-			res_jacob = calc_d_res_d_sol_prim(self, solver)
+			res_jacob = self.calc_res_jacob(solver)
 
 			d_sol = spsolve(res_jacob, res.ravel('C'))
 
@@ -241,17 +241,126 @@ class SolutionDomain:
 			sol_int.sol_cons = sol_int.sol_hist_cons[0] + d_sol
 			sol_int.update_state(from_cons=True)
 
-	def calc_flux(self, sol_domain, solver):
+	def calc_flux(self, solver):
 		"""
 		Compute cell face fluxes
 		"""
 
-		invisc_flux = self.invisc_flux_scheme.calc_flux(sol_domain, solver)
-		visc_flux = self.visc_flux_scheme.calc_flux(sol_domain, solver)
-
-		flux = invisc_flux - visc_flux
+		flux = self.invisc_flux_scheme.calc_flux(self, solver)
+		if self.visc_flux_name != "invisc":
+			flux -= self.visc_flux_scheme.calc_flux(self, solver)
 
 		return flux
+
+	def calc_res_jacob(self, solver):
+		"""
+		Compute Jacobian of residual
+		"""
+
+		sol_int = self.sol_int
+		gas = self.gas_model
+
+		# stagnation enthalpy and derivatives of density and enthalpy
+		sol_int.hi = gas.calc_spec_enth(sol_int.sol_prim[2, :])
+		sol_int.h0 = gas.calc_stag_enth(sol_int.sol_prim[1, :],
+										sol_int.mass_fracs_full,
+										spec_enth=sol_int.hi)
+		sol_int.d_rho_d_press, sol_int.d_rho_d_temp, sol_int.d_rho_d_mass_frac = \
+			gas.calc_dens_derivs(sol_int.sol_cons[0, :],
+									wrt_press=True, pressure=sol_int.sol_prim[0, :],
+									wrt_temp=True, temperature=sol_int.sol_prim[2, :],
+									wrt_spec=True, mix_mol_weight=sol_int.mw_mix)
+
+		sol_int.d_enth_d_press, sol_int.d_enth_d_temp, sol_int.d_enth_d_mass_frac = \
+			gas.calc_stag_enth_derivs(wrt_press=True,
+										wrt_temp=True, mass_fracs=sol_int.sol_prim[3:, :],
+										wrt_spec=True, spec_enth=sol_int.hi)
+
+		# flux jacobians
+		# TODO: move this to a FluxGroup class or something
+		d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right = \
+			self.invisc_flux_scheme.calc_jacob_prim(self, solver)
+		if self.visc_flux_name != "invisc":
+			d_visc_flux_d_sol_prim, d_visc_flux_d_sol_prim_left, d_visc_flux_d_sol_prim_right = \
+				self.visc_flux_scheme.calc_jacob_prim(self, solver)
+			d_flux_d_sol_prim += d_visc_flux_d_sol_prim
+			d_flux_d_sol_prim_left += d_visc_flux_d_sol_prim_left
+			d_flux_d_sol_prim_right += d_visc_flux_d_sol_prim_right
+
+		d_flux_d_sol_prim *= (0.5 / solver.mesh.dx)
+		d_flux_d_sol_prim_left *= (0.5 / solver.mesh.dx)
+		d_flux_d_sol_prim_right *= (0.5 / solver.mesh.dx)
+
+		d_rhs_d_sol_prim = d_flux_d_sol_prim.copy()
+
+		# contribution to main block diagonal from source term Jacobian
+		if solver.source_on:
+			d_source_d_sol_prim = \
+				calc_d_source_d_sol_prim(sol_int, self.time_integrator.dt)
+			d_rhs_d_sol_prim -= d_source_d_sol_prim
+
+		# TODO: make this specific for each implicitIntegrator
+		dt_coeff_idx = min(solver.iter, self.time_integrator.time_order) - 1
+		dt_inv = (self.time_integrator.coeffs[dt_coeff_idx][0]
+					/ self.time_integrator.dt)
+
+		# modifications depending on whether dual-time integration is being used
+		if self.time_integrator.dual_time:
+
+			# contribution to main block diagonal from solution Jacobian
+			# TODO: move these conditionals into calc_adaptive_dtau(),
+			#	change to calc_dtau()
+			gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim()
+			if self.time_integrator.adapt_dtau:
+				dtau_inv = sol_int.calc_adaptive_dtau(solver)
+			else:
+				dtau_inv = (1. / self.time_integrator.dtau
+					* np.ones(sol_int.num_cells, dtype=REAL_TYPE))
+
+			d_rhs_d_sol_prim += gamma_matrix * (dtau_inv[None, None, :] + dt_inv)
+
+			# assemble sparse Jacobian from main, upper, and lower block diagonals
+			res_jacob = \
+				sol_int.res_jacob_assemble(
+					d_rhs_d_sol_prim,
+					d_flux_d_sol_prim_left,
+					d_flux_d_sol_prim_right
+				)
+
+		else:
+			# TODO: this is hilariously inefficient,
+			# 	need to make Jacobian functions w/r/t conservative state
+			# 	Convergence is also noticeably worse, since this is approximate
+			# 	Transposes are due to matmul assuming
+			# 	stacks are in first index, maybe a better way to do this?
+			gamma_matrix_inv = \
+				np.transpose(self.calc_d_sol_prim_d_sol_cons(),
+							axes=(2, 0, 1))
+			d_rhs_d_sol_cons = \
+				np.transpose(np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1))
+							@ gamma_matrix_inv,
+							axes=(1, 2, 0))
+			d_flux_d_sol_cons_left = \
+				np.transpose(np.transpose(d_flux_d_sol_prim_left, axes=(2, 0, 1))
+							@ gamma_matrix_inv[:-1, :, :],
+							axes=(1, 2, 0))
+			d_flux_d_sol_cons_right = \
+				np.transpose(np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1))
+							@ gamma_matrix_inv[1:, :, :],
+							axes=(1, 2, 0))
+
+			dtMat = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None],
+								sol_int.num_cells, axis=2)
+			d_rhs_d_sol_cons += dtMat
+
+			res_jacob = \
+				sol_int.res_jacob_assemble(
+					d_rhs_d_sol_cons,
+					d_flux_d_sol_cons_left,
+					d_flux_d_sol_cons_right,
+				)
+
+		return res_jacob
 
 	def write_iter_outputs(self, solver):
 		"""

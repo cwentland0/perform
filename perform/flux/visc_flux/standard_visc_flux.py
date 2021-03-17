@@ -77,3 +77,56 @@ class StandardViscFlux(Flux):
 							- sol_ave.sol_prim[3:, :] * corr_vel[None, :])
 
 		return flux_visc
+
+	def calc_jacob_prim(self, sol_domain, solver):
+		"""
+		Compute flux Jacobian with respect to the primitive variables
+		"""
+		
+		# NOTE: signs are flipped to avoid an additional negation
+
+		jacob_face = self.calc_d_visc_flux_d_sol_prim(sol_domain.sol_ave)
+
+		# Jacobian wrt current cell
+		jacob_center_cell = jacob_face[:, :, 1:] - jacob_face[:, :, :-1]
+
+		# Jacobian wrt left neighbor
+		jacob_left_cell = jacob_face[:, :, 1:-1]
+
+		# Jacobian wrt right neighbor
+		jacob_right_cell = -jacob_face[:, :, 1:-1]
+
+		return jacob_center_cell, jacob_left_cell, jacob_right_cell
+
+	def calc_d_visc_flux_d_sol_prim(self, sol_ave):
+		"""
+		Compute Jacobian of viscous flux vector with respect to the primitive state
+		sol_ave is the solutionPhys associated with
+		the face state used to calculate the viscous flux
+		"""
+
+		gas = sol_ave.gas_model
+
+		d_flux_d_sol_prim = np.zeros((gas.num_eqs, gas.num_eqs,
+										sol_ave.num_cells))
+
+		# momentum equation row
+		d_flux_d_sol_prim[1, 1, :] = 4.0 / 3.0 * sol_ave.dyn_visc_mix
+
+		# energy equation row
+		d_flux_d_sol_prim[2, 1, :] = \
+			4.0 / 3.0 * sol_ave.sol_prim[1, :] * sol_ave.dyn_visc_mix
+		d_flux_d_sol_prim[2, 2, :] = sol_ave.therm_cond_mix
+		d_flux_d_sol_prim[2, 3:, :] = \
+			(sol_ave.sol_cons[[0], :]
+			* (sol_ave.mass_diff_mix[gas.mass_frac_slice, :]
+			* sol_ave.hi[gas.mass_frac_slice, :]
+			- sol_ave.mass_diff_mix[[-1], :] * sol_ave.hi[[-1], :]))
+
+		# species transport row
+		# TODO: vectorize
+		for i in range(3, gas.num_eqs):
+			d_flux_d_sol_prim[i, i, :] = \
+				sol_ave.sol_cons[0, :] * sol_ave.mass_diff_mix[i - 3, :]
+
+		return d_flux_d_sol_prim
