@@ -13,7 +13,6 @@ from perform.solution.solution_interior import SolutionInterior
 from perform.solution.solution_boundary.solution_inlet import SolutionInlet
 from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
 from perform.space_schemes import calc_rhs
-from perform.jacobians import calc_d_source_d_sol_prim
 from perform.time_integrator import get_time_integrator
 
 # flux schemes
@@ -25,6 +24,9 @@ from perform.flux.visc_flux.standard_visc_flux import StandardViscFlux
 # TODO: make an __init__.py with get_gas_model()
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
+# reaction models
+# TODO: make an __init__.py with get_reaction_model()
+from perform.reaction.finite_rate_global_reaction import FiniteRateGlobalReaction
 
 class SolutionDomain:
 	"""
@@ -49,6 +51,16 @@ class SolutionDomain:
 		else:
 			raise ValueError("Ivalid choice of gas_type: " + gas_type)
 		gas = self.gas_model
+
+		# reaction model
+		reaction_type = catch_input(gas_dict, "reaction_type", "none")
+		if reaction_type == "none":
+			assert (solver.source_off), \
+				"Must provide a valid reaction_type if source_off = False"
+		elif reaction_type == "fr_global":
+			self.reaction_model = FiniteRateGlobalReaction(gas, gas_dict)
+		else:
+			raise ValueError()
 
 		# time integrator
 		self.time_integrator = get_time_integrator(solver.time_scheme, param_dict)
@@ -300,9 +312,8 @@ class SolutionDomain:
 		d_rhs_d_sol_prim = d_flux_d_sol_prim.copy()
 
 		# contribution to main block diagonal from source term Jacobian
-		if solver.source_on:
-			d_source_d_sol_prim = \
-				calc_d_source_d_sol_prim(sol_int, self.time_integrator.dt)
+		if not solver.source_off:
+			d_source_d_sol_prim = self.reaction_model.calc_jacob_prim(sol_int)
 			d_rhs_d_sol_prim -= d_source_d_sol_prim
 
 		# TODO: make this specific for each implicitIntegrator

@@ -14,16 +14,18 @@ def calc_rhs(sol_domain, solver):
 	sol_outlet = sol_domain.sol_outlet
 	sol_prim_full = sol_domain.sol_prim_full
 	sol_cons_full = sol_domain.sol_cons_full
+	direct_samp_idxs = sol_domain.direct_samp_idxs
+	gas = sol_domain.gas_model
 
 	# compute ghost cell state (if adjacent cell is sampled)
 	# TODO: update this after higher-order contribution?
 	# TODO: adapt pass to calc_boundary_state() depending on space scheme
 	# TODO: assign more than just one ghost cell for higher-order schemes
-	if (sol_domain.direct_samp_idxs[0] == 0):
+	if (direct_samp_idxs[0] == 0):
 		sol_inlet.calc_boundary_state(solver.sol_time, sol_domain.space_order,
 										sol_prim=sol_int.sol_prim[:, :2],
 										sol_cons=sol_int.sol_cons[:, :2])
-	if (sol_domain.direct_samp_idxs[-1] == (sol_domain.mesh.num_cells - 1)):
+	if (direct_samp_idxs[-1] == (sol_domain.mesh.num_cells - 1)):
 		sol_outlet.calc_boundary_state(solver.sol_time, sol_domain.space_order,
 										sol_prim=sol_int.sol_prim[:, -2:],
 										sol_cons=sol_int.sol_cons[:, -2:])
@@ -52,45 +54,14 @@ def calc_rhs(sol_domain, solver):
 	flux = sol_domain.calc_flux()
 
 	# compute rhs
-	sol_domain.sol_int.rhs[:, sol_domain.direct_samp_idxs] = \
+	sol_domain.sol_int.rhs[:, direct_samp_idxs] = \
 		flux[:, sol_domain.flux_rhs_idxs] - flux[:, sol_domain.flux_rhs_idxs + 1]
-	sol_int.rhs[:, sol_domain.direct_samp_idxs] /= sol_domain.mesh.dx
+	sol_int.rhs[:, direct_samp_idxs] /= sol_domain.mesh.dx
 
 	# compute source term
-	if solver.source_on:
-		calc_source(sol_domain, solver)
-		sol_int.rhs[3:, sol_domain.direct_samp_idxs] += \
-			sol_int.source[:, sol_domain.direct_samp_idxs]
-	
-def calc_source(sol_domain, solver):
-	"""
-	Compute chemical source term
-	"""
+	if not solver.source_off:
+		source, wf = sol_domain.reaction_model.calc_source(sol_domain.sol_int, solver.dt, direct_samp_idxs)
+		sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
+		sol_int.wf[:, direct_samp_idxs] = wf
 
-	# TODO: expand to multiple global reactions
-	# TODO: expand to general reaction w/ reverse direction
-	# TODO: check that this works for more than a two-species reaction
-
-	gas = sol_domain.gas_model
-
-	temp = sol_domain.sol_int.sol_prim[2, sol_domain.direct_samp_idxs]
-	rho = sol_domain.sol_int.sol_cons[[0], sol_domain.direct_samp_idxs]
-
-	# NOTE: act_energy here is -Ea/R
-	# TODO: account for temperature exponential
-	wf = gas.pre_exp_fact * np.exp(gas.act_energy / temp)
-
-	rho_mass_frac = rho * sol_domain.sol_int.mass_fracs_full
-
-	# TODO: this can be done in pre-processing
-	spec_idxs = np.squeeze(np.argwhere(gas.nu_arr != 0.0))
-
-	wf = np.product(wf[None, :] * np.power((rho_mass_frac[spec_idxs, :]
-		/ gas.mol_weights[spec_idxs, None]), gas.nu_arr[spec_idxs, None]), axis=0)
-	wf = np.amin(np.minimum(wf[None, :],
-		rho_mass_frac[spec_idxs, :] / solver.dt), axis=0)
-	sol_domain.sol_int.wf = wf
-
-	source = sol_domain.sol_int.source
-	source[gas.mass_frac_slice[:, None], sol_domain.direct_samp_idxs[None, :]] = \
-		-gas.mol_weight_nu[gas.mass_frac_slice, None] * wf[None, :]
+		sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]

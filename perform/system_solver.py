@@ -76,7 +76,7 @@ class SystemSolver:
 		# misc
 		self.vel_add = catch_input(param_dict, "vel_add", 0.0)
 		self.res_norm_prim = catch_input(param_dict, "res_norm_prim", [None])
-		self.source_on = catch_input(param_dict, "source_on", True)
+		self.source_off = catch_input(param_dict, "source_off", False)
 		self.solve_failed = False
 
 		# visualization
