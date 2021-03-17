@@ -32,11 +32,6 @@ class SystemSolver:
 		self.restart_output_dir = mkdir_shallow(self.working_dir,
 												const.RESTART_OUTPUT_DIR_NAME)
 
-		# spatial domain
-		mesh_file = str(param_dict["mesh_file"])
-		mesh_dict = read_input_file(mesh_file)
-		self.mesh = Mesh(mesh_dict)
-
 		# initial condition file
 		try:
 			self.init_file = str(param_dict["init_file"])

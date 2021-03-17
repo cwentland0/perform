@@ -218,8 +218,8 @@ def gen_piecewise_uniform_ic(sol_domain, solver):
 						+ solver.ic_params_file)
 
 	split_idx = \
-		np.absolute(solver.mesh.x_cell - ic_dict["x_split"]).argmin() + 1
-	sol_prim = np.zeros((sol_domain.gas_model.num_eqs, solver.mesh.num_cells),
+		np.absolute(sol_domain.mesh.x_cell - ic_dict["x_split"]).argmin() + 1
+	sol_prim = np.zeros((sol_domain.gas_model.num_eqs, sol_domain.mesh.num_cells),
 						dtype=REAL_TYPE)
 
 	# TODO: error (warning?) if x_split outside domain / doesn't split domain

@@ -7,6 +7,7 @@ from scipy.linalg import solve
 from perform.constants import REAL_TYPE
 from perform.input_funcs import get_initial_conditions, catch_list, \
 	catch_input, read_input_file
+from perform.mesh import Mesh
 from perform.solution.solution_phys import SolutionPhys
 from perform.solution.solution_interior import SolutionInterior
 from perform.solution.solution_boundary.solution_inlet import SolutionInlet
@@ -19,7 +20,6 @@ from perform.time_integrator import get_time_integrator
 # TODO: make an __init__.py with get_flux_scheme()
 from perform.flux.invisc_flux.roe_invisc_flux import RoeInviscFlux
 from perform.flux.visc_flux.standard_visc_flux import StandardViscFlux
-from perform.flux.visc_flux.invisc_visc_flux import InviscViscFlux
 
 # gas models
 # TODO: make an __init__.py with get_gas_model()
@@ -34,6 +34,11 @@ class SolutionDomain:
 	def __init__(self, solver):
 
 		param_dict = solver.param_dict
+
+		# spatial domain
+		mesh_file = str(param_dict["mesh_file"])
+		mesh_dict = read_input_file(mesh_file)
+		self.mesh = Mesh(mesh_dict)
 
 		# gas model
 		gas_file = str(param_dict["gas_file"])
@@ -51,7 +56,8 @@ class SolutionDomain:
 		# solution
 		sol_prim_init = get_initial_conditions(self, solver)
 		self.sol_int = SolutionInterior(gas, sol_prim_init,
-										solver, self.time_integrator)
+										solver, self.mesh.num_cells,
+										self.time_integrator)
 		self.sol_inlet = SolutionInlet(gas, solver)
 		self.sol_outlet = SolutionOutlet(gas, solver)
 
@@ -61,7 +67,7 @@ class SolutionDomain:
 		
 		# inviscid flux scheme
 		if self.invisc_flux_name == "roe":
-			self.invisc_flux_scheme = RoeInviscFlux(self, solver)
+			self.invisc_flux_scheme = RoeInviscFlux(self)
 			# TODO: move this to the actual flux class
 			ones_prof = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells + 1),
 								dtype=REAL_TYPE)
@@ -75,7 +81,7 @@ class SolutionDomain:
 		if self.visc_flux_name == "invisc":
 			pass
 		elif self.visc_flux_name == "standard":
-			self.visc_flux_scheme = StandardViscFlux(self, solver)
+			self.visc_flux_scheme = StandardViscFlux(self)
 		else:
 			raise ValueError("Invalid entry for visc_flux_name: "
 							+ str(self.visc_flux_name))
@@ -111,13 +117,13 @@ class SolutionDomain:
 			self.probe_idxs = [None] * self.num_probes
 			self.probe_secs = [None] * self.num_probes
 			for idx, probe_loc in enumerate(self.probe_locs):
-				if probe_loc > solver.mesh.x_right:
+				if probe_loc > self.mesh.x_right:
 					self.probe_secs[idx] = "outlet"
-				elif (probe_loc < solver.mesh.x_left):
+				elif (probe_loc < self.mesh.x_left):
 					self.probe_secs[idx] = "inlet"
 				else:
 					self.probe_secs[idx] = "interior"
-					self.probe_idxs[idx] = np.abs(solver.mesh.x_cell - probe_loc).argmin()
+					self.probe_idxs[idx] = np.abs(self.mesh.x_cell - probe_loc).argmin()
 
 			assert (not ((("outlet" in self.probe_secs) or ("inlet" in self.probe_secs))
 						and (("source" in self.probe_vars) or ("rhs" in self.probe_vars)))), \
@@ -138,20 +144,20 @@ class SolutionDomain:
 
 		# for compatability with hyper-reduction
 		# are overwritten if actually using hyper-reduction
-		self.num_samp_cells = solver.mesh.num_cells
-		self.num_flux_faces = solver.mesh.num_cells + 1
-		self.num_grad_cells = solver.mesh.num_cells
-		self.direct_samp_idxs = np.arange(0, solver.mesh.num_cells)
-		self.flux_samp_left_idxs = np.arange(0, solver.mesh.num_cells + 1)
-		self.flux_samp_right_idxs = np.arange(1, solver.mesh.num_cells + 2)
-		self.grad_idxs = np.arange(1, solver.mesh.num_cells + 1)
-		self.grad_neigh_idxs = np.arange(0, solver.mesh.num_cells + 2)
-		self.grad_neigh_extract = np.arange(1, solver.mesh.num_cells + 1)
-		self.flux_left_extract = np.arange(1, solver.mesh.num_cells + 1)
-		self.flux_right_extract = np.arange(0, solver.mesh.num_cells)
-		self.grad_left_extract = np.arange(0, solver.mesh.num_cells)
-		self.grad_right_extract = np.arange(0, solver.mesh.num_cells)
-		self.flux_rhs_idxs = np.arange(0, solver.mesh.num_cells)
+		self.num_samp_cells = self.mesh.num_cells
+		self.num_flux_faces = self.mesh.num_cells + 1
+		self.num_grad_cells = self.mesh.num_cells
+		self.direct_samp_idxs = np.arange(0, self.mesh.num_cells)
+		self.flux_samp_left_idxs = np.arange(0, self.mesh.num_cells + 1)
+		self.flux_samp_right_idxs = np.arange(1, self.mesh.num_cells + 2)
+		self.grad_idxs = np.arange(1, self.mesh.num_cells + 1)
+		self.grad_neigh_idxs = np.arange(0, self.mesh.num_cells + 2)
+		self.grad_neigh_extract = np.arange(1, self.mesh.num_cells + 1)
+		self.flux_left_extract = np.arange(1, self.mesh.num_cells + 1)
+		self.flux_right_extract = np.arange(0, self.mesh.num_cells)
+		self.grad_left_extract = np.arange(0, self.mesh.num_cells)
+		self.grad_right_extract = np.arange(0, self.mesh.num_cells)
+		self.flux_rhs_idxs = np.arange(0, self.mesh.num_cells)
 
 	def fill_sol_full(self):
 		"""
@@ -208,7 +214,7 @@ class SolutionDomain:
 
 		sol_int = self.sol_int
 		gas_model = self.gas_model
-		mesh = solver.mesh
+		mesh = self.mesh
 
 		if self.time_integrator.time_type == "implicit":
 
@@ -241,14 +247,14 @@ class SolutionDomain:
 			sol_int.sol_cons = sol_int.sol_hist_cons[0] + d_sol
 			sol_int.update_state(from_cons=True)
 
-	def calc_flux(self, solver):
+	def calc_flux(self):
 		"""
 		Compute cell face fluxes
 		"""
 
-		flux = self.invisc_flux_scheme.calc_flux(self, solver)
+		flux = self.invisc_flux_scheme.calc_flux(self)
 		if self.visc_flux_name != "invisc":
-			flux -= self.visc_flux_scheme.calc_flux(self, solver)
+			flux -= self.visc_flux_scheme.calc_flux(self)
 
 		return flux
 
@@ -279,17 +285,17 @@ class SolutionDomain:
 		# flux jacobians
 		# TODO: move this to a FluxGroup class or something
 		d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right = \
-			self.invisc_flux_scheme.calc_jacob_prim(self, solver)
+			self.invisc_flux_scheme.calc_jacob_prim(self)
 		if self.visc_flux_name != "invisc":
 			d_visc_flux_d_sol_prim, d_visc_flux_d_sol_prim_left, d_visc_flux_d_sol_prim_right = \
-				self.visc_flux_scheme.calc_jacob_prim(self, solver)
+				self.visc_flux_scheme.calc_jacob_prim(self)
 			d_flux_d_sol_prim += d_visc_flux_d_sol_prim
 			d_flux_d_sol_prim_left += d_visc_flux_d_sol_prim_left
 			d_flux_d_sol_prim_right += d_visc_flux_d_sol_prim_right
 
-		d_flux_d_sol_prim *= (0.5 / solver.mesh.dx)
-		d_flux_d_sol_prim_left *= (0.5 / solver.mesh.dx)
-		d_flux_d_sol_prim_right *= (0.5 / solver.mesh.dx)
+		d_flux_d_sol_prim *= (0.5 / self.mesh.dx)
+		d_flux_d_sol_prim_left *= (0.5 / self.mesh.dx)
+		d_flux_d_sol_prim_right *= (0.5 / self.mesh.dx)
 
 		d_rhs_d_sol_prim = d_flux_d_sol_prim.copy()
 
@@ -312,7 +318,7 @@ class SolutionDomain:
 			#	change to calc_dtau()
 			gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim()
 			if self.time_integrator.adapt_dtau:
-				dtau_inv = sol_int.calc_adaptive_dtau(solver)
+				dtau_inv = sol_int.calc_adaptive_dtau(self.mesh)
 			else:
 				dtau_inv = (1. / self.time_integrator.dtau
 					* np.ones(sol_int.num_cells, dtype=REAL_TYPE))

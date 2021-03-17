@@ -12,11 +12,10 @@ class SolutionInterior(SolutionPhys):
 	Solution of interior domain
 	"""
 
-	def __init__(self, gas, sol_prim_in, solver, time_int):
-		super().__init__(gas, solver.mesh.num_cells, sol_prim_in=sol_prim_in)
+	def __init__(self, gas, sol_prim_in, solver, num_cells, time_int):
+		super().__init__(gas, num_cells, sol_prim_in=sol_prim_in)
 
 		gas = self.gas_model
-		num_cells = solver.mesh.num_cells
 
 		self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)
 		self.rhs = np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)
@@ -262,29 +261,27 @@ class SolutionInterior(SolutionPhys):
 
 		return res_jacob
 
-	def calc_adaptive_dtau(self, solver):
+	def calc_adaptive_dtau(self, mesh):
 		"""
 		Adapt dtau for each cell based on user input constraints and local wave speed
 		"""
 
-		# TODO: move this to implicitIntegrator
-		sol_int = self.sol_int
 		gas_model = self.gas_model
 
 		# compute initial dtau from input cfl and srf (max characteristic speed)
 		# srf is computed in calcInvFlux
-		dtaum = 1.0 * solver.mesh.dx / self.sol_int.srf
+		dtaum = 1.0 * mesh.dx / self.srf
 		dtau = self.time_integrator.cfl * dtaum
 
 		# limit by von Neumann number
 		if self.visc_flux_name != "invisc":
 			# TODO: calculating this is stupidly expensive, figure out a workaround
-			sol_int.dyn_visc_mix = \
-				gas_model.calc_mix_dynamic_visc(temperature=sol_int.sol_prim[2, :],
-												mass_fracs=sol_int.sol_prim[3:, :])
-			nu = sol_int.dyn_visc_mix / sol_int.sol_cons[0, :]
+			self.dyn_visc_mix = \
+				gas_model.calc_mix_dynamic_visc(temperature=self.sol_prim[2, :],
+												mass_fracs=self.sol_prim[3:, :])
+			nu = self.dyn_visc_mix / self.sol_cons[0, :]
 			dtau = np.minimum(dtau,
-					self.time_integrator.vnn * np.square(solver.mesh.dx) / nu)
+					self.time_integrator.vnn * np.square(mesh.dx) / nu)
 			dtaum = np.minimum(dtaum, 3.0 / nu)
 
 		# limit dtau

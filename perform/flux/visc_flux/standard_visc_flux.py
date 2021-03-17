@@ -8,17 +8,17 @@ class StandardViscFlux(Flux):
 	Standard viscous flux scheme with binary diffusion velocity approximation
 	"""
 
-	def __init__(self, sol_domain, solver):
+	def __init__(self, sol_domain):
 
 		super().__init__()
 
-	def calc_flux(self, sol_domain, solver):
+	def calc_flux(self, sol_domain):
 		"""
 		Compute flux array
 		"""
 
 		gas = sol_domain.gas_model
-		mesh = solver.mesh
+		mesh = sol_domain.mesh
 		sol_ave = sol_domain.sol_ave
 		sol_prim_full = sol_domain.sol_prim_full
 
@@ -78,7 +78,7 @@ class StandardViscFlux(Flux):
 
 		return flux_visc
 
-	def calc_jacob_prim(self, sol_domain, solver):
+	def calc_jacob_prim(self, sol_domain):
 		"""
 		Compute flux Jacobian with respect to the primitive variables
 		"""

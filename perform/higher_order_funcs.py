@@ -3,7 +3,7 @@ import numpy as np
 from perform.constants import REAL_TYPE
 
 
-def calc_cell_gradients(sol_domain, solver):
+def calc_cell_gradients(sol_domain):
 	"""
 	Compute cell-centered gradients for higher-order face reconstructions
 	Also calculate gradient limiters if requested
@@ -13,7 +13,7 @@ def calc_cell_gradients(sol_domain, solver):
 	sol_prim_grad = np.zeros((sol_domain.gas_model.num_eqs,
 								sol_domain.num_grad_cells), dtype=REAL_TYPE)
 	if sol_domain.space_order == 2:
-		sol_prim_grad = ((0.5 / solver.mesh.dx)
+		sol_prim_grad = ((0.5 / sol_domain.mesh.dx)
 			* (sol_domain.sol_prim_full[:, sol_domain.grad_idxs + 1]
 			- sol_domain.sol_prim_full[:, sol_domain.grad_idxs - 1]))
 	else:
@@ -25,11 +25,11 @@ def calc_cell_gradients(sol_domain, solver):
 
 		# Barth-Jespersen
 		if sol_domain.grad_limiter == "barth":
-			phi = limiter_barth_jespersen(sol_domain, sol_prim_grad, solver.mesh)
+			phi = limiter_barth_jespersen(sol_domain, sol_prim_grad)
 
 		# Venkatakrishnan, no correction
 		elif sol_domain.grad_limiter == "venkat":
-			phi = limiter_venkatakrishnan(sol_domain, sol_prim_grad, solver.mesh)
+			phi = limiter_venkatakrishnan(sol_domain, sol_prim_grad)
 
 		else:
 			raise ValueError("Invalid input for grad_limiter: "
@@ -59,7 +59,7 @@ def find_neighbor_minmax(sol):
 
 	return sol_min, sol_max
 
-def limiter_barth_jespersen(sol_domain, grad, mesh):
+def limiter_barth_jespersen(sol_domain, grad):
 	"""
 	Barth-Jespersen limiter
 	Ensures that no new minima or maxima are introduced in reconstruction
@@ -76,7 +76,7 @@ def limiter_barth_jespersen(sol_domain, grad, mesh):
 	sol_prim_max = sol_prim_max[:, sol_domain.grad_neigh_extract]
 
 	# unconstrained reconstruction at neighboring cell centers
-	d_sol_prim = grad * mesh.dx
+	d_sol_prim = grad * sol_domain.mesh.dx
 	sol_prim_left = sol_prim - d_sol_prim
 	sol_prim_right = sol_prim + d_sol_prim
 
@@ -109,7 +109,7 @@ def limiter_barth_jespersen(sol_domain, grad, mesh):
 
 	return phi
 
-def limiter_venkatakrishnan(sol_domain, grad, mesh):
+def limiter_venkatakrishnan(sol_domain, grad):
 	"""
 	Venkatakrishnan limiter
 	Differentiable, but limits in uniform regions
@@ -126,7 +126,7 @@ def limiter_venkatakrishnan(sol_domain, grad, mesh):
 	sol_prim_max = sol_prim_max[:, sol_domain.grad_neigh_extract]
 
 	# unconstrained reconstruction at neighboring cell centers
-	d_sol_prim = grad * mesh.dx
+	d_sol_prim = grad * sol_domain.mesh.dx
 	sol_prim_left = sol_prim - d_sol_prim
 	sol_prim_right = sol_prim + d_sol_prim
 

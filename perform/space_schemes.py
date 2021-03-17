@@ -23,7 +23,7 @@ def calc_rhs(sol_domain, solver):
 		sol_inlet.calc_boundary_state(solver.sol_time, sol_domain.space_order,
 										sol_prim=sol_int.sol_prim[:, :2],
 										sol_cons=sol_int.sol_cons[:, :2])
-	if (sol_domain.direct_samp_idxs[-1] == (solver.mesh.num_cells - 1)):
+	if (sol_domain.direct_samp_idxs[-1] == (sol_domain.mesh.num_cells - 1)):
 		sol_outlet.calc_boundary_state(solver.sol_time, sol_domain.space_order,
 										sol_prim=sol_int.sol_prim[:, -2:],
 										sol_cons=sol_int.sol_cons[:, -2:])
@@ -40,21 +40,21 @@ def calc_rhs(sol_domain, solver):
 
 	# add higher-order contribution
 	if (sol_domain.space_order > 1):
-		sol_prim_grad = calc_cell_gradients(sol_domain, solver)
+		sol_prim_grad = calc_cell_gradients(sol_domain)
 		sol_left.sol_prim[:, sol_domain.flux_left_extract] += \
-			(solver.mesh.dx / 2.0) * sol_prim_grad[:, sol_domain.grad_left_extract]
+			(sol_domain.mesh.dx / 2.0) * sol_prim_grad[:, sol_domain.grad_left_extract]
 		sol_right.sol_prim[:, sol_domain.flux_right_extract] -= \
-			(solver.mesh.dx / 2.0) * sol_prim_grad[:, sol_domain.grad_right_extract]
+			(sol_domain.mesh.dx / 2.0) * sol_prim_grad[:, sol_domain.grad_right_extract]
 		sol_left.calc_state_from_prim(calc_r=True, calc_cp=True)
 		sol_right.calc_state_from_prim(calc_r=True, calc_cp=True)
 
 	# compute fluxes
-	flux = sol_domain.calc_flux(solver)
+	flux = sol_domain.calc_flux()
 
 	# compute rhs
 	sol_domain.sol_int.rhs[:, sol_domain.direct_samp_idxs] = \
 		flux[:, sol_domain.flux_rhs_idxs] - flux[:, sol_domain.flux_rhs_idxs + 1]
-	sol_int.rhs[:, sol_domain.direct_samp_idxs] /= solver.mesh.dx
+	sol_int.rhs[:, sol_domain.direct_samp_idxs] /= sol_domain.mesh.dx
 
 	# compute source term
 	if solver.source_on:

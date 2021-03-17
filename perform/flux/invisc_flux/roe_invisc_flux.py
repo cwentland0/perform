@@ -9,11 +9,11 @@ class RoeInviscFlux(InviscFlux):
 	Roe's flux difference scheme
 	"""
 
-	def __init__(self, sol_domain, solver):
+	def __init__(self, sol_domain):
 
 		super().__init__()
 
-	def calc_flux(self, sol_domain, solver):
+	def calc_flux(self, sol_domain):
 		"""
 		Compute flux array
 		"""
@@ -205,7 +205,7 @@ class RoeInviscFlux(InviscFlux):
 
 		return diss_matrix
 
-	def calc_jacob_prim(self, sol_domain, solver):
+	def calc_jacob_prim(self, sol_domain):
 		"""
 		Compute flux Jacobian with respect to the primitive variables
 		"""
