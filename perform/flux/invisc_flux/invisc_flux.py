@@ -3,6 +3,7 @@ import numpy as np
 from perform.constants import REAL_TYPE
 from perform.flux.flux import Flux
 
+
 class InviscFlux(Flux):
 	"""
 	Base class for any inviscid flux scheme
@@ -20,7 +21,8 @@ class InviscFlux(Flux):
 
 		gas = sol.gas_model
 
-		d_flux_d_sol_prim = np.zeros((gas.num_eqs, gas.num_eqs, sol.num_cells), dtype=REAL_TYPE)
+		d_flux_d_sol_prim = np.zeros((gas.num_eqs, gas.num_eqs, sol.num_cells),
+									dtype=REAL_TYPE)
 
 		# for convenience
 		rho = sol.sol_cons[0, :]
@@ -55,7 +57,8 @@ class InviscFlux(Flux):
 		d_flux_d_sol_prim[1, 3:, :] = vel_sq[None, :] * d_rho_d_mass_frac
 
 		# energy equation row
-		d_flux_d_sol_prim[2, 0, :] = vel * (h0 * d_rho_d_press + rho * d_enth_d_press)
+		d_flux_d_sol_prim[2, 0, :] = vel * (h0 * d_rho_d_press
+											+ rho * d_enth_d_press)
 		d_flux_d_sol_prim[2, 1, :] = rho * (vel_sq + h0)
 		d_flux_d_sol_prim[2, 2, :] = vel * (h0 * d_rho_d_temp + rho * d_enth_d_temp)
 		d_flux_d_sol_prim[2, 3:, :] = \

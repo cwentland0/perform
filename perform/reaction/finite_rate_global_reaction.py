@@ -43,7 +43,7 @@ class FiniteRateGlobalReaction(Reaction):
 		# TODO: account for temperature exponential
 		wf = self.pre_exp_fact * np.exp(self.act_energy / temp)
 
-		rho_mass_frac = rho * sol.mass_fracs_full[:, samp_idxs]		
+		rho_mass_frac = rho * sol.mass_fracs_full[:, samp_idxs]
 
 		wf = np.product(wf[None, :]
 			* np.power((rho_mass_frac[self.reac_idxs, :]
@@ -51,7 +51,7 @@ class FiniteRateGlobalReaction(Reaction):
 			self.nu_arr[self.reac_idxs, None]), axis=0)
 		wf = np.amin(np.minimum(wf[None, :],
 			rho_mass_frac[self.reac_idxs, :] / dt), axis=0)
-		
+
 		source = -self.mol_weight_nu[gas.mass_frac_slice, None] * wf[None, :]
 
 		return source, wf

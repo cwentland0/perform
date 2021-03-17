@@ -10,7 +10,7 @@ class Limiter():
 
 		pass
 
-	def find_neighbor_minmax(self, sol):
+	def calc_neighbor_minmax(self, sol):
 		"""
 		Find minimum and maximum of cell state and neighbor cell state
 		"""

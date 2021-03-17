@@ -23,7 +23,7 @@ class BarthJespLimiter(Limiter):
 
 		# get min/max of cell and neighbors
 		sol_prim_min, sol_prim_max = \
-			self.find_neighbor_minmax(sol_domain.sol_prim_full[:, sol_domain.grad_neigh_idxs])
+			self.calc_neighbor_minmax(sol_domain.sol_prim_full[:, sol_domain.grad_neigh_idxs])
 
 		# extract gradient cells
 		sol_prim_min = sol_prim_min[:, sol_domain.grad_neigh_extract]

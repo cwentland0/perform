@@ -32,6 +32,7 @@ from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 # TODO: make an __init__.py with get_reaction_model()
 from perform.reaction.finite_rate_global_reaction import FiniteRateGlobalReaction
 
+
 class SolutionDomain:
 	"""
 	Container class for interior and boundary physical solutions
@@ -80,7 +81,7 @@ class SolutionDomain:
 		# flux scheme
 		self.invisc_flux_name = catch_input(param_dict, "invisc_flux_name", "roe")
 		self.visc_flux_name = catch_input(param_dict, "visc_flux_name", "invisc")
-		
+
 		# inviscid flux scheme
 		if self.invisc_flux_name == "roe":
 			self.invisc_flux_scheme = RoeInviscFlux(self)
@@ -101,7 +102,7 @@ class SolutionDomain:
 		else:
 			raise ValueError("Invalid entry for visc_flux_name: "
 							+ str(self.visc_flux_name))
-		
+
 		# higher-order reconstructions and gradient limiters
 		self.space_order = catch_input(param_dict, "space_order", 1)
 		assert (self.space_order >= 1), \
@@ -128,9 +129,13 @@ class SolutionDomain:
 
 		# to avoid repeated concatenation of ghost cell states
 		self.sol_prim_full = \
-			np.zeros((self.gas_model.num_eqs,
-					self.sol_inlet.num_cells + self.sol_int.num_cells + self.sol_outlet.num_cells),
-					dtype=REAL_TYPE)
+			np.zeros(
+				(self.gas_model.num_eqs,
+				(self.sol_inlet.num_cells
+				+ self.sol_int.num_cells
+				+ self.sol_outlet.num_cells)),
+				dtype=REAL_TYPE
+			)
 		self.sol_cons_full = np.zeros(self.sol_prim_full.shape, dtype=REAL_TYPE)
 
 		# probe storage (as this can include boundaries as well)
@@ -334,8 +339,14 @@ class SolutionDomain:
 
 		# compute source term
 		if not solver.source_off:
-			source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, direct_samp_idxs)
-			sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
+			source, wf = self.reaction_model.calc_source(self.sol_int,
+														solver.dt,
+														direct_samp_idxs)
+			sol_int.source[
+				gas.mass_frac_slice[:, None],
+				direct_samp_idxs[None, :]
+			] = source
+
 			sol_int.wf[:, direct_samp_idxs] = wf
 
 			sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]
@@ -396,7 +407,9 @@ class SolutionDomain:
 		d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right = \
 			self.invisc_flux_scheme.calc_jacob_prim(self)
 		if self.visc_flux_name != "invisc":
-			d_visc_flux_d_sol_prim, d_visc_flux_d_sol_prim_left, d_visc_flux_d_sol_prim_right = \
+			(d_visc_flux_d_sol_prim,
+			d_visc_flux_d_sol_prim_left,
+			d_visc_flux_d_sol_prim_right) = \
 				self.visc_flux_scheme.calc_jacob_prim(self)
 			d_flux_d_sol_prim += d_visc_flux_d_sol_prim
 			d_flux_d_sol_prim_left += d_visc_flux_d_sol_prim_left
@@ -423,7 +436,7 @@ class SolutionDomain:
 
 			# contribution to main block diagonal from solution Jacobian
 			# TODO: move these conditionals into calc_adaptive_dtau(),
-			#	change to calc_dtau()
+			# 	change to calc_dtau()
 			gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim()
 			if self.time_integrator.adapt_dtau:
 				dtau_inv = sol_int.calc_adaptive_dtau(self.mesh)

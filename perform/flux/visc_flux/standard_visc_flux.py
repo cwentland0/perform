@@ -3,6 +3,7 @@ import numpy as np
 from perform.constants import REAL_TYPE
 from perform.flux.flux import Flux
 
+
 class StandardViscFlux(Flux):
 	"""
 	Standard viscous flux scheme with binary diffusion velocity approximation
@@ -82,7 +83,7 @@ class StandardViscFlux(Flux):
 		"""
 		Compute flux Jacobian with respect to the primitive variables
 		"""
-		
+
 		# NOTE: signs are flipped to avoid an additional negation
 
 		jacob_face = self.calc_d_visc_flux_d_sol_prim(sol_domain.sol_ave)

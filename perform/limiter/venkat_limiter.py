@@ -23,7 +23,7 @@ class VenkatLimiter(Limiter):
 
 		# get min/max of cell and neighbors
 		sol_prim_min, sol_prim_max = \
-			self.find_neighbor_minmax(sol_domain.sol_prim_full[:, sol_domain.grad_neigh_idxs])
+			self.calc_neighbor_minmax(sol_domain.sol_prim_full[:, sol_domain.grad_neigh_idxs])
 
 		# extract gradient cells
 		sol_prim_min = sol_prim_min[:, sol_domain.grad_neigh_extract]
@@ -53,21 +53,28 @@ class VenkatLimiter(Limiter):
 
 		# apply smooth Venkatakrishnan function
 		phi_left[cond1_left] = \
-			venkat_function(sol_prim_max[cond1_left],
-							sol_prim[cond1_left],
-							sol_prim_left[cond1_left])
+			venkat_function(
+				sol_prim_max[cond1_left],
+				sol_prim[cond1_left],
+				sol_prim_left[cond1_left])
+
 		phi_right[cond1_right] = \
-			venkat_function(sol_prim_max[cond1_right],
-							sol_prim[cond1_right],
-							sol_prim_right[cond1_right])
+			venkat_function(
+				sol_prim_max[cond1_right],
+				sol_prim[cond1_right],
+				sol_prim_right[cond1_right])
+
 		phi_left[cond2_left] = \
-			venkat_function(sol_prim_min[cond2_left],
-							sol_prim[cond2_left],
-							sol_prim_left[cond2_left])
+			venkat_function(
+				sol_prim_min[cond2_left],
+				sol_prim[cond2_left],
+				sol_prim_left[cond2_left])
+
 		phi_right[cond2_right] = \
-			venkat_function(sol_prim_min[cond2_right],
-							sol_prim[cond2_right],
-							sol_prim_right[cond2_right])
+			venkat_function(
+				sol_prim_min[cond2_right],
+				sol_prim[cond2_right],
+				sol_prim_right[cond2_right])
 
 		# take minimum limiter from left and right
 		phi = np.minimum(phi_left, phi_right)
