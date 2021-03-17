@@ -48,21 +48,21 @@ class SolutionDomain:
 		self.mesh = Mesh(mesh_dict)
 
 		# gas model
-		gas_file = str(param_dict["gas_file"])
-		gas_dict = read_input_file(gas_file)
-		gas_type = catch_input(gas_dict, "gas_type", "cpg")
-		if gas_type == "cpg":
+		chem_file = str(param_dict["chem_file"])
+		gas_dict = read_input_file(chem_file)
+		gas_model_name = catch_input(gas_dict, "gas_model", "cpg")
+		if gas_model_name == "cpg":
 			self.gas_model = CaloricallyPerfectGas(gas_dict)
 		else:
-			raise ValueError("Ivalid choice of gas_type: " + gas_type)
+			raise ValueError("Ivalid choice of gas_model: " + gas_model_name)
 		gas = self.gas_model
 
 		# reaction model
-		reaction_type = catch_input(gas_dict, "reaction_type", "none")
-		if reaction_type == "none":
+		reaction_model_name = catch_input(gas_dict, "reaction_model", "none")
+		if reaction_model_name == "none":
 			assert (solver.source_off), \
-				"Must provide a valid reaction_type if source_off = False"
-		elif reaction_type == "fr_global":
+				"Must provide a valid reaction_model_name if source_off = False"
+		elif reaction_model_name == "fr_global":
 			self.reaction_model = FiniteRateGlobalReaction(gas, gas_dict)
 		else:
 			raise ValueError()
@@ -79,8 +79,8 @@ class SolutionDomain:
 		self.sol_outlet = SolutionOutlet(gas, solver)
 
 		# flux scheme
-		self.invisc_flux_name = catch_input(param_dict, "invisc_flux_name", "roe")
-		self.visc_flux_name = catch_input(param_dict, "visc_flux_name", "invisc")
+		self.invisc_flux_name = catch_input(param_dict, "invisc_flux_scheme", "roe")
+		self.visc_flux_name = catch_input(param_dict, "visc_flux_scheme", "invisc")
 
 		# inviscid flux scheme
 		if self.invisc_flux_name == "roe":
@@ -108,16 +108,16 @@ class SolutionDomain:
 		assert (self.space_order >= 1), \
 			"space_order must be a positive integer"
 		if self.space_order > 1:
-			self.grad_limiter_type = catch_input(param_dict, "grad_limiter_type", "")
-			if self.grad_limiter_type == "":
+			self.grad_limiter_name = catch_input(param_dict, "grad_limiter", "")
+			if self.grad_limiter_name == "":
 				pass
-			elif self.grad_limiter_type == "barth":
+			elif self.grad_limiter_name == "barth":
 				self.grad_limiter = BarthJespLimiter()
-			elif self.grad_limiter_type == "venkat":
+			elif self.grad_limiter_name == "venkat":
 				self.grad_limiter = VenkatLimiter()
 			else:
-				raise ValueError("Invalid entry for grad_limiter_type: "
-								+ str(self.grad_limiter_type))
+				raise ValueError("Invalid entry for grad_limiter_name: "
+								+ str(self.grad_limiter_name))
 
 		# for flux calculations
 		ones_prof = np.ones((self.gas_model.num_eqs, self.sol_int.num_cells + 1),
@@ -372,7 +372,7 @@ class SolutionDomain:
 								+ " gradient calculations not implemented")
 
 		# compute gradient limiter and limit gradient, if requested
-		if self.grad_limiter_type != "":
+		if self.grad_limiter_name != "":
 			phi = self.grad_limiter.calc_limiter(self, sol_prim_grad)
 			sol_prim_grad = sol_prim_grad * phi
 
