@@ -12,7 +12,7 @@ from perform.solution.solution_phys import SolutionPhys
 from perform.solution.solution_interior import SolutionInterior
 from perform.solution.solution_boundary.solution_inlet import SolutionInlet
 from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
-from perform.space_schemes import calc_rhs
+from perform.higher_order_funcs import calc_cell_gradients
 from perform.time_integrator import get_time_integrator
 
 # flux schemes
@@ -222,7 +222,7 @@ class SolutionDomain:
 		Advance physical solution forward one subiteration of time integrator
 		"""
 
-		calc_rhs(self, solver)
+		self.calc_rhs(solver)
 
 		sol_int = self.sol_int
 		gas_model = self.gas_model
@@ -259,16 +259,69 @@ class SolutionDomain:
 			sol_int.sol_cons = sol_int.sol_hist_cons[0] + d_sol
 			sol_int.update_state(from_cons=True)
 
-	def calc_flux(self):
+	def calc_rhs(self, solver):
 		"""
-		Compute cell face fluxes
+		Compute rhs function
 		"""
 
+		sol_int = self.sol_int
+		sol_inlet = self.sol_inlet
+		sol_outlet = self.sol_outlet
+		sol_prim_full = self.sol_prim_full
+		sol_cons_full = self.sol_cons_full
+		direct_samp_idxs = self.direct_samp_idxs
+		gas = self.gas_model
+
+		# compute ghost cell state (if adjacent cell is sampled)
+		# TODO: update this after higher-order contribution?
+		# TODO: adapt pass to calc_boundary_state() depending on space scheme
+		# TODO: assign more than just one ghost cell for higher-order schemes
+		if (direct_samp_idxs[0] == 0):
+			sol_inlet.calc_boundary_state(solver.sol_time, self.space_order,
+											sol_prim=sol_int.sol_prim[:, :2],
+											sol_cons=sol_int.sol_cons[:, :2])
+		if (direct_samp_idxs[-1] == (self.mesh.num_cells - 1)):
+			sol_outlet.calc_boundary_state(solver.sol_time, self.space_order,
+											sol_prim=sol_int.sol_prim[:, -2:],
+											sol_cons=sol_int.sol_cons[:, -2:])
+
+		self.fill_sol_full()  # fill sol_prim_full and sol_cons_full
+
+		# first-order approx at faces
+		sol_left = self.sol_left
+		sol_right = self.sol_right
+		sol_left.sol_prim = sol_prim_full[:, self.flux_samp_left_idxs]
+		sol_left.sol_cons = sol_cons_full[:, self.flux_samp_left_idxs]
+		sol_right.sol_prim = sol_prim_full[:, self.flux_samp_right_idxs]
+		sol_right.sol_cons = sol_cons_full[:, self.flux_samp_right_idxs]
+
+		# add higher-order contribution
+		if (self.space_order > 1):
+			sol_prim_grad = calc_cell_gradients(self)
+			sol_left.sol_prim[:, self.flux_left_extract] += \
+				(self.mesh.dx / 2.0) * sol_prim_grad[:, self.grad_left_extract]
+			sol_right.sol_prim[:, self.flux_right_extract] -= \
+				(self.mesh.dx / 2.0) * sol_prim_grad[:, self.grad_right_extract]
+			sol_left.calc_state_from_prim(calc_r=True, calc_cp=True)
+			sol_right.calc_state_from_prim(calc_r=True, calc_cp=True)
+
+		# compute fluxes
 		flux = self.invisc_flux_scheme.calc_flux(self)
 		if self.visc_flux_name != "invisc":
 			flux -= self.visc_flux_scheme.calc_flux(self)
 
-		return flux
+		# compute rhs
+		self.sol_int.rhs[:, direct_samp_idxs] = \
+			flux[:, self.flux_rhs_idxs] - flux[:, self.flux_rhs_idxs + 1]
+		sol_int.rhs[:, direct_samp_idxs] /= self.mesh.dx
+
+		# compute source term
+		if not solver.source_off:
+			source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, direct_samp_idxs)
+			sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
+			sol_int.wf[:, direct_samp_idxs] = wf
+
+			sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]
 
 	def calc_res_jacob(self, solver):
 		"""
