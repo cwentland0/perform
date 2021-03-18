@@ -6,10 +6,10 @@ REAL_TYPE = np.float64
 COMPLEX_TYPE = np.complex128
 
 R_UNIV = 8314.4621  # universal gas constant, J/(K*kmol)
-SUTH_TEMP = 110.4   # Sutherland temperature
+SUTH_TEMP = 110.4  # Sutherland temperature
 
 TINY_NUM = 1.0e-25  # very small number
-HUGE_NUM = 1.0e25   # very large number
+HUGE_NUM = 1.0e25  # very large number
 
 # time integrator defaults
 SUBITER_MAX_IMP_DEFAULT = 50

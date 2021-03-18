@@ -1,6 +1,4 @@
-
-
-class Flux():
+class Flux:
     """
     Base class for any flux scheme, either viscous or inviscid
 

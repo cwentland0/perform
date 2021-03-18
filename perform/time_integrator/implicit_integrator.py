@@ -15,15 +15,13 @@ class ImplicitIntegrator(TimeIntegrator):
     def __init__(self, param_dict):
         super().__init__(param_dict)
         self.time_type = "implicit"
-        self.subiter_max = catch_input(
-            param_dict, "subiter_max", const.SUBITER_MAX_IMP_DEFAULT)
-        self.res_tol = catch_input(
-            param_dict, "res_tol", const.L2_RES_TOL_DEFAULT)
+        self.subiter_max = catch_input(param_dict, "subiter_max", const.SUBITER_MAX_IMP_DEFAULT)
+        self.res_tol = catch_input(param_dict, "res_tol", const.L2_RES_TOL_DEFAULT)
 
         # Dual time-stepping, robustness controls
         self.dual_time = catch_input(param_dict, "dual_time", True)
         self.dtau = catch_input(param_dict, "dtau", const.DTAU_DEFAULT)
-        if (self.dual_time):
+        if self.dual_time:
             self.adapt_dtau = catch_input(param_dict, "adapt_dtau", False)
         else:
             self.adapt_dtau = False
@@ -44,13 +42,11 @@ class BDF(ImplicitIntegrator):
         self.coeffs = [None] * 4
         self.coeffs[0] = np.array([1.0, -1.0], dtype=REAL_TYPE)
         self.coeffs[1] = np.array([1.5, -2.0, 0.5], dtype=REAL_TYPE)
-        self.coeffs[2] = np.array([11./16., -3.0, 1.5, -1./3.],
-                                  dtype=REAL_TYPE)
-        self.coeffs[3] = np.array([25./12., -4.0, 3.0, -4./3., 0.25],
-                                  dtype=REAL_TYPE)
-        assert (self.time_order <= 4), (
-            str(self.time_order) + "th-order accurate scheme "
-            + "not implemented for " + self.time_scheme + " scheme")
+        self.coeffs[2] = np.array([11.0 / 16.0, -3.0, 1.5, -1.0 / 3.0], dtype=REAL_TYPE)
+        self.coeffs[3] = np.array([25.0 / 12.0, -4.0, 3.0, -4.0 / 3.0, 0.25], dtype=REAL_TYPE)
+        assert self.time_order <= 4, (
+            str(self.time_order) + "th-order accurate scheme not implemented for " + self.time_scheme + " scheme"
+        )
 
     def calc_residual(self, solHist, rhs, solver):
 

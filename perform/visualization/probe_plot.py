@@ -10,10 +10,19 @@ from perform.visualization.visualization import Visualization
 
 
 class ProbePlot(Visualization):
-
-    def __init__(self, image_output_dir, vis_id, sim_type, probe_vars,
-                 vis_vars, probe_num, num_probes, vis_x_bounds, vis_y_bounds,
-                 species_names):
+    def __init__(
+        self,
+        image_output_dir,
+        vis_id,
+        sim_type,
+        probe_vars,
+        vis_vars,
+        probe_num,
+        num_probes,
+        vis_x_bounds,
+        vis_y_bounds,
+        species_names,
+    ):
 
         self.vis_type = "probe"
         self.vis_id = vis_id
@@ -21,18 +30,11 @@ class ProbePlot(Visualization):
 
         self.probe_num = probe_num
         self.probe_vars = probe_vars
-        assert (self.probe_num >= 0), (
-            "Must provide positive integer probe number "
-            + "for probe plot " + str(self.vis_id))
-        assert (self.probe_num < num_probes), (
-            "probe_num_" + str(self.vis_id)
-            + " must correspond to a valid probe")
-        assert (vis_vars[0] is not None), (
-            "Must provide vis_vars for probe plot " + str(self.vis_id))
+        assert self.probe_num >= 0, "Must provide positive integer probe number for probe plot " + str(self.vis_id)
+        assert self.probe_num < num_probes, "probe_num_" + str(self.vis_id) + " must correspond to a valid probe"
+        assert vis_vars[0] is not None, "Must provide vis_vars for probe plot " + str(self.vis_id)
 
-        super().__init__(
-            vis_id, vis_vars, vis_x_bounds,
-            vis_y_bounds, species_names)
+        super().__init__(vis_id, vis_vars, vis_x_bounds, vis_y_bounds, species_names)
 
         self.ax_line = [None] * self.num_subplots
 
@@ -40,14 +42,12 @@ class ProbePlot(Visualization):
         vis_name = ""
         for vis_var in self.vis_vars:
             vis_name += "_" + vis_var
-        fig_name = ("probe" + vis_name + "_" + str(self.probe_num)
-                    + "_" + sim_type + ".png")
+        fig_name = "probe" + vis_name + "_" + str(self.probe_num) + "_" + sim_type + ".png"
         self.fig_file = os.path.join(image_output_dir, fig_name)
 
         # check that requested variables are being probed
         for vis_var in self.vis_vars:
-            assert (vis_var in probe_vars), (
-                "Must probe " + vis_var + " to plot it")
+            assert vis_var in probe_vars, "Must probe " + vis_var + " to plot it"
 
     def plot(self, probe_vals, time_vals, iter_num, line_style, first_plot):
         """
@@ -70,28 +70,23 @@ class ProbePlot(Visualization):
                 col_list = col
             for rowIdx, ax_var in enumerate(col_list):
 
-                lin_idx = np.ravel_multi_index(
-                    ([col_idx], [rowIdx]),
-                    (self.num_rows, self.num_cols))[0]
+                lin_idx = np.ravel_multi_index(([col_idx], [rowIdx]), (self.num_rows, self.num_cols))[0]
                 if (lin_idx + 1) > self.num_subplots:
                     ax_var.axis("off")
                     break
 
                 ax_var.cla()
 
-                y_data = self.getYData(
-                    probe_vals, self.vis_vars[lin_idx], iter_num)
+                y_data = self.getYData(probe_vals, self.vis_vars[lin_idx], iter_num)
                 x_data = time_vals[:iter_num]
 
-                self.ax_line[lin_idx], = ax_var.plot(
-                    x_data, y_data, line_style)
+                (self.ax_line[lin_idx],) = ax_var.plot(x_data, y_data, line_style)
 
                 ax_var.set_ylabel(self.ax_labels[lin_idx])
                 ax_var.set_xlabel(self.x_label)
                 ax_var.set_ylim(self.vis_y_bounds[lin_idx])
                 ax_var.set_xlim(self.vis_x_bounds[lin_idx])
-                ax_var.ticklabel_format(
-                    axis='x', style='sci', scilimits=(0, 0))
+                ax_var.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
 
         if first_plot:
             self.fig.tight_layout()

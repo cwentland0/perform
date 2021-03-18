@@ -38,9 +38,9 @@ class VisualizationGroup:
                 key_name = "vis_type_" + str(self.num_vis_plots + 1)
                 plot_type = str(param_dict[key_name])
                 # TODO: should honestly just fail for incorrect input
-                assert (plot_type in ["field", "probe", "residual"]), (
-                    key_name + " must be either"
-                    + " \"field\", \"probe\", or \"residual\"")
+                assert plot_type in ["field", "probe", "residual"], (
+                    key_name + ' must be either "field", "probe", or "residual"'
+                )
                 self.num_vis_plots += 1
             except (KeyError, AssertionError):
                 plot_count = False
@@ -55,35 +55,44 @@ class VisualizationGroup:
 
             # some parameters all plots have
             vis_type = str(param_dict["vis_type_" + str(vis_idx)])
-            vis_vars = catch_list(
-                param_dict, "vis_var_" + str(vis_idx), [None])
+            vis_vars = catch_list(param_dict, "vis_var_" + str(vis_idx), [None])
             vis_x_bounds = catch_list(
-                param_dict, "vis_x_bounds_" + str(vis_idx),
-                [[None, None]], len_highest=len(vis_vars))
+                param_dict, "vis_x_bounds_" + str(vis_idx), [[None, None]], len_highest=len(vis_vars)
+            )
             vis_y_bounds = catch_list(
-                param_dict, "vis_y_bounds_" + str(vis_idx),
-                [[None, None]], len_highest=len(vis_vars))
+                param_dict, "vis_y_bounds_" + str(vis_idx), [[None, None]], len_highest=len(vis_vars)
+            )
 
             if vis_type == "field":
                 self.vis_list[vis_idx - 1] = FieldPlot(
-                    solver.image_output_dir, vis_idx,
-                    self.vis_interval, solver.num_steps,
-                    solver.sim_type, vis_vars, vis_x_bounds,
-                    vis_y_bounds, sol_domain.gas_model.species_names)
+                    solver.image_output_dir,
+                    vis_idx,
+                    self.vis_interval,
+                    solver.num_steps,
+                    solver.sim_type,
+                    vis_vars,
+                    vis_x_bounds,
+                    vis_y_bounds,
+                    sol_domain.gas_model.species_names,
+                )
 
             elif vis_type == "probe":
-                probe_num = -1 + catch_input(
-                    param_dict,
-                    "probe_num_" + str(vis_idx), -2)
+                probe_num = -1 + catch_input(param_dict, "probe_num_" + str(vis_idx), -2)
 
                 self.vis_list[vis_idx - 1] = ProbePlot(
-                    solver.image_output_dir, vis_idx,
-                    solver.sim_type, solver.probe_vars,
-                    vis_vars, probe_num, solver.num_probes,
-                    vis_x_bounds, vis_y_bounds,
-                    sol_domain.gas_model.species_names)
+                    solver.image_output_dir,
+                    vis_idx,
+                    solver.sim_type,
+                    solver.probe_vars,
+                    vis_vars,
+                    probe_num,
+                    solver.num_probes,
+                    vis_x_bounds,
+                    vis_y_bounds,
+                    sol_domain.gas_model.species_names,
+                )
 
-            elif (vis_type == "residual"):
+            elif vis_type == "residual":
                 raise ValueError("Residual plot not implemented yet")
 
             else:
@@ -92,9 +101,8 @@ class VisualizationGroup:
         # Set plot positions/dimensions
         for vis in self.vis_list:
             vis.fig, vis.ax = plt.subplots(
-                nrows=vis.num_rows, ncols=vis.num_cols,
-                num=vis.vis_id,
-                figsize=(FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT))
+                nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT)
+            )
 
         if self.vis_show:
             plt.show(block=False)
@@ -125,14 +133,16 @@ class VisualizationGroup:
                     vis.plot(
                         sol_domain.sol_int.sol_prim,
                         sol_domain.sol_int.sol_cons,
-                        sol_domain.sol_int.source, sol_domain.sol_int.rhs,
-                        sol_domain.gas_model, sol_domain.mesh.x_cell, 'b-',
-                        first_plot)
+                        sol_domain.sol_int.source,
+                        sol_domain.sol_int.rhs,
+                        sol_domain.gas_model,
+                        sol_domain.mesh.x_cell,
+                        "b-",
+                        first_plot,
+                    )
 
                 elif vis.vis_type == "probe":
-                    vis.plot(
-                        sol_domain.probe_vals, sol_domain.time_vals,
-                        solver.iter, 'b-', first_plot)
+                    vis.plot(sol_domain.probe_vals, sol_domain.time_vals, solver.iter, "b-", first_plot)
                 else:
                     raise ValueError("Invalid vis_type:" + str(vis.vis_type))
                 if self.vis_save:

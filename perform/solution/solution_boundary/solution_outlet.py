@@ -1,7 +1,6 @@
 from math import pow, sqrt
 
-from perform.solution.solution_boundary.solution_boundary import (
-    SolutionBoundary)
+from perform.solution.solution_boundary.solution_boundary import SolutionBoundary
 
 
 class SolutionOutlet(SolutionBoundary):
@@ -20,25 +19,24 @@ class SolutionOutlet(SolutionBoundary):
         elif self.bound_cond == "meanflow":
             self.bound_func = self.calc_mean_flow_bc
         else:
-            raise ValueError("Invalid outlet boundary condition selection: "
-                             + str(self.bound_cond))
+            raise ValueError("Invalid outlet boundary condition selection: " + str(self.bound_cond))
 
         super().__init__(gas, solver, "outlet")
 
-    def calc_subsonic_bc(self, sol_time, space_order,
-                         sol_prim=None, sol_cons=None):
+    def calc_subsonic_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """
         Subsonic outflow, specify outlet static pressure
         """
 
         # TODO: deal with mass fraction at outlet, should not be fixed
 
-        assert ((sol_prim is not None) and (sol_cons is not None)), (
-            "Must provide primitive and conservative interior state.")
+        assert (sol_prim is not None) and (
+            sol_cons is not None
+        ), "Must provide primitive and conservative interior state."
 
         press_bound = self.press
         if self.pert_type == "pressure":
-            press_bound *= (1.0 + self.calc_pert(sol_time))
+            press_bound *= 1.0 + self.calc_pert(sol_time)
 
         # chemical composition assumed constant near boundary
         r_mix = self.r_mix[0]
@@ -69,9 +67,9 @@ class SolutionOutlet(SolutionBoundary):
             s = 2.0 * s_p1 - s_p2
             j = 2.0 * j_p1 - j_p2
         else:
-            raise ValueError("Higher order extrapolation implementation "
-                             + "required for spatial order "
-                             + str(space_order))
+            raise ValueError(
+                "Higher order extrapolation implementation " + "required for spatial order " + str(space_order)
+            )
 
         # compute exterior state
         self.sol_prim[0, 0] = press_bound
@@ -80,23 +78,21 @@ class SolutionOutlet(SolutionBoundary):
         self.sol_prim[1, 0] = j - 2.0 * c_bound / gamma_mix_m1
         self.sol_prim[2, 0] = press_bound / (r_mix * rho_bound)
 
-    def calc_mean_flow_bc(self, sol_time, space_order,
-                          sol_prim=None, sol_cons=None):
+    def calc_mean_flow_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """
         Non-reflective boundary, unsteady solution is
         perturbation about mean flow solution
         Refer to documentation for derivation
         """
 
-        assert (sol_prim is not None), (
-            "Must provide primitive interior state")
+        assert sol_prim is not None, "Must provide primitive interior state"
 
         rho_c_mean = self.vel
         rho_cp_mean = self.rho
         press_back = self.press
 
         if self.pert_type == "pressure":
-            press_back *= (1.0 + self.calc_pert(sol_time))
+            press_back *= 1.0 + self.calc_pert(sol_time)
 
         # interior quantities
         press_out = sol_prim[0, -2:]
@@ -119,9 +115,9 @@ class SolutionOutlet(SolutionBoundary):
             w_2_bound = 2.0 * w_2_out[0] - w_2_out[1]
             w_4_bound = 2.0 * w_4_out[:, 0] - w_4_out[:, 0]
         else:
-            raise ValueError("Higher order extrapolation implementation "
-                             + "required for spatial order "
-                             + str(space_order))
+            raise ValueError(
+                "Higher order extrapolation implementation " + "required for spatial order " + str(space_order)
+            )
 
         # compute exterior state
         press_bound = (w_2_bound * rho_c_mean + press_back) / 2.0

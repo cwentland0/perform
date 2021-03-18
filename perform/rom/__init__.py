@@ -7,10 +7,17 @@ from perform.rom.projection_rom.linear_proj_rom.linear_splsvt_proj import Linear
 TFKERAS_IMPORT_SUCCESS = True
 try:
     import os
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"  # don't print all the TensorFlow warnings
-    from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_galerkin_proj_tfkeras import AutoencoderGalerkinProjTFKeras
-    from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_lspg_proj_tfkeras import AutoencoderLSPGProjTFKeras
-    from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_splsvt_proj_tfkeras import AutoencoderSPLSVTProjTFKeras
+
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # don't print all the TensorFlow warnings
+    from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_galerkin_proj_tfkeras import (
+        AutoencoderGalerkinProjTFKeras,
+    )
+    from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_lspg_proj_tfkeras import (
+        AutoencoderLSPGProjTFKeras,
+    )
+    from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_splsvt_proj_tfkeras import (
+        AutoencoderSPLSVTProjTFKeras,
+    )
 
 except ImportError:
     TFKERAS_IMPORT_SUCCESS = False
@@ -37,25 +44,21 @@ def get_rom_model(model_idx, rom_domain, sol_domain):
         if TFKERAS_IMPORT_SUCCESS:
 
             if rom_domain.rom_method == "autoencoder_galerkin_proj_tfkeras":
-                model = AutoencoderGalerkinProjTFKeras(
-                    model_idx, rom_domain, sol_domain)
+                model = AutoencoderGalerkinProjTFKeras(model_idx, rom_domain, sol_domain)
 
             elif rom_domain.rom_method == "autoencoder_lspg_proj_tfkeras":
-                model = AutoencoderLSPGProjTFKeras(
-                    model_idx, rom_domain, sol_domain)
+                model = AutoencoderLSPGProjTFKeras(model_idx, rom_domain, sol_domain)
 
             elif rom_domain.rom_method == "autoencoder_splsvt_proj_tfkeras":
-                model = AutoencoderSPLSVTProjTFKeras(
-                    model_idx, rom_domain, sol_domain)
+                model = AutoencoderSPLSVTProjTFKeras(model_idx, rom_domain, sol_domain)
 
             else:
-                raise ValueError("Invalid TF-Keras ROM method name: "
-                                 + rom_domain.rom_method)
+                raise ValueError("Invalid TF-Keras ROM method name: " + rom_domain.rom_method)
 
         else:
-            raise ValueError("TF-Keras models failed to import,"
-                             + " please check that TensorFlow >= 2.0"
-                             + " is installed")
+            raise ValueError(
+                "TF-Keras models failed to import," + " please check that TensorFlow >= 2.0" + " is installed"
+            )
 
     # TODO: PyTorch autoencoder models
 

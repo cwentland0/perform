@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class Limiter():
+class Limiter:
     """
     Base class for gradient limiters
     """

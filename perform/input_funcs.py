@@ -44,7 +44,7 @@ def catch_list(in_dict, in_key, default, len_highest=1):
     # TODO: could make a recursive function probably,
     # 	just hard to define appropriate list lengths at each level
 
-    list_of_lists_flag = (type(default[0]) == list)
+    list_of_lists_flag = type(default[0]) == list
 
     try:
         inList = in_dict[in_key]
@@ -61,8 +61,7 @@ def catch_list(in_dict, in_key, default, len_highest=1):
                     val_list.append(inList[list_idx])
                 else:
                     type_default = type(default[0][0])
-                    cast_in_list = [type_default(inVal)
-                                    for inVal in inList[list_idx]]
+                    cast_in_list = [type_default(inVal) for inVal in inList[list_idx]]
                     val_list.append(cast_in_list)
 
         # Normal list
@@ -103,11 +102,11 @@ def parse_line(line):
     Parse read text line into dict key and value
     """
 
-    eq = line.find('=')
+    eq = line.find("=")
     if eq == -1:
         raise Exception()
     key = line[:eq].strip()
-    value = line[(eq + 1):-1].strip()
+    value = line[(eq + 1) : -1].strip()
     return key, parse_value(value)
 
 
@@ -188,8 +187,7 @@ def get_initial_conditions(sol_domain, solver):
 
     # Initialize from restart file
     if solver.init_from_restart:
-        (solver.sol_time, sol_prim_init, solver.restart_iter) = \
-            read_restart_file(solver)
+        (solver.sol_time, sol_prim_init, solver.restart_iter) = read_restart_file(solver)
 
     # Otherwise init from scratch IC or custom IC file
     else:
@@ -197,8 +195,9 @@ def get_initial_conditions(sol_domain, solver):
             sol_prim_init = gen_piecewise_uniform_ic(sol_domain, solver)
         else:
             sol_prim_init = np.load(solver.init_file)
-            assert (sol_prim_init.shape[0] == sol_domain.gas_model.num_eqs), (
-                "Incorrect init_file num_eqs: " + str(sol_prim_init.shape[0]))
+            assert sol_prim_init.shape[0] == sol_domain.gas_model.num_eqs, "Incorrect init_file num_eqs: " + str(
+                sol_prim_init.shape[0]
+            )
 
         # Attempt to get solver.sol_time, if given
         solver.sol_time = catch_input(solver.param_dict, "sol_time_init", 0.0)
@@ -216,14 +215,10 @@ def gen_piecewise_uniform_ic(sol_domain, solver):
     if os.path.isfile(solver.ic_params_file):
         ic_dict = read_input_file(solver.ic_params_file)
     else:
-        raise ValueError("Could not find initial conditions file at "
-                         + solver.ic_params_file)
+        raise ValueError("Could not find initial conditions file at " + solver.ic_params_file)
 
-    split_idx = \
-        np.absolute(sol_domain.mesh.x_cell - ic_dict["x_split"]).argmin() + 1
-    sol_prim = np.zeros(
-        (sol_domain.gas_model.num_eqs, sol_domain.mesh.num_cells),
-        dtype=REAL_TYPE)
+    split_idx = np.absolute(sol_domain.mesh.x_cell - ic_dict["x_split"]).argmin() + 1
+    sol_prim = np.zeros((sol_domain.gas_model.num_eqs, sol_domain.mesh.num_cells), dtype=REAL_TYPE)
 
     # TODO: error (warning?) if x_split outside domain / doesn't split domain
 
@@ -234,24 +229,22 @@ def gen_piecewise_uniform_ic(sol_domain, solver):
     sol_prim[1, :split_idx] = ic_dict["vel_left"]
     sol_prim[2, :split_idx] = ic_dict["temp_left"]
     mass_fracs_left = ic_dict["mass_fracs_left"]
-    assert(np.sum(mass_fracs_left) == 1.0), (
-        "mass_fracs_left must sum to 1.0")
-    assert(len(mass_fracs_left) == gas.num_species_full), (
-        "mass_fracs_left must have " + str(gas.num_species_full) + " entries")
-    sol_prim[3:, :split_idx] = \
-        ic_dict["mass_fracs_left"][gas.mass_frac_slice, None]
+    assert np.sum(mass_fracs_left) == 1.0, "mass_fracs_left must sum to 1.0"
+    assert len(mass_fracs_left) == gas.num_species_full, (
+        "mass_fracs_left must have " + str(gas.num_species_full) + " entries"
+    )
+    sol_prim[3:, :split_idx] = ic_dict["mass_fracs_left"][gas.mass_frac_slice, None]
 
     # Right state
     sol_prim[0, split_idx:] = ic_dict["press_right"]
     sol_prim[1, split_idx:] = ic_dict["vel_right"]
     sol_prim[2, split_idx:] = ic_dict["temp_right"]
     mass_fracs_right = ic_dict["mass_fracs_right"]
-    assert(np.sum(mass_fracs_right) == 1.0), (
-        "mass_fracs_right must sum to 1.0")
-    assert(len(mass_fracs_right) == gas.num_species_full), (
-        "mass_fracs_right must have " + str(gas.num_species_full) + " entries")
-    sol_prim[3:, split_idx:] = \
-        mass_fracs_right[gas.mass_frac_slice, None]
+    assert np.sum(mass_fracs_right) == 1.0, "mass_fracs_right must sum to 1.0"
+    assert len(mass_fracs_right) == gas.num_species_full, (
+        "mass_fracs_right must have " + str(gas.num_species_full) + " entries"
+    )
+    sol_prim[3:, split_idx:] = mass_fracs_right[gas.mass_frac_slice, None]
 
     return sol_prim
 
@@ -270,13 +263,12 @@ def read_restart_file(solver):
         restart_iter = int(f.read())
 
     # Read solution
-    restart_file = os.path.join(solver.restart_output_dir,
-                                "restartFile_" + str(restart_iter) + ".npz")
+    restart_file = os.path.join(solver.restart_output_dir, "restartFile_" + str(restart_iter) + ".npz")
     restart_in = np.load(restart_file)
 
     sol_time = restart_in["sol_time"].item()  # convert array() to scalar
     sol_prim = restart_in["sol_prim"]
 
-    restart_iter += 1   # so this restart file doesn't get overwritten
+    restart_iter += 1  # so this restart file doesn't get overwritten
 
     return sol_time, sol_prim, restart_iter

@@ -4,8 +4,7 @@ import tensorflow as tf
 from perform.constants import REAL_TYPE
 from perform.input_funcs import catch_input
 from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_proj_rom import AutoencoderProjROM
-from perform.rom.tf_keras_funcs import (
-    init_device, load_model_obj, get_io_shape)
+from perform.rom.tf_keras_funcs import init_device, load_model_obj, get_io_shape
 
 
 class AutoencoderTFKeras(AutoencoderProjROM):
@@ -26,12 +25,11 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         # "nchw" (channels first) or "nhwc" (channels last)
         self.io_format = rom_domain.rom_dict["io_format"]
         if self.io_format == "nchw":
-            assert (self.run_gpu), "Tensorflow cannot handle NCHW on CPUs"
+            assert self.run_gpu, "Tensorflow cannot handle NCHW on CPUs"
         elif self.io_format == "nhwc":
             pass  # works on GPU or CPU
         else:
-            raise ValueError("io_format must be either \"nchw\" or \"nhwc\";"
-                             + "you entered " + str(self.io_format))
+            raise ValueError('io_format must be either "nchw" or "nhwc"; you entered ' + str(self.io_format))
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
@@ -43,24 +41,18 @@ class AutoencoderTFKeras(AutoencoderProjROM):
             if self.encoder_jacob:
                 if self.io_format == "nhwc":
                     if self.target_cons:
-                        sol_init = (
-                            (sol_int.sol_cons.T)[None, :, self.var_idxs])
+                        sol_init = (sol_int.sol_cons.T)[None, :, self.var_idxs]
                     else:
-                        sol_init = (
-                            (sol_int.sol_prim.T)[None, :, self.var_idxs])
+                        sol_init = (sol_int.sol_prim.T)[None, :, self.var_idxs]
                 else:
                     if self.target_cons:
-                        sol_init = (
-                            (sol_int.sol_cons)[None, :, self.var_idxs])
+                        sol_init = (sol_int.sol_cons)[None, :, self.var_idxs]
                     else:
-                        sol_init = (
-                            (sol_int.sol_prim)[None, :, self.var_idxs])
-                self.jacob_input = tf.Variable(
-                    sol_init, dtype=self.encoder_io_dtypes[0])
+                        sol_init = (sol_int.sol_prim)[None, :, self.var_idxs]
+                self.jacob_input = tf.Variable(sol_init, dtype=self.encoder_io_dtypes[0])
 
             else:
-                self.jacob_input = tf.Variable(
-                    self.code[None, :], dtype=self.decoder_io_dtypes[0])
+                self.jacob_input = tf.Variable(self.code[None, :], dtype=self.decoder_io_dtypes[0])
 
     def check_model(self, decoder=True):
         """
@@ -71,20 +63,19 @@ class AutoencoderTFKeras(AutoencoderProjROM):
             input_shape = get_io_shape(self.decoder.layers[0].input_shape)
             output_shape = get_io_shape(self.decoder.layers[-1].output_shape)
 
-            assert(input_shape[-1] == self.latent_dim), (
-                "Mismatched decoder input shape: "
-                + str(input_shape[-1]) + ", " + str(self.latent_dim))
+            assert input_shape[-1] == self.latent_dim, (
+                "Mismatched decoder input shape: " + str(input_shape[-1]) + ", " + str(self.latent_dim)
+            )
 
             if self.io_format == "nchw":
-                assert(output_shape[-2:] == self.sol_shape), (
-                    "Mismatched decoder output shape: "
-                    + str(output_shape[-2:]) + ", " + str(self.sol_shape))
+                assert output_shape[-2:] == self.sol_shape, (
+                    "Mismatched decoder output shape: " + str(output_shape[-2:]) + ", " + str(self.sol_shape)
+                )
 
             else:
-                assert(output_shape[-2:] == self.sol_shape[::-1]), (
-                    "Mismatched decoder output shape: "
-                    + str(output_shape[-2:]) + ", "
-                    + str(self.sol_shape[::-1]))
+                assert output_shape[-2:] == self.sol_shape[::-1], (
+                    "Mismatched decoder output shape: " + str(output_shape[-2:]) + ", " + str(self.sol_shape[::-1])
+                )
 
             input_dtype = self.decoder.layers[0].dtype
             output_dtype = self.decoder.layers[-1].dtype
@@ -93,19 +84,18 @@ class AutoencoderTFKeras(AutoencoderProjROM):
             input_shape = get_io_shape(self.encoder.layers[0].input_shape)
             output_shape = get_io_shape(self.encoder.layers[-1].output_shape)
 
-            assert(output_shape[-1] == self.latent_dim), (
-                "Mismatched encoder output shape: "
-                + str(output_shape[-1]) + ", " + str(self.latent_dim))
+            assert output_shape[-1] == self.latent_dim, (
+                "Mismatched encoder output shape: " + str(output_shape[-1]) + ", " + str(self.latent_dim)
+            )
 
             if self.io_format == "nchw":
-                assert(input_shape[-2:] == self.sol_shape), (
-                    "Mismatched encoder output shape: "
-                    + str(input_shape[-2:]) + ", " + str(self.sol_shape))
+                assert input_shape[-2:] == self.sol_shape, (
+                    "Mismatched encoder output shape: " + str(input_shape[-2:]) + ", " + str(self.sol_shape)
+                )
             else:
-                assert(input_shape[-2:] == self.sol_shape[::-1]), (
-                    "Mismatched encoder output shape: "
-                    + str(input_shape[-2:]) + ", "
-                    + str(self.sol_shape[::-1]))
+                assert input_shape[-2:] == self.sol_shape[::-1], (
+                    "Mismatched encoder output shape: " + str(input_shape[-2:]) + ", " + str(self.sol_shape[::-1])
+                )
 
             input_dtype = self.encoder.layers[0].dtype
             output_dtype = self.encoder.layers[-1].dtype
@@ -165,23 +155,15 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         if self.encoder_jacob:
             raise ValueError("Numerical encoder Jacobian not implemented yet")
             if self.io_format == "nhwc":
-                jacob = np.zeros(
-                    (inputs.shape[0], self.num_cells, self.numVars),
-                    dtype=REAL_TYPE)
+                jacob = np.zeros((inputs.shape[0], self.num_cells, self.numVars), dtype=REAL_TYPE)
             else:
-                jacob = np.zeros(
-                    (inputs.shape[0], self.numVars, self.num_cells),
-                    dtype=REAL_TYPE)
+                jacob = np.zeros((inputs.shape[0], self.numVars, self.num_cells), dtype=REAL_TYPE)
 
         else:
             if self.io_format == "nhwc":
-                jacob = np.zeros(
-                    (self.num_cells, self.numVars, inputs.shape[0]),
-                    dtype=REAL_TYPE)
+                jacob = np.zeros((self.num_cells, self.numVars, inputs.shape[0]), dtype=REAL_TYPE)
             else:
-                jacob = np.zeros(
-                    (self.numVars, self.num_cells, inputs.shape[0]),
-                    dtype=REAL_TYPE)
+                jacob = np.zeros((self.numVars, self.num_cells, inputs.shape[0]), dtype=REAL_TYPE)
 
         # get initial prediction
         outputsBase = np.squeeze(model(inputs[None, :]).numpy(), axis=0)
@@ -216,41 +198,39 @@ class AutoencoderTFKeras(AutoencoderProjROM):
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_cons,
                 norm_sub_prof=self.normSubProfCons,
-                center=True, centProf=self.centProfCons,
-                inverse=False)
+                center=True,
+                centProf=self.centProfCons,
+                inverse=False,
+            )
 
             if self.io_format == "nhwc":
                 sol = np.transpose(sol, axes=(1, 0))
 
             if self.numerical_jacob:
-                jacob = self.calc_numerical_model_jacobian(
-                    self.encoder, sol)
+                jacob = self.calc_numerical_model_jacobian(self.encoder, sol)
 
             else:
                 self.jacob_input.assign(sol[None, :, :])
-                jacob_tf = self.calc_analytical_model_jacobian(
-                    self.encoder, self.jacob_input)
+                jacob_tf = self.calc_analytical_model_jacobian(self.encoder, self.jacob_input)
                 jacob = tf.squeeze(jacob_tf, axis=[0, 2]).numpy()
 
             if self.io_format == "nhwc":
                 jacob = np.transpose(jacob, axes=(0, 2, 1))
 
-            jacob = np.reshape(jacob, (self.latent_dim, -1), order='C')
+            jacob = np.reshape(jacob, (self.latent_dim, -1), order="C")
 
         else:
 
             if self.numerical_jacob:
-                jacob = self.calc_numerical_model_jacobian(
-                    self.decoder, self.code)
+                jacob = self.calc_numerical_model_jacobian(self.decoder, self.code)
             else:
                 self.jacob_input.assign(self.code[None, :])
-                jacob_tf = self.calc_analytical_model_jacobian(
-                    self.decoder, self.jacob_input)
+                jacob_tf = self.calc_analytical_model_jacobian(self.decoder, self.jacob_input)
                 jacob = tf.squeeze(jacob_tf, axis=[0, 3]).numpy()
 
             if self.io_format == "nhwc":
                 jacob = np.transpose(jacob, axes=(1, 0, 2))
 
-            jacob = np.reshape(jacob, (-1, self.latent_dim), order='C')
+            jacob = np.reshape(jacob, (-1, self.latent_dim), order="C")
 
         return jacob

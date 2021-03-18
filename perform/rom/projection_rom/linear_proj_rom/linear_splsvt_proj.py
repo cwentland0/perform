@@ -14,11 +14,11 @@ class LinearSPLSVTProj(LinearProjROM):
         if rom_domain.time_integrator.time_type == "explicit":
             raise ValueError("Explicit SP-LSVT not implemented yet")
 
-        if ((rom_domain.time_integrator.time_type == "implicit")
-                and (not rom_domain.time_integrator.dual_time)):
-            raise ValueError("SP-LSVT is intended for primitive variable"
-                             + "evolution, please use Galerkin or LSPG,"
-                             + " or set dual_time = True")
+        if (rom_domain.time_integrator.time_type == "implicit") and (not rom_domain.time_integrator.dual_time):
+            raise ValueError(
+                "SP-LSVT is intended for primitive variable evolution, please use Galerkin or LSPG,"
+                + " or set dual_time = True"
+            )
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
@@ -31,21 +31,14 @@ class LinearSPLSVTProj(LinearProjROM):
         # TODO: add hyper-reduction
 
         # TODO: scaled_trial_basis should be calculated once
-        scaled_trial_basis = (
-            self.trial_basis
-            * self.norm_fac_prof_prim.ravel(order="C")[:, None])
+        scaled_trial_basis = self.trial_basis * self.norm_fac_prof_prim.ravel(order="C")[:, None]
 
         # compute test basis
-        test_basis = (
-            (res_jacob.toarray()
-             / self.norm_fac_prof_cons.ravel(order="C")[:, None])
-            @ scaled_trial_basis)
+        test_basis = (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None]) @ scaled_trial_basis
 
         # lhs and rhs of Newton iteration
         lhs = test_basis.T @ test_basis
-        rhs = (
-            test_basis.T
-            @ (res / self.norm_fac_prof_cons).ravel(order="C"))
+        rhs = test_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")
 
         # linear solve
         dCode = np.linalg.solve(lhs, rhs)

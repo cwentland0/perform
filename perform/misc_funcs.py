@@ -2,7 +2,7 @@ import os
 import struct
 
 
-def write_to_file(fid, array, order='F'):
+def write_to_file(fid, array, order="F"):
     """
     Write NumPy arrays to binary file using struct
 
@@ -22,16 +22,16 @@ def write_to_file(fid, array, order='F'):
 
     """
 
-    if (array.ndim > 1):
+    if array.ndim > 1:
         array = array.flatten(order=order)
     dtype = array.dtype
-    if (dtype == "float64"):
+    if dtype == "float64":
         typeStr = "d"
-    elif (dtype == "float32"):
+    elif dtype == "float32":
         typeStr = "f"
-    elif (dtype == "int32"):
+    elif dtype == "int32":
         typeStr = "i"
-    elif (dtype == "int16"):
+    elif dtype == "int16":
         typeStr = "h"
     else:
         raise ValueError("Did not recognize array type " + dtype)

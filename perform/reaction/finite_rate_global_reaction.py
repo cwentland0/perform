@@ -47,15 +47,14 @@ class FiniteRateGlobalReaction(Reaction):
 
         wf = np.product(
             wf[None, :]
-            * np.power((rho_mass_frac[self.reac_idxs, :]
-                       / gas.mol_weights[self.reac_idxs, None]),
-                       self.nu_arr[self.reac_idxs, None]),
-            axis=0)
+            * np.power(
+                (rho_mass_frac[self.reac_idxs, :] / gas.mol_weights[self.reac_idxs, None]),
+                self.nu_arr[self.reac_idxs, None],
+            ),
+            axis=0,
+        )
 
-        wf = np.amin(
-            np.minimum(wf[None, :],
-                       rho_mass_frac[self.reac_idxs, :] / dt),
-            axis=0)
+        wf = np.amin(np.minimum(wf[None, :], rho_mass_frac[self.reac_idxs, :] / dt), axis=0)
 
         source = -self.mol_weight_nu[gas.mass_frac_slice, None] * wf[None, :]
 
@@ -87,13 +86,10 @@ class FiniteRateGlobalReaction(Reaction):
         spec_idxs = np.squeeze(np.argwhere(self.nu_arr != 0.0))
 
         # TODO: not correct for multi-reaction
-        wf_div_rho = (
-            np.sum(wf[None, :] * self.nu_arr[spec_idxs, None], axis=0)
-            / rho[None, :])
+        wf_div_rho = np.sum(wf[None, :] * self.nu_arr[spec_idxs, None], axis=0) / rho[None, :]
 
         # subtract, as activation energy already set as negative
-        d_wf_d_temp = (wf_div_rho * d_rho_d_temp[None, :]
-                       - wf * self.act_energy / temp**2)
+        d_wf_d_temp = wf_div_rho * d_rho_d_temp[None, :] - wf * self.act_energy / temp ** 2
         d_wf_d_press = wf_div_rho * d_rho_d_press[None, :]
 
         # TODO: incorrect for multi-reaction,
@@ -101,20 +97,15 @@ class FiniteRateGlobalReaction(Reaction):
         d_wf_d_mass_frac = wf_div_rho * d_rho_d_mass_frac
         for i in range(gas.num_species):
             pos_mf_idxs = np.nonzero(mass_fracs[i, :] > 0.0)[0]
-            d_wf_d_mass_frac[i, pos_mf_idxs] += (
-                wf[0, pos_mf_idxs] * self.nu_arr[i]
-                / mass_fracs[i, pos_mf_idxs])
+            d_wf_d_mass_frac[i, pos_mf_idxs] += wf[0, pos_mf_idxs] * self.nu_arr[i] / mass_fracs[i, pos_mf_idxs]
 
         # TODO: for multi-reaction,
         # should be a summation over the reactions here
-        jacob[3:, 0, :] = (
-            -self.mol_weight_nu[gas.mass_frac_slice, None] * d_wf_d_press)
-        jacob[3:, 2, :] = (
-            -self.mol_weight_nu[gas.mass_frac_slice, None] * d_wf_d_temp)
+        jacob[3:, 0, :] = -self.mol_weight_nu[gas.mass_frac_slice, None] * d_wf_d_press
+        jacob[3:, 2, :] = -self.mol_weight_nu[gas.mass_frac_slice, None] * d_wf_d_temp
 
         # TODO: this is totally wrong for multi-reaction
         for i in range(gas.num_species):
-            jacob[3:, 3 + i, :] = (
-                -self.mol_weight_nu[[i], None] * d_wf_d_mass_frac[[i], :])
+            jacob[3:, 3 + i, :] = -self.mol_weight_nu[[i], None] * d_wf_d_mass_frac[[i], :]
 
         return jacob

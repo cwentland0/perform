@@ -23,18 +23,10 @@ class SystemSolver:
         self.param_dict = param_dict
 
         # Make output directories
-        self.unsteady_output_dir = mkdir_shallow(
-            self.working_dir,
-            const.UNSTEADY_OUTPUT_DIR_NAME)
-        self.probe_output_dir = mkdir_shallow(
-            self.working_dir,
-            const.PROBE_OUTPUT_DIR_NAME)
-        self.image_output_dir = mkdir_shallow(
-            self.working_dir,
-            const.IMAGE_OUTPUT_DIR_NAME)
-        self.restart_output_dir = mkdir_shallow(
-            self.working_dir,
-            const.RESTART_OUTPUT_DIR_NAME)
+        self.unsteady_output_dir = mkdir_shallow(self.working_dir, const.UNSTEADY_OUTPUT_DIR_NAME)
+        self.probe_output_dir = mkdir_shallow(self.working_dir, const.PROBE_OUTPUT_DIR_NAME)
+        self.image_output_dir = mkdir_shallow(self.working_dir, const.IMAGE_OUTPUT_DIR_NAME)
+        self.restart_output_dir = mkdir_shallow(self.working_dir, const.RESTART_OUTPUT_DIR_NAME)
 
         # initial condition file
         try:
@@ -52,22 +44,16 @@ class SystemSolver:
         self.time_iter = 1
 
         if self.run_steady:
-            self.steady_tol = catch_input(param_dict,
-                                          "steady_tol",
-                                          const.L2_STEADY_TOL_DEFAULT)
+            self.steady_tol = catch_input(param_dict, "steady_tol", const.L2_STEADY_TOL_DEFAULT)
 
         # restart files
         # TODO: could move this to solutionDomain, not terribly necessary
         self.save_restarts = catch_input(param_dict, "save_restarts", False)
         if self.save_restarts:
-            self.restart_interval = catch_input(param_dict,
-                                                "restart_interval",
-                                                100)
+            self.restart_interval = catch_input(param_dict, "restart_interval", 100)
             self.num_restarts = catch_input(param_dict, "num_restarts", 20)
             self.restart_iter = 1
-        self.init_from_restart = catch_input(param_dict,
-                                             "init_from_restart",
-                                             False)
+        self.init_from_restart = catch_input(param_dict, "init_from_restart", False)
 
         if (self.init_file is None) and (not self.init_from_restart):
             self.ic_params_file = str(param_dict["ic_params_file"])
@@ -79,8 +65,7 @@ class SystemSolver:
         self.source_out = catch_input(param_dict, "source_out", False)
         self.rhs_out = catch_input(param_dict, "rhs_out", False)
 
-        assert (self.out_interval > 0), (
-            "out_interval must be a positive integer")
+        assert self.out_interval > 0, "out_interval must be a positive integer"
         self.num_snaps = int(self.num_steps / self.out_interval)
 
         # misc

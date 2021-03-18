@@ -14,15 +14,13 @@ class LinearLSPGProj(LinearProjROM):
         # I'm not going to code LSPG with explicit time integrator,
         # it's a pointless exercise
         if rom_domain.time_integrator.time_type == "explicit":
-            raise ValueError("LSPG with an explicit time integrator"
-                             + " deteriorates to Galerkin, please use"
-                             + " Galerkin or select an"
-                             + "implicit time integrator.")
+            raise ValueError(
+                "LSPG with an explicit time integrator deteriorates to Galerkin, please use"
+                + " Galerkin or select an implicit time integrator."
+            )
 
         if rom_domain.time_integrator.dual_time:
-            raise ValueError("LSPG is intended for conservative"
-                             + " variable evolution, please set"
-                             + " dual_time = False")
+            raise ValueError("LSPG is intended for conservative variable evolution, please set dual_time = False")
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
@@ -35,21 +33,14 @@ class LinearLSPGProj(LinearProjROM):
         # TODO: add hyper-reduction
 
         # TODO: scaled_trial_basis should be calculated once
-        scaled_trial_basis = (
-            self.trial_basis
-            * self.norm_fac_prof_cons.ravel(order="C")[:, None])
+        scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
         # Compute test basis
-        test_basis = (
-            (res_jacob.toarray()
-             / self.norm_fac_prof_cons.ravel(order="C")[:, None])
-            @ scaled_trial_basis)
+        test_basis = (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None]) @ scaled_trial_basis
 
         # lhs and rhs of Newton iteration
         lhs = test_basis.T @ test_basis
-        rhs = (
-            test_basis.T
-            @ (res / self.norm_fac_prof_cons).ravel(order="C"))
+        rhs = test_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")
 
         # Linear solve
         dCode = np.linalg.solve(lhs, rhs)

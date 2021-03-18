@@ -17,23 +17,26 @@ class SolutionBoundary(SolutionPhys):
         param_dict = solver.param_dict
 
         # this generally stores fixed/stagnation properties
-        self.press, self.vel, self.temp, \
-            self.mass_fracs, self.rho, self.pert_type, \
-            self.pert_perc, self.pert_freq = parse_bc(bound_type, param_dict)
+        (
+            self.press,
+            self.vel,
+            self.temp,
+            self.mass_fracs,
+            self.rho,
+            self.pert_type,
+            self.pert_perc,
+            self.pert_freq,
+        ) = parse_bc(bound_type, param_dict)
 
-        assert (len(self.mass_fracs) == gas.num_species_full), (
-            "Must provide mass fraction state for all species at boundary")
-        assert (np.sum(self.mass_fracs) == 1.0), (
-            "Boundary mass fractions must sum to 1.0")
+        assert (
+            len(self.mass_fracs) == gas.num_species_full
+        ), "Must provide mass fraction state for all species at boundary"
+        assert np.sum(self.mass_fracs) == 1.0, "Boundary mass fractions must sum to 1.0"
 
-        self.cp_mix = gas.calc_mix_cp(
-            self.mass_fracs[gas.mass_frac_slice, None])
-        self.r_mix = gas.calc_mix_gas_constant(
-            self.mass_fracs[gas.mass_frac_slice, None])
-        self.gamma_mix = gas.calc_mix_gamma(
-            self.r_mix, self.cp_mix)
-        self.enth_ref_mix = gas.calc_mix_enth_ref(
-            self.mass_fracs[gas.mass_frac_slice, None])
+        self.cp_mix = gas.calc_mix_cp(self.mass_fracs[gas.mass_frac_slice, None])
+        self.r_mix = gas.calc_mix_gas_constant(self.mass_fracs[gas.mass_frac_slice, None])
+        self.gamma_mix = gas.calc_mix_gamma(self.r_mix, self.cp_mix)
+        self.enth_ref_mix = gas.calc_mix_enth_ref(self.mass_fracs[gas.mass_frac_slice, None])
 
         # this will be updated at each iteration, just initializing now
         # TODO: number of ghost cells should not always be one
@@ -59,15 +62,12 @@ class SolutionBoundary(SolutionPhys):
 
         return pert
 
-    def calc_boundary_state(self, sol_time, space_order,
-                            sol_prim=None, sol_cons=None):
+    def calc_boundary_state(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """
         Run boundary calculation and update ghost cell state
         Assumed that boundary function sets primitive state
         """
 
-        self.bound_func(
-            sol_time, space_order,
-            sol_prim=sol_prim, sol_cons=sol_cons)
+        self.bound_func(sol_time, space_order, sol_prim=sol_prim, sol_cons=sol_cons)
 
         self.update_state(from_cons=False)

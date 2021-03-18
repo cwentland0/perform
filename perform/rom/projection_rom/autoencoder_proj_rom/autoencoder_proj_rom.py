@@ -20,10 +20,8 @@ class AutoencoderProjROM(ProjectionROM):
         rom_dict = rom_domain.rom_dict
 
         # Load decoder
-        decoder_path = os.path.join(
-            rom_domain.model_dir, rom_domain.model_files[model_idx])
-        assert(os.path.isfile(decoder_path)), (
-            "Invalid decoder file path")
+        decoder_path = os.path.join(rom_domain.model_dir, rom_domain.model_files[model_idx])
+        assert os.path.isfile(decoder_path), "Invalid decoder file path"
         self.decoder = self.load_model_obj(decoder_path)
         self.decoder_io_dtypes = self.check_model(decoder=True)
 
@@ -32,16 +30,12 @@ class AutoencoderProjROM(ProjectionROM):
         # 	or initializing from projection of full ICs
         self.encoder_jacob = catch_input(rom_dict, "encoder_jacob", False)
         self.encoder = None
-        if (self.encoder_jacob
-                or (not rom_domain.init_rom_from_file[model_idx])):
+        if self.encoder_jacob or (not rom_domain.init_rom_from_file[model_idx]):
 
             encoder_files = rom_dict["encoder_files"]
-            assert (len(encoder_files) == rom_domain.num_models), (
-                "Must provide encoder_files for each model")
-            encoder_path = os.path.join(
-                rom_domain.model_dir, encoder_files[model_idx])
-            assert (os.path.isfile(encoder_path)), (
-                "Could not find encoder file at " + encoder_path)
+            assert len(encoder_files) == rom_domain.num_models, "Must provide encoder_files for each model"
+            encoder_path = os.path.join(rom_domain.model_dir, encoder_files[model_idx])
+            assert os.path.isfile(encoder_path), "Could not find encoder file at " + encoder_path
             self.encoder = self.load_model_obj(encoder_path)
             self.encoder_io_dtypes = self.check_model(decoder=False)
 
@@ -61,8 +55,10 @@ class AutoencoderProjROM(ProjectionROM):
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_cons,
                 norm_sub_prof=self.norm_sub_prof_cons,
-                center=True, cent_prof=self.cent_prof_cons,
-                inverse=False)
+                center=True,
+                cent_prof=self.cent_prof_cons,
+                inverse=False,
+            )
 
         else:
             sol = self.standardize_data(
@@ -70,8 +66,10 @@ class AutoencoderProjROM(ProjectionROM):
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_prim,
                 norm_sub_prof=self.norm_sub_prof_prim,
-                center=True, cent_prof=self.cent_prof_prim,
-                inverse=False)
+                center=True,
+                cent_prof=self.cent_prof_prim,
+                inverse=False,
+            )
 
         code = self.apply_encoder(sol)
 

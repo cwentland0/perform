@@ -10,21 +10,21 @@ class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
 
     def __init__(self, model_idx, rom_domain, sol_domain):
 
-        if (rom_domain.time_integrator.time_type == "explicit"):
+        if rom_domain.time_integrator.time_type == "explicit":
             raise ValueError("Explicit NLM SP-LSVT not implemented yet")
 
-        if ((rom_domain.time_integrator.time_type == "implicit")
-                and (not rom_domain.time_integrator.dual_time)):
-            raise ValueError("NLM SP-LSVT is intended for primitive variable"
-                             + " evolution, please use Galerkin or LSPG,"
-                             + " or set dual_time = True")
+        if (rom_domain.time_integrator.time_type == "implicit") and (not rom_domain.time_integrator.dual_time):
+            raise ValueError(
+                "NLM SP-LSVT is intended for primitive variable  evolution, please use Galerkin or LSPG,"
+                + " or set dual_time = True"
+            )
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
         if self.encoder_jacob:
-            raise ValueError("SP-LSVT is not equipped with an encoder"
-                             + " Jacobian approximation,"
-                             + " please set encoder_jacob = False")
+            raise ValueError(
+                "SP-LSVT is not equipped with an encoder Jacobian approximation, please set encoder_jacob = False"
+            )
 
     def calc_d_code(self, res_jacob, res, sol_domain):
         """
@@ -34,20 +34,14 @@ class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
 
         # decoder Jacobian, scaled
         jacob = self.calc_model_jacobian(sol_domain)
-        scaled_jacob = (
-            jacob * self.norm_fac_prof_prim.ravel(order="C")[:, None])
+        scaled_jacob = jacob * self.norm_fac_prof_prim.ravel(order="C")[:, None]
 
         # test basis
-        test_basis = (
-            (res_jacob.toarray()
-             / self.norm_fac_prof_cons.ravel(order="C")[:, None])
-            @ scaled_jacob)
+        test_basis = (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None]) @ scaled_jacob
 
         # Newton iteration linear solve
         lhs = test_basis.T @ test_basis
-        rhs = (
-            test_basis.T
-            @ (res / self.norm_fac_prof_cons).ravel(order="C"))
+        rhs = test_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")
 
         d_code = np.linalg.solve(lhs, rhs)
 

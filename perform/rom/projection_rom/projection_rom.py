@@ -18,19 +18,16 @@ class ProjectionROM(RomModel):
 
     def project_to_low_dim(self, projector, full_dim_arr, transpose=False):
         """
-        Project given full-dimensional vector onto low-dimensional
-        space via given projector
+        Project given full-dimensional vector onto low-dimensional space via given projector
 
-        Assumed that full_dim_arr is either 1D array or is in
-        [numVars, numCells] order
+        Assumed that full_dim_arr is either 1D array or is in [numVars, numCells] order
 
-        Assumed that projector is already in
-        [numModes, numVars x numCells] order
+        Assumed that projector is already in [numModes, numVars x numCells] order
         """
 
-        if (full_dim_arr.ndim == 2):
+        if full_dim_arr.ndim == 2:
             full_dim_vec = full_dim_arr.flatten(order="C")
-        elif (full_dim_arr.ndim == 1):
+        elif full_dim_arr.ndim == 1:
             full_dim_vec = full_dim_arr.copy()
         else:
             raise ValueError("full_dim_arr must be one- or two-dimensional")
@@ -51,18 +48,17 @@ class ProjectionROM(RomModel):
         """
 
         # scale RHS
-        norm_sub_prof = np.zeros(
-            self.norm_fac_prof_cons.shape, dtype=REAL_TYPE)
+        norm_sub_prof = np.zeros(self.norm_fac_prof_cons.shape, dtype=REAL_TYPE)
 
         rhs_scaled = self.standardize_data(
-            sol_domain.sol_int.rhs[self.var_idxs[:, None],
-                                   sol_domain.direct_samp_idxs[None, :]],
+            sol_domain.sol_int.rhs[self.var_idxs[:, None], sol_domain.direct_samp_idxs[None, :]],
             normalize=True,
             norm_fac_prof=self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs],
             norm_sub_prof=norm_sub_prof[:, sol_domain.direct_samp_idxs],
-            center=False, inverse=False)
+            center=False,
+            inverse=False,
+        )
 
         # calc projection operator and project
         self.calc_projector(sol_domain)
-        self.rhs_low_dim = self.project_to_low_dim(
-            self.projector, rhs_scaled, transpose=False)
+        self.rhs_low_dim = self.project_to_low_dim(self.projector, rhs_scaled, transpose=False)

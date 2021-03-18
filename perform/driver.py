@@ -18,11 +18,9 @@ def main():
 
     # Read working directory input
     parser = argparse.ArgumentParser(description="Read working directory")
-    parser.add_argument('working_dir', type=str,
-                        default="./", help="runtime working directory")
+    parser.add_argument("working_dir", type=str, default="./", help="runtime working directory")
     working_dir = os.path.expanduser(parser.parse_args().working_dir)
-    assert (os.path.isdir(working_dir)), (
-        "Given working directory does not exist")
+    assert os.path.isdir(working_dir), "Given working directory does not exist"
 
     # Retrieve global solver parameters
     # TODO: multi-domain solvers
@@ -48,7 +46,7 @@ def main():
         for solver.iter in range(1, solver.num_steps + 1):
 
             # Advance one physical time step
-            if (solver.calc_rom):
+            if solver.calc_rom:
                 rom_domain.advance_iter(sol_domain, solver)
             else:
                 sol_domain.advance_iter(solver)

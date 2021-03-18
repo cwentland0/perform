@@ -13,9 +13,7 @@ class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
     def __init__(self, model_idx, rom_domain, sol_domain):
 
         if rom_domain.time_integrator.dual_time:
-            raise ValueError("Galerkin is intended for conservative"
-                             + "variable evolution, please set"
-                             + " dual_time = False")
+            raise ValueError("Galerkin is intended for conservative variable evolution, please set dual_time = False")
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
@@ -44,24 +42,16 @@ class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
 
         jacob = self.calc_model_jacobian(sol_domain)
 
-        if (self.encoder_jacob):
-            jacob_pinv = (
-                jacob * self.norm_fac_prof_cons.ravel(order="C")[None, :])
+        if self.encoder_jacob:
+            jacob_pinv = jacob * self.norm_fac_prof_cons.ravel(order="C")[None, :]
 
         else:
-            scaled_jacob = (
-                jacob * self.norm_fac_prof_cons.ravel(order="C")[:, None])
+            scaled_jacob = jacob * self.norm_fac_prof_cons.ravel(order="C")[:, None]
             jacob_pinv = pinv(scaled_jacob)
 
         # Newton iteration linear solve
-        lhs = (
-            jacob_pinv
-            @ (res_jacob.toarray()
-               / self.norm_fac_prof_cons.ravel(order="C")[:, None])
-            @ scaled_jacob)
-        rhs = (
-            jacob_pinv
-            @ (res / self.norm_fac_prof_cons).ravel(order="C"))
+        lhs = jacob_pinv @ (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None]) @ scaled_jacob
+        rhs = jacob_pinv @ (res / self.norm_fac_prof_cons).ravel(order="C")
 
         d_code = np.linalg.solve(lhs, rhs)
 
