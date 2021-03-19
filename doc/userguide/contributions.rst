@@ -1,2 +1,6 @@
-Contributing
+Issues and Contributing
 =======================
+
+If you experience errors or unexpected solver behavior when running **PERFORM**, please first double-check your input parameters and use this documentation as a reference for proper input file formatting. If problems persist, please create a new issue on the repository, and I'll do my best to resolve it. However, if a submitted issue is related to a significant *expansion* of code capabilities (e.g. adding a new ROM model or flux scheme), I probably won't work on it. 
+
+On the other hand, if you would like to personally work to expand the code and contribute to **PERFORM**, first of all thank you! Please email me to request permission to contribute. After that, feel free to create a new branch and submit a pull request when you feel the new additions are complete. I have yet to implement any automatic testing for the repository, so you would be doing me a major solid by checking that your changes are compatible with *all* of the example cases before creating a pull request. Under no circumstance should you try to push any binary or image data without explicit permission, as this just makes the Git history unnecessarily large. I'll just tell you that you need to make a new branch without those files, delete your branch from the repository, and run garbage collection. Honestly, I need to do a ton of work on continuous integration to make this all a lot smoother, but it is what it is for now.
