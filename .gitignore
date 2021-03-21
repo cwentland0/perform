@@ -21,3 +21,5 @@
 *.egg-info/
 *.plt
 *.szplt
+build/
+_build/

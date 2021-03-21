@@ -3,6 +3,8 @@ Example Cases
 
 Several example cases are provided in ``perform/examples/`` to get you familiar with input file formatting and the various solver outputs. They are presented in a rough hierarchy of ROM modeling difficulty, starting from the simplest and building in difficulty by introducing additional complex physical phenomena. This hierarchy is highly debatable, as a ROM method may be very well-equipped to handle a "more complex" problem and utterly fail for a "simpler" problem. Ideally, new ROM methods should be tested for all problems, and their relative strengths and weaknesses in tackling each problem should be exposed in detail.
 
+.. _sodshock-label:
+
 Sod Shock Tube
 --------------
 

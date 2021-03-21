@@ -338,11 +338,11 @@ class SolutionInterior(SolutionPhys):
         final_idx = int((solver.iter - 1) / solver.out_interval) + offset
 
         if solver.prim_out:
-            sol_prim_file = os.path.join(unsteady_output_dir, "solPrim_" + solver.sim_type + ".npy")
+            sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_" + solver.sim_type + ".npy")
             np.save(sol_prim_file, self.prim_snap[:, :, :final_idx])
 
         if solver.cons_out:
-            sol_cons_file = os.path.join(unsteady_output_dir, "solCons_" + solver.sim_type + ".npy")
+            sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_" + solver.sim_type + ".npy")
             np.save(sol_cons_file, self.cons_snap[:, :, :final_idx])
 
         if solver.source_out:
@@ -350,7 +350,7 @@ class SolutionInterior(SolutionPhys):
             np.save(source_file, self.source_snap[:, :, : final_idx - 1])
 
         if solver.rhs_out:
-            sol_rhs_file = os.path.join(unsteady_output_dir, "solRHS_" + solver.sim_type + ".npy")
+            sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + solver.sim_type + ".npy")
             np.save(sol_rhs_file, self.rhs_snap[:, :, : final_idx - 1])
 
     def write_restart_file(self, solver):

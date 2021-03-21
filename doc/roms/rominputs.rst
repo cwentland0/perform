@@ -1,6 +1,10 @@
-Input Files
-===========
+.. _rominputs-label:
 
+ROM Input Files
+===============
+
+
+.. _romparams-label:
 
 rom_params.inp
 --------------

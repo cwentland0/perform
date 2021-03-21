@@ -99,9 +99,9 @@ class SolutionDomain:
         self.space_order = catch_input(param_dict, "space_order", 1)
         assert self.space_order >= 1, "space_order must be a positive integer"
         if self.space_order > 1:
-            self.grad_limiter_name = catch_input(param_dict, "grad_limiter", "")
+            self.grad_limiter_name = catch_input(param_dict, "grad_limiter", "none")
 
-            if self.grad_limiter_name == "":
+            if self.grad_limiter_name == "none":
                 pass
             elif self.grad_limiter_name == "barth":
                 self.grad_limiter = BarthJespLimiter()
@@ -351,7 +351,7 @@ class SolutionDomain:
             raise ValueError("Order " + str(self.space_order) + " gradient calculations not implemented")
 
         # compute gradient limiter and limit gradient, if requested
-        if self.grad_limiter_name != "":
+        if self.grad_limiter_name != "none":
             phi = self.grad_limiter.calc_limiter(self, sol_prim_grad)
             sol_prim_grad = sol_prim_grad * phi
 

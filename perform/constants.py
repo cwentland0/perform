@@ -5,7 +5,7 @@ import numpy as np
 REAL_TYPE = np.float64
 COMPLEX_TYPE = np.complex128
 
-R_UNIV = 8314.4621  # universal gas constant, J/(K*kmol)
+R_UNIV = 8314.4621  # universal gas constant, kJ/(K*mol)
 SUTH_TEMP = 110.4  # Sutherland temperature
 
 TINY_NUM = 1.0e-25  # very small number
