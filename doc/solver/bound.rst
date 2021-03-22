@@ -1,17 +1,19 @@
+.. _bounds-label:
+
 Boundary Conditions
 ===================
-Boundary conditions in **PERFORM** are enforced by an explicit ghost cell formulation. As noted in :ref:`solverparams-label`, the requirements and interpretations of the ``*_inlet`` and ``*_outlet`` input parameters depends on the boundary condition specified by ``bound_cond_inlet`` / ``bound_cond_outlet``. Valid options of ``pert_type`` for each boundary condition are also specified. If an invalid entry for ``pert_type`` is supplied, it will simply be ignored. For the mathematical definitions of these boundary conditions, please refer to the solver theory documentation.
+Boundary conditions in **PERFORM** are enforced by an explicit ghost cell formulation. As noted in :ref:`solverparams-label`, the requirements and interpretations of the ``*_inlet`` and ``*_outlet`` input parameters depend on the boundary condition specified by ``bound_cond_inlet`` / ``bound_cond_outlet``. Valid options of ``pert_type`` for each boundary condition are also specified. If an invalid entry for ``pert_type`` is supplied, it will simply be ignored. For the mathematical definitions of these boundary conditions, please refer to the solver theory documentation.
 
 In the following sections, we provide which additional input parameters are required and how they are interpreted for each valid entry of ``bound_cond_inlet``/``bound_cond_outlet``. Additionally, the acceptable values to be artificially perturbed for each boundary condition are given under ``pert_type_inlet``/``pert_type_outlet``.
 
 .. _inletbcs-label:
 
-Inlet Boundary Conditions and Parameters
+Inlet BCs and Parameters
 ----------------------------------------
 
 Fixed Stagnation Temperature and Pressure Inlet
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The stagnation temperature and pressure inlet boundary condition is applied by setting ``bound_cond_inlet = "stagnation"``. This boundary obviously specifies the upstream stagnation temperature and stagnation pressure, i.e. the temperature and pressure of the fluid when its velocity is brought to zero. Tho boundary condition results in reflections of acoustic waves and should not be used with unsteady calculations with significant system acoustics. 
+This boundary condition is activated by setting ``bound_cond_inlet = "stagnation"`` in ``solver_params.inp``. This boundary specifies the upstream stagnation temperature and stagnation pressure, i.e. the temperature and pressure of the fluid when its velocity is brought to zero. Tho boundary condition results in reflections of acoustic waves and should not be used with unsteady calculations with significant system acoustics. 
 
 The applicable boundary condition input parameters are as follows:
 
@@ -22,7 +24,7 @@ The applicable boundary condition input parameters are as follows:
 
 Full State Specification Inlet
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The full state specification boundary condition is applied by setting ``bound_cond_inlet = "fullstate"``. This boundary conditions overspecifies the boundary condition by fixing the inlet ghost cell primitive state. This is not a useful boundary condition for unsteady calculations (unless the flow is supersonic), but is mostly useful for testing how an outlet boundary condition responds to perturbations propagating downstream. 
+This boundary condition is activated by setting ``bound_cond_inlet = "fullstate"`` in ``solver_params.inp``. This boundary conditions overspecifies the boundary condition by fixing the inlet ghost cell primitive state. This is not a useful boundary condition for unsteady calculations (unless the flow is supersonic), but is mostly useful for testing how an outlet boundary condition responds to perturbations propagating downstream. 
 
 The applicable boundary condition input parameters are as follows:
 
@@ -34,7 +36,7 @@ The applicable boundary condition input parameters are as follows:
 
 Mean Flow Inlet
 ^^^^^^^^^^^^^^^
-The mean flow inlet boundary condition is applied by setting ``bound_cond_inlet = "meanflow"``. This boundary condition provides a non-reflective inlet that requires some sense of a mean flow (or the flow infinitely far upstream) about which the unsteady flow is simply a perturbation. It effectively fixes the incoming characteristics while allowing the outgoing characteristics to be transmitted outside the domain without acoustic reflections. 
+This boundary condition is activated by setting ``bound_cond_inlet = "meanflow"`` in ``solver_params.inp``. This boundary condition provides a non-reflective inlet that requires some sense of a mean flow (or the flow infinitely far upstream) about which the unsteady flow is simply a perturbation. It effectively fixes the incoming characteristics while allowing the outgoing characteristics to be transmitted outside the domain without acoustic reflections. 
  
 The applicable boundary condition input parameters are as follows:
 
@@ -48,12 +50,12 @@ The applicable boundary condition input parameters are as follows:
 
 .. _outletbcs-label:
 
-Outlet Boundary Conditions and Parameters
+Outlet BCs and Parameters
 -----------------------------------------
 
 Fixed Static Pressure Outlet
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The fixed static pressure outlet boundary condition is applied by setting ``bound_cond_outlet = "subsonic"``. This boundary condition fixes the static pressure at the outlet. As with the stagnation temperature and pressure inlet, this boundary condition produces acoustic reflections at the outlet. 
+This boundary condition is activated by setting ``bound_cond_outlet = "subsonic"`` in ``solver_params.inp``. This boundary condition fixes the static pressure at the outlet. As with the stagnation temperature and pressure inlet, this boundary condition produces acoustic reflections at the outlet. 
 
 The applicable boundary condition input parameters are as follows:
 
@@ -63,7 +65,7 @@ The applicable boundary condition input parameters are as follows:
 
 Mean Flow Outlet
 ^^^^^^^^^^^^^^^^
-The mean flow boundary condition is applied by setting ``bound_cond_outlet = "meanflow"``. This boundary condition, as with the mean flow inlet boundary condition, fixes the incoming characteristic while transmitting the outgoing characteristics without reflections. Again, it requires some sense of a mean flow (or the flow infinitely far downstream) about which the unsteady flow is simply a perturbation.
+This boundary condition is activated by setting ``bound_cond_outlet = "meanflow"`` in ``solver_params.inp``. This boundary condition, as with the mean flow inlet boundary condition, fixes the incoming characteristic while transmitting the outgoing characteristics without reflections. Again, it requires some sense of a mean flow (or the flow infinitely far downstream) about which the unsteady flow is simply a perturbation.
 
 The applicable boundary condition input parameters are as follows:
 

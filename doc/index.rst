@@ -24,19 +24,20 @@ Christopher R. Wentland acknowledges support from the US Air Force Office of Sci
    userguide/paramindex
    userguide/misc
    userguide/contributions
-   userguide/license
 
 .. toctree::
    :maxdepth: 3
    :caption: Solver
    :hidden:
 
+   solver/goveqs
    solver/fluxes
-   solver/timeschemes
    solver/limiters
+   solver/bound
+   solver/timeschemes
    solver/gasmodels
    solver/reactionmodels
-   solver/bound
+   
 
 .. toctree::
 	:maxdepth: 3
@@ -49,3 +50,11 @@ Christopher R. Wentland acknowledges support from the US Air Force Office of Sci
 	roms/nonlinproj
 	roms/liftlearn
 	roms/caetcn
+
+.. toctree::
+	:maxdepth: 3
+	:caption: Extras
+	:hidden:
+
+	extras/license
+	extras/references

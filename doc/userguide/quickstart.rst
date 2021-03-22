@@ -8,11 +8,11 @@ Dependencies
 
 **PERFORM** is a pure Python code and does not (as of the writing of this section) depend on any non-Python software. As such, everything can be installed directly through ``pip`` and is done so through the ``pip install`` command explained below. 
 
-The code is only actively tested using Python 3.7.4. I have arbitrarily set the minimum required Python version to be 3.6. I also only actively test it in Ubuntu 18.04, but it should run without a hitch on Windows and macOS. 
+The code is only actively tested using Python 3.7.4. I have arbitrarily set the minimum required Python version to be 3.6. I also only actively test it in Ubuntu 18.04, but it should run without a hitch on other Linux distributions, Windows, and macOS. 
 
-The baseline solver only requires three additional packages: ``numpy``, ``scipy``, and ``matplotlib``. I have not set minimum required version for these packages, but probably will when I make some time to check at what version the code fails.
+The baseline solver only requires three additional packages: ``numpy``, ``scipy``, and ``matplotlib``. I have not set minimum required version for these packages, but will when I make some time to check at what version the code fails.
 
-The TensorFlow-Keras autoencoder ROM models of course depend on ``tensorflow``, though the code will only throw an error if you attempt to run one of those models and so is not required to run the baseline solver or other ROM models. These models are only tested for ``tensorflow==2.4.1``, and I make no guarantees whatsoever that the code will work correctly or optimally for older versions.
+The TensorFlow-Keras autoencoder ROM models of course depend on ``tensorflow``, though the code will only throw an error if you attempt to run one of those models and so does not require ``tensorflow`` to run the baseline solver or other ROM models. These models are only tested for ``tensorflow==2.4.1``, and I make no guarantees whatsoever that the code will work correctly or optimally for older versions.
 
 Installing
 ----------
