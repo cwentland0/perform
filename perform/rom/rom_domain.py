@@ -86,12 +86,12 @@ class RomDomain:
 
         # Load standardization profiles, if they are required
         self.cent_ic = catch_input(rom_dict, "cent_ic", False)
-        self.norm_sub_cons_in = catch_list(rom_dict, "norm_sub_cons_in", [""])
-        self.norm_fac_cons_in = catch_list(rom_dict, "norm_fac_cons_in", [""])
-        self.cent_cons_in = catch_list(rom_dict, "cent_cons_in", [""])
-        self.norm_sub_prim_in = catch_list(rom_dict, "norm_sub_prim_in", [""])
-        self.norm_fac_prim_in = catch_list(rom_dict, "norm_fac_prim_in", [""])
-        self.cent_prim_in = catch_list(rom_dict, "cent_prim_in", [""])
+        self.norm_sub_cons_in = catch_list(rom_dict, "norm_sub_cons", [""])
+        self.norm_fac_cons_in = catch_list(rom_dict, "norm_fac_cons", [""])
+        self.cent_cons_in = catch_list(rom_dict, "cent_cons", [""])
+        self.norm_sub_prim_in = catch_list(rom_dict, "norm_sub_prim", [""])
+        self.norm_fac_prim_in = catch_list(rom_dict, "norm_fac_prim", [""])
+        self.cent_prim_in = catch_list(rom_dict, "cent_prim", [""])
 
         # Load low-dimensional initial condition state, if desired
         self.load_init_code(rom_dict)

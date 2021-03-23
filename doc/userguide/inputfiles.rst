@@ -326,7 +326,7 @@ Chemistry File
 --------------
 The chemistry file is a text file containing input parameters for defining properties of the chemical species modeled in a given simulation, along with parameters which define the reactions between these species. The name and location of this file are arbitrary, and is referenced from the ``chem_file`` input parameter in ``solver_params.inp``. 
 
-The set of parameters which is required for any gas or reaction model are given in :ref:`universalchem-label`. Those required for a calorically-perfect gas model (``gas_model = "cpg"``) are given in :ref:`cpginputs-label`. Those required for a finite-rate global reaction model (``reaction_model = "fr_global"``) are given in :ref:`fr_global-label`. To be abundantly clear, **these parameters should all be given in the same chemistry file**, but they are split into different sections here for clarity.
+The set of parameters which is required for any gas or reaction model are given in :ref:`universalchem-label`. Those required for a calorically-perfect gas model (``gas_model = "cpg"``) are given in :ref:`cpginputs-label`. Those required for a finite-rate irreversible reaction model (``reaction_model = "fr_irrev"``) are given in :ref:`fr_irrev-label`. To be abundantly clear, **these parameters should all be given in the same chemistry file**, but they are split into different sections here for clarity.
 
 .. _universalchem-label:
 
@@ -403,14 +403,14 @@ The parameters described here are required when using a calorically-perfect gas 
      - N-s/m\ :sup:`2`
 
 
-.. _fr_global-label:
+.. _fr_irrev-label:
 
-Finite Rate Global Reaction Inputs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The parameters described here are required when using a finite-rate global reaction model, i.e. when setting ``reaction_model = "fr_global"``.
+Finite Rate Irreversible Reaction Inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The parameters described here are required when using a finite-rate irreversible reaction model, i.e. when setting ``reaction_model = "fr_irrev"``.
 
 
-.. list-table:: Finite rate global reaction model chemistry file inputs
+.. list-table:: Finite rate irreversible reaction model chemistry file inputs
    :widths: 25 25 25 25
    :header-rows: 1
 

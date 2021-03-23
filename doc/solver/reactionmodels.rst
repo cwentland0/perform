@@ -30,13 +30,17 @@ The reaction source term :math:`\dot{\omega}_l` introduced in :ref:`goveqs-label
 where :math:`W_l` is the molecular weight of the :math:`l`\ th species. The following methods are concerned with the calculation of these rates of progress.
 
 
-Global Mechanisms
-^^^^^^^^^^^^^^^^^
-The global reaction mechanism model is activated by setting ``reaction_model = "fr_global"`` in the ``chem_file``. A global (or irreversible) finite-rate mechanism assumes that reactions only proceed in the forward direction, i.e. converting reactants to products and neglecting the reverse reaction rate :math:`k_{r,m}`. The rate of progress for the :math:`m`\ th reaction is given by
+Irreversible Mechanisms
+^^^^^^^^^^^^^^^^^^^^^^^
+The irreversible reaction mechanism model is activated by setting ``reaction_model = "fr_irrev"`` in the ``chem_file``. An irreversible finite-rate mechanism assumes that reactions only proceed in the forward direction, i.e. converting reactants to products and neglecting the reverse reaction rate :math:`k_{r,m}`. The rate of progress for the :math:`m`\ th reaction is given by
 
 .. math::
    w_m = k_{f,m} \prod_{l=1}^{N_Y} [X_l]^{\tilde{\nu}_{l,m}}
 
 where :math:`[X_l]` is the molar concentration of the :math:`l`\ th species. Additionally, :math:`\tilde{\nu}_{l,m}` are tabulated constants for each species and reaction which are input in the ``chem_file`` via ``nu_arr``.
 
-Global reactions vastly simplify the calculation of the reaction source term, at the expense of accuracy. The exponential constants :math:`\tilde{\nu}_{l,m}` are empirically-determined and may not be accurate under all flow and reaction regimes. The reduced cost of these mechanisms is often extremely attractive, and errors incurred by their approximations may be within acceptable limits.
+Irreversible reactions vastly simplify the calculation of the reaction source term, at the expense of accuracy. The exponential constants :math:`\tilde{\nu}_{l,m}` are empirically-determined and may not be accurate under all flow and reaction regimes. The reduced cost of these mechanisms is often extremely attractive, and errors incurred by their approximations may be within acceptable limits.
+
+Reversible Mechanisms
+^^^^^^^^^^^^^^^^^^^^^
+Coming soon!

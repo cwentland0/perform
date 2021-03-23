@@ -177,7 +177,7 @@ See :ref:`universalchem-label` for variable types, default values, and units (wh
 
 * ``reaction_model``: Name of the reaction model to be used.
 
-  * Valid options: ``"none"``, ``"fr_global"``
+  * Valid options: ``"none"``, ``"fr_irrev"``
 
 * ``num_species``: Total number of species participating in simulation.
 
@@ -204,13 +204,13 @@ See :ref:`cpginputs-label` for variable types, default values, and units (where 
 
 
 
-Finite Rate Global Reaction Inputs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-See :ref:`fr_global-label` for variable types, default values, and units (where applicable).
+Finite Rate Irreversible Reaction Inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+See :ref:`fr_irrev-label` for variable types, default values, and units (where applicable).
 
-* ``nu``: List of lists of global reaction stoichiometric coefficients, where each sublist corresponds to a single reaction. Reactants should have positive values, while products should have negative values.
+* ``nu``: List of lists of irreversible reaction stoichiometric coefficients, where each sublist corresponds to a single reaction. Reactants should have positive values, while products should have negative values.
 
-* ``nu_arr``: List of lists of global reaction molar concentration exponents for all chemical species, where each sublist corresponds to a single reaction. Those chemical species that don't participate in the reaction should just be assigned a value of ``0.0``.
+* ``nu_arr``: List of lists of irreversible reaction molar concentration exponents for all chemical species, where each sublist corresponds to a single reaction. Those chemical species that don't participate in the reaction should just be assigned a value of ``0.0``.
 
 * ``act_energy``: List of Arrhenius rate activation energies :math:`E_a` for each reaction.
 
@@ -239,4 +239,50 @@ See :ref:`pwuniformfile-label` for variable types, default values, and units (wh
 * ``temp_right``: Temperature in "right" state.
 
 * ``mass_fracs_right``: Species mass fractions in "right" state. Must contain ``num_species_full`` elements, and they must sum to 1.0.
+
+rom_params.inp
+--------------
+See :ref:`romparams-label` for variable types, default values, and units (where applicable). We again break down some distinct sections of the file.
+
+* ``rom_method``: Name of the ROM method to use.
+
+  * Valid options: ``linear_galerkin_proj``, ``linear_lspg_proj``, ``linear_splsvt_proj``, ``autoencoder_galerkin_proj_tfkeras``, ``autoencoder_lspg_proj_tfkeras``, ``autoencoder_splsvt_proj_tfkeras``
+
+* ``num_models``: Number of distinct models used to make predictions for the full physical state. For example, if there is one model to predict the pressure and velocity fields, and another to predict the temperature and mass fraction fields, then ``num_models = 2``
+
+* ``latent_dims``: A list containing the latent dimension for each model. If using a model with a fixed latent dimension (e.g. autoencoders), this will be checked against the model object and the code will terminate with an error if the values do not match
+
+* ``model_var_idxs``: A list of lists where each sublist contains the zero-indexed state variable numbers to which each model maps. The variable numbers are ordered by density/pressure, momentum/velocity, energy/temperature, and density-weighted mass fraction/mass fraction (as ordered in the ``chem_file``). For example, in a ROM with two models, if the first model maps to velocity and mass fraction, and the second model maps to pressure and temperature, then ``model_var_idxs = [[1,3],[0,2]]``.
+
+* ``model_dir``: Absolute path of the base under which the ``model_files`` and feature scaling profiles are stored.
+
+* ``model_files``: List of paths relative to ``model_dir`` to each model's model object file (e.g. a NumPy binary for linear bases, Keras model for TensorFlow-Keras autoencoder files)
+
+* ``cent_ic``: Boolean flag to set ``cent_cons``/``cent_prim`` (depending on the ROM method) to the provided initial condition profile. This is simply a convenience parameter that is useful when performing parametric predictions and don't want to repeatedly change the centering profile address.
+
+* ``norm_sub_cons``: List of paths relative to ``model_dir`` to the subtractive normalization NumPy binary profiles for feature scaling of the conservative state variables with which each model is associated. For example, if a model is associated with density/pressure and energy/temperature, then the corresponding entry in ``norm_sub_cons`` should be for the subtractive normalization profiles for the density and energy fields.
+
+* ``norm_fac_cons``: List of paths relative to ``model_dir`` to the factor normalization NumPy binary profiles for feature scaling of the conservative state variables with which each model is associated. For example, if a model is associated with density/pressure and energy/temperature, then the corresponding entry in ``norm_fac_cons`` should be for the factor normalization profiles for the density and energy fields.
+
+* ``cent_cons``: List of paths relative to ``model_dir`` to the centering NumPy binary profiles for feature scaling of the conservative state variables with which each model is associated. For example, if a model is associated with density/pressure and energy/temperature, then the corresponding entry in ``cent_cons`` should be for the centering profile for the density and energy fields.
+
+* ``norm_sub_prim``: List of paths relative to ``model_dir`` to the subtractive normalization NumPy binary profiles for feature scaling of the primitive state variables with which each model is associated. For example, if a model is associated with pressure and temperature, then the corresponding entry in ``norm_sub_prim`` should be for the subtractive normalization profile for the pressure and temperature fields.
+
+* ``norm_fac_prim``: List of paths relative to ``model_dir`` to the factor normalization NumPy binary profiles for feature scaling of the primitive state variables with which each model is associated. For example, if a model is associated with pressure and temperature, then the corresponding entry in ``norm_fac_prim`` should be for the factor normalization profile for the pressure and temperature fields.
+
+* ``cent_prim``: List of paths relative to ``model_dir`` to the centering NumPy binary profiles for feature scaling of the primitive state variables with which each model is associated. For example, if a model is associated with pressure and temperature, then the corresponding entry in ``cent_prim`` should be for the centering profile for the pressure and temperature fields.
+
+Autoencoder ROM Inputs
+^^^^^^^^^^^^^^^^^^^^^^
+See :ref:`autoencinputs-label` for variable types, default values, and units (where applicable).
+
+* ``encoder_files``: List of paths relative to ``model_dir`` to the encoder model objects for each model.
+
+* ``io_format``: The expected array axis ordering of the state profiles on which the autoencoders operate. See :ref:`nninputs-label` for more details.
+
+  * Valid options: ``"nchw"``, ``"nhwc"``
+
+* ``encoder_jacob``: Boolean flag to determine whether to use the :ref:`encoderform-label` for manifold Galerkin ROMs with an explicit time integrator.
+
+* ``run_gpu``: Boolean flag to determine whether to run decoder/encoder inference on the GPU. Please note that running on the CPU is often faster than running on the GPU for these small 1D problems, as memory movement between the host and device can be extremely slow and all memory movement operations are blocking.
 

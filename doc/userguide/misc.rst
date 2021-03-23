@@ -12,7 +12,7 @@ The exact changes in behavior are as follows:
 
 * The :math:`\ell^2` and :math:`\ell^1` norms displayed in the terminal is the norm of the change in the primitive state between physical time steps. This is opposed to no residual output for explicit time integration schemes, or the linear solve residual norm for implicit time integration schemes. 
 
-* The time history of the above residual norms will be written to the file ``unsteady_field_results/steady_convergence.dat``.
+* The time history of the above residual norms will be written to the file ``working_dir/unsteady_field_results/steady_convergence.dat``.
 
 * The solver will terminate early if the :math:`\ell^2` norm of the solution change converges below the tolerance set by ``steady_tol`` in ``solver_params.inp``.
 

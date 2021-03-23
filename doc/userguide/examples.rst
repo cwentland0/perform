@@ -10,7 +10,8 @@ Sod Shock Tube
 
 The Sod shock tube is a classic benchmark problem. The setup of the problem models two "chambers" of gas, one at a high pressure and density and the other at a low pressure and density, separated by a diaphragm. The start of the simulation models this diaphragm instantly bursting, with a shock/contact wave combo traveling through the low-pressure gas and a rarefaction wave traveling through the high pressure gas.
 
-[IMAGE HERE]
+.. image:: ../images/sod_snap.png
+  :alt: Sod shock tube profiles
 
 This case presents a multitude of challenges for ROMs, featuring several phenomena which can be found in reacting flows, even though this case is a single-species non-reacting flow. Traditional linear subspace ROMs experience strong ringing artifacts near the shock and contact, while most static solution representations fail to propagate the waves beyond the model training period. 
 
@@ -33,7 +34,7 @@ To introduce additional complexity to the transient contact surface case, the us
 Standing Flame w/ Artificial Forcing
 ------------------------------------
 
-This case is similar to the contact surface in the sense that it features a cold "reactant" species diffusing into a hot "product" species. However, the reaction is finally turned **on** for this case, with a single-step global reaction mechanism which simply converts "product" to "species". Additionally, the bulk velocity of the fluid is decreased to the point that the reaction and diffusion is perfectly balanced with the bulk velocity, resulting in an effectively stationary flame. Artificial pressure forcing is applied at the outlet, causing a single-frequency acoustic wave to propagate upstream.
+This case is similar to the contact surface in the sense that it features a cold "reactant" species diffusing into a hot "product" species. However, the reaction is finally turned **on** for this case, with a single-step irreversible reaction mechanism which simply converts "product" to "species". Additionally, the bulk velocity of the fluid is decreased to the point that the reaction and diffusion is perfectly balanced with the bulk velocity, resulting in an effectively stationary flame. Artificial pressure forcing is applied at the outlet, causing a single-frequency acoustic wave to propagate upstream.
 
 [IMAGE HERE]
 

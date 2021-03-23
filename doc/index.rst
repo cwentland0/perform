@@ -46,8 +46,8 @@ Christopher R. Wentland acknowledges support from the US Air Force Office of Sci
 
 	roms/rommodel
 	roms/rominputs
-	roms/linearproj
-	roms/nonlinproj
+	roms/linearsub
+	roms/nonlinsub
 	roms/liftlearn
 	roms/caetcn
 
