@@ -1,0 +1,4 @@
+# mesh parameters
+x_left = 0.0
+x_right = 0.01
+num_cells = 512

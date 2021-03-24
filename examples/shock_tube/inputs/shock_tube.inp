@@ -1,0 +1,11 @@
+x_split = 0.005
+
+press_left       = 1.0e5
+vel_left         = 0.0
+temp_left        = 256.420677
+mass_fracs_left  = [1.0]
+
+press_right      = 1.0e4
+vel_right        = 0.0
+temp_right       = 205.136542
+mass_fracs_right = [1.0]
