@@ -92,20 +92,20 @@ class Visualization:
             for ax_idx in range(self.num_subplots):
                 var_str = self.vis_vars[ax_idx]
                 if var_str == "pressure":
-                    self.ax_labels[ax_idx] = "Pressure (Pa)"
+                    self.ax_labels[ax_idx] = r"Pressure $\left( Pa \right)$"
                 elif var_str == "velocity":
-                    self.ax_labels[ax_idx] = "Velocity (m/s)"
+                    self.ax_labels[ax_idx] = r"Velocity $\left( \frac{m}{s} \right)$"
                 elif var_str == "temperature":
-                    self.ax_labels[ax_idx] = "Temperature (K)"
+                    self.ax_labels[ax_idx] = r"Temperature $\left( K \right)$"
                 # TODO: source term needs to be generalized for multi-species
                 elif var_str == "source":
-                    self.ax_labels[ax_idx] = "Source Term (kg/m^3-s)"
+                    self.ax_labels[ax_idx] = r"Source Term $\left( \frac{kg}{m^3 \; s} \right)$"
                 elif var_str == "density":
-                    self.ax_labels[ax_idx] = "Density (kg/m^3)"
+                    self.ax_labels[ax_idx] = r"Density $\left( \frac{kg}{m^3} \right)$"
                 elif var_str == "momentum":
-                    self.ax_labels[ax_idx] = "Momentum (kg/s-m^2)"
+                    self.ax_labels[ax_idx] = r"Momentum $\left( \frac{kg}{s \; m^2} \right)$"
                 elif var_str == "energy":
-                    self.ax_labels[ax_idx] = "Total Energy"
+                    self.ax_labels[ax_idx] = r"Energy $\left( \frac{J}{m^3} \right)$"
                 elif var_str[:7] == "species":
                     self.ax_labels[ax_idx] = r"$Y_{%s}$" % (self.species_names[int(var_str[7:]) - 1])
                 elif var_str[:15] == "density-species":

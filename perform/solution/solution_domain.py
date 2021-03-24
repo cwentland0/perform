@@ -29,7 +29,7 @@ from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
 # reaction models
 # TODO: make an __init__.py with get_reaction_model()
-from perform.reaction.finite_rate_global_reaction import FiniteRateGlobalReaction
+from perform.reaction.finite_rate_irrev_reaction import FiniteRateIrrevReaction
 
 
 class SolutionDomain:
@@ -60,8 +60,8 @@ class SolutionDomain:
         reaction_model_name = catch_input(gas_dict, "reaction_model", "none")
         if reaction_model_name == "none":
             assert solver.source_off, "Must provide a valid reaction_model_name if source_off = False"
-        elif reaction_model_name == "fr_global":
-            self.reaction_model = FiniteRateGlobalReaction(gas, gas_dict)
+        elif reaction_model_name == "fr_irrev":
+            self.reaction_model = FiniteRateIrrevReaction(gas, gas_dict)
         else:
             raise ValueError()
 

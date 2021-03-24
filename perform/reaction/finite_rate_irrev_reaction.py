@@ -6,10 +6,10 @@ from perform.reaction.reaction import Reaction
 # TODO: none of this works for multiple reactions
 
 
-class FiniteRateGlobalReaction(Reaction):
+class FiniteRateIrrevReaction(Reaction):
     """
     Finite rate Arrhenius reaction model assuming
-    global reactions (i.e. only forwards)
+    irreversible reactions (i.e. only forwards)
     """
 
     def __init__(self, gas, gas_dict):
