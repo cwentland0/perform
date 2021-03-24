@@ -4,7 +4,7 @@ This code is intended to be a sort of low-fidelity Python port of the General Me
 
 ## Documentation
 
-Please see the [documentation website](perform.readthedocs.io) for a detailed user guide on installing, running, and designing new simulations for **PERFORM**. Brief descriptions of available solver routines and ROM methods are also included; please see the solver theory documentation PDF in `doc/` for more details. A very brief introduction to installing and running the code is included below. 
+Please see the [documentation website](https://perform.readthedocs.io) for a detailed user guide on installing, running, and designing new simulations for **PERFORM**. Brief descriptions of available solver routines and ROM methods are also included; please see the solver theory documentation PDF in `doc/` for more details. A very brief introduction to installing and running the code is included below. 
 
 ## Installation
 
