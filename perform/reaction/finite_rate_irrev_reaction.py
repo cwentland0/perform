@@ -1,6 +1,6 @@
 import numpy as np
 
-from perform.constants import REAL_TYPE
+from perform.constants import REAL_TYPE, R_UNIV
 from perform.input_funcs import catch_list, catch_input
 from perform.reaction.reaction import Reaction
 
@@ -55,7 +55,7 @@ class FiniteRateIrrevReaction(Reaction):
 
         # rate-of-progress
         pre_exp = self.pre_exp_fact[:, None] * np.power(temp[None, :], self.temp_exp[:, None])
-        wf = pre_exp * np.exp(self.act_energy[:, None] / temp[None, :])
+        wf = pre_exp * np.exp((-self.act_energy[:, None] / R_UNIV) / temp[None, :])
         wf *= np.product(
             np.power((rho_mass_frac / gas.mol_weights[:, None])[None, :, :], self.nu_arr[:, :, None]), axis=1
         )
@@ -94,7 +94,7 @@ class FiniteRateIrrevReaction(Reaction):
 
         # subtract, as activation energy already set as negative
         # TODO: reverse negation after changing Ea to positive representation, divide by R
-        pre_exp = self.temp_exp[:, None] / temp[None, :] - self.act_energy[:, None] / temp[None, :] ** 2
+        pre_exp = self.temp_exp[:, None] / temp[None, :] + (self.act_energy[:, None] / R_UNIV) / temp[None, :] ** 2
         d_wf_d_temp = pre_exp * wf + wf_div_rho * d_rho_d_temp[None, :]
 
         d_wf_d_mass_fracs = wf_div_rho[:, None, :] * d_rho_d_mass_frac[None, :, :]
