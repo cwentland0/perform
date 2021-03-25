@@ -327,9 +327,9 @@ class SolutionDomain:
         # compute source term
         if not solver.source_off:
             source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, direct_samp_idxs)
-            sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
 
-            sol_int.wf[:, direct_samp_idxs] = np.stack(wf, axis=0)
+            sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
+            sol_int.wf[:, direct_samp_idxs] = wf
 
             sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]
 
