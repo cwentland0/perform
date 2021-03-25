@@ -12,11 +12,12 @@ class SolutionInterior(SolutionPhys):
     Solution of interior domain
     """
 
-    def __init__(self, gas, sol_prim_in, solver, num_cells, time_int):
+    def __init__(self, gas, sol_prim_in, solver, num_cells, num_reactions, time_int):
         super().__init__(gas, num_cells, sol_prim_in=sol_prim_in)
 
         gas = self.gas_model
 
+        self.wf = np.zeros((num_reactions, num_cells), dtype=REAL_TYPE)
         self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)
         self.rhs = np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)
 

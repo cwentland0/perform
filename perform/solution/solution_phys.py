@@ -46,10 +46,6 @@ class SolutionPhys:
         self.d_enth_d_temp = np.zeros(num_cells, dtype=REAL_TYPE)
         self.d_enth_d_mass_frac = np.zeros((self.gas_model.num_species, num_cells), dtype=REAL_TYPE)
 
-        # reaction rate-of-progress variables
-        # TODO: generalize to >1 reaction, reverse reactions
-        self.wf = np.zeros((1, num_cells), dtype=REAL_TYPE)
-
         # set initial condition
         if sol_prim_in is not None:
             assert sol_prim_in.shape == (self.gas_model.num_eqs, num_cells)

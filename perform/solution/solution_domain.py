@@ -70,7 +70,9 @@ class SolutionDomain:
 
         # solution
         sol_prim_init = get_initial_conditions(self, solver)
-        self.sol_int = SolutionInterior(gas, sol_prim_init, solver, self.mesh.num_cells, self.time_integrator)
+        self.sol_int = SolutionInterior(
+            gas, sol_prim_init, solver, self.mesh.num_cells, self.reaction_model.num_reactions, self.time_integrator
+        )
         self.sol_inlet = SolutionInlet(gas, solver)
         self.sol_outlet = SolutionOutlet(gas, solver)
 
@@ -327,7 +329,7 @@ class SolutionDomain:
             source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, direct_samp_idxs)
             sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
 
-            sol_int.wf[:, direct_samp_idxs] = wf
+            sol_int.wf[:, direct_samp_idxs] = np.stack(wf, axis=0)
 
             sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]
 
