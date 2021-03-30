@@ -60,10 +60,14 @@ class SolutionDomain:
         reaction_model_name = catch_input(gas_dict, "reaction_model", "none")
         if reaction_model_name == "none":
             assert solver.source_off, "Must provide a valid reaction_model_name if source_off = False"
-        elif reaction_model_name == "fr_irrev":
-            self.reaction_model = FiniteRateIrrevReaction(gas, gas_dict)
+            num_reactions = 0
         else:
-            raise ValueError()
+            if reaction_model_name == "fr_irrev":
+                self.reaction_model = FiniteRateIrrevReaction(gas, gas_dict)
+            else:
+                raise ValueError("Invalid choice of reaction_model: " + reaction_model_name)
+
+            num_reactions = self.reaction_model.num_reactions
 
         # time integrator
         self.time_integrator = get_time_integrator(solver.time_scheme, param_dict)
@@ -71,7 +75,7 @@ class SolutionDomain:
         # solution
         sol_prim_init = get_initial_conditions(self, solver)
         self.sol_int = SolutionInterior(
-            gas, sol_prim_init, solver, self.mesh.num_cells, self.reaction_model.num_reactions, self.time_integrator
+            gas, sol_prim_init, solver, self.mesh.num_cells, num_reactions, self.time_integrator
         )
         self.sol_inlet = SolutionInlet(gas, solver)
         self.sol_outlet = SolutionOutlet(gas, solver)

@@ -17,7 +17,8 @@ class SolutionInterior(SolutionPhys):
 
         gas = self.gas_model
 
-        self.wf = np.zeros((num_reactions, num_cells), dtype=REAL_TYPE)
+        if num_reactions > 0:
+            self.wf = np.zeros((num_reactions, num_cells), dtype=REAL_TYPE)
         self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)
         self.rhs = np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)
 
