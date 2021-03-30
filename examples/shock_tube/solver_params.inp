@@ -41,8 +41,8 @@ init_from_restart = False
 out_interval = 1
 prim_out     = True
 cons_out     = True
-source_out   = True
-rhs_out      = True
+source_out   = False
+rhs_out      = False
 
 # probe output
 probe_locs = [0.004, 0.006]
@@ -54,12 +54,12 @@ vis_save 	 = True
 vis_interval = 50
 
 vis_type_1  = "probe"
-vis_var_1   = ["pressure","density"]
+vis_var_1   = ["pressure", "density"]
 probe_num_1 = 2
 
 vis_type_2     = "field"
-vis_var_2      = ["density","pressure","velocity","temperature"]
-vis_y_bounds_2 = [[0, 1.05], [0,110000],[-10,350],[180,290]]
+vis_var_2      = ["density", "pressure", "velocity", "temperature"]
+vis_y_bounds_2 = [[0, 1.05], [0, 110000],[-10, 350],[180, 290]]
 
-# run ROM
+# ROM flag
 calc_rom = False

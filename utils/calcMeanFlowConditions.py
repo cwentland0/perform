@@ -1,6 +1,6 @@
-from perform.solution.solutionPhys import solutionPhys
-from perform.inputFuncs import readInputFile
-from perform.gasModel.caloricallyPerfectGas import caloricallyPerfectGas
+from perform.solution.solution_phys import SolutionPhys
+from perform.input_funcs import read_input_file
+from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
 import numpy as np
 from math import sqrt
@@ -9,103 +9,117 @@ import pdb
 
 ##### BEGIN USER INPUT #####
 
-gasFile = "~/path/to/chemistry/file.chem"
+gas_file = "~/path/to/chemistry/file.chem"
 
-# If True, load primitive state from icFile. If False, specify left and right primitive state
-fromICFile = False  
-icFile = ""
+# If True, load primitive state from ic_file. If False, specify left and right primitive state
+from_ic_file = False
+ic_file = ""
 
-# left and right states, if fomrICFile = False
-pressL    = 1e5
-velL      = 0.0
-tempL     = 256.420677
-massFracL = [1.0]
-pressR    = 1e4
-velR      = 0.0
-tempR     = 256.420677
-massFracR = [1.0]
+# left and right states, if fom_ic_file = False
+press_left = 1e6
+vel_left = 0.0
+temp_left = 300.0
+mass_fracs_left = [1.0, 0.0]
+press_right = 1e6
+vel_right = 0.0
+temp_right = 2500.0
+mass_fracs_right = [0.0, 1.0]
+
+# add bulk velocity to profile
+add_vel = False
+vel_add = 0.0
 
 ##### END USER INPUT #####
 
-gasFile = os.path.expanduser(gasFile)
+gas_file = os.path.expanduser(gas_file)
 
 # load gas file
-gasDict = readInputFile(gasFile)
-gasType = gasDict["gasType"]
-if (gasType == "cpg"):
-	gas = caloricallyPerfectGas(gasDict)
+gas_dict = read_input_file(gas_file)
+gas_model = gas_dict["gas_model"]
+if gas_model == "cpg":
+    gas = CaloricallyPerfectGas(gas_dict)
 else:
-	raise ValueError("Invalid gasType")
+    raise ValueError("Invalid gas_model")
 
 # handle single-species
-numSpeciesFull = len(massFracL)
-assert (len(massFracR) == numSpeciesFull), "massFracL and massFracR must have the same number of mass fractions"
-assert (np.sum(massFracL) == 1.0), "massFracL elements must sum to 1.0"
-assert (np.sum(massFracR) == 1.0), "massFracR elements must sum to 1.0"
-if (numSpeciesFull == 1):
-	numSpecies = numSpeciesFull
+num_species_full = len(mass_fracs_left)
+assert (
+    len(mass_fracs_right) == num_species_full
+), "mass_fracs_left and mass_fracs_right must have the same number of mass fractions"
+assert np.sum(mass_fracs_left) == 1.0, "mass_fracs_left elements must sum to 1.0"
+assert np.sum(mass_fracs_right) == 1.0, "mass_fracs_right elements must sum to 1.0"
+if num_species_full == 1:
+    num_species = num_species_full
 else:
-	numSpecies = numSpeciesFull - 1
-massFracSlice = np.arange(numSpecies)
- 
+    num_species = num_species_full - 1
+mass_fracs_slice = np.arange(num_species)
+
 # set up states
-if fromICFile:
-	solPrim    = np.load(icFile)
-	solPrimIn  = solPrim[:, [0]]
-	solPrimOut = solPrim[:, [-1]]
+if from_ic_file:
+    sol_prim = np.load(ic_file)
+    sol_prim_in = sol_prim[:, [0]]
+    sol_prim_out = sol_prim[:, [-1]]
 
 else:
-	solPrimIn        = np.zeros((3+numSpecies,1), dtype = np.float64)
-	solPrimOut       = np.zeros((3+numSpecies,1), dtype = np.float64)
-	solPrimIn[:3,0]  = np.array([pressL, velL, tempL])
-	solPrimIn[3:,0]  = np.array(massFracL).astype(np.float64)[massFracSlice]
-	solPrimOut[:3,0] = np.array([pressR, velR, tempR])
-	solPrimOut[3:,0] = np.array(massFracR).astype(np.float64)[massFracSlice]
+    sol_prim_in = np.zeros((3 + num_species, 1), dtype=np.float64)
+    sol_prim_out = np.zeros((3 + num_species, 1), dtype=np.float64)
+    sol_prim_in[:3, 0] = np.array([press_left, vel_left, temp_left])
+    sol_prim_in[3:, 0] = np.array(mass_fracs_left).astype(np.float64)[mass_fracs_slice]
+    sol_prim_out[:3, 0] = np.array([press_right, vel_right, temp_right])
+    sol_prim_out[3:, 0] = np.array(mass_fracs_right).astype(np.float64)[mass_fracs_slice]
 
-solInlet  = solutionPhys(gas, solPrimIn, 1)
-solInlet.updateState(fromCons=False)
-solOutlet = solutionPhys(gas, solPrimOut, 1) 
-solOutlet.updateState(fromCons=False)
+if add_vel:
+    sol_prim_in[1, 0] += vel_add
+    sol_prim_out[1, 0] += vel_add
+
+# set up solutions
+sol_inlet = SolutionPhys(gas, 1, sol_prim_in=sol_prim_in)
+sol_inlet.update_state(from_cons=False)
+sol_outlet = SolutionPhys(gas, 1, sol_prim_in=sol_prim_out)
+sol_outlet.update_state(from_cons=False)
 
 # set some variables for ease of use
-pressIn = solInlet.solPrim[0,0]
-velIn 	= solInlet.solPrim[1,0]
-tempIn  = solInlet.solPrim[2,0]
-rhoIn 	= solInlet.solCons[0,0] 
-CpMixIn = solInlet.CpMix[0]
+press_in = sol_inlet.sol_prim[0, 0]
+vel_in = sol_inlet.sol_prim[1, 0]
+temp_in = sol_inlet.sol_prim[2, 0]
+rho_in = sol_inlet.sol_cons[0, 0]
+cp_mix_in = sol_inlet.cp_mix[0]
 
-pressOut = solOutlet.solPrim[0,0]
-velOut 	 = solOutlet.solPrim[1,0]
-tempOut  = solOutlet.solPrim[2,0]
-rhoOut 	 = solOutlet.solCons[0,0]
-CpMixOut = solOutlet.CpMix[0]
+press_out = sol_outlet.sol_prim[0, 0]
+vel_out = sol_outlet.sol_prim[1, 0]
+rho_out = sol_outlet.sol_cons[0, 0]
+cp_mix_out = sol_outlet.cp_mix[0]
 
 # calculate sound speed
-cIn  = gas.calcSoundSpeed(solInlet.solPrim[2,:], RMix=solInlet.RMix, massFracs=solInlet.solPrim[3:,:], CpMix=solInlet.CpMix)[0]
-cOut = gas.calcSoundSpeed(solOutlet.solPrim[2,:], RMix=solOutlet.RMix, massFracs=solOutlet.solPrim[3:,:], CpMix=solOutlet.CpMix)[0]
+c_in = gas.calc_sound_speed(
+    sol_inlet.sol_prim[2, :], r_mix=sol_inlet.r_mix, mass_fracs=sol_inlet.sol_prim[3:, :], cp_mix=sol_inlet.cp_mix
+)[0]
+c_out = gas.calc_sound_speed(
+    sol_outlet.sol_prim[2, :], r_mix=sol_outlet.r_mix, mass_fracs=sol_outlet.sol_prim[3:, :], cp_mix=sol_outlet.cp_mix
+)[0]
 
 # reference quantities
-pressUp   = pressIn + velIn * rhoIn * cIn 
-tempUp    = tempIn + (pressUp - pressIn) / (rhoIn * CpMixIn)
-pressBack = pressOut - velOut * rhoOut * cOut
+press_up = press_in + vel_in * rho_in * c_in
+temp_up = temp_in + (press_up - press_in) / (rho_in * cp_mix_in)
+press_back = press_out - vel_out * rho_out * c_out
 
 # print results
 # TODO: nicer string formatting
 print("##### INLET #####")
-print("Rho: "+str(rhoIn))
-print("Sound speed: "+str(cIn))
-print("Cp: "+str(CpMixIn))
-print("Rho*C: "+str(rhoIn*cIn))
-print("Rho*Cp: "+str(rhoIn*CpMixIn))
-print("Upstream pressure: "+str(pressUp))
-print("Upstream temp: "+str(tempUp))
+print("Rho: " + str(rho_in))
+print("Sound speed: " + str(c_in))
+print("Cp: " + str(cp_mix_in))
+print("Rho*C: " + str(rho_in * c_in))
+print("Rho*Cp: " + str(rho_in * cp_mix_in))
+print("Upstream pressure: " + str(press_up))
+print("Upstream temp: " + str(temp_up))
 
 print("\n")
 
 print("##### OUTLET #####")
-print("Rho: "+str(rhoOut))
-print("Sound speed: "+str(cOut))
-print("Cp: "+str(CpMixOut))
-print("Rho*C: "+str(rhoOut*cOut))
-print("Rho*Cp: "+str(rhoOut*CpMixOut))
-print("Downstream pressure: "+str(pressBack))
+print("Rho: " + str(rho_out))
+print("Sound speed: " + str(c_out))
+print("Cp: " + str(cp_mix_out))
+print("Rho*C: " + str(rho_out * c_out))
+print("Rho*Cp: " + str(rho_out * cp_mix_out))
+print("Downstream pressure: " + str(press_back))

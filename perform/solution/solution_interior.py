@@ -387,7 +387,7 @@ class SolutionInterior(SolutionPhys):
     def write_steady_data(self, solver):
 
         # write norm data to ASCII file
-        steady_file = os.path.join(unsteady_output_dir, "steady_convergence.dat")
+        steady_file = os.path.join(solver.unsteady_output_dir, "steady_convergence.dat")
         if solver.iter == 1:
             f = open(steady_file, "w")
         else:
@@ -397,10 +397,10 @@ class SolutionInterior(SolutionPhys):
         f.close()
 
         # write field data
-        sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_steady.npy")
+        sol_prim_file = os.path.join(solver.unsteady_output_dir, "sol_prim_steady.npy")
         np.save(sol_prim_file, self.sol_prim)
 
-        sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_steady.npy")
+        sol_cons_file = os.path.join(solver.unsteady_output_dir, "sol_cons_steady.npy")
         np.save(sol_cons_file, self.sol_cons)
 
     def calc_d_sol_norms(self, solver, time_type):

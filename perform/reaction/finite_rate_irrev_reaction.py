@@ -61,7 +61,7 @@ class FiniteRateIrrevReaction(Reaction):
         )
 
         # threshold
-        wf = np.minimum(wf, rho_mass_frac / dt)
+        wf = np.minimum(wf, rho_mass_frac[gas.mass_frac_slice, :] / dt)
 
         source = -np.sum(self.mol_weight_nu[:, gas.mass_frac_slice, None] * wf[:, None, :], axis=0)
 

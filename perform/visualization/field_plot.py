@@ -86,8 +86,11 @@ class FieldPlot(Visualization):
                 else:
                     self.ax_line[lin_idx].set_ydata(y_data)
 
-                ax_var.set_ylim(self.vis_y_bounds[lin_idx])
-                ax_var.set_xlim(self.vis_x_bounds[lin_idx])
+                ax_var.relim()
+                ax_var.autoscale_view()
+                ax_var.set_ylim(bottom=self.vis_y_bounds[lin_idx][0], top=self.vis_y_bounds[lin_idx][1], auto=True)
+                ax_var.set_xlim(left=self.vis_x_bounds[lin_idx][0], right=self.vis_x_bounds[lin_idx][1], auto=True)
+
                 ax_var.ticklabel_format(useOffset=False)
 
         if first_plot:
