@@ -263,7 +263,7 @@ def read_restart_file(solver):
         restart_iter = int(f.read())
 
     # Read solution
-    restart_file = os.path.join(solver.restart_output_dir, "restartFile_" + str(restart_iter) + ".npz")
+    restart_file = os.path.join(solver.restart_output_dir, "restart_file_" + str(restart_iter) + ".npz")
     restart_in = np.load(restart_file)
 
     sol_time = restart_in["sol_time"].item()  # convert array() to scalar

@@ -1,0 +1,69 @@
+# input files
+mesh_file      = "./inputs/mesh_0to0.01_512c.inp"
+chem_file      = "./inputs/global.chem"
+ic_params_file = "./inputs/contact_surface.inp"
+
+# time discretization
+dt          = 5e-8
+num_steps   = 15000
+time_scheme = "bdf"
+time_order  = 2
+dual_time   = True
+res_tol     = 1e-10
+
+# space discretization
+invisc_flux_scheme = "roe"
+visc_flux_scheme   = "invisc"
+space_order        = 2
+grad_limiter       = "venkat"
+
+# inlet
+bound_cond_inlet = "meanflow"
+press_inlet      = 1033838.380515909 
+temp_inlet       = 302.5737083312772
+vel_inlet        = 3383.838051590853
+rho_inlet        = 13147.71378896537
+mass_fracs_inlet = [1.0, 0.0]
+
+# outlet
+bound_cond_outlet = "meanflow"
+press_outlet      = 988254.5266553840
+vel_outlet        = 1174.547334461607
+rho_outlet        = 1584.061902284985
+mass_fracs_outlet = [0.0, 1.0]
+
+pert_type_outlet = "pressure"
+pert_perc_outlet = 0.025
+pert_freq_outlet = [250000.0] 
+
+# misc
+source_off = True
+
+# restart files
+save_restarts     = True
+restart_interval  = 1000
+num_restarts      = 20
+init_from_restart = False
+
+# field output
+out_interval = 10
+prim_out     = True
+cons_out     = True
+source_out   = False
+rhs_outut    = False
+
+# probe output
+probe_locs = [0.0025, 0.0075]
+probe_vars = ["pressure", "velocity"]
+
+# visualization
+vis_show     = True
+vis_save     = True
+vis_interval = 50
+
+vis_type_1     = "field"
+vis_var_1      = ["temperature", "species_1", "pressure", "velocity"]
+vis_y_bounds_1 = [[0, 2700], [-0.05, 1.05], [975000, 1025000], [-10, 30]]
+
+# ROM flag
+calc_rom = False

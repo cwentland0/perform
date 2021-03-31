@@ -117,7 +117,7 @@ class FieldPlot(Visualization):
         elif var_str == "energy":
             y_data = sol_cons[2, :]
         elif var_str[:7] == "species":
-            spec_idx = int(var_str[7:])
+            spec_idx = int(var_str[8:])
             if spec_idx == gas.num_species_full:
                 massFracs = gas.calc_all_mass_fracs(sol_prim[3:, :], threshold=False)
                 y_data = massFracs[-1, :]
@@ -125,7 +125,7 @@ class FieldPlot(Visualization):
                 y_data = sol_prim[3 + spec_idx - 1, :]
         # TODO: Get density-species for last species
         elif var_str[:15] == "density-species":
-            spec_idx = int(var_str[15:])
+            spec_idx = int(var_str[16:])
             y_data = sol_cons[3 + spec_idx - 1, :]
         else:
             raise ValueError("Invalid field visualization variable:" + str(var_str))

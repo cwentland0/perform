@@ -365,7 +365,7 @@ class SolutionInterior(SolutionPhys):
         # 	to preserve time accuracy at restart
 
         # write restart file to zipped file
-        restart_file = os.path.join(solver.restart_output_dir, "restartFile_" + str(solver.restart_iter) + ".npz")
+        restart_file = os.path.join(solver.restart_output_dir, "restart_file_" + str(solver.restart_iter) + ".npz")
         np.savez(restart_file, sol_time=solver.sol_time, sol_prim=self.sol_prim, sol_cons=self.sol_cons)
 
         # write iteration number files
