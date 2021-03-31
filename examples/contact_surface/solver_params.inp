@@ -5,7 +5,7 @@ ic_params_file = "./inputs/contact_surface.inp"
 
 # time discretization
 dt          = 5e-8
-num_steps   = 15000
+num_steps   = 14000
 time_scheme = "bdf"
 time_order  = 2
 dual_time   = True
@@ -59,7 +59,7 @@ probe_vars = ["pressure", "velocity"]
 # visualization
 vis_show     = True
 vis_save     = True
-vis_interval = 50
+vis_interval = 100
 
 vis_type_1     = "field"
 vis_var_1      = ["temperature", "species_1", "pressure", "velocity"]
