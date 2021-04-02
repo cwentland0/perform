@@ -16,7 +16,6 @@ pip install -e .
 
 This will add the script `perform` to your Python scripts directory, which is used to execute the solver.
 
-
 ## Running **PERFORM** 
 
 **PERFORM** is executed using the `perform` command that was added to your Python scripts directory at installation. Execute `perform` followed by the path to the working directory of the case you wish to run. This working directory must contain a `solver_params.inp` file for the case, and a `rom_params.inp` file if you're running a ROM (both described in great detail in the documentation website). For example,
@@ -25,20 +24,28 @@ This will add the script `perform` to your Python scripts directory, which is us
 perform ~/path/to/working/directory
 ```
 
-## Sample Cases
+## Benchmark Cases and Testing
 
-Three sample cases are included in `examples/`:
+Four sample benchmark cases are included in `examples/`:
 
 1. **`shock_tube`**: A non-reacting flow designed following the Sod shock tube problem, which models a diaphragm breaking between a high-pressure, high-density chamber of gas and a low-pressure, low-density chamber of gas. The resulting shock, contact surface, and rarefaction waves are a good test for the strong gradient reconstruction and future-state prediction capabilities of ROM methods.
-2. **`contact_surface`**: A case that introduces strong contact surface gradients in the temperature and species mass fraction fields. There is no reaction in this case, but it serves as a good baseline for testing the ability of models to predict system acoustics in a multi-species system. By applying acoustic forcing of varying amplitudes and frequencies at the outlet, the parametric prediction capabilities of models may also be evaluated
-2. **`transient_flame`**: This case follows the contact surface case, but finally introduces a single-step irreversible reaction. This case exhibits complex non-linear interactions between the flame and the system acoustics. Altering the amplitude and frequency of the outlet forcing strains the abilities of ROMs to make accurate predictions in an extremely complex parametric space.
+2. **`contact_surface`**: A case that introduces strong contact surface gradients in the temperature and species mass fraction fields. There is no viscosity or reaction in this case, but it serves as a good baseline for testing the ability of models to predict system acoustics in a multi-species system. By applying acoustic forcing of varying amplitudes and frequencies at the outlet, the parametric prediction capabilities of models may also be evaluated.
+3. **`standing_flame`**: This case finally introduces viscosity and a single-step irreversible reaction, albeit with a fairly simple flow regime in which the flame is stationary. The highly non-linear interaction between the flame and the system acoustics makes for challenging parametric prediction studies, especially in a ROM's ability to predict the flame's unsteady heat release rate.
+4. **`transient_flame`**: The transient flame introduces a bulk velocity to the standing flame flow, causing the flame to propagate downstream. This case is a good challenge for both parametric prediction (by introducing artificial acoustic forcing) but also a ROM's future-state prediction capabilities.
 
-Running one of these cases is as simple as entering its directory and executing
+You can test your installation of **PERFORM** by executing these cases. Running a sample case is as simple as entering its directory (e.g., `cd examples/shock_tube`) and executing
 
 ```
 perform .
 ```
 
+Please see the `README.md` file in each sample case directory for additional details, including how to download and execute sample ROM files for some of these cases. Automated testing of these capabilities is coming soon!
+
 ## Utilities
 
 Some very simple pre/post-processing scripts are provided in `utils/`. These include scripts for generating POD basis modes, calculating input parameters for non-reflective boundary conditions etc. Brief descriptions of the scripts and their input parameters are given within the scripts.
+
+## Issues and Contributing
+
+If you experience errors or unexpected solver behavior when running **PERFORM**, please first double-check your input parameters and use the [documentation](https://perform.readthedocs.io) as a reference for proper input file formatting. If problems persist, please create a new issue on this repository, and I’ll do my best to resolve it. If you would like to contribute new features or bug fixes yourself, please fork the repository and submit a pull request after you've tested your new branch against the provided sample cases which are relevant to your contributions.
+

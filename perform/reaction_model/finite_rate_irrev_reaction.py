@@ -2,12 +2,10 @@ import numpy as np
 
 from perform.constants import REAL_TYPE, R_UNIV
 from perform.input_funcs import catch_list, catch_input
-from perform.reaction.reaction import Reaction
-
-# TODO: none of this works for multiple reactions
+from perform.reaction.reaction import ReactionModel
 
 
-class FiniteRateIrrevReaction(Reaction):
+class FiniteRateIrrevReaction(ReactionModel):
     """
     Finite rate Arrhenius reaction model assuming
     irreversible reactions (i.e. only forwards)

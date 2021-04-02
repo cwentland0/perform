@@ -32,9 +32,9 @@ vel_outlet        = 1174.547334461607
 rho_outlet        = 1584.061902284985
 mass_fracs_outlet = [0.0, 1.0]
 
-pert_type_outlet = "pressure"
-pert_perc_outlet = 0.025
-pert_freq_outlet = [250000.0] 
+#pert_type_outlet = "pressure"
+#pert_perc_outlet = 0.025
+#pert_freq_outlet = [250000.0]
 
 # misc
 source_off = True

@@ -58,8 +58,8 @@ vis_save     = True
 vis_interval = 100
 
 vis_type_1     = "field"
-vis_var_1      = ["pressure", "velocity"]
-vis_y_bounds_1 = [[974000, 990000], [-2, 14]]
+vis_var_1      = ["temperature", "source", "pressure", "velocity"]
+vis_y_bounds_1 = [[0, 2700], [-50000, 2000], [974000, 990000], [-2, 14]]
 
 # ROM flag
 calc_rom = False

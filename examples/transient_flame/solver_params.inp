@@ -9,6 +9,7 @@ num_steps   = 14000
 time_scheme = "bdf"
 time_order  = 2
 dual_time   = True
+res_tol     = 1e-10
 
 # space discretization
 invisc_flux_scheme = "roe"
@@ -31,9 +32,9 @@ vel_outlet        = 1153.710650787251
 rho_outlet        = 1556.112250791559
 mass_fracs_outlet = [0.0, 1.0]
 
-pert_type_outlet = "pressure"
-pert_perc_outlet = 0.00
-pert_freq_outlet = [100000.0] 
+#pert_type_outlet = "pressure"
+#pert_perc_outlet = 0.01
+#pert_freq_outlet = [100000.0]
 
 # restart files
 save_restarts     = False
@@ -58,8 +59,8 @@ vis_save     = True
 vis_interval = 100
 
 vis_type_1     = "field"
-vis_var_1      = ["temperature", "species_1", "pressure", "velocity"]
-vis_y_bounds_1 = [[0, 2800], [-0.05, 1.05], [982260, 982360], [10, 16]]
+vis_var_1      = ["temperature", "source", "pressure", "velocity"]
+vis_y_bounds_1 = [[0, 2700], [-50000, 2000], [974000, 990000], [6, 22]]
 
 # ROM flag
 calc_rom = False

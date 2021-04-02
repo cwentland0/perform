@@ -29,7 +29,7 @@ from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
 # reaction models
 # TODO: make an __init__.py with get_reaction_model()
-from perform.reaction.finite_rate_irrev_reaction import FiniteRateIrrevReaction
+from perform.reaction_model.finite_rate_irrev_reaction import FiniteRateIrrevReaction
 
 
 class SolutionDomain:
@@ -316,8 +316,8 @@ class SolutionDomain:
             sol_right.sol_prim[:, self.flux_right_extract] -= (self.mesh.dx / 2.0) * sol_prim_grad[
                 :, self.grad_right_extract
             ]
-            sol_left.calc_state_from_prim(calc_r=True, calc_cp=True)
-            sol_right.calc_state_from_prim(calc_r=True, calc_cp=True)
+            sol_left.calc_state_from_prim()
+            sol_right.calc_state_from_prim()
 
         # compute fluxes
         flux = self.invisc_flux_scheme.calc_flux(self)
