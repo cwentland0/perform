@@ -2,7 +2,7 @@ import numpy as np
 
 from perform.constants import REAL_TYPE, R_UNIV
 from perform.input_funcs import catch_list, catch_input
-from perform.reaction.reaction import ReactionModel
+from perform.reaction_model.reaction_model import ReactionModel
 
 
 class FiniteRateIrrevReaction(ReactionModel):

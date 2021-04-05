@@ -36,7 +36,7 @@ class LinearLSPGProj(LinearProjROM):
         scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
         # Compute test basis
-        test_basis = (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None]) @ scaled_trial_basis
+        test_basis = (res_jacob @ scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
         # lhs and rhs of Newton iteration
         lhs = test_basis.T @ test_basis

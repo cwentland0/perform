@@ -43,13 +43,8 @@ class LinearGalerkinProj(LinearProjROM):
         # TODO: should be calculated once
         scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
-        # TODO: using res_jacob.toarray(), otherwise this
-        # 	operation returns type np.matrix, which is undesirable
-        # 	Need to figure out a more efficient method, if possible
-        lhs = (
-            self.trial_basis.T
-            @ (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None])
-            @ scaled_trial_basis
+        lhs = self.trial_basis.T @ (
+            (res_jacob @ scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
         )
 
         rhs = self.trial_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")

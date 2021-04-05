@@ -6,10 +6,10 @@ from numpy.linalg import svd
 
 ##### BEGIN USER INPUT #####
 
-data_dir = "/home/chris/Research/Code/perform/examples/standing_flame/unsteady_field_results"
+data_dir = "~/path/to/data/dir"
 data_file = "sol_prim_FOM.npy"
 
-iter_start = 2000  # zero-indexed starting index for snapshot array
+iter_start = 0  # zero-indexed starting index for snapshot array
 iter_end = 4000  # zero-indexed ending index for snapshot array
 iter_skip = 1
 
@@ -24,7 +24,7 @@ var_idxs = [[0], [1], [2], [3]]
 
 max_modes = 25
 
-out_dir = "/home/chris/Research/Code/perform/examples/standing_flame/data_proc/pod_data/prim_scalar"
+out_dir = "~/path/to/output/dir"
 
 ##### END USER INPUT #####
 

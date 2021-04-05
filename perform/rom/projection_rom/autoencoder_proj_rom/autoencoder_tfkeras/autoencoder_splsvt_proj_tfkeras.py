@@ -37,7 +37,7 @@ class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
         scaled_jacob = jacob * self.norm_fac_prof_prim.ravel(order="C")[:, None]
 
         # test basis
-        test_basis = (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None]) @ scaled_jacob
+        test_basis = (res_jacob @ scaled_jacob) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
         # Newton iteration linear solve
         lhs = test_basis.T @ test_basis
