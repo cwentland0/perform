@@ -1,11 +1,12 @@
+import os
+from math import sqrt
+
+import numpy as np
+
 from perform.solution.solution_phys import SolutionPhys
 from perform.input_funcs import read_input_file
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
-import numpy as np
-from math import sqrt
-import os
-import pdb
 
 ##### BEGIN USER INPUT #####
 
