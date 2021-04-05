@@ -46,7 +46,7 @@ At the time of submitting this paper, PERFORM is specifically equipped with the 
 - Roe flux difference scheme [@Roe1981]
 - several explicit Runge-Kutta time integration schemes
 - implicit BDF time integration schemes, with or without dual time-stepping [@Venkateswaran1995]
-- linear Galerkin (explicit and implicit) [@Rowley2004], LSPG [@Carlberg2017], and SP-LSVT [@Huang2020] projection ROMs with DEIM hyper-reduction [@]
+- linear Galerkin (explicit and implicit) [@Rowley2004], LSPG [@Carlberg2017], and SP-LSVT [@Huang2020] projection ROMs with DEIM hyper-reduction [@Chaturantabut2010]
 - non-linear Galerkin (explicit and implicit), LSPG [@Lee2020], and SP-LSVT projection ROMs via Keras autoencoders
 
 Work is ongoing to provide generic class interfaces for non-intrusive ROM methods and ROM stabilization methods (e.g. closure, filtering, artificial viscosity). A thermally-perfect gas model and reversible finite rate reaction model, as well as non-linear autoencoder ROMs via PyTorch, are also in development.
