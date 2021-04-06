@@ -17,7 +17,7 @@ where for ODEs describing conservation laws, :math:`\mathbf{q} \in \mathbb{R}^N`
 
 The basis :math:`\mathbf{V} \in \mathbb{R}^{N \times K}` is referred to as the "trial basis", and the vector :math:`\widehat{\mathbf{q}} \in \mathbb{R}^K` are the generalized coordinates. The matrix :math:`\mathbf{P}` is simply a constant diagonal matrix which scales the model prediction. :math:`K`, sometimes referred to as the "latent dimension", is chosen such that :math:`K \ll N`. By far the most popular means of computing the trial basis is the proper orthogonal decomposition method.
 
-Inserting this approximation into the FOM ODE, projecting the governing equations via the "test" basis :math:`W \in \mathbb{R}^{N \times K}`, and rearranging terms arrives at 
+Inserting this approximation into the FOM ODE, projecting the governing equations via the "test" basis :math:`\mathbf{W} \in \mathbb{R}^{N \times K}`, and rearranging terms arrives at 
 
 .. math::
    \frac{d \widehat{\mathbf{q}}}{dt} = \left[\mathbf{W}^T  \mathbf{V} \right]^{-1} \mathbf{W}^T \mathbf{P}^{-1} \mathbf{R}\left( \widetilde{\mathbf{q}} \right) 

@@ -1,7 +1,11 @@
+.. _examplecases-label:
+
 Example Cases
 =============
 
-Several example cases are provided in ``perform/examples/`` to get you familiar with input file formatting and the various solver outputs. They are presented in a rough hierarchy of ROM modeling difficulty, starting from the simplest and building in difficulty by introducing additional complex physical phenomena. This hierarchy is highly debatable, as a ROM method may be very well-equipped to handle a "more complex" problem and utterly fail for a "simpler" problem. Ideally, new ROM methods should be tested for all problems, and their relative strengths and weaknesses in tackling each problem should be exposed in detail.
+Several example cases are provided in ``perform/examples/`` to get you familiar with input file formatting and the various solver outputs. They are presented in a rough hierarchy of ROM modeling difficulty, starting from the simplest and building in difficulty by introducing additional complex physical phenomena. Ideally, new ROM methods should be tested for all problems, and their relative strengths and weaknesses in tackling each problem should be exposed in detail.
+
+Additionally, sample ROM input files may be downloaded via ``setup_sample_rom.sh`` files included in the ``standing_flame`` and ``transient_flame`` sample case directories. After running the scripts, the ROM cases can be immediately executed with ``perform .``.
 
 .. _sodshock-label:
 
@@ -46,6 +50,7 @@ This case is similar to the contact surface in the sense that it features a cold
 
 This is an incredibly simple reacting flow problem, one which linear subspace ROMs should nail with only a few trial basis modes. This is not surprising, as the flow is largely stationary, with all fluctuations exhibiting a fixed frequency and amplitude. However, we've observed that non-linear autoencoder projection ROMs may fail even for this simple case, and users should take care to check whether their methods succeed.
 
+A ``setup_sample_rom.sh`` script is also provided to download input files for a linear SP-LSVT projection ROM. Simply execute the script and the necessary input files will be unpacked, after which the ROM may be executed normally.
 
 Transient Flame
 ---------------
@@ -55,6 +60,7 @@ This case exhibits all of the features of the previous test cases: a cold "react
 .. image:: ../images/transient_flame_without_forcing.png
   :alt: Transient flame w/o forcing profiles
 
+A ``setup_sample_rom.sh`` script is also provided to download input files for a non-linear autoencoder SP-LSVT projection ROM via TensorFlow-Keras. Simply execute the script and the necessary input files will be unpacked, after which the ROM may be executed normally. Note that the execution of this ROM is expected to be much, much slower than that of the FOM, as deep autoencoder ROMs are notoriously computationally expensive.
 
 Transient Flame w/ Artificial Forcing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

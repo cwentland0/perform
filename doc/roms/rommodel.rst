@@ -24,4 +24,4 @@ ROMs in PERFORM
 
 As of the writing of this section, **PERFORM** is capable of computing linear and non-linear projection-based ROMs using several projection methods. Several non-intrusive ROMs and closure models will be added in the near future.
 
-If you have questions on how to best implement your ROM method in **PERFORM**, please feel free to start a new issue on the Github page with a brief description of the method and a paper on the method. I can give you some suggestions on how it might be most seamlessly integrated into the current class hierarchy, and you're welcome to make a pull request once you're finished coding it up.
+If you have questions on how to best implement your ROM method in **PERFORM**, please feel free to start a new issue on the Github page with a brief description of the method and a paper on the method. We can give you some suggestions on how it might be most seamlessly integrated into the current class hierarchy, and you're welcome to make a pull request once you're finished coding it up.

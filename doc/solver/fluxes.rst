@@ -17,7 +17,7 @@ Viscous Flux Schemes
 
 Inviscid Scheme
 ^^^^^^^^^^^^^^^
-This viscous flux scheme is activated by setting ``visc_flux_scheme = "invisc"`` in ``solver_params.inp``. This scheme simply neglects all contributions from the viscous flux terms. This option should not be used for multi-species formulations, and is mostly useful for single-species problems such as the :ref:`sodshock-label`.
+This viscous flux scheme is activated by setting ``visc_flux_scheme = "invisc"`` in ``solver_params.inp``. This scheme simply neglects all contributions from the viscous flux terms.
 
 Standard Viscous Scheme
 ^^^^^^^^^^^^^^^^^^^^^^^
