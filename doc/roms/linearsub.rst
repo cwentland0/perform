@@ -28,7 +28,7 @@ The following sections provide brief details on how various linear subspace proj
 
 Galerkin Projection
 -------------------
-The linear Galerkin projection ROM is activated by setting ``rom_method = "linear_galerkin_proj"``. As the name implies, this method applies Galerkin projection by selecting :math:`\mathbf{W} = \mathbf{V}`. If :math:`\mathbf{V}` is an orthonormal basis, the ROM formulation simplifies to 
+The linear Galerkin projection ROM :cite:p:`Rowley2004` is activated by setting ``rom_method = "linear_galerkin_proj"``. As the name implies, this method applies Galerkin projection by selecting :math:`\mathbf{W} = \mathbf{V}`. If :math:`\mathbf{V}` is an orthonormal basis, the ROM formulation simplifies to 
 
 .. math::
    \frac{d \widehat{\mathbf{q}}}{dt} = \mathbf{V}^T \mathbf{P}^{-1} \mathbf{R} \left( \widetilde{\mathbf{q}} \right) 
@@ -41,7 +41,7 @@ This method requires setting the ``cent_cons``, ``norm_sub_cons``, and ``norm_fa
 
 LSPG Projection
 ---------------
-The linear least-squares Petrov-Galerkin (LSPG) projection ROM is activated by setting ``rom_method = "linear_lspg_proj"``. This method is so named because it is derived by solving the non-linear least-square problem
+The linear least-squares Petrov-Galerkin (LSPG) projection ROM :cite:p:`Carlberg2017` is activated by setting ``rom_method = "linear_lspg_proj"``. This method is so named because it is derived by solving the non-linear least-square problem
 
 .. math::
 
@@ -67,7 +67,7 @@ This method requires setting the ``cent_cons``, ``norm_sub_cons``, and ``norm_fa
 
 SP-LSVT Projection
 ------------------
-The linear structure-preserving least-squares with variable transformations (SP-LSVT) projection ROM is activated by setting ``rom_method = "linear_splsvt_proj"``. This method leverages :ref:`dualtime-label` to allow the trial bases to target an arbitrary (but complete) set of solution variables, instead of the conservative variables. This is particularly useful for combustion problems, where we would like to work with the primitive variables. To begin, the method proposes a similar representation of the primitive state as a linear combination of basis vectors
+The linear structure-preserving least-squares with variable transformations (SP-LSVT) projection ROM :cite:p:`Huang2020` is activated by setting ``rom_method = "linear_splsvt_proj"``. This method leverages :ref:`dualtime-label` to allow the trial bases to target an arbitrary (but complete) set of solution variables, instead of the conservative variables. This is particularly useful for combustion problems, where we would like to work with the primitive variables. To begin, the method proposes a similar representation of the primitive state as a linear combination of basis vectors
 
 .. math:: 
 

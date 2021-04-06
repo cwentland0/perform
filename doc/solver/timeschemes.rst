@@ -62,7 +62,7 @@ Backwards differentiation formula (BDF) schemes are activated by setting ``time_
 
 Dual Time-stepping
 ------------------
-Dual time-stepping is activated by using implicit time integration scheme and setting ``dual_time = True`` in ``solver_params.inp``. This method is a time integration method which adds a pseudo-time derivative to the governing equations,
+Dual time-stepping :cite:p:`Venkateswaran1995` is activated by using implicit time integration scheme and setting ``dual_time = True`` in ``solver_params.inp``. This method is a time integration method which adds a pseudo-time derivative to the governing equations,
 
 .. math::
    \Gamma \frac{\partial \mathbf{q}_p}{\partial \tau} + \frac{\partial \mathbf{q}}{\partial t} + \frac{\partial}{\partial x}(\mathbf{f} - \mathbf{f}_v) = \mathbf{s}

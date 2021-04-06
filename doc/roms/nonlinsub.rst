@@ -3,7 +3,7 @@
 Non-linear Subspace Projection ROMs
 ===================================
 
-Over the past decade, it has become increasingly clear that linear subspace ROMs, i.e. those that represent the solution as a linear combination of trial basis vectors, are severely lacking when applied to practical fluid flow problems. Their difficulty in reconstructing sharp gradients and their inability to generalize well beyond the training dataset call into question whether they can be a useful tool for parametric or future-state prediction. This idea is synthesized by the concept of the Kolmogorov n-width,
+Over the past decade, it has become increasingly clear that linear subspace ROMs, i.e. those that represent the solution as a linear combination of trial basis vectors, are severely lacking when applied to practical fluid flow problems. Their difficulty in reconstructing sharp gradients and their inability to generalize well beyond the training dataset call into question whether they can be a useful tool for parametric or future-state prediction. This idea is synthesized by the concept of the Kolmogorov n-width :cite:p:`Pinkus1985`,
 
 .. math::
 
@@ -21,14 +21,14 @@ where :math:`\mathbf{g}: \mathbb{R}^K \rightarrow \mathbb{R}^N` is some non-line
 
 A particularly attractive option for developing this non-linear mapping is from autoencoders, an unsupervised learning neural network architecture. This class of neural networks attempts to learn the identity mapping by ingesting full-dimensional state data, "encoding" this to a low-dimensional state (the "code"), and then attempting to "decode" this back to the original full-dimensional state data.  After the network is trained, the "decoder" half of the network is used as the non-linear mapping :math:`\mathbf{g}` in the ROM. 
 
-This approach has seen exceptional success for fairly simple advection-dominated problems, but is still in its infancy and has yet to be tested for any practical problems. However, it is not without its drawbacks. The cost of evaluating the neural network decoder (and its Jacobian, as will be seen later) greatly exceeds the cost of computing the linear "decoding" :math:`\mathbf{V} \widehat{\mathbf{q}}`. The decoder predictions are also prone to noisy predictions even in regions of smooth flow. Although work is being done in developing graph neural networks, the traditional convolutional autoencoders can only be applied to solutions defined on Cartesion meshes. Further, the neural network is a black box model with no true sense of optimality besides "low" training and validation error.
+This approach has seen exceptional success for fairly simple advection-dominated problems, but is still in its infancy and has yet to be tested for any practical problems. However, it is not without its drawbacks. The cost of evaluating the neural network decoder (and its Jacobian, as will be seen later) greatly exceeds the cost of computing the linear "decoding" :math:`\mathbf{V} \widehat{\mathbf{q}}`. The decoder predictions are also prone to noisy predictions even in regions of smooth flow. Although work is being done in developing graph neural networks, the traditional convolutional autoencoders can only be applied to solutions defined on Cartesian meshes. Further, the neural network is a black box model with no true sense of optimality besides "low" training and validation error.
 
-The implementation of these non-linear autoencoder ROMs is dependent on the software library used to train the neural network, e.g. TensorFlow or PyTorch. Some details on how these neural networks should be formatted and input to **PERFORM** are given in :ref:`tfkeras-inputs`.
+The implementation of these non-linear autoencoder ROMs is dependent on the software library used to train the neural network, e.g. TensorFlow-Keras :cite:p:`TensorFlow2015,Keras2015` or PyTorch. Some details on how these neural networks should be formatted and input to **PERFORM** are given in :ref:`tfkeras-inputs`.
 
 
 Manifold Galerkin Projection
 ----------------------------
-The non-linear autoencoder manifold Galerkin projection ROM with TensorFlow-Keras neural networks is activated by setting ``rom_method = "autoencoder_galerkin_proj_tfkeras"``. After inserting the approximate state into the FOM ODE, this method leverages the chain rule and rearranges terms to arrive at 
+The non-linear autoencoder manifold Galerkin projection ROM :cite:p:`Lee2020` with TensorFlow-Keras neural networks is activated by setting ``rom_method = "autoencoder_galerkin_proj_tfkeras"``. After inserting the approximate state into the FOM ODE, this method leverages the chain rule and rearranges terms to arrive at 
 
 .. math::
 
@@ -60,7 +60,7 @@ The encoder Jacobian form for manifold Galerkin ROMs with explicit time integrat
 
 Manifold LSPG Projection
 ------------------------
-The non-linear autoencoder manifold least-squares Petrov-Galerkin (LSPG) projection ROM with TensorFlow-Keras neural networks is activated by setting ``rom_method = "autoencoder_lspg_proj_tfkeras"``. The method follows the same procedure as the linear equivalent, but the resulting test basis takes the form
+The non-linear autoencoder manifold least-squares Petrov-Galerkin (LSPG) projection ROM :cite:p:`Lee2020` with TensorFlow-Keras neural networks is activated by setting ``rom_method = "autoencoder_lspg_proj_tfkeras"``. The method follows the same procedure as the linear equivalent, but the resulting test basis takes the form
 
 .. math::
 

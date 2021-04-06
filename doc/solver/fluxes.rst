@@ -9,7 +9,7 @@ Inviscid Flux Schemes
 
 Roe Scheme
 ^^^^^^^^^^
-This inviscid flux scheme is activated by setting ``invisc_flux_scheme = "roe"`` in ``solver_params.inp``. The Roe scheme follows the approximate Riemann solver of Philip Roe :cite:p:`1981:roeflux`. As of the writing of this section, the code is not capable of applying an entropy fix for locally-sonic flows, but will be available in a forthcoming release.
+This inviscid flux scheme is activated by setting ``invisc_flux_scheme = "roe"`` in ``solver_params.inp``. The Roe scheme follows the approximate Riemann solver of Philip Roe :cite:p:`Roe1981`. As of the writing of this section, the code is not capable of applying an entropy fix for locally-sonic flows, but will be available in a forthcoming release.
 
 
 Viscous Flux Schemes

@@ -31,4 +31,4 @@ The spatial domain is discretized by the finite volume method. Brief notes on av
 
 Some details on available gas models for calculating relevant thermodynamic and transport properties are given in :ref:`gasmodels-label`. Models for calculating the source term :math:`\dot{\omega}_l` are detailed in :ref:`reacmodels-label`.
 
-Extensive details on each of these topics are provided in the theory documentation.
+Details on each of these topics are provided in the theory documentation. Additionally, those interested in how this theory may be extended to higher dimensions and to more complex gas/reaction models are directed to Matthew Harvazinski's thesis :cite:p:`Harvazinski2012`. This details the inner mechanics of **GEMS**, the high-fidelity 3D combusting flow solver which **PERFORM**'s baseline solver is based off of.

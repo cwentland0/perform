@@ -2,7 +2,7 @@
 
 Reaction Models
 ===============
-This section briefly describes the reaction models available in **PERFORM**.
+This section briefly describes the reaction models available in **PERFORM**. For a comprehensive description of combustion mechanics well beyond the reaction models covered here (though also including them), we direct the reader to *Combustion* by Glassman and Yetter :cite:p:`Glassman2008`.
 
 Finite-rate Mechanisms
 ----------------------
