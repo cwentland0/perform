@@ -8,7 +8,7 @@ from perform.input_funcs import read_input_file
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
 
-##### BEGIN USER INPUT #####
+# ----- BEGIN USER INPUT -----
 
 gas_file = "~/path/to/chemistry/file.chem"
 
@@ -30,7 +30,7 @@ mass_fracs_right = [0.0, 1.0]
 add_vel = False
 vel_add = 0.0
 
-##### END USER INPUT #####
+# ----- END USER INPUT -----
 
 gas_file = os.path.expanduser(gas_file)
 

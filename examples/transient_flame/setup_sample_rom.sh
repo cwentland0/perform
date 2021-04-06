@@ -20,15 +20,15 @@ fi
 
 # retrieve and unpack ROM files
 echo "Retrieving sample files..."
-wget -q --show-progress --no-check-certificate 'https://docs.google.com/uc?export=download&id=1T5LlPZJNkGd8iAoNwb99H2RvTzANRyrr' -O standing_flame_linear_splsvt_proj_rom_sample.zip
+wget -q --show-progress --no-check-certificate 'https://docs.google.com/uc?export=download&id=11MfQVGaW9U4U3rQT2OM9eardJ9Lk7507' -O transient_flame_autoencoder_splsvt_proj_tfkeras_rom_sample.zip
 
 echo "Unpacking sample files..."
-unzip -q standing_flame_linear_splsvt_proj_rom_sample.zip
-mv sol_prim_init_20mus.npy ./inputs
+unzip -q transient_flame_autoencoder_splsvt_proj_tfkeras_rom_sample.zip
+mv sol_prim_init_100mus.npy ./inputs
 
 # set path to model_dir
-sed -i "7s#.*#model_dir      = \"${PWD}/sample_pod_data\"#" rom_params.inp
+sed -i "9s#.*#model_dir      = \"${PWD}/sample_cae_data\"#" rom_params.inp
 
-rm standing_flame_linear_splsvt_proj_rom_sample.zip
+rm transient_flame_autoencoder_splsvt_proj_tfkeras_rom_sample.zip
 
 echo "Sample ROM set up. Execute \"perform .\" to test it!"

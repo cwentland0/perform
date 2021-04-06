@@ -39,7 +39,7 @@ You can test your installation of **PERFORM** by executing these cases. Running 
 perform .
 ```
 
-Please see the `README.md` file in each sample case directory for additional details, including how to download and execute sample ROM files for some of these cases. Automated testing of these capabilities is coming soon!
+Please see the `README.md` file in each sample case directory for additional details, including how to download and execute sample ROMs for the `standing_flame` and `transient_flame` cases. Automated testing of these capabilities is coming soon!
 
 ## Utilities
 
