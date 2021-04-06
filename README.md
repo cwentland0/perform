@@ -1,6 +1,8 @@
+[![Documentation Status](https://readthedocs.org/projects/perform/badge/?version=latest)](https://perform.readthedocs.io/en/latest/?badge=latest)
+
 # **Prototyping Environment for Reacting Flow Order Reduction Methods (PERFORM)**
 
-This code is intended to be a sort of low-fidelity Python port of the General Mesh and Equations Solver (**GEMS**), designed to allow simple implementation and testing of new reduced-order models (ROMs) for one-dimensional multi-species and reacting flow problems. Whereas **GEMS** is capable of computing high-fidelity simulations of 2D/3D reacting flows with extensive libraries for gas and flame modeling, **PERFORM** is oriented towards solving a much simpler class of 1D flames. The hope is that this code might serve as a useful testbed for ROM developers to analyze performance of new ROM methods for reacting flow simulations, a field of research which poses significant difficulties in effective model-order reduction.
+PERFORM is a combination 1D compressible reacting flow solver and modular reduced-order model (ROM) framework, designed to provide a simple, easy-to-use testbed for members of the ROM community to quickly prototype and test new methods on challenging (yet computationally-manageable) reacting flow problems. We hope that this tool lowers the barrier to entry for researchers from a variety of fields to develop novel ROM methods and benchmark them against an interesting set of reacting flow configurations.
 
 ## Documentation
 
@@ -47,5 +49,5 @@ Some very simple pre/post-processing scripts are provided in `utils/`. These inc
 
 ## Issues and Contributing
 
-If you experience errors or unexpected solver behavior when running **PERFORM**, please first double-check your input parameters and use the [documentation](https://perform.readthedocs.io) as a reference for proper input file formatting. If problems persist, please create a new issue on this repository, and I’ll do my best to resolve it. If you would like to contribute new features or bug fixes yourself, please fork the repository and submit a pull request after you've tested your new branch against the provided sample cases which are relevant to your contributions.
+If you experience errors or unexpected solver behavior when running **PERFORM**, please first double-check your input parameters and use the [documentation](https://perform.readthedocs.io) as a reference for proper input file formatting. If problems persist, please create a new issue on this repository, and I’ll do my best to resolve it. If you would like to contribute new features or bug fixes yourself, please fork this repository, make a new branch on your fork, and submit a pull request against this repository after you've tested your new branch with the provided sample cases which are relevant to your contributions. More rigorous automated testing will be implemented soon!
 
