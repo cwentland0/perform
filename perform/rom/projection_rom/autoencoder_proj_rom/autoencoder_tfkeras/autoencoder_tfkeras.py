@@ -1,3 +1,6 @@
+from packaging import version
+from time import sleep
+
 import numpy as np
 import tensorflow as tf
 
@@ -15,6 +18,10 @@ class AutoencoderTFKeras(AutoencoderProjROM):
     """
 
     def __init__(self, model_idx, rom_domain, sol_domain):
+
+        if version.parse(tf.__version__) < version.parse("2.4.1"):
+            print("WARNING: You are using TensorFlow version < 2.4.1, proper ROM behavior not guaranteed")
+            sleep(1.0)
 
         self.run_gpu = catch_input(rom_domain.rom_dict, "run_gpu", False)
         init_device(self.run_gpu)

@@ -84,8 +84,8 @@ class ProbePlot(Visualization):
 
                 ax_var.set_ylabel(self.ax_labels[lin_idx])
                 ax_var.set_xlabel(self.x_label)
-                ax_var.set_ylim(self.vis_y_bounds[lin_idx])
-                ax_var.set_xlim(self.vis_x_bounds[lin_idx])
+                ax_var.set_ylim(bottom=self.vis_y_bounds[lin_idx][0], top=self.vis_y_bounds[lin_idx][1], auto=True)
+                ax_var.set_xlim(left=self.vis_x_bounds[lin_idx][0], right=self.vis_x_bounds[lin_idx][1], auto=True)
                 ax_var.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
 
         if first_plot:

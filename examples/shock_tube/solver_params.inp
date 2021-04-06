@@ -1,0 +1,65 @@
+# input files
+chem_file      = "./inputs/global.chem"
+mesh_file      = "./inputs/mesh_0to0.01_512c.inp"
+ic_params_file = "./inputs/shock_tube.inp"
+
+# time discretization
+dt          = 1e-8
+num_steps   = 750
+time_scheme = "ssp_rk3"
+time_order  = 3
+
+# space discretization
+invisc_flux_name = "roe"
+visc_flux_name   = "invisc"
+space_order      = 2
+grad_limiter     = "venkat"
+
+# inlet
+bound_cond_inlet = "meanflow"
+press_inlet      = 1.0e5
+temp_inlet       = 256.420677
+vel_inlet        = 366.01061077
+rho_inlet        = 1538.2199995
+mass_fracs_inlet = [1.0]
+
+# outlet
+bound_cond_outlet = "subsonic"
+press_outlet      = 1.0e4
+mass_fracs_outlet = [1.0]
+
+# misc
+source_off = True
+
+# restart files
+save_restarts     = False
+restart_interval  = 100
+num_restarts      = 20
+init_from_restart = False
+
+# field output
+out_interval = 1
+prim_out     = True
+cons_out     = True
+source_out   = False
+rhs_out      = False
+
+# probe output
+probe_locs = [0.004, 0.006]
+probe_vars = ["pressure","velocity","density","temperature"]
+
+# visualization
+vis_show 	 = True
+vis_save 	 = True
+vis_interval = 50
+
+vis_type_1  = "probe"
+vis_var_1   = ["pressure", "density"]
+probe_num_1 = 2
+
+vis_type_2     = "field"
+vis_var_2      = ["density", "pressure", "velocity", "temperature"]
+vis_y_bounds_2 = [[0, 1.05], [0, 110000],[-10, 350],[180, 290]]
+
+# ROM flag
+calc_rom = False

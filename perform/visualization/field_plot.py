@@ -86,8 +86,11 @@ class FieldPlot(Visualization):
                 else:
                     self.ax_line[lin_idx].set_ydata(y_data)
 
-                ax_var.set_ylim(self.vis_y_bounds[lin_idx])
-                ax_var.set_xlim(self.vis_x_bounds[lin_idx])
+                ax_var.relim()
+                ax_var.autoscale_view()
+                ax_var.set_ylim(bottom=self.vis_y_bounds[lin_idx][0], top=self.vis_y_bounds[lin_idx][1], auto=True)
+                ax_var.set_xlim(left=self.vis_x_bounds[lin_idx][0], right=self.vis_x_bounds[lin_idx][1], auto=True)
+
                 ax_var.ticklabel_format(useOffset=False)
 
         if first_plot:
@@ -114,7 +117,7 @@ class FieldPlot(Visualization):
         elif var_str == "energy":
             y_data = sol_cons[2, :]
         elif var_str[:7] == "species":
-            spec_idx = int(var_str[7:])
+            spec_idx = int(var_str[8:])
             if spec_idx == gas.num_species_full:
                 massFracs = gas.calc_all_mass_fracs(sol_prim[3:, :], threshold=False)
                 y_data = massFracs[-1, :]
@@ -122,7 +125,7 @@ class FieldPlot(Visualization):
                 y_data = sol_prim[3 + spec_idx - 1, :]
         # TODO: Get density-species for last species
         elif var_str[:15] == "density-species":
-            spec_idx = int(var_str[15:])
+            spec_idx = int(var_str[16:])
             y_data = sol_cons[3 + spec_idx - 1, :]
         else:
             raise ValueError("Invalid field visualization variable:" + str(var_str))

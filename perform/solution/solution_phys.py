@@ -46,10 +46,6 @@ class SolutionPhys:
         self.d_enth_d_temp = np.zeros(num_cells, dtype=REAL_TYPE)
         self.d_enth_d_mass_frac = np.zeros((self.gas_model.num_species, num_cells), dtype=REAL_TYPE)
 
-        # reaction rate-of-progress variables
-        # TODO: generalize to >1 reaction, reverse reactions
-        self.wf = np.zeros((1, num_cells), dtype=REAL_TYPE)
-
         # set initial condition
         if sol_prim_in is not None:
             assert sol_prim_in.shape == (self.gas_model.num_eqs, num_cells)
@@ -68,11 +64,11 @@ class SolutionPhys:
         """
 
         if from_cons:
-            self.calc_state_from_cons(calc_r=True, calc_cp=True, calc_gamma=True)
+            self.calc_state_from_cons()
         else:
-            self.calc_state_from_prim(calc_r=True, calc_cp=True, calc_gamma=True)
+            self.calc_state_from_prim()
 
-    def calc_state_from_cons(self, calc_r=False, calc_cp=False, calc_gamma=False):
+    def calc_state_from_cons(self):
         """
         Compute primitive state from conservative state
         """
@@ -93,15 +89,9 @@ class SolutionPhys:
 
         # update thermo properties
         self.enth_ref_mix = self.gas_model.calc_mix_enth_ref(mass_fracs)
-        if calc_gamma:
-            calc_r = True
-            calc_cp = True
-        if calc_r:
-            self.r_mix = self.gas_model.calc_mix_gas_constant(mass_fracs)
-        if calc_cp:
-            self.cp_mix = self.gas_model.calc_mix_cp(mass_fracs)
-        if calc_gamma:
-            self.gamma_mix = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
+        self.r_mix = self.gas_model.calc_mix_gas_constant(mass_fracs)
+        self.cp_mix = self.gas_model.calc_mix_cp(mass_fracs)
+        self.gamma_mix = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
 
         # update primitive state
         # TODO: gas_model references
@@ -111,7 +101,7 @@ class SolutionPhys:
         ) / (self.cp_mix - self.r_mix)
         self.sol_prim[0, :] = self.sol_cons[0, :] * self.r_mix * self.sol_prim[2, :]
 
-    def calc_state_from_prim(self, calc_r=False, calc_cp=False, calc_gamma=False):
+    def calc_state_from_prim(self):
         """
         Compute state from primitive state
         """
@@ -130,15 +120,9 @@ class SolutionPhys:
 
         # update thermo properties
         self.enth_ref_mix = self.gas_model.calc_mix_enth_ref(mass_fracs)
-        if calc_gamma:
-            calc_r = True
-            calc_cp = True
-        if calc_r:
-            self.r_mix = self.gas_model.calc_mix_gas_constant(mass_fracs)
-        if calc_cp:
-            self.cp_mix = self.gas_model.calc_mix_cp(mass_fracs)
-        if calc_gamma:
-            self.gamma_mix = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
+        self.r_mix = self.gas_model.calc_mix_gas_constant(mass_fracs)
+        self.cp_mix = self.gas_model.calc_mix_cp(mass_fracs)
+        self.gamma_mix = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
 
         # update conservative variables
         # TODO: gas_model references

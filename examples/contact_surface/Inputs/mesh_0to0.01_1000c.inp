@@ -1,6 +1,0 @@
-meshType = "uniform"
-
-# mesh parameters
-xL = 0.0
-xR = 0.01
-numCells = 1000

@@ -56,7 +56,7 @@ class RoeInviscFlux(InviscFlux):
         sol_ave.calc_state_from_rho_h0()
 
         # Compute Roe average state at faces, associated fluid properties
-        sol_ave.calc_state_from_prim(calc_r=True, calc_cp=True)
+        sol_ave.calc_state_from_prim()
         sol_ave.gamma_mix = gas_model.calc_mix_gamma(sol_ave.r_mix, sol_ave.cp_mix)
         sol_ave.c = gas_model.calc_sound_speed(
             sol_ave.sol_prim[2, :],

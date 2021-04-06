@@ -19,7 +19,10 @@
 *.h5
 *.swp
 *.egg-info/
+*.egg
 *.plt
 *.szplt
 build/
 _build/
+.vscode/
+__pycache__/

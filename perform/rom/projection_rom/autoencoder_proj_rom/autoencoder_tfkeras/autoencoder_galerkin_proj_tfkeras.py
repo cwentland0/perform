@@ -50,7 +50,7 @@ class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
             jacob_pinv = pinv(scaled_jacob)
 
         # Newton iteration linear solve
-        lhs = jacob_pinv @ (res_jacob.toarray() / self.norm_fac_prof_cons.ravel(order="C")[:, None]) @ scaled_jacob
+        lhs = jacob_pinv @ ((res_jacob @ scaled_jacob) / self.norm_fac_prof_cons.ravel(order="C")[:, None])
         rhs = jacob_pinv @ (res / self.norm_fac_prof_cons).ravel(order="C")
 
         d_code = np.linalg.solve(lhs, rhs)

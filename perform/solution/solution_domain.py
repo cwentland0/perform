@@ -29,7 +29,7 @@ from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 
 # reaction models
 # TODO: make an __init__.py with get_reaction_model()
-from perform.reaction.finite_rate_irrev_reaction import FiniteRateIrrevReaction
+from perform.reaction_model.finite_rate_irrev_reaction import FiniteRateIrrevReaction
 
 
 class SolutionDomain:
@@ -60,17 +60,23 @@ class SolutionDomain:
         reaction_model_name = catch_input(gas_dict, "reaction_model", "none")
         if reaction_model_name == "none":
             assert solver.source_off, "Must provide a valid reaction_model_name if source_off = False"
-        elif reaction_model_name == "fr_irrev":
-            self.reaction_model = FiniteRateIrrevReaction(gas, gas_dict)
+            num_reactions = 0
         else:
-            raise ValueError()
+            if reaction_model_name == "fr_irrev":
+                self.reaction_model = FiniteRateIrrevReaction(gas, gas_dict)
+            else:
+                raise ValueError("Invalid choice of reaction_model: " + reaction_model_name)
+
+            num_reactions = self.reaction_model.num_reactions
 
         # time integrator
         self.time_integrator = get_time_integrator(solver.time_scheme, param_dict)
 
         # solution
         sol_prim_init = get_initial_conditions(self, solver)
-        self.sol_int = SolutionInterior(gas, sol_prim_init, solver, self.mesh.num_cells, self.time_integrator)
+        self.sol_int = SolutionInterior(
+            gas, sol_prim_init, solver, self.mesh.num_cells, num_reactions, self.time_integrator
+        )
         self.sol_inlet = SolutionInlet(gas, solver)
         self.sol_outlet = SolutionOutlet(gas, solver)
 
@@ -310,8 +316,8 @@ class SolutionDomain:
             sol_right.sol_prim[:, self.flux_right_extract] -= (self.mesh.dx / 2.0) * sol_prim_grad[
                 :, self.grad_right_extract
             ]
-            sol_left.calc_state_from_prim(calc_r=True, calc_cp=True)
-            sol_right.calc_state_from_prim(calc_r=True, calc_cp=True)
+            sol_left.calc_state_from_prim()
+            sol_right.calc_state_from_prim()
 
         # compute fluxes
         flux = self.invisc_flux_scheme.calc_flux(self)
@@ -325,8 +331,8 @@ class SolutionDomain:
         # compute source term
         if not solver.source_off:
             source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, direct_samp_idxs)
-            sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
 
+            sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
             sol_int.wf[:, direct_samp_idxs] = wf
 
             sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]

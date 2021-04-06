@@ -1,0 +1,65 @@
+# input files
+chem_file = "./inputs/global.chem"
+mesh_file = "./inputs/mesh_0to0.01_512c.inp"
+init_file = "./inputs/steady_init.npy"
+
+# time discretization
+dt            = 1.0e-8
+num_steps     = 4000
+time_scheme   = "bdf"
+time_order    = 2
+dual_time     = True
+
+# space discretization
+invisc_flux_scheme = "roe"
+visc_flux_scheme   = "standard"
+space_order        = 2
+grad_limiter       = "venkat"
+
+# inlet
+bound_cond_inlet = "meanflow"
+press_inlet      = 984278.7102853414
+temp_inlet       = 300.1619167819358
+vel_inlet        = 3323.565593640268
+rho_inlet        = 12913.52786252067
+mass_fracs_inlet = [1.0, 0.0]
+
+# outlet
+bound_cond_outlet = "meanflow"
+press_outlet      = 976139.8825401694
+vel_outlet        = 1153.710650787251
+rho_outlet        = 1556.112250791559
+mass_fracs_outlet = [0.0, 1.0]
+
+pert_type_outlet = "pressure"
+pert_perc_outlet = 0.01
+pert_freq_outlet = [100000.0] 
+
+# restart files
+save_restarts     = False
+restart_interval  = 100
+num_restarts      = 20
+init_from_restart = False 
+
+# field output
+out_interval = 1
+prim_out     = True
+cons_out     = True
+source_out   = False
+rhs_outut    = False
+
+# probe output
+probe_locs = [0.0025, 0.0075]
+probe_vars = ["pressure", "velocity"]
+
+# visualization
+vis_show     = True
+vis_save     = True
+vis_interval = 100
+
+vis_type_1     = "field"
+vis_var_1      = ["temperature", "source", "pressure", "velocity"]
+vis_y_bounds_1 = [[0, 2700], [-50000, 2000], [974000, 990000], [-2, 14]]
+
+# ROM flag
+calc_rom = False

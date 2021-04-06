@@ -12,11 +12,13 @@ class SolutionInterior(SolutionPhys):
     Solution of interior domain
     """
 
-    def __init__(self, gas, sol_prim_in, solver, num_cells, time_int):
+    def __init__(self, gas, sol_prim_in, solver, num_cells, num_reactions, time_int):
         super().__init__(gas, num_cells, sol_prim_in=sol_prim_in)
 
         gas = self.gas_model
 
+        if num_reactions > 0:
+            self.wf = np.zeros((num_reactions, num_cells), dtype=REAL_TYPE)
         self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)
         self.rhs = np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)
 
@@ -363,7 +365,7 @@ class SolutionInterior(SolutionPhys):
         # 	to preserve time accuracy at restart
 
         # write restart file to zipped file
-        restart_file = os.path.join(solver.restart_output_dir, "restartFile_" + str(solver.restart_iter) + ".npz")
+        restart_file = os.path.join(solver.restart_output_dir, "restart_file_" + str(solver.restart_iter) + ".npz")
         np.savez(restart_file, sol_time=solver.sol_time, sol_prim=self.sol_prim, sol_cons=self.sol_cons)
 
         # write iteration number files
@@ -386,7 +388,7 @@ class SolutionInterior(SolutionPhys):
     def write_steady_data(self, solver):
 
         # write norm data to ASCII file
-        steady_file = os.path.join(unsteady_output_dir, "steady_convergence.dat")
+        steady_file = os.path.join(solver.unsteady_output_dir, "steady_convergence.dat")
         if solver.iter == 1:
             f = open(steady_file, "w")
         else:
@@ -396,10 +398,10 @@ class SolutionInterior(SolutionPhys):
         f.close()
 
         # write field data
-        sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_steady.npy")
+        sol_prim_file = os.path.join(solver.unsteady_output_dir, "sol_prim_steady.npy")
         np.save(sol_prim_file, self.sol_prim)
 
-        sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_steady.npy")
+        sol_cons_file = os.path.join(solver.unsteady_output_dir, "sol_cons_steady.npy")
         np.save(sol_cons_file, self.sol_cons)
 
     def calc_d_sol_norms(self, solver, time_type):
