@@ -93,9 +93,6 @@ class RomDomain:
         self.norm_fac_prim_in = catch_list(rom_dict, "norm_fac_prim", [""])
         self.cent_prim_in = catch_list(rom_dict, "cent_prim", [""])
 
-        # Load low-dimensional initial condition state, if desired
-        self.load_init_code(rom_dict)
-
         self.set_model_flags()
 
         self.adaptive_rom = catch_input(rom_dict, "adaptive_rom", False)
@@ -112,268 +109,40 @@ class RomDomain:
         else:
             self.time_integrator = None  # TODO: this might be pointless
 
+        # check init files
+        low_dim_init_files = catch_list(rom_dict, "low_dim_init_files", [""])
+        if (len(low_dim_init_files) != 1) or (low_dim_init_files[0] != ""):
+            assert len(low_dim_init_files) == self.num_models, (
+                "If initializing any ROM model from a file, must provide list entries for every model. "
+                + "If you don't wish to initialize from file for a model, input an empty string "
+                " in the list entry."
+            )
+        else:
+            low_dim_init_files = [""] * self.num_models
+
         # Initialize models for domain
         self.model_list = [None] * self.num_models
         for model_idx in range(self.num_models):
-
             self.model_list[model_idx] = get_rom_model(model_idx, self, sol_domain)
             model = self.model_list[model_idx]
 
             # Initialize state
-            if self.init_rom_from_file[model_idx]:
-                model.init_from_code(self.code_init[model_idx], sol_domain)
+            init_file = low_dim_init_files[model_idx]
+            if init_file != "":
+                assert os.path.isfile(init_file), "Could not find ROM initialization file at " + init_file
+                model.code = np.load(init_file)
+                model.update_sol(sol_domain)
             else:
                 model.init_from_sol(sol_domain)
 
             # Initialize code history
-            # TODO: this is necessary for non-time-integrated methods
             model.code_hist = [model.code.copy()] * (self.time_integrator.time_order + 1)
 
         sol_domain.sol_int.update_state(from_cons=self.target_cons)
 
         # Overwrite history with initialized solution
         sol_domain.sol_int.sol_hist_cons = [sol_domain.sol_int.sol_cons.copy()] * (self.time_integrator.time_order + 1)
-
         sol_domain.sol_int.sol_hist_prim = [sol_domain.sol_int.sol_prim.copy()] * (self.time_integrator.time_order + 1)
-
-    def set_model_flags(self):
-        """
-        Set universal ROM method flags that dictate various execution behaviors
-        """
-
-        # TODO: move this to __init__.py
-
-        self.has_time_integrator = False
-        self.is_intrusive = False
-        self.target_cons = False
-        self.target_prim = False
-
-        self.has_cons_norm = False
-        self.has_cons_cent = False
-        self.has_prim_norm = False
-        self.has_prim_cent = False
-
-        if self.rom_method == "linear_galerkin_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "linear_lspg_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "linear_splsvt_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_prim = True
-            self.has_cons_norm = True
-            self.has_prim_norm = True
-            self.has_prim_cent = True
-        elif self.rom_method == "autoencoder_galerkin_proj_tfkeras":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "autoencoder_lspg_proj_tfkeras":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "autoencoder_splsvt_proj_tfkeras":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_prim = True
-            self.has_cons_norm = True
-            self.has_prim_norm = True
-            self.has_prim_cent = True
-        else:
-            raise ValueError("Invalid ROM method name: " + self.rom_method)
-
-        # TODO: not strictly true for the non-intrusive models
-        assert self.target_cons != self.target_prim, "Model must target either the primitive or conservative variables"
-
-    def load_init_code(self, rom_dict):
-        """
-        Load low-dimensional state from disk if provided,
-        overwriting full-dimensional state
-
-        If not provided, ROM model will attempt to compute
-        initial low-dimensional state from initial full-dimensional state
-        """
-
-        self.low_dim_init_files = catch_list(rom_dict, "low_dim_init_files", [""])
-
-        len_init_files = len(self.low_dim_init_files)
-        self.init_rom_from_file = [False] * self.num_models
-        self.code_init = [None] * self.num_models
-
-        # No init files given
-        if (len_init_files == 1) and (self.low_dim_init_files[0] == ""):
-            pass
-
-        # TODO: this format leads to some messy storage,
-        # 	figure out a better way. Maybe .npz files?
-        else:
-            assert len_init_files == self.num_models, (
-                "If initializing any ROM model from a file, must provide list entries for every model. "
-                + "If you don't wish to initialize from file for a model, input an empty string "
-                " in the list entry."
-            )
-            for model_idx in range(self.num_models):
-                init_file = self.low_dim_init_files[model_idx]
-                if init_file != "":
-                    assert os.path.isfile(init_file), "Could not find ROM initialization file at " + init_file
-                    self.code_init[model_idx] = np.load(init_file)
-                    self.init_rom_from_file[model_idx] = True
-
-    def load_hyper_reduc(self, sol_domain):
-        """
-        Loads direct sampling indices and
-        determines cell indices for calculating fluxes and gradients
-        """
-
-        raise ValueError("Hyper-reduction temporarily out of commission" + " for development")
-
-        # TODO: add some explanations for what each index array accomplishes
-
-        # load and check sample points
-        samp_file = catch_input(self.rom_dict, "samp_file", "")
-        assert samp_file != "", "Must supply samp_file if performing hyper-reduction"
-        samp_file = os.path.join(self.model_dir, samp_file)
-        assert os.path.isfile(samp_file), "Could not find samp_file at " + samp_file
-
-        # NOTE: assumed that sample indices are zero-indexed
-        sol_domain.direct_samp_idxs = np.load(samp_file).flatten()
-        sol_domain.direct_samp_idxs = (np.sort(sol_domain.direct_samp_idxs)).astype(np.int32)
-        sol_domain.num_samp_cells = len(sol_domain.direct_samp_idxs)
-        assert (
-            sol_domain.num_samp_cells <= sol_domain.mesh.num_cells
-        ), "Cannot supply more sampling points than cells in domain."
-        assert np.amin(sol_domain.direct_samp_idxs) >= 0, "Sampling indices must be non-negative integers"
-        assert (
-            np.amax(sol_domain.direct_samp_idxs) < sol_domain.mesh.num_cells
-        ), "Sampling indices must be less than the number of cells in the domain"
-        assert (
-            len(np.unique(sol_domain.direct_samp_idxs)) == sol_domain.num_samp_cells
-        ), "Sampling indices must be unique"
-
-        # TODO: should probably shunt these over to a function
-        # for when indices get updated in adaptive method
-
-        # Compute indices for inviscid flux calculations
-        # NOTE: have to account for fact that boundary cells are prepended/appended
-        sol_domain.flux_samp_left_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
-        sol_domain.flux_samp_left_idxs[0::2] = sol_domain.direct_samp_idxs
-        sol_domain.flux_samp_left_idxs[1::2] = sol_domain.direct_samp_idxs + 1
-
-        sol_domain.flux_samp_right_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
-        sol_domain.flux_samp_right_idxs[0::2] = sol_domain.direct_samp_idxs + 1
-        sol_domain.flux_samp_right_idxs[1::2] = sol_domain.direct_samp_idxs + 2
-
-        # Eliminate repeated indices
-        sol_domain.flux_samp_left_idxs = np.unique(sol_domain.flux_samp_left_idxs)
-        sol_domain.flux_samp_right_idxs = np.unique(sol_domain.flux_samp_right_idxs)
-        sol_domain.num_flux_faces = len(sol_domain.flux_samp_left_idxs)
-
-        # Roe average
-        if sol_domain.invisc_flux_name == "roe":
-            ones_prof = np.ones((sol_domain.gas_model.num_eqs, sol_domain.num_flux_faces), dtype=const.REAL_TYPE,)
-            sol_domain.sol_ave = solutionPhys(sol_domain.gas_model, sol_domain.num_flux_faces, solPrimIn=ones_prof)
-
-        # To slice flux when calculating RHS
-        sol_domain.flux_rhs_idxs = np.zeros(sol_domain.num_samp_cells, np.int32)
-        for i in range(1, sol_domain.num_samp_cells):
-            if sol_domain.direct_samp_idxs[i] == (sol_domain.direct_samp_idxs[i - 1] + 1):
-                sol_domain.flux_rhs_idxs[i] = sol_domain.flux_rhs_idxs[i - 1] + 1
-            else:
-                sol_domain.flux_rhs_idxs[i] = sol_domain.flux_rhs_idxs[i - 1] + 2
-
-        # Compute indices for gradient calculations
-        # NOTE: also need to account for prepended/appended boundary cells
-        # TODO: generalize for higher-order schemes
-        if sol_domain.space_order > 1:
-            if sol_domain.space_order == 2:
-                sol_domain.grad_idxs = np.concatenate(
-                    (sol_domain.direct_samp_idxs + 1, sol_domain.direct_samp_idxs, sol_domain.direct_samp_idxs + 2,)
-                )
-                sol_domain.grad_idxs = np.unique(sol_domain.grad_idxs)
-
-                # Exclude left neighbor of inlet, right neighbor of outlet
-                if sol_domain.grad_idxs[0] == 0:
-                    sol_domain.grad_idxs = sol_domain.grad_idxs[1:]
-
-                if sol_domain.grad_idxs[-1] == (sol_domain.mesh.num_cells + 1):
-                    sol_domain.grad_idxs = sol_domain.grad_idxs[:-1]
-
-                sol_domain.num_grad_cells = len(sol_domain.grad_idxs)
-
-                # Neighbors of gradient cells
-                sol_domain.grad_neigh_idxs = np.concatenate((sol_domain.grad_idxs - 1, sol_domain.grad_idxs + 1))
-                sol_domain.grad_neigh_idxs = np.unique(sol_domain.grad_neigh_idxs)
-
-                # Exclude left neighbor of inlet, right neighbor of outlet
-                if sol_domain.grad_neigh_idxs[0] == -1:
-                    sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[1:]
-
-                if sol_domain.grad_neigh_idxs[-1] == (sol_domain.mesh.num_cells + 2):
-                    sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[:-1]
-
-                # Indices of grad_idxs in grad_neigh_idxs
-                _, _, sol_domain.grad_neighextract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.grad_neigh_idxs, return_indices=True,
-                )
-
-                # Indices of grad_idxs in
-                # flux_samp_left_idxs and flux_samp_right_idxs
-                # and vice versa
-                _, sol_domain.grad_left_extract, sol_domain.flux_left_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.flux_samp_left_idxs, return_indices=True,
-                )
-
-                _, sol_domain.grad_right_extract, sol_domain.flux_right_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.flux_samp_right_idxs, return_indices=True,
-                )
-
-            else:
-                raise ValueError("Sampling for higher-order schemes" + " not implemented yet")
-
-        # Copy indices for ease of use
-        self.num_samp_cells = sol_domain.num_samp_cells
-        self.direct_samp_idxs = sol_domain.direct_samp_idxs
-
-        # Paths to hyper-reduction files (unpacked later)
-        hyper_reduc_files = self.rom_dict["hyper_reduc_files"]
-        self.hyper_reduc_files = [None] * self.num_models
-        assert len(hyper_reduc_files) == self.num_models, "Must provide hyper_reduc_files for each model"
-        for model_idx in range(self.num_models):
-            in_file = os.path.join(self.model_dir, hyper_reduc_files[model_idx])
-            assert os.path.isfile(in_file), "Could not find hyper-reduction file at " + in_file
-            self.hyper_reduc_files[model_idx] = in_file
-
-        # Load hyper reduction dimensions and check validity
-        self.hyper_reduc_dims = catch_list(self.rom_dict, "hyper_reduc_dims", [0], len_highest=self.num_models)
-
-        for i in self.hyper_reduc_dims:
-            assert i > 0, "hyper_reduc_dims must contain positive integers"
-        if self.num_models == 1:
-            assert (
-                len(self.hyper_reduc_dims) == 1
-            ), "Must provide only one value of hyper_reduc_dims when num_models = 1"
-            assert self.hyper_reduc_dims[0] > 0, "hyper_reduc_dims must contain positive integers"
-        else:
-            if len(self.hyper_reduc_dims) == self.num_models:
-                pass
-            elif len(self.hyper_reduc_dims) == 1:
-                print("Only one value provided in hyper_reduc_dims, applying to all models")
-                sleep(1.0)
-                self.hyper_reduc_dims = [self.hyper_reduc_dims[0]] * self.num_models
-            else:
-                raise ValueError("Must provide either num_models or 1 entry in hyper_reduc_dims")
 
     def advance_iter(self, sol_domain, solver):
         """
@@ -492,3 +261,207 @@ class RomDomain:
         sol_domain.sol_int.res_norm_l2 = norm_l2
         sol_domain.sol_int.resNormL1 = norm_l1
         sol_domain.sol_int.res_norm_history[solver.iter - 1, :] = [norm_l2, norm_l1]
+
+    def set_model_flags(self):
+        """
+        Set universal ROM method flags that dictate various execution behaviors
+        """
+
+        self.has_time_integrator = False
+        self.is_intrusive = False
+        self.target_cons = False
+        self.target_prim = False
+
+        self.has_cons_norm = False
+        self.has_cons_cent = False
+        self.has_prim_norm = False
+        self.has_prim_cent = False
+
+        if self.rom_method == "linear_galerkin_proj":
+            self.has_time_integrator = True
+            self.is_intrusive = True
+            self.target_cons = True
+            self.has_cons_norm = True
+            self.has_cons_cent = True
+        elif self.rom_method == "linear_lspg_proj":
+            self.has_time_integrator = True
+            self.is_intrusive = True
+            self.target_cons = True
+            self.has_cons_norm = True
+            self.has_cons_cent = True
+        elif self.rom_method == "linear_splsvt_proj":
+            self.has_time_integrator = True
+            self.is_intrusive = True
+            self.target_prim = True
+            self.has_cons_norm = True
+            self.has_prim_norm = True
+            self.has_prim_cent = True
+        elif self.rom_method == "autoencoder_galerkin_proj_tfkeras":
+            self.has_time_integrator = True
+            self.is_intrusive = True
+            self.target_cons = True
+            self.has_cons_norm = True
+            self.has_cons_cent = True
+        elif self.rom_method == "autoencoder_lspg_proj_tfkeras":
+            self.has_time_integrator = True
+            self.is_intrusive = True
+            self.target_cons = True
+            self.has_cons_norm = True
+            self.has_cons_cent = True
+        elif self.rom_method == "autoencoder_splsvt_proj_tfkeras":
+            self.has_time_integrator = True
+            self.is_intrusive = True
+            self.target_prim = True
+            self.has_cons_norm = True
+            self.has_prim_norm = True
+            self.has_prim_cent = True
+        else:
+            raise ValueError("Invalid ROM method name: " + self.rom_method)
+
+        # TODO: not strictly true for the non-intrusive models
+        assert self.target_cons != self.target_prim, "Model must target either the primitive or conservative variables"
+
+    def load_hyper_reduc(self, sol_domain):
+        """
+        Loads direct sampling indices and
+        determines cell indices for calculating fluxes and gradients
+        """
+
+        # TODO: add some explanations for what each index array accomplishes
+
+        # load and check sample points
+        samp_file = catch_input(self.rom_dict, "samp_file", "")
+        assert samp_file != "", "Must supply samp_file if performing hyper-reduction"
+        samp_file = os.path.join(self.model_dir, samp_file)
+        assert os.path.isfile(samp_file), "Could not find samp_file at " + samp_file
+
+        # NOTE: assumed that sample indices are zero-indexed
+        sol_domain.direct_samp_idxs = np.load(samp_file).flatten()
+        sol_domain.direct_samp_idxs = (np.sort(sol_domain.direct_samp_idxs)).astype(np.int32)
+        sol_domain.num_samp_cells = len(sol_domain.direct_samp_idxs)
+        assert (
+            sol_domain.num_samp_cells <= sol_domain.mesh.num_cells
+        ), "Cannot supply more sampling points than cells in domain."
+        assert np.amin(sol_domain.direct_samp_idxs) >= 0, "Sampling indices must be non-negative integers"
+        assert (
+            np.amax(sol_domain.direct_samp_idxs) < sol_domain.mesh.num_cells
+        ), "Sampling indices must be less than the number of cells in the domain"
+        assert (
+            len(np.unique(sol_domain.direct_samp_idxs)) == sol_domain.num_samp_cells
+        ), "Sampling indices must be unique"
+
+        # TODO: should probably shunt these over to a function
+        # for when indices get updated in adaptive method
+
+        # Compute indices for inviscid flux calculations
+        # NOTE: have to account for fact that boundary cells are prepended/appended
+        sol_domain.flux_samp_left_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
+        sol_domain.flux_samp_left_idxs[0::2] = sol_domain.direct_samp_idxs
+        sol_domain.flux_samp_left_idxs[1::2] = sol_domain.direct_samp_idxs + 1
+
+        sol_domain.flux_samp_right_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
+        sol_domain.flux_samp_right_idxs[0::2] = sol_domain.direct_samp_idxs + 1
+        sol_domain.flux_samp_right_idxs[1::2] = sol_domain.direct_samp_idxs + 2
+
+        # Eliminate repeated indices
+        sol_domain.flux_samp_left_idxs = np.unique(sol_domain.flux_samp_left_idxs)
+        sol_domain.flux_samp_right_idxs = np.unique(sol_domain.flux_samp_right_idxs)
+        sol_domain.num_flux_faces = len(sol_domain.flux_samp_left_idxs)
+
+        # To slice flux when calculating RHS
+        sol_domain.flux_rhs_idxs = np.zeros(sol_domain.num_samp_cells, np.int32)
+        for i in range(1, sol_domain.num_samp_cells):
+            if sol_domain.direct_samp_idxs[i] == (sol_domain.direct_samp_idxs[i - 1] + 1):
+                sol_domain.flux_rhs_idxs[i] = sol_domain.flux_rhs_idxs[i - 1] + 1
+            else:
+                sol_domain.flux_rhs_idxs[i] = sol_domain.flux_rhs_idxs[i - 1] + 2
+
+        # Compute indices for gradient calculations
+        # NOTE: also need to account for prepended/appended boundary cells
+        # TODO: generalize for higher-order schemes
+        if sol_domain.space_order > 1:
+            if sol_domain.space_order == 2:
+                sol_domain.grad_idxs = np.concatenate(
+                    (sol_domain.direct_samp_idxs + 1, sol_domain.direct_samp_idxs, sol_domain.direct_samp_idxs + 2,)
+                )
+                sol_domain.grad_idxs = np.unique(sol_domain.grad_idxs)
+
+                # Exclude left neighbor of inlet, right neighbor of outlet
+                if sol_domain.grad_idxs[0] == 0:
+                    sol_domain.grad_idxs = sol_domain.grad_idxs[1:]
+
+                if sol_domain.grad_idxs[-1] == (sol_domain.mesh.num_cells + 1):
+                    sol_domain.grad_idxs = sol_domain.grad_idxs[:-1]
+
+                sol_domain.num_grad_cells = len(sol_domain.grad_idxs)
+
+                # Neighbors of gradient cells
+                sol_domain.grad_neigh_idxs = np.concatenate((sol_domain.grad_idxs - 1, sol_domain.grad_idxs + 1))
+                sol_domain.grad_neigh_idxs = np.unique(sol_domain.grad_neigh_idxs)
+
+                # Exclude left neighbor of inlet, right neighbor of outlet
+                if sol_domain.grad_neigh_idxs[0] == -1:
+                    sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[1:]
+
+                if sol_domain.grad_neigh_idxs[-1] == (sol_domain.mesh.num_cells + 2):
+                    sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[:-1]
+
+                # Indices of grad_idxs in grad_neigh_idxs
+                _, _, sol_domain.grad_neigh_extract = np.intersect1d(
+                    sol_domain.grad_idxs, sol_domain.grad_neigh_idxs, return_indices=True,
+                )
+
+                # Indices of grad_idxs in flux_samp_left_idxs and flux_samp_right_idxs and vice versa
+                _, sol_domain.grad_left_extract, sol_domain.flux_left_extract = np.intersect1d(
+                    sol_domain.grad_idxs, sol_domain.flux_samp_left_idxs, return_indices=True,
+                )
+
+                _, sol_domain.grad_right_extract, sol_domain.flux_right_extract = np.intersect1d(
+                    sol_domain.grad_idxs, sol_domain.flux_samp_right_idxs, return_indices=True,
+                )
+
+            else:
+                raise ValueError("Sampling for higher-order schemes" + " not implemented yet")
+
+        # re-initialize solution objects to proper size
+        gas = sol_domain.gas_model
+        ones_prof = np.ones((gas.num_eqs, sol_domain.num_flux_faces), dtype=REAL_TYPE)
+        sol_domain.sol_left = SolutionPhys(gas, sol_domain.num_flux_faces, sol_prim_in=ones_prof)
+        sol_domain.sol_right = SolutionPhys(gas, sol_domain.num_flux_faces, sol_prim_in=ones_prof)
+
+        if sol_domain.invisc_flux_name == "roe":
+            ones_prof = np.ones((gas.num_eqs, sol_domain.num_flux_faces), dtype=REAL_TYPE)
+            sol_domain.sol_ave = SolutionPhys(gas, sol_domain.num_flux_faces, sol_prim_in=ones_prof)
+
+        # Copy indices for ease of use
+        self.num_samp_cells = sol_domain.num_samp_cells
+        self.direct_samp_idxs = sol_domain.direct_samp_idxs
+
+        # Paths to hyper-reduction files (unpacked later)
+        hyper_reduc_files = self.rom_dict["hyper_reduc_files"]
+        self.hyper_reduc_files = [None] * self.num_models
+        assert len(hyper_reduc_files) == self.num_models, "Must provide hyper_reduc_files for each model"
+        for model_idx in range(self.num_models):
+            in_file = os.path.join(self.model_dir, hyper_reduc_files[model_idx])
+            assert os.path.isfile(in_file), "Could not find hyper-reduction file at " + in_file
+            self.hyper_reduc_files[model_idx] = in_file
+
+        # Load hyper reduction dimensions and check validity
+        self.hyper_reduc_dims = catch_list(self.rom_dict, "hyper_reduc_dims", [0], len_highest=self.num_models)
+
+        for i in self.hyper_reduc_dims:
+            assert i > 0, "hyper_reduc_dims must contain positive integers"
+        if self.num_models == 1:
+            assert (
+                len(self.hyper_reduc_dims) == 1
+            ), "Must provide only one value of hyper_reduc_dims when num_models = 1"
+            assert self.hyper_reduc_dims[0] > 0, "hyper_reduc_dims must contain positive integers"
+        else:
+            if len(self.hyper_reduc_dims) == self.num_models:
+                pass
+            elif len(self.hyper_reduc_dims) == 1:
+                print("Only one value provided in hyper_reduc_dims, applying to all models")
+                sleep(1.0)
+                self.hyper_reduc_dims = [self.hyper_reduc_dims[0]] * self.num_models
+            else:
+                raise ValueError("Must provide either num_models or 1 entry in hyper_reduc_dims")

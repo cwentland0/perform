@@ -182,24 +182,10 @@ class RomModel:
 
         return sol
 
-    def init_from_code(self, code0, sol_domain):
-        """
-        Initialize full-order solution from input low-dimensional state
-        """
-
-        self.code = code0.copy()
-
-        if self.target_cons:
-            sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
-        else:
-            sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
-
     def update_sol(self, sol_domain):
         """
         Update solution after code has been updated
         """
-
-        # TODO: could just use this to replace init_from_code?
 
         if self.target_cons:
             sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)

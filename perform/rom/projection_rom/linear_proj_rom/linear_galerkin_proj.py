@@ -17,34 +17,36 @@ class LinearGalerkinProj(LinearProjROM):
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
+        if rom_domain.time_integrator.time_type == "explicit":
+            # procompute hyper-reduction projector, V^T * U * [S^T * U]^+
+            if self.hyper_reduc:
+                self.hyper_reduc_projector = (
+                    self.trial_basis.T
+                    @ self.hyper_reduc_basis
+                    @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_hyper_reduc_samp_idxs, :])
+                )
+
+        else:
+            # precompute scaled trial basis
+            self.scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
+
     def calc_projector(self, sol_domain):
         """
-        Compute rhs projection operator
+        Compute RHS projection operator
         """
 
         if self.hyper_reduc:
-            # V^T * U * [S^T * U]^+
-            self.projector = (
-                self.trial_basis.T
-                @ self.hyper_reduc_basis
-                @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_hyper_reduc_samp_idxs, :])
-            )
-
+            self.projector = self.hyper_reduc_projector
         else:
-            # V^T
             self.projector = self.trial_basis.T
 
     def calc_d_code(self, res_jacob, res, sol_domain):
         """
-        Compute change in low-dimensional state for
-        implicit scheme Newton iteration
+        Compute change in low-dimensional state for implicit scheme Newton iteration
         """
 
-        # TODO: should be calculated once
-        scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
-
         lhs = self.trial_basis.T @ (
-            (res_jacob @ scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
+            (res_jacob @ self.scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
         )
 
         rhs = self.trial_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")

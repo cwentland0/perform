@@ -190,6 +190,8 @@ class SolutionDomain:
         Fill sol_prim_full and sol_cons_full from interior and ghost cells
         """
 
+        # TODO: hyper-reduction indices
+
         sol_int = self.sol_int
         sol_inlet = self.sol_inlet
         sol_outlet = self.sol_outlet
@@ -287,7 +289,6 @@ class SolutionDomain:
         # compute ghost cell state (if adjacent cell is sampled)
         # TODO: update this after higher-order contribution?
         # TODO: adapt pass to calc_boundary_state() depending on space scheme
-        # TODO: assign more than just one ghost cell for higher-order schemes
         if direct_samp_idxs[0] == 0:
             sol_inlet.calc_boundary_state(
                 solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, :2], sol_cons=sol_int.sol_cons[:, :2]
@@ -302,10 +303,10 @@ class SolutionDomain:
         # first-order approx at faces
         sol_left = self.sol_left
         sol_right = self.sol_right
-        sol_left.sol_prim = sol_prim_full[:, self.flux_samp_left_idxs]
-        sol_left.sol_cons = sol_cons_full[:, self.flux_samp_left_idxs]
-        sol_right.sol_prim = sol_prim_full[:, self.flux_samp_right_idxs]
-        sol_right.sol_cons = sol_cons_full[:, self.flux_samp_right_idxs]
+        sol_left.sol_prim[:, :] = sol_prim_full[:, self.flux_samp_left_idxs]
+        sol_left.sol_cons[:, :] = sol_cons_full[:, self.flux_samp_left_idxs]
+        sol_right.sol_prim[:, :] = sol_prim_full[:, self.flux_samp_right_idxs]
+        sol_right.sol_cons[:, :] = sol_cons_full[:, self.flux_samp_right_idxs]
 
         # add higher-order contribution
         if self.space_order > 1:
@@ -330,7 +331,7 @@ class SolutionDomain:
 
         # compute source term
         if not solver.source_off:
-            source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, direct_samp_idxs)
+            source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, samp_idxs=direct_samp_idxs)
 
             sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
             sol_int.wf[:, direct_samp_idxs] = wf
