@@ -196,6 +196,10 @@ class SolutionDomain:
         # indices of flux array which correspond to left face of cell and map to direct_samp_idxs
         self.flux_rhs_idxs = np.arange(0, self.mesh.num_cells)
 
+        # for computing Jacobians
+        self.jacob_left_samp = self.flux_rhs_idxs[1:].copy()
+        self.jacob_right_samp = self.flux_rhs_idxs[:-1].copy() + 1
+
         # indices for computing Gamma inverse
         # TODO: remove these once conservative Jacobians are implemented
         self.gamma_idxs = np.arange(0, self.mesh.num_cells)
@@ -478,7 +482,6 @@ class SolutionDomain:
             # 	Convergence is also noticeably worse, since this is approximate
             # 	Transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
 
-            # TODO: THIS IS NOT VALID WITH HYPERREDUCTION
             gamma_matrix_inv = np.transpose(sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=self.gamma_idxs), axes=(2, 0, 1))
 
             d_rhs_d_sol_cons = np.transpose(

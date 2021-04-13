@@ -75,40 +75,27 @@ class StandardViscFlux(Flux):
         Compute flux Jacobian with respect to the primitive variables
         """
 
+        center_samp = sol_domain.flux_rhs_idxs
+        left_samp = sol_domain.jacob_left_samp
+        right_samp = sol_domain.jacob_right_samp
+
         # NOTE: signs are flipped to avoid an additional negation
 
+        # Jacobian of viscous flux vector at each face
         jacob_face = self.calc_d_visc_flux_d_sol_prim(sol_domain.sol_ave)
 
-        flux_samp = sol_domain.flux_rhs_idxs.copy()
-        # TODO: store this ahead of time
-        if sol_domain.direct_samp_idxs[0] == 0:
-            jacob_left_samp = flux_samp[1:].copy()
-        else:
-            jacob_left_samp = flux_samp.copy()
-
-        if sol_domain.direct_samp_idxs[-1] == (sol_domain.sol_int.num_cells - 1):
-            jacob_right_samp = flux_samp[:-1].copy() + 1
-        else:
-            jacob_right_samp = flux_samp.copy() + 1
-
-        # Jacobian wrt current cell
-        jacob_center_cell = jacob_face[:, :, flux_samp + 1] - jacob_face[:, :, flux_samp]
-
-        # Jacobian wrt left neighbor
-        jacob_left_cell = jacob_face[:, :, jacob_left_samp]
-
-        # Jacobian wrt right neighbor
-        jacob_right_cell = -jacob_face[:, :, jacob_right_samp]
+        # center, lower, and upper block diagonal of full numerical flux Jacobian
+        jacob_center_cell = jacob_face[:, :, center_samp + 1] - jacob_face[:, :, center_samp]
+        jacob_left_cell = jacob_face[:, :, left_samp]
+        jacob_right_cell = -jacob_face[:, :, right_samp]
 
         return jacob_center_cell, jacob_left_cell, jacob_right_cell
 
     def calc_d_visc_flux_d_sol_prim(self, sol_ave):
         """
-        Compute Jacobian of viscous flux vector
-        with respect to the primitive state
+        Compute Jacobian of viscous flux vector with respect to the primitive state
 
-        sol_ave is the solutionPhys associated with
-        the face state used to calculate the viscous flux
+        sol_ave is the solutionPhys associated with the face state used to calculate the viscous flux
         """
 
         gas = sol_ave.gas_model

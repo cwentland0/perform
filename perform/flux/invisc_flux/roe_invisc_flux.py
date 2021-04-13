@@ -206,29 +206,21 @@ class RoeInviscFlux(InviscFlux):
         Compute flux Jacobian with respect to the primitive variables
         """
 
-        roe_diss = sol_domain.roe_diss.copy()
+        roe_diss = sol_domain.roe_diss
+        center_samp = sol_domain.flux_rhs_idxs
+        left_samp = sol_domain.jacob_left_samp
+        right_samp = sol_domain.jacob_right_samp
 
-        # Jacobian of inviscid flux at left and right face reconstruction
+        # Jacobian of inviscid flux vector at left and right face reconstruction
         jacob_face_left = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
         jacob_face_right = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
 
-        flux_samp = sol_domain.flux_rhs_idxs.copy()
-        # TODO: store this ahead of time
-        if sol_domain.direct_samp_idxs[0] == 0:
-            jacob_left_samp = flux_samp[1:].copy()
-        else:
-            jacob_left_samp = flux_samp.copy()
-
-        if sol_domain.direct_samp_idxs[-1] == (sol_domain.sol_int.num_cells - 1):
-            jacob_right_samp = flux_samp[:-1].copy() + 1
-        else:
-            jacob_right_samp = flux_samp.copy() + 1
-
-        jacob_center_cell = (jacob_face_left[:, :, flux_samp + 1] + roe_diss[:, :, flux_samp + 1]) + (
-            -jacob_face_right[:, :, flux_samp] + roe_diss[:, :, flux_samp]
+        # center, lower, and upper block diagonal of full numerical flux Jacobian
+        jacob_center_cell = (jacob_face_left[:, :, center_samp + 1] + roe_diss[:, :, center_samp + 1]) + (
+            -jacob_face_right[:, :, center_samp] + roe_diss[:, :, center_samp]
         )
-        jacob_left_cell = -jacob_face_left[:, :, jacob_left_samp] - roe_diss[:, :, jacob_left_samp]
-        jacob_right_cell = jacob_face_right[:, :, jacob_right_samp] - roe_diss[:, :, jacob_right_samp]
+        jacob_left_cell = -jacob_face_left[:, :, left_samp] - roe_diss[:, :, left_samp]
+        jacob_right_cell = jacob_face_right[:, :, right_samp] - roe_diss[:, :, right_samp]
 
         jacob_center_cell *= 0.5
         jacob_left_cell *= 0.5

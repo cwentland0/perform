@@ -426,6 +426,17 @@ class RomDomain:
             else:
                 raise ValueError("Sampling for higher-order schemes" + " not implemented yet")
 
+        # for Jacobian calculations
+        if sol_domain.direct_samp_idxs[0] == 0:
+            sol_domain.jacob_left_samp = sol_domain.flux_rhs_idxs[1:].copy()
+        else:
+            sol_domain.jacob_left_samp = sol_domain.flux_rhs_idxs.copy()
+
+        if sol_domain.direct_samp_idxs[-1] == (sol_domain.sol_int.num_cells - 1):
+            sol_domain.jacob_right_samp = sol_domain.flux_rhs_idxs[:-1].copy() + 1
+        else:
+            sol_domain.jacob_right_samp = sol_domain.flux_rhs_idxs.copy() + 1
+
         # re-initialize solution objects to proper size
         gas = sol_domain.gas_model
         ones_prof = np.ones((gas.num_eqs, sol_domain.num_flux_faces), dtype=REAL_TYPE)

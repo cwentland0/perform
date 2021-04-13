@@ -54,6 +54,4 @@ class LinearLSPGProj(LinearProjROM):
         # Linear solve
         dCode = np.linalg.solve(lhs, rhs)
 
-        # breakpoint()
-
         return dCode, lhs, rhs
