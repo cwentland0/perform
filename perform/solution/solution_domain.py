@@ -196,6 +196,13 @@ class SolutionDomain:
         # indices of flux array which correspond to left face of cell and map to direct_samp_idxs
         self.flux_rhs_idxs = np.arange(0, self.mesh.num_cells)
 
+        # indices for computing Gamma inverse
+        # TODO: remove these once conservative Jacobians are implemented
+        self.gamma_idxs = np.arange(0, self.mesh.num_cells)
+        self.gamma_idxs_center = np.arange(0, self.mesh.num_cells)
+        self.gamma_idxs_left = np.arange(0, self.mesh.num_cells - 1)
+        self.gamma_idxs_right = np.arange(1, self.mesh.num_cells)
+
     def fill_sol_full(self):
         """
         Fill sol_prim_full and sol_cons_full from interior and ghost cells
@@ -383,7 +390,7 @@ class SolutionDomain:
 
         sol_int = self.sol_int
         gas = self.gas_model
-        samp_idxs = self.direct_samp_idxs
+        samp_idxs = self.gamma_idxs
 
         # enthalpies
         sol_int.hi[:, samp_idxs] = gas.calc_spec_enth(sol_int.sol_prim[2, samp_idxs])
@@ -443,7 +450,7 @@ class SolutionDomain:
 
         # Contribution to main block diagonal from source term Jacobian
         if not solver.source_off:
-            d_source_d_sol_prim = self.reaction_model.calc_jacob_prim(sol_int, samp_idxs=samp_idxs)
+            d_source_d_sol_prim = self.reaction_model.calc_jacob_prim(sol_int, samp_idxs=self.direct_samp_idxs)
             d_rhs_d_sol_prim -= d_source_d_sol_prim
 
         # TODO: make this specific for each ImplicitIntegrator
@@ -455,7 +462,7 @@ class SolutionDomain:
 
             # Contribution to main block diagonal from solution Jacobian
             # TODO: move these conditionals into calc_adaptive_dtau(), change to calc_dtau()
-            gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim(samp_idxs=samp_idxs)
+            gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim(samp_idxs=self.direct_samp_idxs)
             if self.time_integrator.adapt_dtau:
                 dtau_inv = sol_int.calc_adaptive_dtau(self.mesh)
             else:
@@ -472,15 +479,16 @@ class SolutionDomain:
             # 	Transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
 
             # TODO: THIS IS NOT VALID WITH HYPERREDUCTION
-            gamma_matrix_inv = np.transpose(sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=samp_idxs), axes=(2, 0, 1))
+            gamma_matrix_inv = np.transpose(sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=self.gamma_idxs), axes=(2, 0, 1))
+
             d_rhs_d_sol_cons = np.transpose(
-                np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1)) @ gamma_matrix_inv, axes=(1, 2, 0)
+                np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_center, :, :], axes=(1, 2, 0)
             )
             d_flux_d_sol_cons_left = np.transpose(
-                np.transpose(d_flux_d_sol_prim_left, axes=(2, 0, 1)) @ gamma_matrix_inv[:-1, :, :], axes=(1, 2, 0)
+                np.transpose(d_flux_d_sol_prim_left, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_left, :, :], axes=(1, 2, 0)
             )
             d_flux_d_sol_cons_right = np.transpose(
-                np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1)) @ gamma_matrix_inv[1:, :, :], axes=(1, 2, 0)
+                np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_right, :, :], axes=(1, 2, 0)
             )
 
             dt_arr = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None], self.num_samp_cells, axis=2)

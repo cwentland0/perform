@@ -517,3 +517,29 @@ class RomDomain:
 
         sol_domain.sol_int.jacob_row_idxs = np.concatenate((row_idxs_center, row_idxs_lower, row_idxs_upper))
         sol_domain.sol_int.jacob_col_idxs = np.concatenate((col_idxs_center, col_idxs_lower, col_idxs_upper))
+
+        # Gamma inverse indices
+        # TODO: once the conservative Jacobians get implemented, this is unnecessary, remove and clean
+        if sol_domain.time_integrator.dual_time:
+            sol_domain.gamma_idxs = sol_domain.direct_samp_idxs
+        else:
+            sol_domain.gamma_idxs = np.concatenate(
+                (sol_domain.direct_samp_idxs, sol_domain.direct_samp_idxs + 1, sol_domain.direct_samp_idxs - 1)
+            )
+            sol_domain.gamma_idxs = np.unique(sol_domain.gamma_idxs)
+            if sol_domain.gamma_idxs[0] == -1:
+                sol_domain.gamma_idxs = sol_domain.gamma_idxs[1:]
+            if sol_domain.gamma_idxs[-1] == sol_domain.mesh.num_cells:
+                sol_domain.gamma_idxs = sol_domain.gamma_idxs[:-1]
+
+        _, sol_domain.gamma_idxs_center, _ = np.intersect1d(
+            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs, return_indices=True,
+        )
+
+        _, sol_domain.gamma_idxs_left, _ = np.intersect1d(
+            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs - 1, return_indices=True,
+        )
+
+        _, sol_domain.gamma_idxs_right, _ = np.intersect1d(
+            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs + 1, return_indices=True,
+        )
