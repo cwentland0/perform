@@ -31,7 +31,7 @@ PERFORM aims to ease some of these difficulties by packaging a one-dimensional c
 
 ![Projection ROM class hierarchy](./proj_rom_class_hierarchy.jpg)
 
-In most cases, only a basic understanding of Python classes and NumPy/SciPy operations is required to implement new ROM methods. Further, all elements of the underlying reacting flow solver are separated from the ROM classes, ensuring that ROM method developers do not need to interact with the solver routines. As such, the learning curve for understanding PERFORM's ROM mechanics and implementing new ROM methods is extremely gentle. Note that although pyMOR [@Milk2016] similarly provides a pure Python ROM framework, it aims to be far more generalizable to any class of problems, be compatible with a host of low-level computational and data handling libraries, and enable parallel computing. While this makes pyMOR much more flexible and efficient, it can also make ROM prototyping and code maintenance much more cumbersome. 
+In most cases, only a basic understanding of Python classes and NumPy/SciPy operations is required to implement new ROM methods. Further, all elements of the underlying reacting flow solver are separated from the ROM classes, ensuring that ROM method developers do not need to interact with the solver routines. As such, the learning curve for understanding PERFORM's ROM mechanics and implementing new ROM methods is relatively gentle. Note that although pyMOR [@Milk2016] similarly provides a pure Python ROM framework, it aims to be far more generalizable to any class of problems, be compatible with a host of low-level computational and data handling libraries, and enable parallel computing. While this makes pyMOR much more flexible and efficient, it can also make ROM prototyping and code maintenance much more cumbersome. 
 
 PERFORM's public repository comes with several benchmark cases which are ready to run out-of-the-box. As will be discussed below, these benchmark cases address several of the critical issues facing the broader ROM community, particularly the difficulty of propagating transient flow features beyond the training data set and making accurate predictions in a complex parameter space. We hope that by providing these benchmark cases, the community can measure and compare ROM methods for a more challenging, yet manageable, class of problems.
 
@@ -42,13 +42,13 @@ PERFORM is designed with modularity and expansion in mind. Generic class interfa
 At the time of submitting this paper, PERFORM is specifically equipped with the following features:
 
 - Solver
-  - calorically-perfect gas (CPG) model
+  - calorically-perfect gas model
   - irreversible finite-rate reaction model
   - Roe flux difference scheme [@Roe1981]
   - several explicit Runge-Kutta time integration schemes
   - implicit BDF time integration schemes, with or without dual time-stepping [@Venkateswaran1995]
 - ROMs
-  - linear Galerkin (explicit and implicit) [@Rowley2004], LSPG [@Carlberg2017], and SP-LSVT [@Huang2020] projection ROMs with DEIM hyper-reduction [@Chaturantabut2010]
+  - linear Galerkin (explicit and implicit) [@Rowley2004], LSPG [@Carlberg2017], and SP-LSVT [@Huang2020] projection ROMs with gappy POD hyper-reduction [@Everson1995]
   - non-linear Galerkin (explicit and implicit), LSPG [@Lee2020], and SP-LSVT projection ROMs via Keras autoencoders
 
 We are working to provide generic class interfaces for non-intrusive ROM methods and ROM stabilization methods (e.g. closure, filtering, artificial viscosity). We are also implementing a thermally-perfect gas model, reversible finite rate reaction model, and non-linear autoencoder ROMs via PyTorch.
@@ -63,6 +63,6 @@ Recent community-wide discussions have begun encouraging ROM researchers to purs
 
 The authors acknowledge support from the US Air Force Office of Scientific Research through the Center of Excellence Grant FA9550-17-1-0195 (Technical Monitors: Fariba Fahroo, Mitat Birkan, Ramakanth Munipalli, Venkateswaran Sankaran).
 
-We thank Ashish Nair, Cheng Huang, Nicholas Arnold-Medabalimi, Elnaz Rezaian, Sahil Bhola, and Bernardo Pacini for their help in stress-testing PERFORM and providing valuable discussion on its development, especially in its early stages.
+We thank Nicholas Arnold-Medabalimi, Sahil Bhola, Cheng Huang, Ashish Nair, and Bernardo Pacini, and Elnaz Rezaian for their help in stress-testing PERFORM and providing valuable discussion on its development.
 
 # References
