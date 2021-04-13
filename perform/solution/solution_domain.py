@@ -176,23 +176,23 @@ class SolutionDomain:
         # indices of directly sampled cells, within sol_prim/cons
         self.direct_samp_idxs = np.arange(0, self.mesh.num_cells)
         # indices of "left" cells for flux calcs, within sol_prim/cons_full
-        self.flux_samp_left_idxs = np.arange(0, self.mesh.num_cells + 1)
+        self.flux_samp_left_idxs = np.s_[:-1]
         # indices of "right" cells for flux calcs, within sol_prim/cons_full
-        self.flux_samp_right_idxs = np.arange(1, self.mesh.num_cells + 2)
+        self.flux_samp_right_idxs = np.s_[1:]
         # indices of cells for which gradients need to be calculated, within sol_prim/cons_full
         self.grad_idxs = np.arange(1, self.mesh.num_cells + 1)
         # indices of gradient cells and their immediate neighbors, within sol_prim/cons_full
-        self.grad_neigh_idxs = np.arange(0, self.mesh.num_cells + 2)
-        # indices within gradient neighbor indices to extract gradient cells, excluding neighbors
-        self.grad_neigh_extract = np.arange(1, self.mesh.num_cells + 1)
+        self.grad_neigh_idxs = np.s_[:]
+        # indices within gradient neighbor indices to extract gradient cells, excluding boundaries
+        self.grad_neigh_extract = np.s_[1:-1]
         # indices within flux_samp_left_idxs which map to indices of grad_idxs
-        self.flux_left_extract = np.arange(1, self.mesh.num_cells + 1)
+        self.flux_left_extract = np.s_[1:]
         # indices within flux_samp_right_idxs which map to indices of grad_idxs
-        self.flux_right_extract = np.arange(0, self.mesh.num_cells)
+        self.flux_right_extract = np.s_[:-1]
         # indices within grad_idxs which map to indices of flux_samp_left_idxs
-        self.grad_left_extract = np.arange(0, self.mesh.num_cells)
+        self.grad_left_extract = np.s_[:]
         # indices within grad_idxs which map to indices of flux_samp_right_idxs
-        self.grad_right_extract = np.arange(0, self.mesh.num_cells)
+        self.grad_right_extract = np.s_[:]
         # indices of flux array which correspond to left face of cell and map to direct_samp_idxs
         self.flux_rhs_idxs = np.arange(0, self.mesh.num_cells)
 
@@ -202,10 +202,10 @@ class SolutionDomain:
 
         # indices for computing Gamma inverse
         # TODO: remove these once conservative Jacobians are implemented
-        self.gamma_idxs = np.arange(0, self.mesh.num_cells)
-        self.gamma_idxs_center = np.arange(0, self.mesh.num_cells)
-        self.gamma_idxs_left = np.arange(0, self.mesh.num_cells - 1)
-        self.gamma_idxs_right = np.arange(1, self.mesh.num_cells)
+        self.gamma_idxs = np.s_[:]
+        self.gamma_idxs_center = np.s_[:]
+        self.gamma_idxs_left = np.s_[:-1]
+        self.gamma_idxs_right = np.s_[1:]
 
     def fill_sol_full(self):
         """
