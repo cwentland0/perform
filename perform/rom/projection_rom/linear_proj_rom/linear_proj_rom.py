@@ -74,7 +74,7 @@ class LinearProjROM(ProjectionROM):
                 self.direct_samp_idxs_flat[idx1:idx2] = (
                     rom_domain.direct_samp_idxs + var_num * sol_domain.mesh.num_cells
                 )
-        
+
         else:
             self.direct_samp_idxs_flat = np.s_[:]
 

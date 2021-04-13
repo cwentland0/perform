@@ -44,7 +44,9 @@ class LinearGalerkinProj(LinearProjROM):
         Compute change in low-dimensional state for implicit scheme Newton iteration
         """
 
-        lhs = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[self.direct_samp_idxs_flat, None]
+        lhs = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[
+            self.direct_samp_idxs_flat, None
+        ]
         res_scaled = (res / self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
 
         if self.hyper_reduc:

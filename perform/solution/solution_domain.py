@@ -482,16 +482,21 @@ class SolutionDomain:
             # 	Convergence is also noticeably worse, since this is approximate
             # 	Transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
 
-            gamma_matrix_inv = np.transpose(sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=self.gamma_idxs), axes=(2, 0, 1))
+            gamma_matrix_inv = np.transpose(
+                sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=self.gamma_idxs), axes=(2, 0, 1)
+            )
 
             d_rhs_d_sol_cons = np.transpose(
-                np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_center, :, :], axes=(1, 2, 0)
+                np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_center, :, :],
+                axes=(1, 2, 0),
             )
             d_flux_d_sol_cons_left = np.transpose(
-                np.transpose(d_flux_d_sol_prim_left, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_left, :, :], axes=(1, 2, 0)
+                np.transpose(d_flux_d_sol_prim_left, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_left, :, :],
+                axes=(1, 2, 0),
             )
             d_flux_d_sol_cons_right = np.transpose(
-                np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_right, :, :], axes=(1, 2, 0)
+                np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_right, :, :],
+                axes=(1, 2, 0),
             )
 
             dt_arr = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None], self.num_samp_cells, axis=2)

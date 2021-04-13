@@ -39,7 +39,9 @@ class LinearLSPGProj(LinearProjROM):
         """
 
         # Compute test basis
-        test_basis = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[self.direct_samp_idxs_flat, None]
+        test_basis = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[
+            self.direct_samp_idxs_flat, None
+        ]
         if self.hyper_reduc:
             test_basis = self.hyper_reduc_operator @ test_basis
 
