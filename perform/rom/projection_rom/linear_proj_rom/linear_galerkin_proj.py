@@ -20,7 +20,7 @@ class LinearGalerkinProj(LinearProjROM):
         if rom_domain.time_integrator.time_type == "explicit":
             # procompute hyper-reduction projector, V^T * U * [S^T * U]^+
             if self.hyper_reduc:
-                self.hyper_reduc_projector = (
+                self.hyper_reduc_operator = (
                     self.trial_basis.T
                     @ self.hyper_reduc_basis
                     @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_hyper_reduc_samp_idxs, :])
@@ -28,7 +28,7 @@ class LinearGalerkinProj(LinearProjROM):
 
         else:
             # precompute scaled trial basis
-            self.scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
+            self.trial_basis_scaled = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
     def calc_projector(self, sol_domain):
         """
@@ -36,7 +36,7 @@ class LinearGalerkinProj(LinearProjROM):
         """
 
         if self.hyper_reduc:
-            self.projector = self.hyper_reduc_projector
+            self.projector = self.hyper_reduc_operator
         else:
             self.projector = self.trial_basis.T
 
@@ -46,7 +46,7 @@ class LinearGalerkinProj(LinearProjROM):
         """
 
         lhs = self.trial_basis.T @ (
-            (res_jacob @ self.scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
+            (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
         )
 
         rhs = self.trial_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")

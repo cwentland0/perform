@@ -208,18 +208,30 @@ class RoeInviscFlux(InviscFlux):
 
         roe_diss = sol_domain.roe_diss.copy()
 
-        jacob_left_face = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
-        jacob_right_face = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
+        # Jacobian of inviscid flux at left and right face reconstruction
+        jacob_face_left = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
+        jacob_face_right = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
 
-        # Jacobian wrt current cell
-        jacob_center_cell = (jacob_left_face[:, :, 1:] + roe_diss[:, :, 1:]) + (
-            -jacob_right_face[:, :, :-1] + roe_diss[:, :, :-1]
+        flux_samp = sol_domain.flux_rhs_idxs.copy()
+        # TODO: store this ahead of time
+        if sol_domain.direct_samp_idxs[0] == 0:
+            jacob_left_samp = flux_samp[1:].copy()
+        else:
+            jacob_left_samp = flux_samp.copy()
+
+        if sol_domain.direct_samp_idxs[-1] == (sol_domain.sol_int.num_cells - 1):
+            jacob_right_samp = flux_samp[:-1].copy() + 1
+        else:
+            jacob_right_samp = flux_samp.copy() + 1
+
+        jacob_center_cell = (jacob_face_left[:, :, flux_samp + 1] + roe_diss[:, :, flux_samp + 1]) + (
+            -jacob_face_right[:, :, flux_samp] + roe_diss[:, :, flux_samp]
         )
+        jacob_left_cell = -jacob_face_left[:, :, jacob_left_samp] - roe_diss[:, :, jacob_left_samp]
+        jacob_right_cell = jacob_face_right[:, :, jacob_right_samp] - roe_diss[:, :, jacob_right_samp]
 
-        # Jacobian wrt left neighbor
-        jacob_left_cell = -jacob_left_face[:, :, 1:-1] - roe_diss[:, :, :-2]
-
-        # Jacobian wrt right neighbor
-        jacob_right_cell = jacob_right_face[:, :, 1:-1] - roe_diss[:, :, 2:]
+        jacob_center_cell *= 0.5
+        jacob_left_cell *= 0.5
+        jacob_right_cell *= 0.5
 
         return jacob_center_cell, jacob_left_cell, jacob_right_cell

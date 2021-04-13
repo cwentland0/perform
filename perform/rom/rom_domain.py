@@ -186,7 +186,9 @@ class RomDomain:
 
             # Compute residual and residual Jacobian
             if self.is_intrusive:
-                res = self.time_integrator.calc_residual(sol_int.sol_hist_cons, sol_int.rhs, solver)
+                res = self.time_integrator.calc_residual(
+                    sol_int.sol_hist_cons, sol_int.rhs, solver, samp_idxs=sol_domain.direct_samp_idxs
+                )
                 res_jacob = sol_domain.calc_res_jacob(solver)
 
             # Compute change in low-dimensional state
@@ -350,8 +352,7 @@ class RomDomain:
             len(np.unique(sol_domain.direct_samp_idxs)) == sol_domain.num_samp_cells
         ), "Sampling indices must be unique"
 
-        # TODO: should probably shunt these over to a function
-        # for when indices get updated in adaptive method
+        # TODO: should probably shunt these over to a function for when indices get updated in adaptive method
 
         # Compute indices for inviscid flux calculations
         # NOTE: have to account for fact that boundary cells are prepended/appended
@@ -371,8 +372,10 @@ class RomDomain:
         # To slice flux when calculating RHS
         sol_domain.flux_rhs_idxs = np.zeros(sol_domain.num_samp_cells, np.int32)
         for i in range(1, sol_domain.num_samp_cells):
+            # if this cell is adjacent to previous sampled cell
             if sol_domain.direct_samp_idxs[i] == (sol_domain.direct_samp_idxs[i - 1] + 1):
                 sol_domain.flux_rhs_idxs[i] = sol_domain.flux_rhs_idxs[i - 1] + 1
+            # otherwise
             else:
                 sol_domain.flux_rhs_idxs[i] = sol_domain.flux_rhs_idxs[i - 1] + 2
 
@@ -395,7 +398,7 @@ class RomDomain:
 
                 sol_domain.num_grad_cells = len(sol_domain.grad_idxs)
 
-                # Neighbors of gradient cells
+                # Neighbors of gradient cells, implicitly includes all gradient cells too
                 sol_domain.grad_neigh_idxs = np.concatenate((sol_domain.grad_idxs - 1, sol_domain.grad_idxs + 1))
                 sol_domain.grad_neigh_idxs = np.unique(sol_domain.grad_neigh_idxs)
 
@@ -465,3 +468,52 @@ class RomDomain:
                 self.hyper_reduc_dims = [self.hyper_reduc_dims[0]] * self.num_models
             else:
                 raise ValueError("Must provide either num_models or 1 entry in hyper_reduc_dims")
+
+        # Redo CSR matrix indices for sparse Jacobian
+        num_cells = sol_domain.mesh.num_cells
+        num_samp_cells = sol_domain.num_samp_cells
+        num_elements_center = gas.num_eqs ** 2 * num_samp_cells
+        col_offset = 0
+        if sol_domain.direct_samp_idxs[0] == 0:
+            num_elements_lower = gas.num_eqs ** 2 * (num_samp_cells - 1)
+            col_offset = 1
+        else:
+            num_elements_lower = num_elements_center
+        if sol_domain.direct_samp_idxs[-1] == (num_cells - 1):
+            num_elements_upper = gas.num_eqs ** 2 * (num_samp_cells - 1)
+        else:
+            num_elements_upper = num_elements_center
+        sol_domain.sol_int.jacob_dim_first = gas.num_eqs * num_samp_cells
+        sol_domain.sol_int.jacob_dim_second = gas.num_eqs * num_cells
+
+        row_idxs_center = np.zeros(num_elements_center, dtype=np.int32)
+        col_idxs_center = np.zeros(num_elements_center, dtype=np.int32)
+        row_idxs_upper = np.zeros(num_elements_upper, dtype=np.int32)
+        col_idxs_upper = np.zeros(num_elements_upper, dtype=np.int32)
+        row_idxs_lower = np.zeros(num_elements_lower, dtype=np.int32)
+        col_idxs_lower = np.zeros(num_elements_lower, dtype=np.int32)
+
+        # TODO: definitely a faster way to do this
+        lin_idx_A = 0
+        lin_idx_B = 0
+        lin_idx_C = 0
+        for i in range(gas.num_eqs):
+            for j in range(gas.num_eqs):
+                for k in range(num_samp_cells):
+
+                    row_idxs_center[lin_idx_A] = i * num_samp_cells + k
+                    col_idxs_center[lin_idx_A] = j * num_cells + sol_domain.direct_samp_idxs[k]
+                    lin_idx_A += 1
+
+                    if sol_domain.direct_samp_idxs[k] < (num_cells - 1):
+                        row_idxs_upper[lin_idx_B] = i * num_samp_cells + k
+                        col_idxs_upper[lin_idx_B] = j * num_cells + sol_domain.direct_samp_idxs[k] + 1
+                        lin_idx_B += 1
+
+                    if sol_domain.direct_samp_idxs[k] > 0:
+                        row_idxs_lower[lin_idx_C] = i * num_samp_cells + k
+                        col_idxs_lower[lin_idx_C] = j * num_cells + sol_domain.direct_samp_idxs[k] - 1
+                        lin_idx_C += 1
+
+        sol_domain.sol_int.jacob_row_idxs = np.concatenate((row_idxs_center, row_idxs_lower, row_idxs_upper))
+        sol_domain.sol_int.jacob_col_idxs = np.concatenate((col_idxs_center, col_idxs_lower, col_idxs_upper))

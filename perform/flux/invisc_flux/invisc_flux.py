@@ -15,10 +15,9 @@ class InviscFlux(Flux):
 
     def calc_d_inv_flux_d_sol_prim(self, sol):
         """
-        Compute Jacobian of inviscid flux vector
-        with respect to primitive state
+        Compute Jacobian of inviscid flux vector with respect to primitive state
 
-        Here, sol should be the solutionPhys associated with a face state
+        Here, sol should be the SolutionPhys associated with a face state
         """
 
         gas = sol.gas_model

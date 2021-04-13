@@ -75,7 +75,8 @@ class SolutionInterior(SolutionPhys):
 
                 # CSR matrix indices
                 num_elements = gas.num_eqs ** 2 * num_cells
-                self.jacob_dim = gas.num_eqs * num_cells
+                self.jacob_dim_first = gas.num_eqs * num_cells
+                self.jacob_dim_second = self.jacob_dim_first
 
                 row_idxs_center = np.zeros(num_elements, dtype=np.int32)
                 col_idxs_center = np.zeros(num_elements, dtype=np.int32)
@@ -115,7 +116,7 @@ class SolutionInterior(SolutionPhys):
                 self.d_sol_norm_l1 = 0.0
                 self.d_sol_norm_history = np.zeros((solver.num_steps, 2), dtype=REAL_TYPE)
 
-    def calc_d_sol_prim_d_sol_cons(self):
+    def calc_d_sol_prim_d_sol_cons(self, samp_idxs=np.s_[:]):
         """
         Compute the Jacobian of the conservative state w/r/t/ the primitive state
 
@@ -127,22 +128,27 @@ class SolutionInterior(SolutionPhys):
 
         gas = self.gas_model
 
-        gamma_matrix_inv = np.zeros((gas.num_eqs, gas.num_eqs, self.num_cells))
+        # initialize Jacobian
+        if type(samp_idxs) is slice:
+            num_cells = sol_int.num_cells
+        else:
+            num_cells = samp_idxs.shape[0]
+        gamma_matrix_inv = np.zeros((gas.num_eqs, gas.num_eqs, num_cells))
 
         # for clarity
-        rho = self.sol_cons[0, :]
-        press = self.sol_prim[0, :]
-        vel = self.sol_prim[1, :]
-        temp = self.sol_prim[2, :]
-        mass_fracs = self.sol_prim[3:, :]
+        rho = self.sol_cons[0, samp_idxs]
+        press = self.sol_prim[0, samp_idxs]
+        vel = self.sol_prim[1, samp_idxs]
+        temp = self.sol_prim[2, samp_idxs]
+        mass_fracs = self.sol_prim[3:, samp_idxs]
 
-        d_rho_d_press = self.d_rho_d_press
-        d_rho_d_temp = self.d_rho_d_temp
-        d_rho_d_mass_frac = self.d_rho_d_mass_frac
-        d_enth_d_press = self.d_enth_d_press
-        d_enth_d_temp = self.d_enth_d_temp
-        d_enth_d_mass_frac = self.d_enth_d_mass_frac
-        h0 = self.h0
+        d_rho_d_press = self.d_rho_d_press[samp_idxs]
+        d_rho_d_temp = self.d_rho_d_temp[samp_idxs]
+        d_rho_d_mass_frac = self.d_rho_d_mass_frac[:, samp_idxs]
+        d_enth_d_press = self.d_enth_d_press[samp_idxs]
+        d_enth_d_temp = self.d_enth_d_temp[samp_idxs]
+        d_enth_d_mass_frac = self.d_enth_d_mass_frac[:, samp_idxs]
+        h0 = self.h0[samp_idxs]
 
         # some reused terms
         d = rho * d_rho_d_press * d_enth_d_temp - d_rho_d_temp * (rho * d_enth_d_press - 1.0)
@@ -198,7 +204,7 @@ class SolutionInterior(SolutionPhys):
 
         return gamma_matrix_inv
 
-    def calc_d_sol_cons_d_sol_prim(self):
+    def calc_d_sol_cons_d_sol_prim(self, samp_idxs=np.s_[:]):
         """
         Compute the Jacobian of conservative state w/r/t the primitive state
 
@@ -209,22 +215,27 @@ class SolutionInterior(SolutionPhys):
 
         gas = self.gas_model
 
-        gamma_matrix = np.zeros((gas.num_eqs, gas.num_eqs, self.num_cells))
+        # initialize Jacobian
+        if type(samp_idxs) is slice:
+            num_cells = sol_int.num_cells
+        else:
+            num_cells = samp_idxs.shape[0]
+        gamma_matrix = np.zeros((gas.num_eqs, gas.num_eqs, num_cells))
 
         # for clarity
-        rho = self.sol_cons[0, :]
-        press = self.sol_prim[0, :]
-        vel = self.sol_prim[1, :]
-        temp = self.sol_prim[2, :]
-        mass_fracs = self.sol_prim[3:, :]
+        rho = self.sol_cons[0, samp_idxs]
+        press = self.sol_prim[0, samp_idxs]
+        vel = self.sol_prim[1, samp_idxs]
+        temp = self.sol_prim[2, samp_idxs]
+        mass_fracs = self.sol_prim[3:, samp_idxs]
 
-        d_rho_d_press = self.d_rho_d_press
-        d_rho_d_temp = self.d_rho_d_temp
-        d_rho_d_mass_frac = self.d_rho_d_mass_frac
-        d_enth_d_press = self.d_enth_d_press
-        d_enth_d_temp = self.d_enth_d_temp
-        d_enth_d_mass_frac = self.d_enth_d_mass_frac
-        h0 = self.h0
+        d_rho_d_press = self.d_rho_d_press[samp_idxs]
+        d_rho_d_temp = self.d_rho_d_temp[samp_idxs]
+        d_rho_d_mass_frac = self.d_rho_d_mass_frac[:, samp_idxs]
+        d_enth_d_press = self.d_enth_d_press[samp_idxs]
+        d_enth_d_temp = self.d_enth_d_temp[samp_idxs]
+        d_enth_d_mass_frac = self.d_enth_d_mass_frac[:, samp_idxs]
+        h0 = self.h0[samp_idxs]
 
         # density row
         gamma_matrix[0, 0, :] = d_rho_d_press
@@ -259,11 +270,13 @@ class SolutionInterior(SolutionPhys):
 
         # TODO: my God, this is still the single most expensive operation
         # How can this be any simpler/faster???
-        # Preallocating "data" is *slower*
+        # Preallocating "jacob_diags" is *slower*
 
-        data = np.concatenate((center_block.ravel("C"), lower_block.ravel("C"), upper_block.ravel("C")))
+        jacob_diags = np.concatenate((center_block.ravel("C"), lower_block.ravel("C"), upper_block.ravel("C")))
         res_jacob = csr_matrix(
-            (data, (self.jacob_row_idxs, self.jacob_col_idxs)), shape=(self.jacob_dim, self.jacob_dim), dtype=REAL_TYPE
+            (jacob_diags, (self.jacob_row_idxs, self.jacob_col_idxs)),
+            shape=(self.jacob_dim_first, self.jacob_dim_second),
+            dtype=REAL_TYPE,
         )
 
         return res_jacob

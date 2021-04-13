@@ -173,16 +173,27 @@ class SolutionDomain:
         self.num_samp_cells = self.mesh.num_cells
         self.num_flux_faces = self.mesh.num_cells + 1
         self.num_grad_cells = self.mesh.num_cells
+        # indices of directly sampled cells, within sol_prim/cons
         self.direct_samp_idxs = np.arange(0, self.mesh.num_cells)
+        # indices of "left" cells for flux calcs, within sol_prim/cons_full
         self.flux_samp_left_idxs = np.arange(0, self.mesh.num_cells + 1)
+        # indices of "right" cells for flux calcs, within sol_prim/cons_full
         self.flux_samp_right_idxs = np.arange(1, self.mesh.num_cells + 2)
+        # indices of cells for which gradients need to be calculated, within sol_prim/cons_full
         self.grad_idxs = np.arange(1, self.mesh.num_cells + 1)
+        # indices of gradient cells and their immediate neighbors, within sol_prim/cons_full
         self.grad_neigh_idxs = np.arange(0, self.mesh.num_cells + 2)
+        # indices within gradient neighbor indices to extract gradient cells, excluding neighbors
         self.grad_neigh_extract = np.arange(1, self.mesh.num_cells + 1)
+        # indices within flux_samp_left_idxs which map to indices of grad_idxs
         self.flux_left_extract = np.arange(1, self.mesh.num_cells + 1)
+        # indices within flux_samp_right_idxs which map to indices of grad_idxs
         self.flux_right_extract = np.arange(0, self.mesh.num_cells)
+        # indices within grad_idxs which map to indices of flux_samp_left_idxs
         self.grad_left_extract = np.arange(0, self.mesh.num_cells)
+        # indices within grad_idxs which map to indices of flux_samp_right_idxs
         self.grad_right_extract = np.arange(0, self.mesh.num_cells)
+        # indices of flux array which correspond to left face of cell and map to direct_samp_idxs
         self.flux_rhs_idxs = np.arange(0, self.mesh.num_cells)
 
     def fill_sol_full(self):
@@ -283,17 +294,17 @@ class SolutionDomain:
         sol_outlet = self.sol_outlet
         sol_prim_full = self.sol_prim_full
         sol_cons_full = self.sol_cons_full
-        direct_samp_idxs = self.direct_samp_idxs
+        samp_idxs = self.direct_samp_idxs
         gas = self.gas_model
 
         # compute ghost cell state (if adjacent cell is sampled)
         # TODO: update this after higher-order contribution?
         # TODO: adapt pass to calc_boundary_state() depending on space scheme
-        if direct_samp_idxs[0] == 0:
+        if samp_idxs[0] == 0:
             sol_inlet.calc_boundary_state(
                 solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, :2], sol_cons=sol_int.sol_cons[:, :2]
             )
-        if direct_samp_idxs[-1] == (self.mesh.num_cells - 1):
+        if samp_idxs[-1] == (self.mesh.num_cells - 1):
             sol_outlet.calc_boundary_state(
                 solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, -2:], sol_cons=sol_int.sol_cons[:, -2:]
             )
@@ -309,6 +320,7 @@ class SolutionDomain:
         sol_right.sol_cons[:, :] = sol_cons_full[:, self.flux_samp_right_idxs]
 
         # add higher-order contribution
+        # TODO: if not dual_time, reconstruct conservative variables instead of primitive
         if self.space_order > 1:
             sol_prim_grad = self.calc_cell_gradients()
             sol_left.sol_prim[:, self.flux_left_extract] += (self.mesh.dx / 2.0) * sol_prim_grad[
@@ -325,18 +337,18 @@ class SolutionDomain:
         if self.visc_flux_name != "invisc":
             flux -= self.visc_flux_scheme.calc_flux(self)
 
-        # compute rhs
-        self.sol_int.rhs[:, direct_samp_idxs] = flux[:, self.flux_rhs_idxs] - flux[:, self.flux_rhs_idxs + 1]
-        sol_int.rhs[:, direct_samp_idxs] /= self.mesh.dx
+        # compute RHS
+        self.sol_int.rhs[:, samp_idxs] = flux[:, self.flux_rhs_idxs] - flux[:, self.flux_rhs_idxs + 1]
+        sol_int.rhs[:, samp_idxs] /= self.mesh.dx
 
         # compute source term
         if not solver.source_off:
-            source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, samp_idxs=direct_samp_idxs)
+            source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, samp_idxs=samp_idxs)
 
-            sol_int.source[gas.mass_frac_slice[:, None], direct_samp_idxs[None, :]] = source
-            sol_int.wf[:, direct_samp_idxs] = wf
+            sol_int.source[gas.mass_frac_slice[:, None], samp_idxs[None, :]] = source
+            sol_int.wf[:, samp_idxs] = wf
 
-            sol_int.rhs[3:, direct_samp_idxs] += sol_int.source[:, direct_samp_idxs]
+            sol_int.rhs[3:, samp_idxs] += sol_int.source[:, samp_idxs]
 
     def calc_cell_gradients(self):
         """
@@ -371,26 +383,43 @@ class SolutionDomain:
 
         sol_int = self.sol_int
         gas = self.gas_model
+        samp_idxs = self.direct_samp_idxs
 
-        # Atagnation enthalpy and derivatives of density and enthalpy
-        sol_int.hi = gas.calc_spec_enth(sol_int.sol_prim[2, :])
-        sol_int.h0 = gas.calc_stag_enth(sol_int.sol_prim[1, :], sol_int.mass_fracs_full, spec_enth=sol_int.hi)
-        (sol_int.d_rho_d_press, sol_int.d_rho_d_temp, sol_int.d_rho_d_mass_frac) = gas.calc_dens_derivs(
-            sol_int.sol_cons[0, :],
-            wrt_press=True,
-            pressure=sol_int.sol_prim[0, :],
-            wrt_temp=True,
-            temperature=sol_int.sol_prim[2, :],
-            wrt_spec=True,
-            mix_mol_weight=sol_int.mw_mix,
+        # enthalpies
+        sol_int.hi[:, samp_idxs] = gas.calc_spec_enth(sol_int.sol_prim[2, samp_idxs])
+        sol_int.h0[samp_idxs] = gas.calc_stag_enth(
+            sol_int.sol_prim[1, samp_idxs], sol_int.mass_fracs_full[:, samp_idxs], spec_enth=sol_int.hi[:, samp_idxs],
         )
 
-        (sol_int.d_enth_d_press, sol_int.d_enth_d_temp, sol_int.d_enth_d_mass_frac) = gas.calc_stag_enth_derivs(
-            wrt_press=True, wrt_temp=True, mass_fracs=sol_int.sol_prim[3:, :], wrt_spec=True, spec_enth=sol_int.hi
+        # density derivatives
+        (
+            sol_int.d_rho_d_press[samp_idxs],
+            sol_int.d_rho_d_temp[samp_idxs],
+            sol_int.d_rho_d_mass_frac[:, samp_idxs],
+        ) = gas.calc_dens_derivs(
+            sol_int.sol_cons[0, samp_idxs],
+            wrt_press=True,
+            pressure=sol_int.sol_prim[0, samp_idxs],
+            wrt_temp=True,
+            temperature=sol_int.sol_prim[2, samp_idxs],
+            wrt_spec=True,
+            mix_mol_weight=sol_int.mw_mix[samp_idxs],
+        )
+
+        # stagnation enthalpy derivatives
+        (
+            sol_int.d_enth_d_press[samp_idxs],
+            sol_int.d_enth_d_temp[samp_idxs],
+            sol_int.d_enth_d_mass_frac[:, samp_idxs],
+        ) = gas.calc_stag_enth_derivs(
+            wrt_press=True,
+            wrt_temp=True,
+            mass_fracs=sol_int.sol_prim[3:, samp_idxs],
+            wrt_spec=True,
+            spec_enth=sol_int.hi[:, samp_idxs],
         )
 
         # Flux jacobians
-        # TODO: move this to a FluxGroup class or something
         (d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right) = self.invisc_flux_scheme.calc_jacob_prim(
             self
         )
@@ -406,47 +435,44 @@ class SolutionDomain:
             d_flux_d_sol_prim_left += d_visc_flux_d_sol_prim_left
             d_flux_d_sol_prim_right += d_visc_flux_d_sol_prim_right
 
-        d_flux_d_sol_prim *= 0.5 / self.mesh.dx
-        d_flux_d_sol_prim_left *= 0.5 / self.mesh.dx
-        d_flux_d_sol_prim_right *= 0.5 / self.mesh.dx
+        d_flux_d_sol_prim /= self.mesh.dx
+        d_flux_d_sol_prim_left /= self.mesh.dx
+        d_flux_d_sol_prim_right /= self.mesh.dx
 
         d_rhs_d_sol_prim = d_flux_d_sol_prim.copy()
 
         # Contribution to main block diagonal from source term Jacobian
         if not solver.source_off:
-            d_source_d_sol_prim = self.reaction_model.calc_jacob_prim(sol_int)
+            d_source_d_sol_prim = self.reaction_model.calc_jacob_prim(sol_int, samp_idxs=samp_idxs)
             d_rhs_d_sol_prim -= d_source_d_sol_prim
 
-        # TODO: make this specific for each implicitIntegrator
+        # TODO: make this specific for each ImplicitIntegrator
         dt_coeff_idx = min(solver.iter, self.time_integrator.time_order) - 1
         dt_inv = self.time_integrator.coeffs[dt_coeff_idx][0] / self.time_integrator.dt
 
-        # Modifications depending on whether
-        # dual-time integration is being used
+        # Modifications depending on whether dual-time integration is being used
         if self.time_integrator.dual_time:
 
             # Contribution to main block diagonal from solution Jacobian
-            # TODO: move these conditionals into calc_adaptive_dtau(),
-            # 	change to calc_dtau()
-            gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim()
+            # TODO: move these conditionals into calc_adaptive_dtau(), change to calc_dtau()
+            gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim(samp_idxs=samp_idxs)
             if self.time_integrator.adapt_dtau:
                 dtau_inv = sol_int.calc_adaptive_dtau(self.mesh)
             else:
-                dtau_inv = 1.0 / self.time_integrator.dtau * np.ones(sol_int.num_cells, dtype=REAL_TYPE)
+                dtau_inv = 1.0 / self.time_integrator.dtau * np.ones(self.num_samp_cells, dtype=REAL_TYPE)
 
             d_rhs_d_sol_prim += gamma_matrix * (dtau_inv[None, None, :] + dt_inv)
 
-            # Assemble sparse Jacobian from
-            # main, upper, and lower block diagonals
+            # Assemble sparse Jacobian from main, upper, and lower block diagonals
             res_jacob = sol_int.res_jacob_assemble(d_rhs_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right)
 
         else:
-            # TODO: this is hilariously inefficient,
-            # 	need to make Jacobian functions w/r/t conservative state
+            # TODO: this is hilariously inefficient, need to make Jacobian functions w/r/t conservative state
             # 	Convergence is also noticeably worse, since this is approximate
-            # 	Transposes are due to matmul assuming
-            # 	stacks are in first index, maybe a better way to do this?
-            gamma_matrix_inv = np.transpose(sol_int.calc_d_sol_prim_d_sol_cons(), axes=(2, 0, 1))
+            # 	Transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
+
+            # TODO: THIS IS NOT VALID WITH HYPERREDUCTION
+            gamma_matrix_inv = np.transpose(sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=samp_idxs), axes=(2, 0, 1))
             d_rhs_d_sol_cons = np.transpose(
                 np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1)) @ gamma_matrix_inv, axes=(1, 2, 0)
             )
@@ -457,8 +483,8 @@ class SolutionDomain:
                 np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1)) @ gamma_matrix_inv[1:, :, :], axes=(1, 2, 0)
             )
 
-            dtMat = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None], sol_int.num_cells, axis=2)
-            d_rhs_d_sol_cons += dtMat
+            dt_arr = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None], self.num_samp_cells, axis=2)
+            d_rhs_d_sol_cons += dt_arr
 
             res_jacob = sol_int.res_jacob_assemble(d_rhs_d_sol_cons, d_flux_d_sol_cons_left, d_flux_d_sol_cons_right)
 

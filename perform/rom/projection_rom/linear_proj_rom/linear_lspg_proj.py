@@ -32,11 +32,11 @@ class LinearLSPGProj(LinearProjROM):
 
         # TODO: add hyper-reduction
 
-        # TODO: scaled_trial_basis should be calculated once
-        scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
+        # TODO: trial_basis_scaled should be calculated once
+        trial_basis_scaled = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
         # Compute test basis
-        test_basis = (res_jacob @ scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
+        test_basis = (res_jacob @ trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
         # lhs and rhs of Newton iteration
         lhs = test_basis.T @ test_basis
