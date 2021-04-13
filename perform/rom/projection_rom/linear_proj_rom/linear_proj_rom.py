@@ -67,13 +67,16 @@ class LinearProjROM(ProjectionROM):
             self.hyper_reduc_basis = np.reshape(hyper_reduc_basis, (-1, self.hyper_reduc_dim), order="C")
 
             # indices for sampling flattened hyper_reduc_basis
-            self.direct_hyper_reduc_samp_idxs = np.zeros(rom_domain.num_samp_cells * self.num_vars, dtype=np.int32)
+            self.direct_samp_idxs_flat = np.zeros(rom_domain.num_samp_cells * self.num_vars, dtype=np.int32)
             for var_num in range(self.num_vars):
                 idx1 = var_num * rom_domain.num_samp_cells
                 idx2 = (var_num + 1) * rom_domain.num_samp_cells
-                self.direct_hyper_reduc_samp_idxs[idx1:idx2] = (
+                self.direct_samp_idxs_flat[idx1:idx2] = (
                     rom_domain.direct_samp_idxs + var_num * sol_domain.mesh.num_cells
                 )
+
+        else:
+            self.direct_samp_idxs_flat = np.s_[:]
 
     def init_from_sol(self, sol_domain):
         """

@@ -37,7 +37,7 @@ class FiniteRateIrrevReaction(ReactionModel):
         # Some precomputations
         self.mol_weight_nu = gas.mol_weights[None, :] * self.nu
 
-    def calc_source(self, sol, dt, samp_idxs=None):
+    def calc_source(self, sol, dt, samp_idxs=np.s_[:]):
         """
         Compute chemical source term
         """
@@ -46,7 +46,6 @@ class FiniteRateIrrevReaction(ReactionModel):
 
         gas = sol.gas_model
 
-        # TODO: squeeze this if samp_idxs=None?
         temp = sol.sol_prim[2, samp_idxs]
         rho = sol.sol_cons[[0], samp_idxs]
         rho_mass_frac = rho * sol.mass_fracs_full[:, samp_idxs]
@@ -65,33 +64,36 @@ class FiniteRateIrrevReaction(ReactionModel):
 
         return source, wf
 
-    def calc_jacob_prim(self, sol_int):
+    def calc_jacob_prim(self, sol_int, samp_idxs=np.s_[:]):
         """
         Compute source term Jacobian
         """
 
         gas = sol_int.gas_model
 
-        jacob = np.zeros((gas.num_eqs, gas.num_eqs, sol_int.num_cells))
+        # initialize Jacobian
+        if type(samp_idxs) is slice:
+            num_cells = sol_int.num_cells
+        else:
+            num_cells = samp_idxs.shape[0]
+        jacob = np.zeros((gas.num_eqs, gas.num_eqs, num_cells), dtype=REAL_TYPE)
 
-        rho = sol_int.sol_cons[0, :]
-        press = sol_int.sol_prim[0, :]
-        temp = sol_int.sol_prim[2, :]
-        mass_fracs = sol_int.sol_prim[3:, :]
+        rho = sol_int.sol_cons[0, samp_idxs]
+        press = sol_int.sol_prim[0, samp_idxs]
+        temp = sol_int.sol_prim[2, samp_idxs]
+        mass_fracs = sol_int.sol_prim[3:, samp_idxs]
 
         # assumes density derivatives have been precomputed
-        # TODO: make sure this happens always, not just in Roe flux
-        d_rho_d_press = sol_int.d_rho_d_press
-        d_rho_d_temp = sol_int.d_rho_d_temp
-        d_rho_d_mass_frac = sol_int.d_rho_d_mass_frac
-        wf = sol_int.wf
+        # this is done in calc_res_jacob()
+        d_rho_d_press = sol_int.d_rho_d_press[samp_idxs]
+        d_rho_d_temp = sol_int.d_rho_d_temp[samp_idxs]
+        d_rho_d_mass_frac = sol_int.d_rho_d_mass_frac[:, samp_idxs]
+        wf = sol_int.wf[:, samp_idxs]
 
         wf_div_rho = np.sum(wf[:, None, :] * self.nu_arr[:, :, None], axis=1) / rho[None, :]
 
         d_wf_d_press = wf_div_rho * d_rho_d_press
 
-        # subtract, as activation energy already set as negative
-        # TODO: reverse negation after changing Ea to positive representation, divide by R
         pre_exp = self.temp_exp[:, None] / temp[None, :] + (self.act_energy[:, None] / R_UNIV) / temp[None, :] ** 2
         d_wf_d_temp = pre_exp * wf + wf_div_rho * d_rho_d_temp[None, :]
 

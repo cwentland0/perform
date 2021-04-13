@@ -24,23 +24,34 @@ class LinearLSPGProj(LinearProjROM):
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
+        self.trial_basis_scaled = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
+
+        # procompute hyper-reduction projector, [S^T * U]^+
+        # TODO: may want to have an option to compute U * [S^T * U]^+
+        #   The matrix can be big, but it's necessary for conservative LSPG, different least-square problem
+        if self.hyper_reduc:
+            self.hyper_reduc_operator = np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
+
     def calc_d_code(self, res_jacob, res, sol_domain):
         """
         Compute change in low-dimensional state for
         implicit scheme Newton iteration
         """
 
-        # TODO: add hyper-reduction
-
-        # TODO: scaled_trial_basis should be calculated once
-        scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
-
         # Compute test basis
-        test_basis = (res_jacob @ scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
+        test_basis = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[
+            self.direct_samp_idxs_flat, None
+        ]
+        if self.hyper_reduc:
+            test_basis = self.hyper_reduc_operator @ test_basis
 
         # lhs and rhs of Newton iteration
         lhs = test_basis.T @ test_basis
-        rhs = test_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")
+
+        res_scaled = (res / self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
+        if self.hyper_reduc:
+            res_scaled = self.hyper_reduc_operator @ res_scaled
+        rhs = test_basis.T @ res_scaled
 
         # Linear solve
         dCode = np.linalg.solve(lhs, rhs)

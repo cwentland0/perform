@@ -48,7 +48,7 @@ class BDF(ImplicitIntegrator):
             str(self.time_order) + "th-order accurate scheme not implemented for " + self.time_scheme + " scheme"
         )
 
-    def calc_residual(self, solHist, rhs, solver):
+    def calc_residual(self, sol_hist, rhs, solver, samp_idxs=np.s_[:]):
 
         # Account for cold start
         time_order = min(solver.iter, self.time_order)
@@ -56,12 +56,12 @@ class BDF(ImplicitIntegrator):
         coeffs = self.coeffs[time_order - 1]
 
         # Compute time derivative component
-        residual = coeffs[0] * solHist[0]
+        residual = coeffs[0] * sol_hist[0][:, samp_idxs]
         for iter_idx in range(1, time_order + 1):
-            residual += coeffs[iter_idx] * solHist[iter_idx]
+            residual += coeffs[iter_idx] * sol_hist[iter_idx][:, samp_idxs]
 
         # Add RHS
         # NOTE: Negative convention here is for use with Newton's method
-        residual = -(residual / self.dt) + rhs
+        residual = -(residual / self.dt) + rhs[:, samp_idxs]
 
         return residual

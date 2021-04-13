@@ -17,37 +17,44 @@ class LinearGalerkinProj(LinearProjROM):
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
+        if not rom_domain.time_integrator.time_type == "explicit":
+            # precompute scaled trial basis
+            self.trial_basis_scaled = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
+
+        if self.hyper_reduc:
+            # procompute hyper-reduction projector, V^T * U * [S^T * U]^+
+            self.hyper_reduc_operator = (
+                self.trial_basis.T
+                @ self.hyper_reduc_basis
+                @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
+            )
+
     def calc_projector(self, sol_domain):
         """
-        Compute rhs projection operator
+        Compute RHS projection operator
         """
 
         if self.hyper_reduc:
-            # V^T * U * [S^T * U]^+
-            self.projector = (
-                self.trial_basis.T
-                @ self.hyper_reduc_basis
-                @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_hyper_reduc_samp_idxs, :])
-            )
-
+            self.projector = self.hyper_reduc_operator
         else:
-            # V^T
             self.projector = self.trial_basis.T
 
     def calc_d_code(self, res_jacob, res, sol_domain):
         """
-        Compute change in low-dimensional state for
-        implicit scheme Newton iteration
+        Compute change in low-dimensional state for implicit scheme Newton iteration
         """
 
-        # TODO: should be calculated once
-        scaled_trial_basis = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
+        lhs = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[
+            self.direct_samp_idxs_flat, None
+        ]
+        res_scaled = (res / self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
 
-        lhs = self.trial_basis.T @ (
-            (res_jacob @ scaled_trial_basis) / self.norm_fac_prof_cons.ravel(order="C")[:, None]
-        )
-
-        rhs = self.trial_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")
+        if self.hyper_reduc:
+            lhs = self.hyper_reduc_operator @ lhs
+            rhs = self.hyper_reduc_operator @ res_scaled
+        else:
+            lhs = self.trial_basis.T @ lhs
+            rhs = self.trial_basis.T @ res_scaled
 
         d_code = np.linalg.solve(lhs, rhs)
 
