@@ -26,22 +26,15 @@ class LinearSPLSVTProj(LinearProjROM):
 
         # procompute hyper-reduction projector, U * [S^T * U]^+
         if self.hyper_reduc:
-            self.hyper_reduc_operator = self.hyper_reduc_basis @ np.linalg.pinv(
-                self.hyper_reduc_basis[self.direct_hyper_reduc_samp_idxs, :]
-            )
+            self.hyper_reduc_operator = np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
 
     def calc_d_code(self, res_jacob, res, sol_domain):
         """
         Compute change in low-dimensional state for implicit scheme Newton iteration
         """
 
-        if self.hyper_reduc:
-            samp_idxs = self.direct_hyper_reduc_samp_idxs
-        else:
-            samp_idxs = np.s_[:]
-
         # compute test basis
-        test_basis = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[samp_idxs, None]
+        test_basis = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[self.direct_samp_idxs_flat, None]
         if self.hyper_reduc:
             test_basis = self.hyper_reduc_operator @ test_basis
 

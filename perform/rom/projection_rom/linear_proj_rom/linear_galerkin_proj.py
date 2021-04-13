@@ -26,7 +26,7 @@ class LinearGalerkinProj(LinearProjROM):
             self.hyper_reduc_operator = (
                 self.trial_basis.T
                 @ self.hyper_reduc_basis
-                @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_hyper_reduc_samp_idxs, :])
+                @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
             )
 
     def calc_projector(self, sol_domain):
@@ -44,14 +44,9 @@ class LinearGalerkinProj(LinearProjROM):
         Compute change in low-dimensional state for implicit scheme Newton iteration
         """
 
-        if self.hyper_reduc:
-            samp_idxs = self.direct_hyper_reduc_samp_idxs
-        else:
-            samp_idxs = np.s_[:]
-
-        lhs = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[samp_idxs, None]
+        lhs = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[self.direct_samp_idxs_flat, None]
         res_scaled = (res / self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
-        
+
         if self.hyper_reduc:
             lhs = self.hyper_reduc_operator @ lhs
             rhs = self.hyper_reduc_operator @ res_scaled
