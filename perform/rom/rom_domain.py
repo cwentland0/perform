@@ -110,24 +110,25 @@ class RomDomain:
             self.time_integrator = None  # TODO: this might be pointless
 
         # check init files
-        low_dim_init_files = catch_list(rom_dict, "low_dim_init_files", [""])
-        if (len(low_dim_init_files) != 1) or (low_dim_init_files[0] != ""):
-            assert len(low_dim_init_files) == self.num_models, (
+        self.low_dim_init_files = catch_list(rom_dict, "low_dim_init_files", [""])
+        if (len(self.low_dim_init_files) != 1) or (self.low_dim_init_files[0] != ""):
+            assert len(self.low_dim_init_files) == self.num_models, (
                 "If initializing any ROM model from a file, must provide list entries for every model. "
                 + "If you don't wish to initialize from file for a model, input an empty string "
                 " in the list entry."
             )
         else:
-            low_dim_init_files = [""] * self.num_models
+            self.low_dim_init_files = [""] * self.num_models
 
-        # Initialize models for domain
+        # Initialize
         self.model_list = [None] * self.num_models
         for model_idx in range(self.num_models):
+            # Initialize model
             self.model_list[model_idx] = get_rom_model(model_idx, self, sol_domain)
             model = self.model_list[model_idx]
 
             # Initialize state
-            init_file = low_dim_init_files[model_idx]
+            init_file = self.low_dim_init_files[model_idx]
             if init_file != "":
                 assert os.path.isfile(init_file), "Could not find ROM initialization file at " + init_file
                 model.code = np.load(init_file)

@@ -30,7 +30,7 @@ class AutoencoderProjROM(ProjectionROM):
         # 	or initializing from projection of full ICs
         self.encoder_jacob = catch_input(rom_dict, "encoder_jacob", False)
         self.encoder = None
-        if self.encoder_jacob or (not rom_domain.init_rom_from_file[model_idx]):
+        if self.encoder_jacob or (rom_domain.low_dim_init_files[model_idx] == ""):
 
             encoder_files = rom_dict["encoder_files"]
             assert len(encoder_files) == rom_domain.num_models, "Must provide encoder_files for each model"
