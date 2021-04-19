@@ -11,10 +11,28 @@ from perform.rom.tf_keras_funcs import init_device, load_model_obj, get_io_shape
 
 
 class AutoencoderTFKeras(AutoencoderProjROM):
-    """
-    Base class for autoencoder projection-based ROMs using TensorFlow-Keras
+    """Base class for autoencoder projection-based ROMs using TensorFlow-Keras.
 
-    See user guide for notes on expected input format
+    Inherits from AutoencoderProjROM. Supplies library-specific functions noted in AutoencoderProjROM.
+    
+    Child classes must implement a calc_projector() member function if it permits explicit time integration,
+    and/or a calc_d_code() member function if it permits implicit time integration.
+
+    It is expected that models supplied are saved in the older Keras H5 format.
+
+    Args:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        rom_domain: RomDomain within which this RomModel is contained.
+        sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+
+    Attributes:
+        load_model_obj:
+            Function supplied to parent AutoencoderProjROM to load TF-Keras model files,
+            found in tf_keras_funcs.py.
+        io_format:
+            Either "nchw" (i.e. "channels-first" in Keras) or "nhwc" (i.e. "channels-last in Keras),
+            format of model input and output. Note that TF-Keras cannot compute convolutional layers on the CPU
+            (run_gpu=False) if io_format="nchw"; an error is thrown if this is the case.
     """
 
     def __init__(self, model_idx, rom_domain, sol_domain):
@@ -23,8 +41,8 @@ class AutoencoderTFKeras(AutoencoderProjROM):
             print("WARNING: You are using TensorFlow version < 2.4.1, proper ROM behavior not guaranteed")
             sleep(1.0)
 
-        self.run_gpu = catch_input(rom_domain.rom_dict, "run_gpu", False)
-        init_device(self.run_gpu)
+        run_gpu = catch_input(rom_domain.rom_dict, "run_gpu", False)
+        init_device(run_gpu)
 
         # Store function object for use in parent routines
         self.load_model_obj = load_model_obj
@@ -32,7 +50,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         # "nchw" (channels first) or "nhwc" (channels last)
         self.io_format = rom_domain.rom_dict["io_format"]
         if self.io_format == "nchw":
-            assert self.run_gpu, "Tensorflow cannot handle NCHW on CPUs"
+            assert run_gpu, "Tensorflow cannot handle NCHW on CPUs"
         elif self.io_format == "nhwc":
             pass  # works on GPU or CPU
         else:
@@ -41,8 +59,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         super().__init__(model_idx, rom_domain, sol_domain)
 
         # Initialize tf.Variable for Jacobian calculations
-        # Otherwise, recreating this will cause retracing
-        # of the computational graph
+        # Otherwise, recreating this will cause retracing of the computational graph
         sol_int = sol_domain.sol_int
         if not self.numerical_jacob:
             if self.encoder_jacob:
@@ -62,8 +79,18 @@ class AutoencoderTFKeras(AutoencoderProjROM):
                 self.jacob_input = tf.Variable(self.code[None, :], dtype=self.decoder_io_dtypes[0])
 
     def check_model(self, decoder=True):
-        """
-        Check decoder/encoder input/output dimensions and returns I/O dtypes
+        """Check decoder/encoder input/output dimensions and returns I/O dtypes
+
+        Extracts shapes of this model's decoder or encoder and checks whether they match the expected shapes,
+        as determined by num_vars, num_cells, and latent_dim.
+
+        Args:
+            decoder: 
+                Boolean indicating whether to return the shape of this RomModel's decoder (decoder=True)
+                or encoder (decoder=False).
+
+        Returns:
+            A list containing two entries: the tuple shape of the model input, and the tuple shape of the model output.
         """
 
         if decoder:
@@ -110,8 +137,12 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         return [input_dtype, output_dtype]
 
     def apply_decoder(self, code):
-        """
-        Compute raw decoding of code, without de-normalizing or de-centering
+        """Compute raw decoding of code.
+        
+        Only computes decoder(code), does not compute any denormalization or decentering.
+
+        Args:
+            code: NumPy array of low-dimensional state, of dimension latent_dim.
         """
 
         sol = np.squeeze(self.decoder(code[None, :]).numpy(), axis=0)
@@ -121,9 +152,12 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         return sol
 
     def apply_encoder(self, sol):
-        """
-        Compute raw encoding of solution,
-        assuming it has been centered and normalized
+        """Compute raw encoding of full-dimensional state.
+        
+        Only computes encoder(sol), does not compute any centering or normalization.
+
+        Args:
+            sol: NumPy array of full-dimensional state.
         """
 
         if self.io_format == "nhwc":
@@ -136,11 +170,17 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 
     @tf.function
     def calc_analytical_model_jacobian(self, model, inputs):
-        """
-        Compute analytical Jacobian of TensorFlow-Keras model
-        using GradientTape
+        """Compute analytical Jacobian of TensorFlow-Keras model using GradientTape.
 
-        NOTE: inputs is a tf.Variable
+        Calculates the analytical Jacobian of an encoder or decoder with respect to the given inputs.
+        The GradientTape method computes this using automatic differentiation.
+
+        Args:
+            model: tf.keras.Model for which the analytical Jacobian should be computed.
+            inputs: tf.Variable containing inputs to decoder about which the model Jacobian should be computed.
+
+        Returns:
+            tf.Variable containing the analytical Jacobian, without squeezing any singleton dimensions.
         """
 
         with tf.GradientTape() as g:
@@ -150,11 +190,18 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         return jacob
 
     def calc_numerical_model_jacobian(self, model, inputs):
-        """
-        Compute numerical Jacobian of TensorFlow-Keras models
-        by finite difference approximation
+        """Compute numerical Jacobian of TensorFlow-Keras model using finite-difference.
 
-        NOTE: inputs is a np.ndarray
+        Calculates the numerical Jacobian of an encoder or decoder with respect to the given inputs.
+        A finite-difference approximation of the gradient with respect to each element of inputs is calculated.
+        The fd_step attribute determines the finite difference step size.
+
+        Args:
+            model: tf.keras.Model for which the numerical Jacobian should be computed.
+            inputs: NumPy array containing inputs to decoder about which the model Jacobian should be computed.
+
+        Returns:
+            NumPy array containing the numerical Jacobian.
         """
 
         # TODO: implement encoder Jacobian
@@ -191,8 +238,17 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         return jacob
 
     def calc_model_jacobian(self, sol_domain):
-        """
-        Helper function for calculating TensorFlow-Keras model Jacobian
+        """Helper function for calculating TensorFlow-Keras model Jacobian
+
+        Computes analytical or numerical Jacobian of a decoder or encoder, depending on the requested
+        ROM solution method. Handles the various data formats and array shapes produced by each option,
+        and returns the properly-formatted model Jacobian to the child classes calling this function.
+
+        Args:
+            sol_domain: olutionDomain with which this RomModel's RomDomain is associated.
+
+        Returns:
+            NumPy array of model Jacobian, formatted appropriately for time integration.
         """
 
         # TODO: generalize this for generic model, input
@@ -200,7 +256,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         if self.encoder_jacob:
             # TODO: only calculate standardized solution once, hang onto it
             # Don't have to pass sol_domain, too
-            sol = self.standardize_data(
+            sol = self.scale_profile(
                 sol_domain.sol_int.sol_cons[self.var_idxs, :],
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_cons,

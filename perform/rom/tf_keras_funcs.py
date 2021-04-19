@@ -1,5 +1,5 @@
-# Collection of generic functions that
-# 	any TensorFlow-Keras model-based method can use
+""""Collection of generic functions that any TensorFlow-Keras model-based method can use"""
+
 import os
 
 import tensorflow as tf
@@ -7,10 +7,18 @@ from tensorflow.keras.models import load_model
 
 
 def init_device(run_gpu):
-    """
-    If running on GPU, limit GPU memory growth
+    """Initializes GPU execution, if requested
+    
+    TensorFlow 2+ can execute from CPU or GPU, this function does some prep work.
+    
+    Passing run_gpu=True will limit GPU memory growth, as unlimited TensorFlow memory allocation can be
+    quite aggressive on first call.
+    
+    Passing run_gpu=False will guarantee that TensorFlow runs on the CPU. Even if GPUs are available,
+    this will hide those devices from the TensorFlow runtime.
 
-    If running on CPU, hide any GPUs from TF
+    Args:
+        run_gpu: Boolean flag indicating whether to execute TensorFlow functions on an available GPU.
     """
 
     if run_gpu:
@@ -32,8 +40,13 @@ def init_device(run_gpu):
 
 
 def load_model_obj(model_path):
-    """
-    Load Keras SavedModel object from file specified by model_path
+    """Load Keras model object from file
+    
+    This function loads a trained Keras model from the older Keras H5 format.
+    This does not accommodate the newer TensorFlow SavedModel format.
+
+    Args:
+        model_path: string path to *.h5 model file to be loaded.
     """
 
     model_obj = load_model(model_path, compile=False)
@@ -41,9 +54,14 @@ def load_model_obj(model_path):
 
 
 def get_io_shape(shape):
-    """
-    Gets model I/O shape, handles situations in which
-    layer shape is returned as a list instead of a tuple
+    """Gets Keras model I/O shape.
+    
+    This takes in the output of tf.keras.Model.Layer.input_shape or tf.keras.Model.Layer.output_shape.
+    If the shape is already a tuple, simply returns the shape.
+    If the shape is a list (as occasionally happens), it returns the shape tuple associated with this list.
+
+    Args:
+        shape: output of tf.keras.Model.Layer.input_shape or tf.keras.Model.Layer.output_shape
     """
 
     if type(shape) is list:

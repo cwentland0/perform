@@ -24,10 +24,7 @@ except ImportError:
 
 
 def get_rom_model(model_idx, rom_domain, sol_domain):
-    """
-    Helper function to retrieve various models
-    Helps keep the clutter our of rom_domain
-    """
+    """Helper function to retrieve ROM models"""
 
     # linear subspace methods
     if rom_domain.rom_method == "linear_galerkin_proj":
