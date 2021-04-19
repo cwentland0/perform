@@ -5,8 +5,15 @@ from perform.flux.invisc_flux.invisc_flux import InviscFlux
 
 
 class RoeInviscFlux(InviscFlux):
-    """
-    Roe's flux difference scheme
+    """Class implementing flux methods for Roe's flux difference scheme.
+
+    Inherits from InviscFlux. Provides member functions for computing the numerical flux at each face and
+    its Jacobian with respect to the primitive and conservative state.
+
+    Please refer to Roe (1981) for details on the Roe scheme.
+
+    Args:
+        sol_domain: SolutionDomain with which this Flux is associated.
     """
 
     def __init__(self, sol_domain):
@@ -14,8 +21,16 @@ class RoeInviscFlux(InviscFlux):
         super().__init__()
 
     def calc_flux(self, sol_domain):
-        """
-        Compute flux array
+        """Compute numerical inviscid flux vector.
+
+        Computes Roe average state at cell faces and Roe dissipation with respect to
+        the left/right reconstructed face states.
+
+        Args:
+            sol_domain: SolutionDomain with which this Flux is associated.
+
+        Returns:
+            NumPy array of numerical inviscid flux for every governing equation at each finite volume face.
         """
 
         # TODO: entropy fix
@@ -67,14 +82,8 @@ class RoeInviscFlux(InviscFlux):
         )
 
         # Compute inviscid flux vectors of left and right state
-        flux_left[0, :] = sol_cons_left[1, :]
-        flux_left[1, :] = sol_cons_left[1, :] * sol_prim_left[1, :] + sol_prim_left[0, :]
-        flux_left[2, :] = sol_cons_left[0, :] * sol_left.h0 * sol_prim_left[1, :]
-        flux_left[3:, :] = sol_cons_left[3:, :] * sol_prim_left[[1], :]
-        flux_right[0, :] = sol_cons_right[1, :]
-        flux_right[1, :] = sol_cons_right[1, :] * sol_prim_right[1, :] + sol_prim_right[0, :]
-        flux_right[2, :] = sol_cons_right[0, :] * sol_right.h0 * sol_prim_right[1, :]
-        flux_right[3:, :] = sol_cons_right[3:, :] * sol_prim_right[[1], :]
+        flux_left = self.calc_inv_flux(sol_cons_left, sol_prim_left, sol_left.h0)
+        flux_right = self.calc_inv_flux(sol_cons_right, sol_prim_right, sol_right.h0)
 
         # Maximum wave speed for adapting dtau, if needed
         # TODO: need to adaptively size this for hyper-reduction
@@ -93,8 +102,15 @@ class RoeInviscFlux(InviscFlux):
         return flux
 
     def calc_roe_diss(self, sol_ave):
-        """
-        Compute dissipation term of Roe flux
+        """Compute dissipation term of Roe flux.
+
+        The derivation of this term is provided in the solver theory documentation.
+
+        Args:
+            sol_ave: SolutionPhys of the Roe average state at each finite volume face.
+
+        Returns:
+            3D NumPy array of the Roe dissipation matrix.
         """
 
         gas_model = sol_ave.gas_model
@@ -202,8 +218,22 @@ class RoeInviscFlux(InviscFlux):
         return diss_matrix
 
     def calc_jacob_prim(self, sol_domain):
-        """
-        Compute flux Jacobian with respect to the primitive variables
+        """Compute and assemble numerical inviscid flux Jacobian with respect to the primitive variables.
+
+        Calculates flux Jacobian at each face and assembles Jacobian with respect to each
+        finite volume cell's state. Note that the gradient with respect to boundary ghost cell states are
+        excluded, as the Newton iteration linear solve does not need this.
+
+        Args:
+            sol_domain: SolutionDomain with which this Flux is associated.
+
+        Returns:
+            jacob_center_cell: center block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its own primitive state.
+            jacob_left_cell: lower block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its left neighbor's primitive state.
+            jacob_left_cell: upper block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its right neighbor's primitive state.
         """
 
         roe_diss = sol_domain.roe_diss

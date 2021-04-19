@@ -5,8 +5,12 @@ from perform.flux.flux import Flux
 
 
 class StandardViscFlux(Flux):
-    """
-    Standard viscous flux scheme with binary diffusion velocity approximation
+    """Standard viscous flux scheme with binary diffusion velocity approximation
+    
+    Inherits from Flux.
+
+    Args:
+        sol_domain: SolutionDomain with which this Flux is associated.
     """
 
     def __init__(self, sol_domain):
@@ -14,8 +18,16 @@ class StandardViscFlux(Flux):
         super().__init__()
 
     def calc_flux(self, sol_domain):
-        """
-        Compute flux array
+        """Compute viscous flux vector.
+
+        Computes state gradient at cell faces and computes viscous flux with respect to average face state. 
+        Assumes that average face state has already been computed.
+
+        Args:
+            sol_domain: SolutionDomain with which this Flux is associated.
+
+        Returns:
+            NumPy array of viscous flux for every governing equation at each finite volume face.
         """
 
         gas = sol_domain.gas_model
@@ -71,8 +83,22 @@ class StandardViscFlux(Flux):
         return flux_visc
 
     def calc_jacob_prim(self, sol_domain):
-        """
-        Compute flux Jacobian with respect to the primitive variables
+        """Compute and assemble flux Jacobian with respect to the primitive variables.
+
+        Calculates analytical flux Jacobian at each face and assembles Jacobian with respect to each
+        finite volume cell's state. Note that the gradient with respect to boundary ghost cell states are
+        excluded, as the Newton iteration linear solve does not need this.
+
+        Args:
+            sol_domain: SolutionDomain with which this Flux is associated.
+
+        Returns:
+            jacob_center_cell: center block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its own primitive state.
+            jacob_left_cell: lower block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its left neighbor's primitive state.
+            jacob_left_cell: upper block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its right neighbor's primitive state.
         """
 
         center_samp = sol_domain.flux_rhs_idxs
@@ -92,10 +118,15 @@ class StandardViscFlux(Flux):
         return jacob_center_cell, jacob_left_cell, jacob_right_cell
 
     def calc_d_visc_flux_d_sol_prim(self, sol_ave):
-        """
-        Compute Jacobian of viscous flux vector with respect to the primitive state
+        """Compute Jacobian of viscous flux vector with respect to the primitive state.
 
-        sol_ave is the solutionPhys associated with the face state used to calculate the viscous flux
+        This Jacobian is computed analytically at sol_ave, which is the "average" face state used
+        to calculate the viscous flux.
+
+        Please refer to the solver theory documentation for full derivations of this Jacobian.
+
+        Args:
+            sol_ave: SolutionPhys associated with the average state at each finite volume face.
         """
 
         gas = sol_ave.gas_model
