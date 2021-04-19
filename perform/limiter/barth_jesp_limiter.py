@@ -5,9 +5,10 @@ from perform.limiter.limiter import Limiter
 
 
 class BarthJespLimiter(Limiter):
-    """
-    Barth-Jespersen limiter
-    Ensures that no new minima or maxima are introduced in reconstruction
+    """Barth-Jespersen limiter.
+
+    This implements the limiter of Barth and Jespersen (1989) in one dimension.
+    Ensures that no new minima or maxima are introduced in reconstruction, but is non-differentiable.
     """
 
     def __init__(self):
@@ -15,8 +16,14 @@ class BarthJespLimiter(Limiter):
         super().__init__()
 
     def calc_limiter(self, sol_domain, grad):
-        """
-        Compute multiplicative limiter
+        """Compute multiplicative limiter.
+
+        Args:
+            sol_domain: SolutionDomain with which this Limiter is associated.
+            grad: NumPy array of the un-limited gradient directly computed from finite difference stencil.
+
+        Returns:
+            NumPy array of the multiplicative gradient limiter profile.
         """
 
         sol_prim = sol_domain.sol_prim_full[:, sol_domain.grad_idxs]
