@@ -11,21 +11,21 @@ class FiniteRateIrrevReaction(ReactionModel):
     irreversible reactions (i.e. only forwards)
     """
 
-    def __init__(self, gas, gas_dict):
+    def __init__(self, gas, chem_dict):
 
         super().__init__()
 
-        self.num_reactions = catch_input(gas_dict, "num_reactions", 0)
+        self.num_reactions = catch_input(chem_dict, "num_reactions", 0)
         assert self.num_reactions > 0, "Must have num_reactions > 0 if requesting a reaction model"
 
         # Arrhenius factors
-        self.nu = np.asarray(catch_list(gas_dict, "nu", [[-999.9]], len_highest=self.num_reactions), dtype=REAL_TYPE)
+        self.nu = np.asarray(catch_list(chem_dict, "nu", [[-999.9]], len_highest=self.num_reactions), dtype=REAL_TYPE)
         self.nu_arr = np.asarray(
-            catch_list(gas_dict, "nu_arr", [[-999.9]], len_highest=self.num_reactions), dtype=REAL_TYPE
+            catch_list(chem_dict, "nu_arr", [[-999.9]], len_highest=self.num_reactions), dtype=REAL_TYPE
         )
-        self.pre_exp_fact = np.asarray(catch_list(gas_dict, "pre_exp_fact", [-1.0]), dtype=REAL_TYPE)
-        self.temp_exp = np.asarray(catch_list(gas_dict, "temp_exp", [-1.0]), dtype=REAL_TYPE)
-        self.act_energy = np.asarray(catch_list(gas_dict, "act_energy", [-1.0]), dtype=REAL_TYPE)
+        self.pre_exp_fact = np.asarray(catch_list(chem_dict, "pre_exp_fact", [-1.0]), dtype=REAL_TYPE)
+        self.temp_exp = np.asarray(catch_list(chem_dict, "temp_exp", [-1.0]), dtype=REAL_TYPE)
+        self.act_energy = np.asarray(catch_list(chem_dict, "act_energy", [-1.0]), dtype=REAL_TYPE)
 
         assert self.nu.shape == (self.num_reactions, gas.num_species_full)
         assert self.nu_arr.shape == (self.num_reactions, gas.num_species_full)

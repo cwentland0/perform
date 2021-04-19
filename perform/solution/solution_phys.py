@@ -79,7 +79,7 @@ class SolutionPhys:
 
         # mass fractions
         self.sol_prim[3:, :] = self.sol_cons[3:, :] / self.sol_cons[[0], :]
-        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim=self.sol_prim)
+        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim_in=self.sol_prim)
         mass_fracs = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
         self.mass_fracs_full[:, :] = mass_fracs.copy()
         if self.gas_model.num_species_full > 1:
@@ -110,7 +110,7 @@ class SolutionPhys:
         # 	species enthalpies
 
         # mass fractions
-        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim=self.sol_prim)
+        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim_in=self.sol_prim)
         mass_fracs = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
         self.mass_fracs_full[:, :] = mass_fracs.copy()
         if self.gas_model.num_species_full > 1:

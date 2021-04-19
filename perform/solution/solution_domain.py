@@ -48,22 +48,22 @@ class SolutionDomain:
 
         # gas model
         chem_file = str(param_dict["chem_file"])
-        gas_dict = read_input_file(chem_file)
-        gas_model_name = catch_input(gas_dict, "gas_model", "cpg")
+        chem_dict = read_input_file(chem_file)
+        gas_model_name = catch_input(chem_dict, "gas_model", "cpg")
         if gas_model_name == "cpg":
-            self.gas_model = CaloricallyPerfectGas(gas_dict)
+            self.gas_model = CaloricallyPerfectGas(chem_dict)
         else:
             raise ValueError("Ivalid choice of gas_model: " + gas_model_name)
         gas = self.gas_model
 
         # reaction model
-        reaction_model_name = catch_input(gas_dict, "reaction_model", "none")
+        reaction_model_name = catch_input(chem_dict, "reaction_model", "none")
         if reaction_model_name == "none":
             assert solver.source_off, "Must provide a valid reaction_model_name if source_off = False"
             num_reactions = 0
         else:
             if reaction_model_name == "fr_irrev":
-                self.reaction_model = FiniteRateIrrevReaction(gas, gas_dict)
+                self.reaction_model = FiniteRateIrrevReaction(gas, chem_dict)
             else:
                 raise ValueError("Invalid choice of reaction_model: " + reaction_model_name)
 

@@ -7,20 +7,47 @@ from perform.gas_model.gas_model import GasModel
 
 
 class CaloricallyPerfectGas(GasModel):
+    """Class implementing all CPG-specific thermo/transport property methods.
+
+    This class provides public methods for calculating various thermodynamic and transport properties,
+    as well as some extra utility functions such as density and enthalpy derivatives. Please refer to the
+    solver theory documentation for more details on how each quantity is calculated.
+
+    Args:
+        chem_dict: Dictionary of input parameters read from chemistry file.
+
+    Attributes:
+        enth_ref: NumPy array of reference enthalpies for all num_species_full species, in J/kg.
+        cp: NumPy array of specific heat at constant pressure for all num_species_full species, in J/kg-K.
+        pr: NumPy array of Prandtl numbers for all num_species_full species.
+        sc: NumPy array of Schmidt numbers for all num_species_full species.
+        mu_ref:
+            NumPy array of reference dynamic viscosities for all num_species_full species for computing
+            dynamic viscosity via Sutherland's law, in N-s/m^2.
+        temp_ref:
+            NumPy array of reference temperatures for all num_species_full species for computing
+            dynamic viscosity via Sutherland's law, in Kelvin.
+        const_visc_idxs: NumPy array of indices for slicing chemical species with constant dynamic viscosity.
+        suth_visc_idxs:
+            NumPy array of indices for slicing chemical species with temperature-dependent dynamic viscosity.
+        cp_diffs:
+            Differences between first num_species specific heat and last species' specific heat.
+            Saves cost in computing mixture specific heat, in J/kg-K.
+        enth_ref_diffs:
+            Differences between first num_species reference enthalpies and last species' reference enthalpy.
+            Saves cost in computing mixture reference enthalpy, in J/kg.
     """
-    Container class for all CPG-specific thermo/transport property methods
-    """
 
-    def __init__(self, gasDict):
-        super().__init__(gasDict)
+    def __init__(self, chem_dict):
+        super().__init__(chem_dict)
 
-        self.enth_ref = gasDict["enth_ref"].astype(REAL_TYPE)
-        self.cp = gasDict["cp"].astype(REAL_TYPE)
-        self.pr = gasDict["pr"].astype(REAL_TYPE)
-        self.sc = gasDict["sc"].astype(REAL_TYPE)
+        self.enth_ref = chem_dict["enth_ref"].astype(REAL_TYPE)
+        self.cp = chem_dict["cp"].astype(REAL_TYPE)
+        self.pr = chem_dict["pr"].astype(REAL_TYPE)
+        self.sc = chem_dict["sc"].astype(REAL_TYPE)
 
-        self.mu_ref = gasDict["mu_ref"].astype(REAL_TYPE)
-        self.temp_ref = gasDict["temp_ref"].astype(REAL_TYPE)
+        self.mu_ref = chem_dict["mu_ref"].astype(REAL_TYPE)
+        self.temp_ref = chem_dict["temp_ref"].astype(REAL_TYPE)
 
         assert self.enth_ref.shape[0] == self.num_species_full
         assert self.cp.shape[0] == self.num_species_full
@@ -36,51 +63,98 @@ class CaloricallyPerfectGas(GasModel):
         self.enth_ref_diffs = self.enth_ref[self.mass_frac_slice] - self.enth_ref[-1]
 
     def calc_mix_gas_constant(self, mass_fracs):
-        """
-        Compute mixture specific gas constant
+        """Compute mixture specific gas constant.
+
+        Args:
+            mass_fracs: NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
+
+        Returns:
+            NumPy array of the mixture specific gas constant profile.
         """
 
-        mass_fracs_in = mass_fracs.copy()
-        if mass_fracs.shape[0] == self.num_species_full:
-            mass_fracs_in = mass_fracs_in[self.mass_frac_slice, :]
+        # Only need num_species mass fraction profiles
+        if mass_fracs.shape[0] != self.num_species:
+            mass_fracs_ns = self.get_mass_frac_array(mass_fracs_in=mass_fracs)
+        else:
+            mass_fracs_ns = mass_fracs
 
-        r_mix = R_UNIV * ((1.0 / self.mol_weights[-1]) + np.sum(mass_fracs_in * self.mw_inv_diffs[:, None], axis=0))
+        r_mix = R_UNIV * ((1.0 / self.mol_weights[-1]) + np.sum(mass_fracs_ns * self.mw_inv_diffs[:, None], axis=0))
+        
         return r_mix
 
     def calc_mix_gamma(self, r_mix, cp_mix):
-        """
-        Compute mixture ratio of specific heats
+        """Compute mixture ratio of specific heats.
+
+        Args:
+            r_mix: NumPy array of the mixture specific gas constant profile.
+            cp_mix: NumPy array of the mixture specific heat capacity at constant pressure profile.
+
+        Returns:
+            NumPy array of the mixture ratio of specific heats profile.
         """
 
         gamma_mix = cp_mix / (cp_mix - r_mix)
+        
         return gamma_mix
 
     def calc_mix_enth_ref(self, mass_fracs):
-        """
-        Compute mixture reference enthalpy
+        """Compute mixture reference enthalpy.
+        
+        Args:
+            mass_fracs: NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
+
+        Returns:
+            NumPy array of the mixture reference enthalpy profile.
         """
 
-        assert mass_fracs.shape[0] == self.num_species, "Only num_species species must be passed to calc_mix_enth_ref"
-        enth_ref_mix = self.enth_ref[-1] + np.sum(mass_fracs * self.enth_ref_diffs[:, None], axis=0)
+        # Only need num_species mass fraction profiles
+        if mass_fracs.shape[0] != self.num_species:
+            mass_fracs_ns = self.get_mass_frac_array(mass_fracs_in=mass_fracs)
+        else:
+            mass_fracs_ns = mass_fracs
+        
+        enth_ref_mix = self.enth_ref[-1] + np.sum(mass_fracs_ns * self.enth_ref_diffs[:, None], axis=0)
+        
         return enth_ref_mix
 
     def calc_mix_cp(self, mass_fracs):
-        """
-        Compute mixture specific heat at constant pressure
+        """Compute mixture specific heat at constant pressure.
+
+        Args:
+            mass_fracs: NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
+
+        Returns:
+            NumPy array of the mixture specific heat capacity at constant pressure profile.
         """
 
-        assert mass_fracs.shape[0] == self.num_species, "Only num_species species must be passed to calc_mix_cp"
-        cp_mix = self.cp[-1] + np.sum(mass_fracs * self.cp_diffs[:, None], axis=0)
+        # Only need num_species mass fraction profiles
+        if mass_fracs.shape[0] != self.num_species:
+            mass_fracs_ns = self.get_mass_frac_array(mass_fracs_in=mass_fracs)
+        else:
+            mass_fracs_ns = mass_fracs
+        
+        cp_mix = self.cp[-1] + np.sum(mass_fracs_ns * self.cp_diffs[:, None], axis=0)
+        
         return cp_mix
 
     def calc_density(self, sol_prim, r_mix=None):
-        """
-        Compute density from ideal gas law
+        """Compute density from ideal gas law.
+
+        Args:
+            sol_prim:
+                NumPy array of the primitive solution profile.
+                Contains the pressure, velocity, temperature, and num_species mass fraction fields.
+            r_mix:
+                NumPy array of the mixture specific gas constant profile.
+                If not provided, calculated from the mass fraction profiles of mass_fracs.
+
+        Returns:
+
         """
 
         # need to calculate mixture gas constant
         if r_mix is None:
-            mass_fracs = self.get_mass_frac_array(sol_prim=sol_prim)
+            mass_fracs = self.get_mass_frac_array(sol_prim_in=sol_prim)
             r_mix = self.calc_mix_gas_constant(mass_fracs)
 
         # calculate directly from ideal gas
@@ -89,9 +163,13 @@ class CaloricallyPerfectGas(GasModel):
         return density
 
     def calc_spec_enth(self, temperature):
-        """
-        Compute individual enthalpies for each species
-        Returns values for ALL species, NOT num_species species
+        """Compute individual enthalpies for all num_species_full species.
+        
+        Args:
+            temperature: NumPy array of the temperature field.
+
+        Returns:
+            NumPy array of the species enthalpies profiles for all num_species_full species.
         """
 
         spec_enth = (
@@ -102,8 +180,16 @@ class CaloricallyPerfectGas(GasModel):
         return spec_enth
 
     def calc_stag_enth(self, velocity, mass_fracs, temperature=None, spec_enth=None):
-        """
-        Compute stagnation enthalpy from velocity and species enthalpies
+        """Compute stagnation enthalpy.
+
+        Args:
+            velocity: NumPy array of the velocity profile.
+            mass_fracs: NumPy array of mass faction profiles. Accepts num_species or num_species_full profiles.
+            temperature: NumPy array of the temperature profile. Required if spec_enth is not provided.
+            spec_enth: NumPy array of species enthalpies. If not provided, calculated from temperature.
+
+        Returns:
+            NumPy array of the stagnation enthalpy profile.
         """
 
         # get the species enthalpies if not provided
@@ -111,7 +197,7 @@ class CaloricallyPerfectGas(GasModel):
             assert temperature is not None, "Must provide temperature if not providing species enthalpies"
             spec_enth = self.calc_spec_enth(temperature)
 
-        # compute all mass fraction fields
+        # compute all mass fraction profiles
         if mass_fracs.shape[0] == self.num_species:
             mass_fracs = self.calc_all_mass_fracs(mass_fracs, threshold=False)
 
@@ -120,13 +206,16 @@ class CaloricallyPerfectGas(GasModel):
         return stag_enth
 
     def calc_species_dynamic_visc(self, temperature):
-        """
-        Compute individual dynamic viscosities from Sutherland's law
+        """Compute species dynamic viscosities from Sutherland's law for all num_species_full species.
 
-        Defaults to reference dynamic viscosity if
-        reference temperature is zero
+        Defaults to reference dynamic viscosity if reference temperature is zero. Otherwise computes
+        species dynamic viscosities from Sutherland's law.
 
-        Returns values for ALL species, NOT num_species species
+        Args:
+            temperature: NumPy array of the temperature profile.
+
+        Returns:
+            NumPy array of the species dynamic viscosity profiles for all num_species_full species.
         """
 
         # TODO: should account for species-specific Sutherland temperatures
@@ -150,8 +239,27 @@ class CaloricallyPerfectGas(GasModel):
     def calc_mix_dynamic_visc(
         self, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None, mw_mix=None
     ):
-        """
-        Compute mixture dynamic viscosity from Wilkes mixing law
+        """Compute mixture dynamic viscosity from Wilkes mixing law.
+
+        Args:
+            spec_dyn_visc:
+                NumPy array of the species dynamic viscosity profiles.
+                Required if temperature is not provided.
+            temperature:
+                NumPy array of the temperature profile.
+                Required if spec_dyn_visc is not provided.
+            mole_fracs:
+                NumPy array of num_species_full mole fraction profiles.
+                If not provided, calculated from mass_fracs.
+            mass_fracs:
+                NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
+                Required if mole_fracs is not provided.
+            mw_mix:
+                NumPy array of the mixture molecular weight profile.
+                Not required, but accelerates calculation.
+
+        Returns:
+            NumPy array of the mixture dynamic viscosity profile.
         """
 
         if spec_dyn_visc is None:
@@ -184,9 +292,17 @@ class CaloricallyPerfectGas(GasModel):
         return mix_dyn_visc
 
     def calc_species_therm_cond(self, spec_dyn_visc=None, temperature=None):
-        """
-        Compute species thermal conductivities
-        Returns values for ALL species, NOT num_species species
+        """Compute species thermal conductivities for all num_species_full species.
+        
+        Args:
+            spec_dyn_visc:
+                NumPy array of the species dynamic viscosity profiles.
+                Required if temperature is not provided.
+            temperature:
+                NumPy array of the temperature profile.
+                Required if spec_dyn_visc is not provided.
+        Returns:
+            NumPy array of the species thermal conductivity coefficient profiles for all num_species_full species.
         """
 
         if spec_dyn_visc is None:
@@ -200,8 +316,30 @@ class CaloricallyPerfectGas(GasModel):
     def calc_mix_thermal_cond(
         self, spec_therm_cond=None, spec_dyn_visc=None, temperature=None, mole_fracs=None, mass_fracs=None, mw_mix=None
     ):
-        """
-        Compute mixture thermal conductivity
+        """Compute mixture thermal conductivity.
+
+        Args:
+            spec_therm_cond:
+                NumPy array of species thermal conductivity profiles.
+                If not provided, calculated from spec_dyn_visc or temperature.
+            spec_dyn_visc:
+                NumPy array of the species dynamic viscosity profiles.
+                Required if spec_therm_cond and temperature are not provided.
+            temperature:
+                NumPy array of the temperature profile.
+                Required if spec_therm_cond and spec_dyn_visc are not provided.
+            mole_fracs:
+                NumPy array of num_species_full mole fraction profiles.
+                If not provided, calculated from mass_fracs.
+            mass_fracs:
+                NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
+                Required if mole_fracs is not provided.
+            mw_mix:
+                NumPy array of the mixture molecular weight profile.
+                Not required, but accelerates calculation.
+
+        Returns:
+            NumPy array of the mixture thermal conductivity coefficient profile.
         """
 
         if spec_therm_cond is None:
@@ -227,11 +365,20 @@ class CaloricallyPerfectGas(GasModel):
         return mix_therm_cond
 
     def calc_species_mass_diff_coeff(self, density, spec_dyn_visc=None, temperature=None):
-        """
-        Compute mass diffusivity coefficient of species into mixture
-        Returns values for ALL species, NOT num_species species
+        """Compute mass diffusivity coefficient of species into mixture for all num_species_full species.
+        
+        Args:
+            density: NumPy array of the density profile.
+            spec_dyn_visc:
+                NumPy array of species dynamic viscosity profiles.
+                If not provided, calculated from temperature.
+            temperature: NumPy array of the temperature profile. Require if spec_dyn_visc is not provided.
+
+        Returns:
+            NumPy array of species mass diffusivity coefficient profiles for all num_species_full species.
         """
 
+        # Compute species dynamic viscosities if not provided
         if spec_dyn_visc is None:
             assert temperature is not None, "Must provide temperature if not providing species dynamic viscosities"
             spec_dyn_visc = self.calc_species_dynamic_visc(temperature)
@@ -241,26 +388,39 @@ class CaloricallyPerfectGas(GasModel):
         return spec_mass_diff
 
     def calc_sound_speed(self, temperature, r_mix=None, gamma_mix=None, mass_fracs=None, cp_mix=None):
-        """
-        Compute sound speed
+        """Compute sound speed.
+
+        Args:
+            temperature: NumPy array of the temperature profile.
+            r_mix: NumPy array of the mixture specific gas constant profile. If not provided, calculated from mass_fracs.
+            gamma_mix: NumPy array of mixture ratio of specific heats. If not provided, calculated from mass_fracs.
+            mass_fracs:
+                NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
+                Required if r_mix is not provided, or if gamma_mix is not provided and cp_mix is not provided.
+            cp_mix:
+                NumPy array of the mixture specific heat at constant pressure profile.
+                Required if gamma_mix is not provided and mass_fracs is not provided.
+
+        Returns:
+            NumPy array of sound speed profile.
         """
 
-        # calculate mixture gas constant if not provided
+        # Calculate mixture gas constant if not provided
         mass_fracs_set = False
         if r_mix is None:
             assert mass_fracs is not None, "Must provide mass fractions to calculate mixture gas constant"
-            mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
+            mass_fracs = self.get_mass_frac_array(mass_fracs_in=mass_fracs)
             mass_fracs_set = True
             r_mix = self.calc_mix_gas_constant(mass_fracs)
         else:
             r_mix = np.squeeze(r_mix)
 
-        # calculate ratio of specific heats if not provided
+        # Calculate ratio of specific heats if not provided
         if gamma_mix is None:
             if cp_mix is None:
                 assert mass_fracs is not None, "Must provide mass fractions to calculate mixture cp"
                 if not mass_fracs_set:
-                    mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
+                    mass_fracs = self.get_mass_frac_array(mass_fracs_in=mass_fracs)
                 cp_mix = self.calc_mix_cp(mass_fracs)
             else:
                 cp_mix = np.squeeze(cp_mix)
@@ -284,26 +444,46 @@ class CaloricallyPerfectGas(GasModel):
         mix_mol_weight=None,
         mass_fracs=None,
     ):
+        """Compute derivatives of density with respect to pressure, temperature, or species mass fraction.
+        
+        For species derivatives, returns num_species derivatives. For derivation of analytical derivatives,
+        please refer to the solver theory documentation.
 
-        """
-        Compute derivatives of density with respect to
-        pressure, temperature, or species mass fraction
-        For species derivatives, returns num_species derivatives
+        Args:
+            density: 
+            wrt_press: Boolean flag indicating whether derivatives with respect to pressure should be computed.
+            pressure: NumPy array of the pressure profile. Required if wrt_press=True.
+            wrt_temp: Boolean flag indicating whether derivatives with respect to temperature should be computed.
+            temperature: NumPy array of the temperature profile. Required if wrt_temp=True.
+            wrt_spec:
+                Boolean flag indicating whether derivatives with respect to species mass fractions should be computed.
+            mix_mol_weight:
+                NumPy array of the mixture molecular weight profile. If not provided, is calculated from mass_fracs.
+            mass_fracs:
+                NumPy array of species mass fraction profiles. Accepts num_species or num_species_full profiles.
+                Required if wrt_spec=True and mix_mol_weight is not provided.
+
+        Returns:
+            Density derivative profiles w/r/t pressure, temperature, and species mass fraction, if requested.
         """
 
         assert any([wrt_press, wrt_temp, wrt_spec]), "Must compute at least one density derivative"
 
         derivs = tuple()
+
+        # Pressure derivate
         if wrt_press:
             assert pressure is not None, "Must provide pressure for pressure derivative"
             d_dens_d_press = density / pressure
             derivs = derivs + (d_dens_d_press,)
 
+        # Temperature derivative
         if wrt_temp:
             assert temperature is not None, "Must provide temperature for temperature derivative"
             d_dens_d_temp = -density / temperature
             derivs = derivs + (d_dens_d_temp,)
 
+        # Species mass fraction derivatives
         if wrt_spec:
             # calculate mixture molecular weight
             if mix_mol_weight is None:
@@ -332,33 +512,53 @@ class CaloricallyPerfectGas(GasModel):
         spec_enth=None,
         temperature=None,
     ):
+        """Compute derivatives of stagnation enthalpy w/r/t pressure, temperature, velocity, or species mass fraction.
+        
+        For species derivatives, returns num_species derivatives. For derivation of analytical derivatives,
+        please refer to the solver theory documentation.
+        
+        Args:
+            wrt_press: Boolean flag indicating whether derivatives with respect to pressure should be computed.
+            wrt_temp: Boolean flag indicating whether derivatives with respect to temperature should be computed.
+            mass_fracs:
+                NumPy array of species mass fraction profiles. Accepts num_species or num_species_full profiles.
+                Required if wrt_temp=True.
+            wrt_vel: Boolean flag indicating whether derivatives with respect to velocity should be computed.
+            velocity: NumPy array of the velocity profile. Required if wrt_vel=True.
+            wrt_spec:
+                Boolean flag indicating whether derivatives with respect to species mass fractions should be computed.
+            spec_enth: NumPy array of species enthalpies. If not provided, is calculated from temperature.
+            temperature: NumPy array of temperature profile. Required if wrt_spec=True and not providing spec_enth.
 
-        """
-        Compute derivatives of stagnation enthalpy with respect
-        to pressure, temperature, velocity, or species mass fraction
-        For species derivatives, returns num_species derivatives
+        Returns:
+            Stagnation enthalpy derivative profiles w/r/t pressure, temperature, velocity,
+            and species mass fraction, if requested.
         """
 
         assert any([wrt_press, wrt_temp, wrt_vel, wrt_spec]), "Must compute at least one density derivative"
 
         derivs = tuple()
+
+        # Pressure derivate
         if wrt_press:
             d_stag_enth_d_press = 0.0
             derivs = derivs + (d_stag_enth_d_press,)
 
+        # Temperature derivative
         if wrt_temp:
             assert mass_fracs is not None, "Must provide mass fractions for temperature derivative"
 
-            if mass_fracs.shape[0] != self.num_species:
-                mass_fracs = self.get_mass_frac_array(mass_fracs=mass_fracs)
+            # TODO: option to provide cp
             d_stag_enth_d_temp = self.calc_mix_cp(mass_fracs)
             derivs = derivs + (d_stag_enth_d_temp,)
 
+        # Velocity derivative
         if wrt_vel:
             assert velocity is not None, "Must provide velocity for velocity derivative"
             d_stag_enth_d_vel = velocity.copy()
             derivs = derivs + (d_stag_enth_d_vel,)
 
+        # Species mass fraction derivative
         if wrt_spec:
             if spec_enth is None:
                 assert temperature is not None, "Must provide temperature if not providing species enthalpies"
