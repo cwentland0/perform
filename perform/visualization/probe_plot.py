@@ -111,7 +111,7 @@ class ProbePlot(Visualization):
                 lin_idx = np.ravel_multi_index(([col_idx], [rowIdx]), (self.num_rows, self.num_cols))[0]
                 if (lin_idx + 1) > self.num_subplots:
                     ax_var.axis("off")
-                    break
+                    continue
 
                 ax_var.cla()
 

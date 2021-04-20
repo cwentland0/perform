@@ -692,10 +692,10 @@ class SolutionDomain:
                 elif var_str == "species":
                     probe.append(sol_prim_probe[3])
                 elif var_str[:7] == "species":
-                    spec_idx = int(var_str[7:])
+                    spec_idx = int(var_str[8:])
                     probe.append(sol_prim_probe[3 + spec_idx - 1])
                 elif var_str[:15] == "density-species":
-                    spec_idx = int(var_str[15:])
+                    spec_idx = int(var_str[16:])
                     probe.append(sol_cons_probe[3 + spec_idx - 1])
                 else:
                     raise ValueError("Invalid probe variable " + str(var_str))
