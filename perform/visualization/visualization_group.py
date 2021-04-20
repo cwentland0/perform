@@ -158,8 +158,13 @@ class VisualizationGroup:
                     vis.plot(sol_domain.probe_vals, sol_domain.time_vals, solver.iter, "b-", first_plot)
                 else:
                     raise ValueError("Invalid vis_type:" + str(vis.vis_type))
+
                 if self.vis_save:
                     vis.save(solver.iter)
 
                 if self.vis_show:
                     vis.fig.canvas.flush_events()
+
+            # If this is not included, first plot may be empty black window
+            if self.vis_show and first_plot:
+                plt.pause(0.001)
