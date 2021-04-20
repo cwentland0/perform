@@ -7,8 +7,17 @@ from perform.time_integrator.time_integrator import TimeIntegrator
 
 
 class ExplicitIntegrator(TimeIntegrator):
-    """
-    Base class for explicit time integrators
+    """Base class for explicit time integrators.
+
+    All child classes must implement the solve_sol_change() member function.
+
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp.
+
+    Attributes:
+        time_type: Set to "explicit".
+        dual_time: Set to False.
+        adapt_dtau: Set to False.
     """
 
     def __init__(self, param_dict):
@@ -24,8 +33,18 @@ class ExplicitIntegrator(TimeIntegrator):
 
 
 class RKExplicit(ExplicitIntegrator):
-    """
-    Explicit Runge-Kutta schemes
+    """ Base class for explicit Runge-Kutta time integrators:
+
+    All child classes must simply define their Butcher tableu via the attributes rk_a, rk_b, and rk_c.
+    Additionally, each must set the variable subiter_max.
+    
+    Please refer to the solver theory documentation for more details on each method.
+
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp
+
+    Attributes:
+        rk_rhs: List of NumPy arrays of prior RK iteration RHS evaluations.
     """
 
     def __init__(self, param_dict):
@@ -35,8 +54,13 @@ class RKExplicit(ExplicitIntegrator):
         self.rk_rhs = [None] * self.subiter_max  # subiteration RHS history
 
     def solve_sol_change(self, rhs):
-        """
-        Either compute intermediate step or final physical time step
+        """Compute intermediate step or final physical time step.
+        
+        Args:
+            rhs: Semi-discrete governing ODE right-hand side function evaluation.
+
+        Returns:
+            NumPy array of the change in the solution profile.
         """
 
         self.rk_rhs[self.subiter] = rhs.copy()
@@ -51,8 +75,13 @@ class RKExplicit(ExplicitIntegrator):
         return dsol
 
     def solve_sol_change_subiter(self, rhs):
-        """
-        Change in intermediate solution for subiteration
+        """Change in intermediate solution for subiteration.
+        
+        Args:
+            rhs: NumPy array of the semi-discrete governing ODE right-hand side function evaluation.
+
+        Returns:
+            NumPy array of the change in the solution profile between subiterations.
         """
 
         dsol = np.zeros(rhs.shape, dtype=REAL_TYPE)
@@ -64,8 +93,13 @@ class RKExplicit(ExplicitIntegrator):
         return dsol
 
     def solve_sol_change_iter(self, rhs):
-        """
-        Change in physical solution
+        """Compute change in physical solution at final subiteration.
+
+        Args:
+            rhs: NumPy array of the semi-discrete governing ODE right-hand side function evaluation.
+
+        Returns:
+            NumPy array of the change in the solution profile for final subiteration.
         """
 
         dsol = np.zeros(rhs.shape, dtype=REAL_TYPE)
@@ -78,8 +112,13 @@ class RKExplicit(ExplicitIntegrator):
 
 
 class ClassicRK4(RKExplicit):
-    """
-    Classic explicit RK4 scheme
+    """Classic explicit RK4 scheme.
+    
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp
+
+    Attributes:
+        subiter_max: Total number of subiterations for one physical time step.
     """
 
     def __init__(self, param_dict):
@@ -101,8 +140,13 @@ class ClassicRK4(RKExplicit):
 
 
 class SSPRK3(RKExplicit):
-    """
-    Strong stability-preserving explicit RK3 scheme
+    """Strong stability-preserving explicit RK3 scheme.
+
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp
+
+    Attributes:
+        subiter_max: Total number of subiterations for one physical time step.
     """
 
     def __init__(self, param_dict):
@@ -122,12 +166,16 @@ class SSPRK3(RKExplicit):
 
 
 class JamesonLowStore(RKExplicit):
-    """
-    "Low-storage" class of RK schemes by Jameson
+    """"Low-storage" class of RK schemes by Jameson.
     
-    Not actually appropriate for unsteady problems, supposedly
-    
-    Not actually low-storage to work with general RK format, just maintained here for consistency with old code
+    Not actually appropriate for unsteady problems, supposedly.
+    Not actually low-storage to work with general RK format, just maintained here for consistency with old code.
+
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp
+
+    Attributes:
+        subiter_max: Total number of subiterations for one physical time step.
     """
 
     def __init__(self, param_dict):

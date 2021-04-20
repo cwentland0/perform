@@ -7,13 +7,36 @@ from perform.time_integrator.time_integrator import TimeIntegrator
 
 
 class ImplicitIntegrator(TimeIntegrator):
-    """
-    Base class for implicit time integrators
-    Solves implicit system via Newton's method
+    """Base class for implicit time integrators.
+    
+    Solves implicit system via Newton's method.
+
+    Each child class must implement a calc_residual() member function.
+
+    Please refer to the solver theory documentation for details on each method.
+
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp.
+
+    Attributes:
+        time_type: Set to "implicit".
+        subiter_max:
+            Maximum number of subiterations to execute before terminating the iterative solve,
+            regardless of convergence.
+        res_tol:
+            Residual norm tolerance, below which Newton's method for a physical time step is considered
+            to be converged and subiteration is terminated.
+        dual_time: Boolean flag indicating whether to use dual time-stepping.
+        dtau: Dual time step size, in seconds.
+        adapt_dtau: Boolean flag to indicate whether to adapt dtau, if dual_time == True.
+        cfl: Courant–Friedrichs–Lewy number to adapt dtau based on maximum wave speed in each cell.
+        vnn: von Neumann number to adapt dtau based on the mixture kinematic viscosity in each cell.
     """
 
     def __init__(self, param_dict):
+        
         super().__init__(param_dict)
+        
         self.time_type = "implicit"
         self.subiter_max = catch_input(param_dict, "subiter_max", const.SUBITER_MAX_IMP_DEFAULT)
         self.res_tol = catch_input(param_dict, "res_tol", const.L2_RES_TOL_DEFAULT)
@@ -27,13 +50,18 @@ class ImplicitIntegrator(TimeIntegrator):
             self.adapt_dtau = False
         self.cfl = catch_input(param_dict, "cfl", const.CFL_DEFAULT)
         self.vnn = catch_input(param_dict, "vnn", const.VNN_DEFAULT)
-        self.ref_const = catch_input(param_dict, "ref_const", [None])
-        self.relax_const = catch_input(param_dict, "relax_const", [None])
 
 
 class BDF(ImplicitIntegrator):
-    """
-    Backwards difference formula (up to fourth-order)
+    """Backwards differentiation formula.
+
+    Supports up to fourth-order accuracy, though anything greater than second-order is generally not stable.
+
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp.
+
+    Attributes:
+        coeffs: List of NumPy arrays containing the time derivative discretization coefficients for each order of accuracy.
     """
 
     def __init__(self, param_dict):
@@ -49,6 +77,22 @@ class BDF(ImplicitIntegrator):
         )
 
     def calc_residual(self, sol_hist, rhs, solver, samp_idxs=np.s_[:]):
+        """Compute fully-discrete residual.
+
+        Args:
+            sol_hist:
+                List of NumPy arrays representing the recent conservative state solution history,
+                as many as are required to compute the maximum order of accuracy requested.
+            rhs: NumPy array of the semi-discrete governing ODE right-hand side function evaluation.
+            solver: SystemSolver containing global simulation parameters. 
+            samp_idxs:
+                Either a NumPy slice or NumPy array for selecting sampled cells to compute the residual at.
+                Used for hyper-reduction of projection-based reduced-order models.
+
+        Returns:
+            NumPy array of the fully-discrete residual profiles.
+        """
+
 
         # Account for cold start
         time_order = min(solver.iter, self.time_order)

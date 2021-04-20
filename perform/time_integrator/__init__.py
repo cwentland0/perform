@@ -3,8 +3,14 @@ from perform.time_integrator.implicit_integrator import BDF
 
 
 def get_time_integrator(time_scheme, param_dict):
-    """
-    Helper function to get time integrator object
+    """Helper function to get time integrator object.
+    
+    Args:
+        time_scheme: String name of the requested time scheme.
+        param_dict: Dictionary of parameters read from solver_params.inp.
+
+    Returns:
+        TimeIntegrator object of the requested type.
     """
 
     if time_scheme == "bdf":

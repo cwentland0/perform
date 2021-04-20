@@ -1,6 +1,22 @@
 class TimeIntegrator:
-    """
-    Base class for time integrators
+    """Base class for all numerical time integrators.
+
+    Child classes implement explicit and implicit time integration schemes.
+
+    Each SolutionDomain has its own TimeIntegrator, which permits ROM-ROM and FOM-ROM coupling
+    with various time integrators.
+
+    Args:
+        param_dict: Dictionary of parameters read from solver_params.inp.
+
+    Attributes:
+        dt: Physical time step size, in seconds.
+        time_scheme:
+            String name of the numerical time integration scheme to apply to the SolutionDomain with which
+            this TimeIntegrator is associated.
+        time_order:
+            Time order of accuracy. Is fixed for some time integrators, and a limited range is supported by others.
+        subiter: Zero-indexed physical time step subiteration number.
     """
 
     def __init__(self, param_dict):
