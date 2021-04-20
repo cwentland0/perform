@@ -1,8 +1,4 @@
-import numpy as np
 import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.ticker as plticker
-import matplotlib.gridspec as gridspec
 
 mpl.rc("font", family="serif", size="10")
 mpl.rc("axes", labelsize="x-large")
@@ -15,6 +11,40 @@ mpl.rc("text.latex", preamble=r"\usepackage{amsmath}")
 
 
 class Visualization:
+    """Base class for visualization plots.
+
+    Processes input parameters for plotting, such as axis bounds, arrangement of subplots, and axis labels.
+
+    Child classes must implement the plot() and save() member functions.
+
+    Args:
+        vis_id: Zero-indexed ID of this Visualization.
+        vis_vars: List of num_subplots strings of variables to be visualized.
+        vis_x_bounds:
+            List of num_subplots lists, each of length 2 including lower and upper bounds on the
+            x-axis for each subplot. Setting to [None, None] allows for dynamic axis sizing.
+        vis_y_bounds:
+            List of num_subplots lists, each of length 2 including lower and upper bounds on the
+            y-axis for each subplot. Setting to [None, None] allows for dynamic axis sizing.
+        species_names: List of strings of names for all num_species_full chemical species.
+        legend_labels: List of strings for legend labels.
+
+    Attributes:
+        species_names: List of strings of names for all num_species_full chemical species.
+        legend_labels: List of strings for legend labels.
+        vis_type: String indicating the type of plot that this Visualization will represent, e.g. "field"
+        num_subplots: Number of subplots within figure.
+        vis_x_bounds:
+            List of num_subplots lists, each of length 2 including lower and upper bounds on the
+            x-axis for each subplot. Setting to [None, None] allows for dynamic axis sizing.
+        vis_y_bounds:
+            List of num_subplots lists, each of length 2 including lower and upper bounds on the
+            y-axis for each subplot. Setting to [None, None] allows for dynamic axis sizing.
+        num_rows: Number of rows in subplot grid within figure.
+        num_cols: Number of columns in subplot grid within figure.
+        ax_labels: List of num_subplots strings for label of each subplot's y-axis.
+    """
+
     def __init__(self, vis_id, vis_vars, vis_x_bounds, vis_y_bounds, species_names, legend_labels=None):
 
         self.species_names = species_names
@@ -23,7 +53,7 @@ class Visualization:
 
         if self.vis_type in ["field", "probe"]:
 
-            # check requested variables
+            # Check requested variables
             self.vis_vars = vis_vars
             for vis_var in self.vis_vars:
                 if vis_var in ["pressure", "velocity", "temperature", "source", "density", "momentum", "energy"]:
@@ -50,10 +80,8 @@ class Visualization:
 
             self.num_subplots = len(self.vis_vars)
 
-        # residual plot
         else:
-            self.vis_vars = ["residual"]
-            self.num_subplots = 1
+            raise ValueError("Invalid value for vis_type: " + str(self.vis_type))
 
         self.vis_x_bounds = vis_x_bounds
         assert len(self.vis_x_bounds) == self.num_subplots, (
@@ -77,13 +105,12 @@ class Visualization:
             self.num_rows = 3
             self.num_cols = 2
         elif self.num_subplots <= 9:
-            # TODO: an extra, empty subplot shows up with 7 subplots
             self.num_rows = 3
             self.num_cols = 3
         else:
             raise ValueError("Cannot plot more than nine" + " subplots in the same image")
 
-        # axis labels
+        # Axis labels
         # TODO: could change this to a dictionary reference
         self.ax_labels = [None] * self.num_subplots
         if self.vis_type == "residual":
@@ -97,7 +124,6 @@ class Visualization:
                     self.ax_labels[ax_idx] = r"Velocity $\left( \frac{m}{s} \right)$"
                 elif var_str == "temperature":
                     self.ax_labels[ax_idx] = r"Temperature $\left( K \right)$"
-                # TODO: source term needs to be generalized for multi-species
                 elif var_str == "source":
                     self.ax_labels[ax_idx] = r"Source Term $\left( \frac{kg}{m^3 \; s} \right)$"
                 elif var_str == "density":

@@ -4,8 +4,16 @@ from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoenc
 
 
 class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
-    """
-    Class for computing non-linear Galerkin ROMs via a TensorFlow autoencoder
+    """Class for projection-based ROM with a TF-Keras non-linear manifold decoder and SP-LSVT projection.
+
+    Inherits from AutoencoderTFKeras.
+
+    Decoder is assumed to map to the primitive variables. Allows implicit time integration only.
+
+    Args:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        rom_domain: RomDomain within which this RomModel is contained.
+        sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
     """
 
     def __init__(self, model_idx, rom_domain, sol_domain):
@@ -27,9 +35,24 @@ class AutoencoderSPLSVTProjTFKeras(AutoencoderTFKeras):
             )
 
     def calc_d_code(self, res_jacob, res, sol_domain):
-        """
-        Compute change in low-dimensional state for
-        implicit scheme Newton iteration
+        """Compute change in low-dimensional state for implicit scheme Newton iteration.
+
+        This function computes the iterative change in the low-dimensional state for a given Newton iteration
+        of an implicit time integration scheme.
+
+        Args:
+            res_jacob:
+                scipy.sparse.csr_matrix containing full-dimensional residual Jacobian with respect to
+                the primitive variables.
+            res: NumPy array of fully-discrete residual, already negated for Newton iteration.
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+
+        Returns:
+            d_code:
+                Solution of low-dimensional linear solve, representing the iterative change in
+                the low-dimensional state.
+            lhs: Left-hand side of low-dimensional linear solve.
+            rhs: Right-hand side of low-dimensional linear solve.
         """
 
         # decoder Jacobian, scaled

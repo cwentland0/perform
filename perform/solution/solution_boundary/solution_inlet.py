@@ -4,8 +4,19 @@ from perform.solution.solution_boundary.solution_boundary import SolutionBoundar
 
 
 class SolutionInlet(SolutionBoundary):
-    """
-    Inlet ghost cell solution
+    """Inlet ghost cell solution.
+
+    Simply implements member functions for computing the ghost cell state according to a specific boundary condition.
+
+    Please refer to the solver theory documentation for details on each boundary condition.
+
+    Args:
+        gas: GasModel associated with the SolutionDomain with which this SolutionPhys is associated.
+        solver: SystemSolver containing global simulation parameters.
+
+    Attributes:
+        bound_cond: String specifying the boundary condition to be applied.
+        bound_func: Python function implementing the boundary condition specified by bound_cond.
     """
 
     def __init__(self, gas, solver):
@@ -13,7 +24,6 @@ class SolutionInlet(SolutionBoundary):
         param_dict = solver.param_dict
         self.bound_cond = param_dict["bound_cond_inlet"]
 
-        # Add assertions to check that required properties are specified
         if self.bound_cond == "stagnation":
             self.bound_func = self.calc_stagnation_bc
         elif self.bound_cond == "fullstate":
@@ -26,8 +36,13 @@ class SolutionInlet(SolutionBoundary):
         super().__init__(gas, solver, "inlet")
 
     def calc_stagnation_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
-        """
-        Specify stagnation temperature and stagnation pressure
+        """Specify stagnation temperature and stagnation pressure.
+
+        Args:
+            sol_time: Current physical time, in seconds.
+            space_order: Spatial order of accuracy of face reconstruction.
+            sol_prim: NumPy array of SolutionInterior.sol_prim, the primitive state profile.
+            sol_cons: NumPy array of SolutionInterior.sol_cons, the conservative state profile.
         """
 
         assert sol_prim is not None, "Must provide primitive interior state"
@@ -75,9 +90,8 @@ class SolutionInlet(SolutionBoundary):
             print("Boundary velocity: " + str(vel_p1))
             raise ValueError("Non-physical inlet state")
 
-        # Solve quadratic formula, assign Mach number
-        # depending on sign/magnitude
-        # If only one positive, select that.
+        # Solve quadratic formula, assign Mach number depending on sign/magnitude
+        # If only one positive, select that
         # If both positive, select smaller
         rad = sqrt(rad)
         mach_1 = (-b_val - rad) / (2.0 * a_val)
@@ -97,9 +111,15 @@ class SolutionInlet(SolutionBoundary):
         self.sol_prim[1, 0] = mach_bound * c_bound
 
     def calc_full_state_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
-        """
-        Full state specification
-        Mostly just for perturbing inlet state to check for outlet reflections
+        """Full state specification.
+
+        Mostly just for perturbing inlet state to check for outlet reflections.
+
+        Args:
+            sol_time: Current physical time, in seconds.
+            space_order: Spatial order of accuracy of face reconstruction.
+            sol_prim: NumPy array of SolutionInterior.sol_prim, the primitive state profile.
+            sol_cons: NumPy array of SolutionInterior.sol_cons, the conservative state profile.
         """
 
         press_bound = self.press
@@ -120,10 +140,15 @@ class SolutionInlet(SolutionBoundary):
         self.sol_prim[2, 0] = temp_bound
 
     def calc_mean_flow_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
-        """
-        Non-reflective boundary, unsteady solution
-        is perturbation about mean flow solution
-        Refer to documentation for derivation
+        """Non-reflective mean-flow inlet.
+
+        Assumes that unsteady solution is a small perturbation about mean flow solution.
+
+        Args:
+            sol_time: Current physical time, in seconds.
+            space_order: Spatial order of accuracy of face reconstruction.
+            sol_prim: NumPy array of SolutionInterior.sol_prim, the primitive state profile.
+            sol_cons: NumPy array of SolutionInterior.sol_cons, the conservative state profile.
         """
 
         assert sol_prim is not None, "Must provide primitive interior state"
@@ -131,7 +156,6 @@ class SolutionInlet(SolutionBoundary):
         # Mean flow and infinitely-far upstream quantities
         press_up = self.press
         temp_up = self.temp
-        mass_fracs_up = self.mass_fracs[:-1]
         rho_c_mean = self.vel
         rho_cp_mean = self.rho
 

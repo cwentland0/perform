@@ -4,7 +4,7 @@ import numpy as np
 from numpy.linalg import svd
 
 
-##### BEGIN USER INPUT #####
+# ----- BEGIN USER INPUT -----
 
 data_dir = "~/path/to/data/dir"
 data_file = "sol_prim_FOM.npy"
@@ -26,7 +26,7 @@ max_modes = 25
 
 out_dir = "~/path/to/output/dir"
 
-##### END USER INPUT #####
+# ----- END USER INPUT -----
 
 out_dir = os.path.expanduser(out_dir)
 if not os.path.isdir(out_dir):

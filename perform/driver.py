@@ -1,3 +1,13 @@
+"""Driver for executing PERFORM simulations.
+
+Initializes all necessary constructs for executing a PERFORM simulation,
+namely a SystemSolver, a SolutionDomain, a VisualizationGroup, and a RomDomain (if running a ROM simulation).
+Advances through time steps, calls visualization and output routines, and handles solver blowup if it occurs.
+
+After installing PERFORM, the terminal command "perform" will execute main() and take the first command line
+argument as the working directory
+"""
+
 import os
 from time import time
 import argparse
@@ -13,6 +23,7 @@ warnings.filterwarnings("error")
 
 
 def main():
+    """Main driver function which initializes all necessary constructs and advances the solution in time"""
 
     # ----- Start setup -----
 

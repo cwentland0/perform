@@ -6,11 +6,44 @@ from perform.input_funcs import catch_input
 
 
 class AutoencoderProjROM(ProjectionROM):
-    """
-    Base class for any non-linear manifold ROM using autoencoders
+    """Base class for all non-linear manifold projection-based ROMs using autoencoders.
 
-    Child classes simply supply library-dependent functions
-    (e.g. for TensorFlow, PyTorch)
+    Inherits from ProjectionROM. Assumes that solution decoding is computed by
+
+    sol = cent_prof + norm_sub_prof + norm_fac_prof * decoder(code)
+
+    Child classes must implement the following member functions with
+    library-specific (e.g. TensorFlow-Keras, PyTorch) implementations:
+    * load_model_obj()
+    * check_model()
+    * apply_decoder()
+    * apply_encoder()
+    * calc_analytical_model_jacobian()
+    * calc_numerical_model_jacobian()
+    * calc_model_jacobian()
+    Check autoencoder_tfkeras.py for further details on these methods.
+
+    Args:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        rom_domain: RomDomain within which this RomModel is contained.
+        sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+
+    Attributes:
+        decoder:
+            Decoder model object (e.g. tf.keras.Model) which maps from the low-dimensional state
+            to the full-dimensional state.
+        decoder_io_dtypes: List containing the data type of the decoder input and output.
+        encoder_jacob:
+            Boolean flag indicating whether the method should use an encoder Jacobian approximation, if applicable.
+        encoder:
+            Encoder model object (e.g. tf.keras.Model) which maps from the full-dimensional state
+            to the low-dimensional state. Only required if initializing the simulation from a full-dimensional
+            initial conditions or the ROM method requires an encoder.
+        encoder_io_dtypes: List containing the data type of the encoder input and output.
+        numerical_jacob:
+            Boolean flag indicating whether the decoder/encoder Jacobian should be computed numerically.
+            If False (default), computes the Jacobian analytically using automatic differentiation.
+        fd_step: Finite-difference step size for computing the numerical decoder/encoder Jacobian, if requested.
     """
 
     def __init__(self, model_idx, rom_domain, sol_domain):
@@ -26,8 +59,7 @@ class AutoencoderProjROM(ProjectionROM):
         self.decoder_io_dtypes = self.check_model(decoder=True)
 
         # If required, load encoder
-        # Encoder is required for encoder Jacobian
-        # 	or initializing from projection of full ICs
+        # Encoder is required for encoder Jacobian or initializing from projection of full ICs
         self.encoder_jacob = catch_input(rom_dict, "encoder_jacob", False)
         self.encoder = None
         if self.encoder_jacob or (rom_domain.low_dim_init_files[model_idx] == ""):
@@ -43,15 +75,24 @@ class AutoencoderProjROM(ProjectionROM):
         self.numerical_jacob = catch_input(rom_dict, "numerical_jacob", False)
         self.fd_step = catch_input(rom_dict, "fd_step", FD_STEP_DEFAULT)
 
-    def encode_sol(self, solIn):
-        """
-        Compute encoding of full-dimensional state,
-        including centering and normalization
+    def encode_sol(self, sol_in):
+        """Compute full encoding of solution, including centering and normalization.
+
+        Centers and normalizes full-dimensional sol_in, and then maps to low-dimensional code.
+        Note that the apply_encoder is implemented within child classes, as these are specific to a specific library.
+
+        Args:
+            sol_in: Full-dimensional state to be encoded.
+
+        Returns:
+            Low-dimensional code NumPy array resulting from scaling and decoding.
         """
 
+        sol = sol_in.copy()
+
         if self.target_cons:
-            sol = self.standardize_data(
-                solIn,
+            sol = self.scale_profile(
+                sol,
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_cons,
                 norm_sub_prof=self.norm_sub_prof_cons,
@@ -61,8 +102,8 @@ class AutoencoderProjROM(ProjectionROM):
             )
 
         else:
-            sol = self.standardize_data(
-                solIn,
+            sol = self.scale_profile(
+                sol,
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_prim,
                 norm_sub_prof=self.norm_sub_prof_prim,
@@ -76,9 +117,14 @@ class AutoencoderProjROM(ProjectionROM):
         return code
 
     def init_from_sol(self, sol_domain):
-        """
-        Initialize full-order solution from projection of
-        loaded full-order initial conditions
+        """Initialize full-order solution from encoding and decoding of loaded full-order initial conditions.
+
+        Computes encoding and decoding of full-dimensional initial conditions and sets as
+        new initial condition solution profile. This is automatically used if a low-dimensional state
+        initial condition file is not provided.
+
+        Args:
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
         """
 
         sol_int = sol_domain.sol_int

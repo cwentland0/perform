@@ -9,16 +9,78 @@ from perform.solution.solution_phys import SolutionPhys
 from perform.time_integrator import get_time_integrator
 from perform.rom import get_rom_model
 
-# TODO: when moving to multi-domain, it may be useful to just
-# 	hold a sol_domain inside RomDomain for the associated full-dim solution
-# 	Still a pain to move around since it's associated with the RomDomain
-# 	and not the romModel, but whatever
-# TODO: need to eliminate normSubProf, just roll it into centProf (or reverse)
-
 
 class RomDomain:
-    """
-    Container class for ROM parameters and romModels
+    """Container class for all ROM models to be applied within a given SolutionDomain.
+
+    The concept of a ROM solution being composed of multiple ROM models derives from the concept of
+    "vector" vs. "scalar" ROMs initially referenced by Yuxiang Zhou in their 2010 Master's thesis.
+    The "vector" concept follows the most common scenario in which a ROM provides a single mapping from a
+    low-dimensional state to the complete physical state vector. The "scalar" concept is less common, whereby
+    several ROM models map to separate subsets of the physical state variables (e.g. one model maps to density
+    and energy, while another maps to momentum and density-weighted species mass fraction). Thus, some container
+    for separate models is necessary.
+
+    When running a ROM simulation, perform.driver.main() will generate a RomDomain for each SolutionDomain for which
+    a ROM simulation is requested. The RomDomain will handle reading in the input parameters from the ROM parameter
+    input file, checking the validity of these parameters, and initializing all requested RomModel's.
+
+    During simulation runtime, RomDomain is responsible for executing most of each RomModel's higher-level functions
+    and executing accessory functions, e.g. filtering. Beyond this, member functions of RomDomain generally handle
+    operations that apply to the entire ROM solution, e.g. time integration, calculating residual norms, etc.
+
+    Args:
+        sol_domain: SolutionDomain with which this RomDomain is associated.
+        solver: SystemSolver containing global simulation parameters.
+
+    Attributes:
+        rom_dict: Dictionary of parameters read from ROM parameter input file.
+        rom_method: String of ROM method to be applied (e.g. "LinearGalerkinProj").
+        num_models: Number of separate models encapsulated by RomDomain.
+        latent_dims: List of latent variable dimensions for each RomModel.
+        model_var_idxs: List of list of zero-indexed indices indicating which state variables each RomModel maps to.
+        model_dir: String path to directory containing all files required to execute each RomModel.
+        model_files:
+            list of strings of file names associated with each RomModel's primary data structure
+            (e.g. a linear model's trail basis), relative to model_dir.
+        cent_ic: Boolean flag of whether the initial condition file should be used to center the solution profile.
+        norm_sub_cons_in:
+            list of strings of file names associated with each RomModel's conservative variable subtractive
+            normalization profile, if needed, relative to model_dir.
+        norm_fac_cons_in:
+            list of strings of file names associated with each RomModel's conservative variable divisive
+            normalization profile, if needed, relative to model_dir.
+        cent_cons_in:
+            list of strings of file names associated with each RomModel's conservative variable centering profile,
+            if needed, relative to model_dir.
+        norm_sub_prim_in:
+            list of strings of file names associated with each RomModel's primitive variable subtractive
+            normalization profile, if needed, relative to model_dir.
+        norm_fac_prim_in:
+            list of strings of file names associated with each RomModel's primitive variable divisive
+            normalization profile, if needed, relative to model_dir.
+        cent_prim_in:
+            list of strings of file names associated with each RomModel's primitive variable centering profile
+            if needed, relative to model_dir.
+        has_time_integrator: Boolean flag indicating whether a given rom_method requires numerical time integration.
+        is_intrusive:
+            Boolean flag indicating whether a given rom_method is intrusive,
+            i.e. requires computation of the governing equations RHS and its Jacobian.
+        target_cons: Boolean flag indicating whether a given rom_method maps to the conservative variables.
+        target_prim: Boolean flag indicating whether a given rom_method maps to the primitive variables.
+        has_cons_norm:
+            Boolean flag indicating whether a given rom_method requires conservative variable normalization profiles.
+        has_cons_cent:
+            Boolean flag indicating whether a given rom_method requires conservative variable centering profiles.
+        has_prim_norm:
+            Boolean flag indicating whether a given rom_method requires primitive variable normalization profiles.
+        has_prim_cent:
+            Boolean flag indicating whether a given rom_method requires primitive variable centering profiles.
+        hyper_reduc: Boolean flag indicating whether hyper-reduction is to be used for an intrusive rom_method.
+        model_list: list containing num_models RomModel objects associated with this RomDomain.
+        low_dim_init_files:
+            list of strings of file names associated with low-dimensional state initialization profiles
+            for each RomModel.
     """
 
     def __init__(self, sol_domain, solver):
@@ -95,12 +157,11 @@ class RomDomain:
 
         self.set_model_flags()
 
-        self.adaptive_rom = catch_input(rom_dict, "adaptive_rom", False)
-
         # Set up hyper-reduction, if necessary
-        self.hyper_reduc = catch_input(rom_dict, "hyper_reduc", False)
-        if self.is_intrusive and self.hyper_reduc:
-            self.load_hyper_reduc(sol_domain)
+        if self.is_intrusive:
+            self.hyper_reduc = catch_input(rom_dict, "hyper_reduc", False)
+            if self.hyper_reduc:
+                self.load_hyper_reduc(sol_domain)
 
         # Get time integrator, if necessary
         # TODO: time_scheme should be specific to RomDomain, not the solver
@@ -146,8 +207,16 @@ class RomDomain:
         sol_domain.sol_int.sol_hist_prim = [sol_domain.sol_int.sol_prim.copy()] * (self.time_integrator.time_order + 1)
 
     def advance_iter(self, sol_domain, solver):
-        """
-        Advance low-dimensional state forward one time iteration
+        """Advance low-dimensional state and full solution forward one physical time iteration.
+
+        For non-intrusive ROMs without a time integrator, simply advances the solution one step.
+
+        For intrusive and non-intrusive ROMs with a time integrator, begins numerical time integration
+        and steps through sub-iterations.
+
+        Args:
+            sol_domain: SolutionDomain with which this RomDomain is associated.
+            solver: SystemSolver containing global simulation parameters.
         """
 
         print("Iteration " + str(solver.iter))
@@ -173,8 +242,13 @@ class RomDomain:
         self.update_code_hist()
 
     def advance_subiter(self, sol_domain, solver):
-        """
-        Advance physical solution forward one subiteration of time integrator
+        """Advance low-dimensional state and full solution forward one subiteration of time integrator.
+
+        For intrusive ROMs, computes RHS and RHS Jacobian (if necessary).
+
+        Args:
+            sol_domain: SolutionDomain with which this RomDomain is associated.
+            solver: SystemSolver containing global simulation parameters.
         """
 
         sol_int = sol_domain.sol_int
@@ -218,9 +292,7 @@ class RomDomain:
             sol_int.update_state(from_cons=True)
 
     def update_code_hist(self):
-        """
-        Update low-dimensional state history after physical time step
-        """
+        """Update low-dimensional state history after physical time step."""
 
         for model in self.model_list:
 
@@ -228,11 +300,19 @@ class RomDomain:
             model.code_hist[0] = model.code.copy()
 
     def calc_code_res_norms(self, sol_domain, solver, subiter):
-        """
-        Calculate and print linear solve residual norms
+        """Calculate and print low-dimensional linear solve residual norms.
 
-        Note that output is ORDER OF MAGNITUDE of residual norm
-        (i.e. 1e-X, where X is the order of magnitude)
+        Computes L2 and L1 norms of low-dimensional linear solve residuals for each RomModel,
+        as computed in advance_subiter(). These are averaged across all RomModels and printed to the terminal,
+        and are used in advance_iter() to determine whether the Newton's method iterative solve has
+        converged sufficiently. If the norm is below numerical precision, it defaults to 1e-16.
+
+        Note that terminal output is ORDER OF MAGNITUDE (i.e. 1e-X, where X is the order of magnitude).
+
+        Args:
+            sol_domain: SolutionDomain with which this RomDomain is associated.
+            solver: SystemSolver containing global simulation parameters.
+            subiter: Current subiteration number within current time step's Newton's method iterative solve.
         """
 
         # Compute residual norm for each model
@@ -258,16 +338,18 @@ class RomDomain:
         else:
             norm_out_l1 = np.log10(norm_l1)
 
+        # Print to terminal
         out_string = (str(subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1,)
         print(out_string)
 
         sol_domain.sol_int.res_norm_l2 = norm_l2
         sol_domain.sol_int.resNormL1 = norm_l1
-        sol_domain.sol_int.res_norm_history[solver.iter - 1, :] = [norm_l2, norm_l1]
+        sol_domain.sol_int.res_norm_hist[solver.iter - 1, :] = [norm_l2, norm_l1]
 
     def set_model_flags(self):
-        """
-        Set universal ROM method flags that dictate various execution behaviors
+        """Set universal ROM method flags that dictate various execution behaviors.
+
+        If a new RomModel is created, its flags should be set here.
         """
 
         self.has_time_integrator = False
@@ -325,9 +407,19 @@ class RomDomain:
         assert self.target_cons != self.target_prim, "Model must target either the primitive or conservative variables"
 
     def load_hyper_reduc(self, sol_domain):
-        """
-        Loads direct sampling indices and
-        determines cell indices for calculating fluxes and gradients
+        """Loads direct sampling indices and determines cell indices for hyper-reduction array slicing.
+
+        Numerous array slicing indices are required for various operations in efficiently computing
+        the non-linear RHS term, such as calculating fluxes, gradients, source terms, etc. as well as for computing
+        the RHS Jacobian if required. These slicing arrays are first generated here based on the initial sampling
+        indices, but may later be updated during sampling adaptation.
+
+        Todos:
+            Many of these operations should be moved to their own separate functions when
+            recomputing sampling for adaptive sampling.
+
+        Args:
+            sol_domain: SolutionDomain with which this RomDomain is associated.
         """
 
         # TODO: add some explanations for what each index array accomplishes
@@ -338,6 +430,7 @@ class RomDomain:
         samp_file = os.path.join(self.model_dir, samp_file)
         assert os.path.isfile(samp_file), "Could not find samp_file at " + samp_file
 
+        # Indices of directly sampled cells, within sol_prim/cons
         # NOTE: assumed that sample indices are zero-indexed
         sol_domain.direct_samp_idxs = np.load(samp_file).flatten()
         sol_domain.direct_samp_idxs = (np.sort(sol_domain.direct_samp_idxs)).astype(np.int32)
@@ -353,14 +446,14 @@ class RomDomain:
             len(np.unique(sol_domain.direct_samp_idxs)) == sol_domain.num_samp_cells
         ), "Sampling indices must be unique"
 
-        # TODO: should probably shunt these over to a function for when indices get updated in adaptive method
-
         # Compute indices for inviscid flux calculations
         # NOTE: have to account for fact that boundary cells are prepended/appended
+        # Indices of "left" cells for flux calcs, within sol_prim/cons_full
         sol_domain.flux_samp_left_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
         sol_domain.flux_samp_left_idxs[0::2] = sol_domain.direct_samp_idxs
         sol_domain.flux_samp_left_idxs[1::2] = sol_domain.direct_samp_idxs + 1
 
+        # Indices of "right" cells for flux calcs, within sol_prim/cons_full
         sol_domain.flux_samp_right_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
         sol_domain.flux_samp_right_idxs[0::2] = sol_domain.direct_samp_idxs + 1
         sol_domain.flux_samp_right_idxs[1::2] = sol_domain.direct_samp_idxs + 2
@@ -370,7 +463,7 @@ class RomDomain:
         sol_domain.flux_samp_right_idxs = np.unique(sol_domain.flux_samp_right_idxs)
         sol_domain.num_flux_faces = len(sol_domain.flux_samp_left_idxs)
 
-        # To slice flux when calculating RHS
+        # Indices of flux array which correspond to left face of cell and map to direct_samp_idxs
         sol_domain.flux_rhs_idxs = np.zeros(sol_domain.num_samp_cells, np.int32)
         for i in range(1, sol_domain.num_samp_cells):
             # if this cell is adjacent to previous sampled cell
@@ -385,6 +478,8 @@ class RomDomain:
         # TODO: generalize for higher-order schemes
         if sol_domain.space_order > 1:
             if sol_domain.space_order == 2:
+
+                # Indices of cells for which gradients need to be calculated, within sol_prim/cons_full
                 sol_domain.grad_idxs = np.concatenate(
                     (sol_domain.direct_samp_idxs + 1, sol_domain.direct_samp_idxs, sol_domain.direct_samp_idxs + 2,)
                 )
@@ -399,7 +494,7 @@ class RomDomain:
 
                 sol_domain.num_grad_cells = len(sol_domain.grad_idxs)
 
-                # Neighbors of gradient cells, implicitly includes all gradient cells too
+                # Indices of gradient cells and their immediate neighbors, within sol_prim/cons_full
                 sol_domain.grad_neigh_idxs = np.concatenate((sol_domain.grad_idxs - 1, sol_domain.grad_idxs + 1))
                 sol_domain.grad_neigh_idxs = np.unique(sol_domain.grad_neigh_idxs)
 
@@ -410,7 +505,7 @@ class RomDomain:
                 if sol_domain.grad_neigh_idxs[-1] == (sol_domain.mesh.num_cells + 2):
                     sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[:-1]
 
-                # Indices of grad_idxs in grad_neigh_idxs
+                # Indices within gradient neighbor indices to extract gradient cells, excluding boundaries
                 _, _, sol_domain.grad_neigh_extract = np.intersect1d(
                     sol_domain.grad_idxs, sol_domain.grad_neigh_idxs, return_indices=True,
                 )
@@ -420,6 +515,7 @@ class RomDomain:
                     sol_domain.grad_idxs, sol_domain.flux_samp_left_idxs, return_indices=True,
                 )
 
+                # Indices of grad_idxs in flux_samp_right_idxs and flux_samp_right_idxs and vice versa
                 _, sol_domain.grad_right_extract, sol_domain.flux_right_extract = np.intersect1d(
                     sol_domain.grad_idxs, sol_domain.flux_samp_right_idxs, return_indices=True,
                 )
@@ -485,10 +581,8 @@ class RomDomain:
         num_cells = sol_domain.mesh.num_cells
         num_samp_cells = sol_domain.num_samp_cells
         num_elements_center = gas.num_eqs ** 2 * num_samp_cells
-        col_offset = 0
         if sol_domain.direct_samp_idxs[0] == 0:
             num_elements_lower = gas.num_eqs ** 2 * (num_samp_cells - 1)
-            col_offset = 1
         else:
             num_elements_lower = num_elements_center
         if sol_domain.direct_samp_idxs[-1] == (num_cells - 1):
@@ -505,7 +599,6 @@ class RomDomain:
         row_idxs_lower = np.zeros(num_elements_lower, dtype=np.int32)
         col_idxs_lower = np.zeros(num_elements_lower, dtype=np.int32)
 
-        # TODO: definitely a faster way to do this
         lin_idx_A = 0
         lin_idx_B = 0
         lin_idx_C = 0

@@ -5,19 +5,51 @@ from perform.flux.flux import Flux
 
 
 class InviscFlux(Flux):
-    """
-    Base class for any inviscid flux scheme
+    """Base class for all inviscid flux schemes.
+
+    Simply provides member functions to compute the analytical inviscid flux vector and its Jacobians.
+
+    Child classes must provide the following member functions:
+    * calc_flux()
+    * calc_jacob_prim()
     """
 
     def __init__(self):
 
         pass
 
-    def calc_d_inv_flux_d_sol_prim(self, sol):
-        """
-        Compute Jacobian of inviscid flux vector with respect to primitive state
+    def calc_inv_flux(self, sol_cons, sol_prim, h0):
+        """Compute inviscid flux vector
 
-        Here, sol should be the SolutionPhys associated with a face state
+        Args:
+            sol_cons: NumPy array of the conservative solution profile.
+            sol_prim: NumPy array of the primitive solution profile.
+            h0: NumPy array of the stagnation enthalpy profile.
+
+        Returns:
+            NumPy array of the inviscid flux profile.
+        """
+
+        flux = np.zeros(sol_cons.shape, dtype=REAL_TYPE)
+
+        flux[0, :] = sol_cons[1, :]
+        flux[1, :] = sol_cons[1, :] * sol_prim[1, :] + sol_prim[0, :]
+        flux[2, :] = sol_cons[0, :] * h0 * sol_prim[1, :]
+        flux[3:, :] = sol_cons[3:, :] * sol_prim[[1], :]
+
+        return flux
+
+    def calc_d_inv_flux_d_sol_prim(self, sol):
+        """Compute Jacobian of inviscid flux vector with respect to primitive state.
+
+        Here, sol should be the SolutionPhys associated with a reconstructed face state.
+        The Jacobian is computed analytically, please refer to the solver theory documentation for more details.
+
+        Args:
+            sol: SolutionPhys representing the left or right reconstructed face state.
+
+        Returns:
+            3D NumPy array of the inviscid flux vector Jacobian.
         """
 
         gas = sol.gas_model

@@ -8,8 +8,36 @@ from perform.visualization.visualization import Visualization
 
 
 class FieldPlot(Visualization):
-    """
-    Class for field plot image
+    """Class for field plot visualization.
+
+    Produces "snapshots" of flow field profiles at the interval specified by vis_interval.
+
+    Must be manually expanded to plot specific profiles.
+
+    Args:
+        image_output_dir: Base image output directory, within the working directory.
+        vis_id: Zero-indexed ID of this Visualization.
+        vis_interval: Physical time step interval at which to display/save visualization plots.
+        num_steps: Total number of physical time steps to be executed by this simulation.
+        sim_type: "FOM" or "ROM", depending on simulation type.
+        vis_vars: List of num_subplots strings of variables to be visualized.
+        vis_x_bounds:
+            List of num_subplots lists, each of length 2 including lower and upper bounds on the
+            x-axis for each subplot. Setting to [None, None] allows for dynamic axis sizing.
+        vis_y_bounds:
+            List of num_subplots lists, each of length 2 including lower and upper bounds on the
+            y-axis for each subplot. Setting to [None, None] allows for dynamic axis sizing.
+        species_names: List of strings of names for all num_species_full chemical species.
+
+    Attributes:
+        vis_type: Set to "field".
+        x_label: Set to "x (m)", x-axis label.
+        num_imgs:
+            Total number of field plot images that are expected to be generated, under the assumption
+            that the simulation completes without failure.
+        img_string: String within which the output image number will be inserted for image file name generation.
+        ax_line: List of matplotlib.lines.Line2D artists for each subplot.
+        img_dir: Output director where image files will be saved.
     """
 
     def __init__(
@@ -52,8 +80,19 @@ class FieldPlot(Visualization):
             os.mkdir(self.img_dir)
 
     def plot(self, sol_prim, sol_cons, source, rhs, gas, x_cell, line_style, first_plot):
-        """
-        Draw and display field plot
+        """Draw and display field plot.
+
+        Saves a decent amount of time by using set_ydata instead of repeatedly clearing axes and replotting.
+
+        Args:
+            sol_prim: NumPy array of the primitive state profiles from SolutionInterior.
+            sol_cons: NumPy array of the conservative state profiles from SolutionInterior.
+            source: NumPy array of the reaction source term profiles for the num_species species transport equations.
+            rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
+            gas: GasModel object associated with the SolutionDomain.
+            x_cell: Coordinates of Mesh cell centers.
+            line_style: String containing matplotlib.pyplot line style option.
+            first_plot: Boolean flag indicating whether this is the first time the plot is being drawn.
         """
 
         plt.figure(self.vis_id)
@@ -98,8 +137,20 @@ class FieldPlot(Visualization):
         self.fig.canvas.draw()
 
     def get_y_data(self, sol_prim, sol_cons, source, rhs, var_str, gas):
-        """
-        Extract plotting data from flow field domain data
+        """Extract plotting data from flow field domain data.
+
+        New inputs and var_str options must be manually added to permit new profiles to be plotted.
+
+        Args:
+            sol_prim: NumPy array of the primitive state profiles from SolutionInterior.
+            sol_cons: NumPy array of the conservative state profiles from SolutionInterior.
+            source: NumPy array of the reaction source term profiles for the num_species species transport equations.
+            rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
+            var_str: String corresponding to variable profile to be plotted.
+            gas: GasModel object associated with the SolutionDomain.
+
+        Returns:
+            NumPy array of the flow field profile to be visualized.
         """
 
         if var_str == "pressure":
@@ -123,7 +174,6 @@ class FieldPlot(Visualization):
                 y_data = massFracs[-1, :]
             else:
                 y_data = sol_prim[3 + spec_idx - 1, :]
-        # TODO: Get density-species for last species
         elif var_str[:15] == "density-species":
             spec_idx = int(var_str[16:])
             y_data = sol_cons[3 + spec_idx - 1, :]
@@ -133,8 +183,11 @@ class FieldPlot(Visualization):
         return y_data
 
     def save(self, iter_num, dpi=100):
-        """
-        Save plot to disk
+        """Save plot to disk.
+
+        Args:
+            iter_num: One-indexed simulation iteration number.
+            dpi: Dots per inch of figure, determines resolution.
         """
 
         plt.figure(self.vis_id)

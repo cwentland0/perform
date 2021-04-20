@@ -4,9 +4,31 @@ from perform.rom.projection_rom.projection_rom import ProjectionROM
 
 
 class LinearProjROM(ProjectionROM):
-    """
-    Base class for all projection-based ROMs
-    which use a linear basis representation
+    """Base class for all linear subspace projection-based ROMs.
+
+    Inherits from ProjectionROM. Assumes that solution decoding is computed by
+
+    sol = cent_prof + norm_sub_prof + norm_fac_prof * (trial_basis @ code)
+
+    Child classes must implement a calc_projector() member function if it permits explicit time integration,
+    and/or a calc_d_code() member function if it permits implicit time integration.
+
+    Args:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        rom_domain: RomDomain within which this RomModel is contained.
+        sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+
+    Attributes:
+        trial_basis:
+            2D NumPy array containing latent_dim trial basis modes. Modes are flattened in C order,
+            i.e. iterating first over cells, then over variables.
+        hyper_reduc_dim: Number of modes to retain in hyper_reduc_basis.
+        hyper_reduc_basis:
+            2D NumPy array containing hyper_reduc_dim hyper-reduction basis modes. Modes are flattened in C order,
+            i.e. iterating first over cells, then over variables.
+        direct_samp_idxs_flat:
+            NumPy array of slicing indices for slicing directly-sampled cells from
+            solution-related vectors flattened in C order.
     """
 
     def __init__(self, model_idx, rom_domain, sol_domain):
@@ -79,13 +101,18 @@ class LinearProjROM(ProjectionROM):
             self.direct_samp_idxs_flat = np.s_[:]
 
     def init_from_sol(self, sol_domain):
-        """
-        Initialize full-order solution from projection of
-        loaded full-order initial conditions
+        """Initialize full-order solution from projection of loaded full-order initial conditions.
+
+        Computes L2 projection of the initial conditions onto the trial space, i.e. V * V^T * q_r, and sets as
+        full-dimensional initial condition solution profile. This is automatically used if a low-dimensional state
+        initial condition file is not provided.
+
+        Args:
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
         """
 
         if self.target_cons:
-            sol = self.standardize_data(
+            sol = self.scale_profile(
                 sol_domain.sol_int.sol_cons[self.var_idxs, :],
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_cons,
@@ -99,7 +126,7 @@ class LinearProjROM(ProjectionROM):
             sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
 
         else:
-            sol = self.standardize_data(
+            sol = self.scale_profile(
                 sol_domain.sol_int.sol_prim[self.var_idxs, :],
                 normalize=True,
                 norm_fac_prof=self.norm_fac_prof_prim,
@@ -113,8 +140,12 @@ class LinearProjROM(ProjectionROM):
             sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
 
     def apply_decoder(self, code):
-        """
-        Compute raw decoding of code, without de-normalizing or de-centering
+        """Compute raw decoding of code.
+
+        Only computes trial_basis @ code, does not compute any denormalization or decentering.
+
+        Args:
+            code: NumPy array of low-dimensional state, of dimension latent_dim.
         """
 
         sol = self.trial_basis @ code

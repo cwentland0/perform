@@ -4,9 +4,20 @@ from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearPro
 
 
 class LinearSPLSVTProj(LinearProjROM):
-    """
-    Class for linear decoder and SP-LSVT formulation
-    Trial basis is assumed to represent the conserved variables
+    """Class for projection-based ROM with linear decoder and SP-LSVT projection.
+
+    Inherits from LinearProjROM.
+
+    Trial basis is assumed to represent the primitive variables. Allows implicit time integration only.
+
+    Args:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        rom_domain: RomDomain within which this RomModel is contained.
+        sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+
+    Attributes:
+        trial_basis_scaled: 2D NumPy array of trial basis scaled by norm_fac_prof_prim. Precomputed for cost savings.
+        hyper_reduc_operator: 2D NumPy array of gappy POD projection operator. Precomputed for cost savings.
     """
 
     def __init__(self, model_idx, rom_domain, sol_domain):
@@ -29,8 +40,30 @@ class LinearSPLSVTProj(LinearProjROM):
             self.hyper_reduc_operator = np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
 
     def calc_d_code(self, res_jacob, res, sol_domain):
-        """
-        Compute change in low-dimensional state for implicit scheme Newton iteration
+        """Compute change in low-dimensional state for implicit scheme Newton iteration.
+
+        This function computes the iterative change in the low-dimensional state for a given Newton iteration
+        of an implicit time integration scheme. For SP-LSVT projection, this is given by
+
+        W^T * W * d_code = W^T * res
+
+        Where
+
+        W = P^-1 * res_jacob * H * V_p
+
+        Args:
+            res_jacob:
+                scipy.sparse.csr_matrix containing full-dimensional residual Jacobian with respect to the
+                primitive variables.
+            res: NumPy array of fully-discrete residual, already negated for Newton iteration.
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+
+        Returns:
+            d_code:
+                Solution of low-dimensional linear solve, representing the iterative change in
+                the low-dimensional state.
+            lhs: Left-hand side of low-dimensional linear solve.
+            rhs: Right-hand side of low-dimensional linear solve.
         """
 
         # compute test basis
