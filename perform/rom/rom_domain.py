@@ -242,7 +242,7 @@ class RomDomain:
         self.update_code_hist()
 
     def advance_subiter(self, sol_domain, solver):
-        """Advance physical solution forward one subiteration of time integrator.
+        """Advance low-dimensional state and full solution forward one subiteration of time integrator.
 
         For intrusive ROMs, computes RHS and RHS Jacobian (if necessary).
 
@@ -430,6 +430,7 @@ class RomDomain:
         samp_file = os.path.join(self.model_dir, samp_file)
         assert os.path.isfile(samp_file), "Could not find samp_file at " + samp_file
 
+        # Indices of directly sampled cells, within sol_prim/cons
         # NOTE: assumed that sample indices are zero-indexed
         sol_domain.direct_samp_idxs = np.load(samp_file).flatten()
         sol_domain.direct_samp_idxs = (np.sort(sol_domain.direct_samp_idxs)).astype(np.int32)
@@ -447,10 +448,12 @@ class RomDomain:
 
         # Compute indices for inviscid flux calculations
         # NOTE: have to account for fact that boundary cells are prepended/appended
+        # Indices of "left" cells for flux calcs, within sol_prim/cons_full
         sol_domain.flux_samp_left_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
         sol_domain.flux_samp_left_idxs[0::2] = sol_domain.direct_samp_idxs
         sol_domain.flux_samp_left_idxs[1::2] = sol_domain.direct_samp_idxs + 1
 
+        # Indices of "right" cells for flux calcs, within sol_prim/cons_full
         sol_domain.flux_samp_right_idxs = np.zeros(2 * sol_domain.num_samp_cells, dtype=np.int32)
         sol_domain.flux_samp_right_idxs[0::2] = sol_domain.direct_samp_idxs + 1
         sol_domain.flux_samp_right_idxs[1::2] = sol_domain.direct_samp_idxs + 2
@@ -460,7 +463,7 @@ class RomDomain:
         sol_domain.flux_samp_right_idxs = np.unique(sol_domain.flux_samp_right_idxs)
         sol_domain.num_flux_faces = len(sol_domain.flux_samp_left_idxs)
 
-        # To slice flux when calculating RHS
+        # Indices of flux array which correspond to left face of cell and map to direct_samp_idxs
         sol_domain.flux_rhs_idxs = np.zeros(sol_domain.num_samp_cells, np.int32)
         for i in range(1, sol_domain.num_samp_cells):
             # if this cell is adjacent to previous sampled cell
@@ -475,6 +478,8 @@ class RomDomain:
         # TODO: generalize for higher-order schemes
         if sol_domain.space_order > 1:
             if sol_domain.space_order == 2:
+
+                # Indices of cells for which gradients need to be calculated, within sol_prim/cons_full
                 sol_domain.grad_idxs = np.concatenate(
                     (sol_domain.direct_samp_idxs + 1, sol_domain.direct_samp_idxs, sol_domain.direct_samp_idxs + 2,)
                 )
@@ -489,7 +494,7 @@ class RomDomain:
 
                 sol_domain.num_grad_cells = len(sol_domain.grad_idxs)
 
-                # Neighbors of gradient cells, implicitly includes all gradient cells too
+                # Indices of gradient cells and their immediate neighbors, within sol_prim/cons_full
                 sol_domain.grad_neigh_idxs = np.concatenate((sol_domain.grad_idxs - 1, sol_domain.grad_idxs + 1))
                 sol_domain.grad_neigh_idxs = np.unique(sol_domain.grad_neigh_idxs)
 
@@ -500,7 +505,7 @@ class RomDomain:
                 if sol_domain.grad_neigh_idxs[-1] == (sol_domain.mesh.num_cells + 2):
                     sol_domain.grad_neigh_idxs = sol_domain.grad_neigh_idxs[:-1]
 
-                # Indices of grad_idxs in grad_neigh_idxs
+                # Indices within gradient neighbor indices to extract gradient cells, excluding boundaries
                 _, _, sol_domain.grad_neigh_extract = np.intersect1d(
                     sol_domain.grad_idxs, sol_domain.grad_neigh_idxs, return_indices=True,
                 )
@@ -510,6 +515,7 @@ class RomDomain:
                     sol_domain.grad_idxs, sol_domain.flux_samp_left_idxs, return_indices=True,
                 )
 
+                # Indices of grad_idxs in flux_samp_right_idxs and flux_samp_right_idxs and vice versa
                 _, sol_domain.grad_right_extract, sol_domain.flux_right_extract = np.intersect1d(
                     sol_domain.grad_idxs, sol_domain.flux_samp_right_idxs, return_indices=True,
                 )
