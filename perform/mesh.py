@@ -24,7 +24,7 @@ class Mesh:
     """
 
     def __init__(self, mesh_dict):
-       
+
         self.x_left = float(mesh_dict["x_left"])
         self.x_right = float(mesh_dict["x_right"])
         self.num_cells = int(mesh_dict["num_cells"])

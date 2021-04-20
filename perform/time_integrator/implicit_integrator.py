@@ -34,9 +34,9 @@ class ImplicitIntegrator(TimeIntegrator):
     """
 
     def __init__(self, param_dict):
-        
+
         super().__init__(param_dict)
-        
+
         self.time_type = "implicit"
         self.subiter_max = catch_input(param_dict, "subiter_max", const.SUBITER_MAX_IMP_DEFAULT)
         self.res_tol = catch_input(param_dict, "res_tol", const.L2_RES_TOL_DEFAULT)
@@ -92,7 +92,6 @@ class BDF(ImplicitIntegrator):
         Returns:
             NumPy array of the fully-discrete residual profiles.
         """
-
 
         # Account for cold start
         time_order = min(solver.iter, self.time_order)

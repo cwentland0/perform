@@ -40,6 +40,7 @@ class ProbePlot(Visualization):
         ax_line: List of matplotlib.lines.Line2D artists for each subplot.
         fig_file: 
     """
+
     def __init__(
         self,
         image_output_dir,

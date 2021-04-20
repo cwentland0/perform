@@ -66,7 +66,7 @@ class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
             lhs: Left-hand side of low-dimensional linear solve.
             rhs: Right-hand side of low-dimensional linear solve.
         """
-        
+
         # TODO: this is non-general and janky, only valid for BDF
 
         jacob = self.calc_model_jacobian(sol_domain)

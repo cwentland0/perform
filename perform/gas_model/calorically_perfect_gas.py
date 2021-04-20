@@ -79,7 +79,7 @@ class CaloricallyPerfectGas(GasModel):
             mass_fracs_ns = mass_fracs
 
         r_mix = R_UNIV * ((1.0 / self.mol_weights[-1]) + np.sum(mass_fracs_ns * self.mw_inv_diffs[:, None], axis=0))
-        
+
         return r_mix
 
     def calc_mix_gamma(self, r_mix, cp_mix):
@@ -94,7 +94,7 @@ class CaloricallyPerfectGas(GasModel):
         """
 
         gamma_mix = cp_mix / (cp_mix - r_mix)
-        
+
         return gamma_mix
 
     def calc_mix_enth_ref(self, mass_fracs):
@@ -112,9 +112,9 @@ class CaloricallyPerfectGas(GasModel):
             mass_fracs_ns = self.get_mass_frac_array(mass_fracs_in=mass_fracs)
         else:
             mass_fracs_ns = mass_fracs
-        
+
         enth_ref_mix = self.enth_ref[-1] + np.sum(mass_fracs_ns * self.enth_ref_diffs[:, None], axis=0)
-        
+
         return enth_ref_mix
 
     def calc_mix_cp(self, mass_fracs):
@@ -132,9 +132,9 @@ class CaloricallyPerfectGas(GasModel):
             mass_fracs_ns = self.get_mass_frac_array(mass_fracs_in=mass_fracs)
         else:
             mass_fracs_ns = mass_fracs
-        
+
         cp_mix = self.cp[-1] + np.sum(mass_fracs_ns * self.cp_diffs[:, None], axis=0)
-        
+
         return cp_mix
 
     def calc_density(self, sol_prim, r_mix=None):

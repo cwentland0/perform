@@ -72,7 +72,6 @@ class VenkatLimiter(Limiter):
 
         return phi
 
-    
     def venkat_function(self, maxmin_vals, cell_vals, face_vals):
         """Venkatakrishnan limiting function.
 

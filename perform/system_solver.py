@@ -71,7 +71,6 @@ class SystemSolver:
 
     # TODO: time_scheme should not be associated with SystemSolver
 
-
     def __init__(self, working_dir):
 
         # input parameters from solverParams.inp

@@ -58,7 +58,7 @@ class SolutionInterior(SolutionPhys):
     """
 
     def __init__(self, gas, sol_prim_in, solver, num_cells, num_reactions, time_int):
-        
+
         super().__init__(gas, num_cells, sol_prim_in=sol_prim_in)
 
         gas = self.gas_model
