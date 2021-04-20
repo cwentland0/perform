@@ -14,7 +14,7 @@ class RomModel:
     the high-dimensional state ("decoding"). Feature scaling is general, but decoding operations
     are specific to child classes. Thus, RomModel only provides the high-level utility decode_sol(),
     which calls child class implementations of apply_decoder().
-    
+
     Args:
         model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
         rom_domain: RomDomain within which this RomModel is contained.
@@ -29,7 +29,7 @@ class RomModel:
         sol_shape: Tuple shape (num_vars, num_cells) of full-dimensional state which this model maps to.
         target_cons: Boolean flag indicating whether this model maps to the conservative variables.
         code: NumPy array of unsteady low-dimensional state associated with this model.
-        res: 
+        res:
             NumPy array of low-dimensional linear solve residual when integrating ROM ODE in time
             with an implicit time integrator.
         norm_sub_prof_cons:
@@ -198,7 +198,7 @@ class RomModel:
             arr_in: NumPy array to be (de-)centered.
             cent_prof: NumPy array of centering profile.
             decenter: If True, decenter profile. If False, center profile.
-        
+
         Returns:
             (De-)centered copy of arr_in.
         """
@@ -270,9 +270,9 @@ class RomModel:
     def update_sol(self, sol_domain):
         """Update solution after low-dimensional code has been updated.
 
-        Helper function that updates full-dimensional state within the given SolutionDomain. 
+        Helper function that updates full-dimensional state within the given SolutionDomain.
         This function is called within RomDomain.advance_subiter() for those ROM methods with a time integrator,
-        and within RomDomain.advance_iter() for non-intrusive methods without a time integrator. 
+        and within RomDomain.advance_iter() for non-intrusive methods without a time integrator.
 
         Args:
             sol_domain: SolutionDomain with which this RomModel's containing RomDomain is associated.
@@ -288,7 +288,7 @@ class RomModel:
 
         This function is called within RomDomain.calc_code_res_norms(), after which the residual norms are averaged
         across all models for an aggregate measure. Note that this measure is scaled by number of elements,
-        so "L2 norm" here is really RMS. 
+        so "L2 norm" here is really RMS.
 
         Returns:
             The L2 and L1 norms of the low-dimensional linear solve residual.

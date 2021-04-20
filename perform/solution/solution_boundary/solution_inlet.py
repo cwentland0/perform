@@ -37,7 +37,7 @@ class SolutionInlet(SolutionBoundary):
 
     def calc_stagnation_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """Specify stagnation temperature and stagnation pressure.
-        
+
         Args:
             sol_time: Current physical time, in seconds.
             space_order: Spatial order of accuracy of face reconstruction.
@@ -112,9 +112,9 @@ class SolutionInlet(SolutionBoundary):
 
     def calc_full_state_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """Full state specification.
-        
+
         Mostly just for perturbing inlet state to check for outlet reflections.
-        
+
         Args:
             sol_time: Current physical time, in seconds.
             space_order: Spatial order of accuracy of face reconstruction.
@@ -141,9 +141,9 @@ class SolutionInlet(SolutionBoundary):
 
     def calc_mean_flow_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """Non-reflective mean-flow inlet.
-        
+
         Assumes that unsteady solution is a small perturbation about mean flow solution.
-        
+
         Args:
             sol_time: Current physical time, in seconds.
             space_order: Spatial order of accuracy of face reconstruction.
@@ -156,7 +156,6 @@ class SolutionInlet(SolutionBoundary):
         # Mean flow and infinitely-far upstream quantities
         press_up = self.press
         temp_up = self.temp
-        mass_fracs_up = self.mass_fracs[:-1]
         rho_c_mean = self.vel
         rho_cp_mean = self.rho
 

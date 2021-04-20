@@ -122,7 +122,6 @@ class FiniteRateIrrevReaction(ReactionModel):
         jacob = np.zeros((gas.num_eqs, gas.num_eqs, num_cells), dtype=REAL_TYPE)
 
         rho = sol_int.sol_cons[0, samp_idxs]
-        press = sol_int.sol_prim[0, samp_idxs]
         temp = sol_int.sol_prim[2, samp_idxs]
         mass_fracs = sol_int.sol_prim[3:, samp_idxs]
 

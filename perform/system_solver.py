@@ -1,11 +1,7 @@
 import os
-from math import floor, log
-
-import numpy as np
 
 import perform.constants as const
-from perform.input_funcs import read_input_file, catch_input, catch_list
-from perform.mesh import Mesh
+from perform.input_funcs import read_input_file, catch_input
 from perform.misc_funcs import mkdir_shallow
 
 
@@ -25,7 +21,7 @@ class SystemSolver:
         probe_output_dir: Path to directory for probe monitor data output.
         image_output_dir: Path to directory for visualization plot image output.
         restart_output_dir: Path to directory for restart file output.
-        init_file: Path to NumPy binary file of initial condition primitive solution profiles, if desired. 
+        init_file: Path to NumPy binary file of initial condition primitive solution profiles, if desired.
         dt: Physical time step size, in seconds.
         time_scheme:
             String name of the numerical time integration scheme to apply to the SolutionDomain.

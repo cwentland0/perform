@@ -141,7 +141,7 @@ class LinearProjROM(ProjectionROM):
 
     def apply_decoder(self, code):
         """Compute raw decoding of code.
-        
+
         Only computes trial_basis @ code, does not compute any denormalization or decentering.
 
         Args:

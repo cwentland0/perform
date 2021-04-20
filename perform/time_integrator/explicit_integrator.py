@@ -37,7 +37,7 @@ class RKExplicit(ExplicitIntegrator):
 
     All child classes must simply define their Butcher tableu via the attributes rk_a, rk_b, and rk_c.
     Additionally, each must set the variable subiter_max.
-    
+
     Please refer to the solver theory documentation for more details on each method.
 
     Args:
@@ -55,7 +55,7 @@ class RKExplicit(ExplicitIntegrator):
 
     def solve_sol_change(self, rhs):
         """Compute intermediate step or final physical time step.
-        
+
         Args:
             rhs: Semi-discrete governing ODE right-hand side function evaluation.
 
@@ -76,7 +76,7 @@ class RKExplicit(ExplicitIntegrator):
 
     def solve_sol_change_subiter(self, rhs):
         """Change in intermediate solution for subiteration.
-        
+
         Args:
             rhs: NumPy array of the semi-discrete governing ODE right-hand side function evaluation.
 
@@ -113,7 +113,7 @@ class RKExplicit(ExplicitIntegrator):
 
 class ClassicRK4(RKExplicit):
     """Classic explicit RK4 scheme.
-    
+
     Args:
         param_dict: Dictionary of parameters read from the solver parameters input file.
 
@@ -167,7 +167,7 @@ class SSPRK3(RKExplicit):
 
 class JamesonLowStore(RKExplicit):
     """"Low-storage" class of RK schemes by Jameson.
-    
+
     Not actually appropriate for unsteady problems, supposedly.
     Not actually low-storage to work with general RK format, just maintained here for consistency with old code.
 

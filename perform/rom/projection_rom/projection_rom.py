@@ -8,7 +8,7 @@ class ProjectionROM(RomModel):
     """Base class for projection-based reduced-order models.
 
     Inherits from RomModel. This class makes no assumption on the form of the decoder,
-    but assumes a linear projection onto the low-dimensional space. 
+    but assumes a linear projection onto the low-dimensional space.
 
     Args:
         model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
@@ -29,7 +29,7 @@ class ProjectionROM(RomModel):
         Further assumes that projector is already in [latent_dim, num_vars x num_cells] order.
 
         Args:
-            projector: 2D NumPy array containing linear projector. 
+            projector: 2D NumPy array containing linear projector.
             full_dim_arr: NumPy array of full-dimensional vector to be projected.
             transpose: If True, transposes projector before projecting full_dim_arr.
 

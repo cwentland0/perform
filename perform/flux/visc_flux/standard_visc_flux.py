@@ -6,7 +6,7 @@ from perform.flux.flux import Flux
 
 class StandardViscFlux(Flux):
     """Standard viscous flux scheme with binary diffusion velocity approximation
-    
+
     Inherits from Flux.
 
     Args:
@@ -20,7 +20,7 @@ class StandardViscFlux(Flux):
     def calc_flux(self, sol_domain):
         """Compute viscous flux vector.
 
-        Computes state gradient at cell faces and computes viscous flux with respect to average face state. 
+        Computes state gradient at cell faces and computes viscous flux with respect to average face state.
         Assumes that average face state has already been computed.
 
         Args:

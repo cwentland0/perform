@@ -126,21 +126,17 @@ class RoeInviscFlux(InviscFlux):
 
         # Derivatives of density and enthalpy
         (d_rho_d_press, d_rho_d_temp, d_rho_d_mass_frac) = gas_model.calc_dens_derivs(
-            sol_ave.sol_cons[0, :],
+            rho,
             wrt_press=True,
-            pressure=sol_ave.sol_prim[0, :],
+            pressure=press,
             wrt_temp=True,
-            temperature=sol_ave.sol_prim[2, :],
+            temperature=temp,
             wrt_spec=True,
             mix_mol_weight=sol_ave.mw_mix,
         )
 
         (d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac) = gas_model.calc_stag_enth_derivs(
-            wrt_press=True,
-            wrt_temp=True,
-            mass_fracs=sol_ave.sol_prim[3:, :],
-            wrt_spec=True,
-            temperature=sol_ave.sol_prim[2, :],
+            wrt_press=True, wrt_temp=True, mass_fracs=mass_fracs, wrt_spec=True, temperature=temp,
         )
 
         # Save for Jacobian calculations

@@ -7,11 +7,11 @@ from perform.input_funcs import catch_input
 
 class AutoencoderProjROM(ProjectionROM):
     """Base class for all non-linear manifold projection-based ROMs using autoencoders.
-    
+
     Inherits from ProjectionROM. Assumes that solution decoding is computed by
 
     sol = cent_prof + norm_sub_prof + norm_fac_prof * decoder(code)
-    
+
     Child classes must implement the following member functions with
     library-specific (e.g. TensorFlow-Keras, PyTorch) implementations:
     * load_model_obj()

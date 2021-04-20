@@ -98,8 +98,8 @@ class SolutionPhys:
         """Utility function to update primitive state from conservative state or vice versa.
 
         Args:
-            from_cons: 
-                If True, update primitive state from conservative state. 
+            from_cons:
+                If True, update primitive state from conservative state.
                 If False, update conservative state from primitive state.
         """
 

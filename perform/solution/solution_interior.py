@@ -12,7 +12,7 @@ class SolutionInterior(SolutionPhys):
 
     This SolutionPhys represents the interior finite volume cells of a SolutionDomain,
     i.e. all cells except the boundary ghost cells. There is only one SolutionInterior per SolutionDomain.
-    
+
     A few constructs, such as the source term, residual, residual Jacobian, etc., are only meaningful for the interior
     cells and so are represented here specifically.
 
@@ -22,7 +22,7 @@ class SolutionInterior(SolutionPhys):
     Args:
         gas: GasModel associated with the SolutionDomain with which this SolutionPhys is associated.
         sol_prim_in: NumPy array of the primitive state profiles that this SolutionPhys represents.
-        solver: SystemSolver containing global simulation parameters. 
+        solver: SystemSolver containing global simulation parameters.
         num_cells: Number of finite volume cells represented by this SolutionPhys.
         num_reactions: Number of reactions to be modeled.
         time_int: TimeIntegrator associated with the SolutionDomain with which this SolutionInterior is associated.
@@ -165,7 +165,7 @@ class SolutionInterior(SolutionPhys):
         This Jacobian is calculated when computing the approximate residual Jacobian w/r/t the conservative
         state when dual_time == False. It is also implicitly used when calculating the Roe dissipation term,
         but is not explicitly calculated there.
-        
+
         Assumes that the stagnation enthalpy, derivatives of density,
         and derivatives of stagnation enthalpy have already been computed.
 
@@ -173,7 +173,7 @@ class SolutionInterior(SolutionPhys):
         for a detailed derivation of this matrix.
 
         Args:
-            samp_idxs: 
+            samp_idxs:
                 Either a NumPy slice or NumPy array for selecting sampled cells to compute the Jacobian at.
                 Used for hyper-reduction of projection-based reduced-order models.
 
@@ -188,16 +188,14 @@ class SolutionInterior(SolutionPhys):
 
         # Initialize Jacobian
         if type(samp_idxs) is slice:
-            num_cells = sol_int.num_cells
+            num_cells = self.num_cells
         else:
             num_cells = samp_idxs.shape[0]
         gamma_matrix_inv = np.zeros((gas.num_eqs, gas.num_eqs, num_cells))
 
         # For clarity
         rho = self.sol_cons[0, samp_idxs]
-        press = self.sol_prim[0, samp_idxs]
         vel = self.sol_prim[1, samp_idxs]
-        temp = self.sol_prim[2, samp_idxs]
         mass_fracs = self.sol_prim[3:, samp_idxs]
 
         d_rho_d_press = self.d_rho_d_press[samp_idxs]
@@ -267,7 +265,7 @@ class SolutionInterior(SolutionPhys):
 
         This Jacobian is calculated when computing the residual Jacobian w/r/t the primitive
         state when dual_time == True.
-        
+
         Assumes that the stagnation enthalpy, derivatives of density,
         and derivatives of stagnation enthalpy have already been computed.
 
@@ -275,7 +273,7 @@ class SolutionInterior(SolutionPhys):
         the solver theory documentation for a detailed derivation of this matrix.
 
         Args:
-            samp_idxs: 
+            samp_idxs:
                 Either a NumPy slice or NumPy array for selecting sampled cells to compute the Jacobian at.
                 Used for hyper-reduction of projection-based reduced-order models.
 
@@ -289,16 +287,14 @@ class SolutionInterior(SolutionPhys):
 
         # Initialize Jacobian
         if type(samp_idxs) is slice:
-            num_cells = sol_int.num_cells
+            num_cells = self.num_cells
         else:
             num_cells = samp_idxs.shape[0]
         gamma_matrix = np.zeros((gas.num_eqs, gas.num_eqs, num_cells))
 
         # For clarity
         rho = self.sol_cons[0, samp_idxs]
-        press = self.sol_prim[0, samp_idxs]
         vel = self.sol_prim[1, samp_idxs]
-        temp = self.sol_prim[2, samp_idxs]
         mass_fracs = self.sol_prim[3:, samp_idxs]
 
         d_rho_d_press = self.d_rho_d_press[samp_idxs]
@@ -338,9 +334,9 @@ class SolutionInterior(SolutionPhys):
     def res_jacob_assemble(self, center_block, lower_block, upper_block):
         """Assembles residual Jacobian into a sparse 2D matrix for Newton's method linear solve.
 
-        The components of the residual Jacobian are provided as 3D arrays representing the center, lower, 
+        The components of the residual Jacobian are provided as 3D arrays representing the center, lower,
         and upper block diagonal of the residual Jacobian if the residual were flattened in column-major
-        order (i.e. variables first, then cells). This makes populating the components easier, but makes 
+        order (i.e. variables first, then cells). This makes populating the components easier, but makes
         calculating the linear solve more tedious. Thus, the residual Jacobian is constructed for a residual
         flattened in row-major order (i.e. cells first, then variables).
 
@@ -373,10 +369,10 @@ class SolutionInterior(SolutionPhys):
 
     def calc_adaptive_dtau(self, mesh):
         """Adapt dtau for each cell based on user input constraints and local wave speed.
-        
+
         This function is intended to improve dual time-stepping robustness, but mostly acts to slow convergence.
         For now, I recommend not setting adapt_dtau until this is completed.
-        
+
         Args:
             mesh: Mesh associated with SolutionDomain with which this SolutionPhys is associated.
 
@@ -479,9 +475,9 @@ class SolutionInterior(SolutionPhys):
 
     def write_restart_file(self, solver):
         """Write restart files to disk.
-        
+
         Restart files contain the primitive and conservative fields current associated physical time.
-        
+
         Args:
             solver: SystemSolver containing global simulation parameters.
         """
@@ -567,10 +563,10 @@ class SolutionInterior(SolutionPhys):
 
     def calc_d_sol_norms(self, solver, time_type):
         """Calculate and print solution change norms for "steady" solve "convergence".
-        
+
         Computes L2 and L1 norms of the change in the primitive solution between time steps.
         This measure will be used to determine whether the "steady" solve has "converged".
-        
+
         Note that outputs are orders of magnitude (i.e. 1e-X, where X is the order of magnitude)
 
         Args:
@@ -598,10 +594,10 @@ class SolutionInterior(SolutionPhys):
 
     def calc_res_norms(self, solver, subiter):
         """Calculate and print implicit time integration linear solve residual norms.
-        
+
         Computes L2 and L1 norms of the Newton's method iterative solve for implicit time integration.
         This measure will be used to determine whether Newton's method has converged.
-        
+
         Note that outputs are orders of magnitude (i.e. 1e-X, where X is the order of magnitude)
 
         Args:

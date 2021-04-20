@@ -10,7 +10,7 @@ from perform.constants import REAL_TYPE
 
 def catch_input(in_dict, in_key, default_val):
     """Handle non-list dictionary entries from parameter input files.
-    
+
     Casts input value as same type as default_val.
     Assign default values if user does not provide a given input parameter.
     Use catch_list() if attempting to retrieve lists or lists of lists.
@@ -48,7 +48,7 @@ def catch_input(in_dict, in_key, default_val):
 
 def catch_list(in_dict, in_key, default, len_highest=1):
     """Handle list and list of list dictionary entries from parameter input files.
-    
+
     Casts list entries of input as same type as default_val.
     Assign default values if user does not provide a given input parameter.
 

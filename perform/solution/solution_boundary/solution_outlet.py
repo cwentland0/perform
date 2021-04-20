@@ -95,7 +95,7 @@ class SolutionOutlet(SolutionBoundary):
 
     def calc_mean_flow_bc(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """Non-reflective mean flow outlet.
-        
+
         Unsteady solution is assumed to be a small perturbation about mean flow solution.
 
         Args:

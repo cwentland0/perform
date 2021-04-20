@@ -4,7 +4,7 @@ import numpy as np
 class Limiter:
     """Base class for gradient limiters.
 
-    Simply provides some member functions which may be common to multiple child class limiters. 
+    Simply provides some member functions which may be common to multiple child class limiters.
 
     All child classes must implement the member method calc_limiter().
     """
@@ -15,7 +15,7 @@ class Limiter:
 
     def calc_neighbor_minmax(self, sol):
         """Find minimum and maximum of cell state and neighbor cell states
-        
+
         Args:
             sol:
                 2D NumPy array of a solution profile (e.g. SolutionPhys.sol_prim),

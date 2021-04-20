@@ -6,10 +6,10 @@ from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearPro
 class LinearGalerkinProj(LinearProjROM):
     """Class for projection-based ROM with linear decoder and Galerkin projection.
 
-    Inherits from LinearProjROM. 
-    
+    Inherits from LinearProjROM.
+
     Trial basis is assumed to represent the conservative variables. Allows implicit and explicit time integration.
-    
+
     Args:
         model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
         rom_domain: RomDomain within which this RomModel is contained.

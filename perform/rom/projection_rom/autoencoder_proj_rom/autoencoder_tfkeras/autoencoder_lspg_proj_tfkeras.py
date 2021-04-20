@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf
 
 from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_tfkeras import AutoencoderTFKeras
 
@@ -7,10 +6,10 @@ from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoenc
 class AutoencoderLSPGProjTFKeras(AutoencoderTFKeras):
     """Class for projection-based ROM with a TF-Keras non-linear manifold decoder and LSPG projection.
 
-    Inherits from AutoencoderTFKeras. 
-    
+    Inherits from AutoencoderTFKeras.
+
     Decoder is assumed to map to the conservative variables. Allows implicit time integration only.
-    
+
     Args:
         model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
         rom_domain: RomDomain within which this RomModel is contained.

@@ -24,7 +24,7 @@ class RomDomain:
     When running a ROM simulation, perform.driver.main() will generate a RomDomain for each SolutionDomain for which
     a ROM simulation is requested. The RomDomain will handle reading in the input parameters from the ROM parameter
     input file, checking the validity of these parameters, and initializing all requested RomModel's.
-    
+
     During simulation runtime, RomDomain is responsible for executing most of each RomModel's higher-level functions
     and executing accessory functions, e.g. filtering. Beyond this, member functions of RomDomain generally handle
     operations that apply to the entire ROM solution, e.g. time integration, calculating residual norms, etc.
@@ -216,7 +216,7 @@ class RomDomain:
 
         Args:
             sol_domain: SolutionDomain with which this RomDomain is associated.
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         print("Iteration " + str(solver.iter))
@@ -248,7 +248,7 @@ class RomDomain:
 
         Args:
             sol_domain: SolutionDomain with which this RomDomain is associated.
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         sol_int = sol_domain.sol_int
@@ -348,7 +348,7 @@ class RomDomain:
 
     def set_model_flags(self):
         """Set universal ROM method flags that dictate various execution behaviors.
-        
+
         If a new RomModel is created, its flags should be set here.
         """
 
@@ -581,10 +581,8 @@ class RomDomain:
         num_cells = sol_domain.mesh.num_cells
         num_samp_cells = sol_domain.num_samp_cells
         num_elements_center = gas.num_eqs ** 2 * num_samp_cells
-        col_offset = 0
         if sol_domain.direct_samp_idxs[0] == 0:
             num_elements_lower = gas.num_eqs ** 2 * (num_samp_cells - 1)
-            col_offset = 1
         else:
             num_elements_lower = num_elements_center
         if sol_domain.direct_samp_idxs[-1] == (num_cells - 1):

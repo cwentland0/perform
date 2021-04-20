@@ -1,6 +1,6 @@
 import numpy as np
 
-from perform.constants import REAL_TYPE, R_UNIV
+from perform.constants import REAL_TYPE
 
 # TODO: some of the CPG functions can be generalized and placed here
 # 	(e.g. calc sound speed in terms of enthalpy and density derivs)
@@ -8,7 +8,7 @@ from perform.constants import REAL_TYPE, R_UNIV
 
 class GasModel:
     """Base class for all gas models (e.g. CPG, TPG).
-    
+
     GasModel reads various universal gas properties (e.g. species molecular weights) from the chemistry input file
     and implements several universal gas methods (e.g. calculating mixture molecular weight).
 
@@ -27,7 +27,7 @@ class GasModel:
     * calc_sound_speed()
     * calc_dens_derivs()
     * calc_stag_enth_derivs()
-    
+
     See calorically_perfect_gas.py for details on each.
 
     Args:
@@ -91,7 +91,7 @@ class GasModel:
 
     def get_mass_frac_array(self, sol_prim_in=None, mass_fracs_in=None):
         """Helper function to get num_species mass fraction vectors.
-        
+
         This function helps to avoid weird NumPy array broadcasting issues, namely the automatic
         squeezing of singleton dimensions. Can retrieve num_species mass fraction fields from
         sol_prim_in or mass_fracs_in.
@@ -132,8 +132,8 @@ class GasModel:
 
         This function takes advantage of the fact that all species mass fractions at a given location must be equal
         to unity. Thus, the mass fraction of the last chemical species (which is not directly modeled) is equal to
-        unity minus the sum of the other mass fractions. 
-        
+        unity minus the sum of the other mass fractions.
+
         Additionally, if threshold=True, all mass fraction fields are thresholded between zero and unity.
 
         In the case num_species_full == 1, simply thesholds between zero and unity.

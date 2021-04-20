@@ -5,8 +5,8 @@ from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearPro
 
 class LinearSPLSVTProj(LinearProjROM):
     """Class for projection-based ROM with linear decoder and SP-LSVT projection.
-    
-    Inherits from LinearProjROM. 
+
+    Inherits from LinearProjROM.
 
     Trial basis is assumed to represent the primitive variables. Allows implicit time integration only.
 

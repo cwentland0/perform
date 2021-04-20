@@ -14,7 +14,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
     """Base class for autoencoder projection-based ROMs using TensorFlow-Keras.
 
     Inherits from AutoencoderProjROM. Supplies library-specific functions noted in AutoencoderProjROM.
-    
+
     Child classes must implement a calc_projector() member function if it permits explicit time integration,
     and/or a calc_d_code() member function if it permits implicit time integration.
 
@@ -85,7 +85,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
         as determined by num_vars, num_cells, and latent_dim.
 
         Args:
-            decoder: 
+            decoder:
                 Boolean indicating whether to return the shape of this RomModel's decoder (decoder=True)
                 or encoder (decoder=False).
 
@@ -138,7 +138,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 
     def apply_decoder(self, code):
         """Compute raw decoding of code.
-        
+
         Only computes decoder(code), does not compute any denormalization or decentering.
 
         Args:
@@ -153,7 +153,7 @@ class AutoencoderTFKeras(AutoencoderProjROM):
 
     def apply_encoder(self, sol):
         """Compute raw encoding of full-dimensional state.
-        
+
         Only computes encoder(sol), does not compute any centering or normalization.
 
         Args:

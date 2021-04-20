@@ -38,7 +38,7 @@ class ProbePlot(Visualization):
         probe_num: One-indexed probe number, corresponding to labels given in the solver parameters input file.
         probe_vars: List of strings of variables to be probed at each probe monitor location.
         ax_line: List of matplotlib.lines.Line2D artists for each subplot.
-        fig_file: 
+        fig_file: Path to visualization plot output image file.
     """
 
     def __init__(
@@ -82,7 +82,7 @@ class ProbePlot(Visualization):
 
     def plot(self, probe_vals, time_vals, iter_num, line_style, first_plot):
         """Draw and display probe plot.
-        
+
         Since shape of plotted data changes every time, can't use set_data.
         As a result, probe plotting can be pretty slow.
 

@@ -1,8 +1,6 @@
 from time import sleep
 
-import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
 
 from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
 from perform.visualization.field_plot import FieldPlot
@@ -17,7 +15,7 @@ class VisualizationGroup:
     Container class for visualizations to be generated.
 
     Reads input parameters and initializes an arbitrary number of Visualization objects for plotting data.
-    
+
     Provides utility functions for updating, drawing, and saving these visualizations during simulation runtime.
 
     Child classes must implement plot() and save() member functions.
@@ -131,7 +129,7 @@ class VisualizationGroup:
 
         Loops through Visualization objects and draws, displays, and/or saves visualization plots
         at the physical time step interval specified by vis_interval.
-        
+
         Args:
             sol_domain: SolutionDomain with which this VisualizationGroup is associated.
             solver: SystemSolver containing global simulation parameters.

@@ -8,7 +8,7 @@ from perform.time_integrator.time_integrator import TimeIntegrator
 
 class ImplicitIntegrator(TimeIntegrator):
     """Base class for implicit time integrators.
-    
+
     Solves implicit system via Newton's method.
 
     Each child class must implement a calc_residual() member function.
@@ -61,7 +61,7 @@ class BDF(ImplicitIntegrator):
         param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
-        coeffs: List of NumPy arrays containing the time derivative discretization coefficients for each order of accuracy.
+        coeffs: List of NumPy arrays of the time derivative discretization coefficients for each order of accuracy.
     """
 
     def __init__(self, param_dict):
@@ -84,7 +84,7 @@ class BDF(ImplicitIntegrator):
                 List of NumPy arrays representing the recent conservative state solution history,
                 as many as are required to compute the maximum order of accuracy requested.
             rhs: NumPy array of the semi-discrete governing ODE right-hand side function evaluation.
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
             samp_idxs:
                 Either a NumPy slice or NumPy array for selecting sampled cells to compute the residual at.
                 Used for hyper-reduction of projection-based reduced-order models.

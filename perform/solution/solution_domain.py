@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 from scipy.sparse.linalg import spsolve
-from scipy.linalg import solve
 
 from perform.constants import REAL_TYPE
 from perform.input_funcs import get_initial_conditions, catch_list, catch_input, read_input_file
@@ -307,7 +306,7 @@ class SolutionDomain:
         For explicit time integrator, only computes RHS and advances solution explicitly.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         self.calc_rhs(solver)
@@ -351,7 +350,7 @@ class SolutionDomain:
         computes face fluxes and source term, and stores result in sol_int.rhs.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         sol_int = self.sol_int
@@ -450,14 +449,14 @@ class SolutionDomain:
         with respect to either the full primitive state vector (if dual_time == True) or the full conservative
         state vector (if dual_time == False). The contributions to the residual Jacobian from the time integrator,
         flux, and source terms are computed separately and combined.
-        
+
         Ultimately, the residual Jacobian can be represented as a block tri-diagonal matrix
         if the residual vector were flattened in column-major ordering. For the sake of computational efficiency,
         however, it is later formed into a roughly banded matrix corresponding to the residual vector being flattened
         in row-major ordering. This final reordering is performed via res_jacob_assemble().
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
 
         Returns:
             2D scipy.sparse.csr_matrix of the residual Jacobian, ordered in such a way as to correspond with a
@@ -587,7 +586,7 @@ class SolutionDomain:
         Update snapshot array at interval given by solver.out_interval if not running in "steady" mode.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         # Write restart files
@@ -611,10 +610,10 @@ class SolutionDomain:
         whether the "steady" solve has "converged" according to solver.steady_tol.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
 
         Returns:
-            Boolean flag indicating whether the "steady" solve has "converged". 
+            Boolean flag indicating whether the "steady" solve has "converged".
         """
 
         # Update convergence and field data file on disk
@@ -637,7 +636,7 @@ class SolutionDomain:
         are written to disk.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         if solver.solve_failed:
@@ -653,7 +652,7 @@ class SolutionDomain:
         """Update probe monitor array from current solution.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         # TODO: throw error for source probe in ghost cells
@@ -708,7 +707,7 @@ class SolutionDomain:
         """Save probe data to disk at end/failure of simulation.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         # Get output file name

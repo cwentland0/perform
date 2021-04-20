@@ -76,7 +76,7 @@ class SolutionBoundary(SolutionPhys):
 
     def calc_pert(self, sol_time):
         """Compute sinusoidal perturbation factor.
-        
+
         Args:
             sol_time: Current physical time, in seconds.
         """
@@ -92,9 +92,9 @@ class SolutionBoundary(SolutionPhys):
 
     def calc_boundary_state(self, sol_time, space_order, sol_prim=None, sol_cons=None):
         """Run boundary calculation and update ghost cell state.
-        
+
         Assumed that boundary function sets primitive state.
-        
+
         Args:
             sol_time: Current physical time, in seconds.
             space_order: Spatial order of accuracy of face reconstruction.

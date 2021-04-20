@@ -1,8 +1,4 @@
-import numpy as np
 import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.ticker as plticker
-import matplotlib.gridspec as gridspec
 
 mpl.rc("font", family="serif", size="10")
 mpl.rc("axes", labelsize="x-large")

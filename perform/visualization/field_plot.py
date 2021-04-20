@@ -81,7 +81,7 @@ class FieldPlot(Visualization):
 
     def plot(self, sol_prim, sol_cons, source, rhs, gas, x_cell, line_style, first_plot):
         """Draw and display field plot.
-        
+
         Saves a decent amount of time by using set_ydata instead of repeatedly clearing axes and replotting.
 
         Args:

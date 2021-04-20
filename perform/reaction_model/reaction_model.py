@@ -2,7 +2,7 @@ class ReactionModel:
     """Base class for all reaction models.
 
     All child classes must implement the following member functions:
-    
+
     * calc_source()
     * calc_jacob_prim()
 
