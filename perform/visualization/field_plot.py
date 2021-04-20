@@ -110,10 +110,10 @@ class FieldPlot(Visualization):
                     ax_var.axis("off")
                     continue
 
+                x_data = self.get_x_data(sol_domain, self.vis_vars[lin_idx])
                 y_data = self.get_y_data(sol_domain, self.vis_vars[lin_idx])
 
                 if first_plot:
-                    x_data = sol_domain.mesh.x_cell
                     (self.ax_line[lin_idx],) = ax_var.plot(x_data, y_data, line_style)
                     ax_var.set_ylabel(self.ax_labels[lin_idx])
                     ax_var.set_xlabel(self.x_label)
@@ -153,7 +153,7 @@ class FieldPlot(Visualization):
         elif var_str == "temperature":
             y_data = sol_int.sol_prim[2, :]
         elif var_str == "source":
-            y_data = sol_int.source[0, :]
+            y_data = sol_int.source[0, sol_domain.direct_samp_idxs]
         elif var_str == "density":
             y_data = sol_int.sol_cons[0, :]
         elif var_str == "momentum":
@@ -176,6 +176,29 @@ class FieldPlot(Visualization):
             raise ValueError("Invalid field visualization variable:" + str(var_str))
 
         return y_data
+
+    def get_x_data(self, sol_domain, var_str):
+        """Get x-coordinates for plotting.
+
+        Handles issues with hyper-reduction where non-solution fields need to be sampled.
+        For really sparse sampling can lead to some wonky plots, but them's the breaks.
+
+        If expanding FieldPlot to plot a new non-solution profile, make sure accommodate it here.
+
+        Args:
+            sol_domain: SolutionDomain with which this Visualization is associated.
+            var_str: String corresponding to variable profile to be plotted.
+
+        Returns:
+            NumPy array of the x-coordinates for profile to be visualized.
+        """
+
+        if var_str == "source":
+            x_data = sol_domain.mesh.x_cell[sol_domain.direct_samp_idxs]
+        else:
+            x_data = sol_domain.mesh.x_cell
+
+        return x_data
 
     def save(self, iter_num, dpi=100):
         """Save plot to disk.
