@@ -657,6 +657,13 @@ class SolutionDomain:
 
         # TODO: throw error for source probe in ghost cells
 
+        if "inlet" in self.probe_secs:
+            mass_fracs_full_inlet = self.gas_model.calc_all_mass_fracs(self.sol_inlet.sol_prim[3:, :], threshold=False)
+        if "outlet" in self.probe_secs:
+            mass_fracs_full_outlet = self.gas_model.calc_all_mass_fracs(
+                self.sol_outlet.sol_prim[3:, :], threshold=False
+            )
+
         for probe_iter, probe_idx in enumerate(self.probe_idxs):
 
             # Determine where the probe monitor is
@@ -664,13 +671,16 @@ class SolutionDomain:
             if probe_sec == "inlet":
                 sol_prim_probe = self.sol_inlet.sol_prim[:, 0]
                 sol_cons_probe = self.sol_inlet.sol_cons[:, 0]
+                mass_fracs_full = mass_fracs_full_inlet[:, 0]
             elif probe_sec == "outlet":
                 sol_prim_probe = self.sol_outlet.sol_prim[:, 0]
                 sol_cons_probe = self.sol_outlet.sol_cons[:, 0]
+                mass_fracs_full = mass_fracs_full_outlet[:, 0]
             else:
                 sol_prim_probe = self.sol_int.sol_prim[:, probe_idx]
                 sol_cons_probe = self.sol_int.sol_cons[:, probe_idx]
                 sol_source_probe = self.sol_int.source[:, probe_idx]
+                mass_fracs_full = self.sol_int.mass_fracs_full[:, probe_idx]
 
             # Gather probe monitor data
             probe = []
@@ -692,11 +702,14 @@ class SolutionDomain:
                 elif var_str == "species":
                     probe.append(sol_prim_probe[3])
                 elif var_str[:7] == "species":
-                    spec_idx = int(var_str[7:])
-                    probe.append(sol_prim_probe[3 + spec_idx - 1])
+                    spec_idx = int(var_str[8:])
+                    probe.append(mass_fracs_full[spec_idx - 1])
                 elif var_str[:15] == "density-species":
-                    spec_idx = int(var_str[15:])
-                    probe.append(sol_cons_probe[3 + spec_idx - 1])
+                    spec_idx = int(var_str[16:])
+                    if spec_idx == self.gas_model.num_species_full:
+                        probe.append(mass_fracs_full[-1] * sol_cons_probe[0])
+                    else:
+                        probe.append(sol_cons_probe[3 + spec_idx - 1])
                 else:
                     raise ValueError("Invalid probe variable " + str(var_str))
 

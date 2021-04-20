@@ -93,7 +93,7 @@ class VisualizationGroup:
                 )
 
             elif vis_type == "probe":
-                probe_num = -1 + catch_input(param_dict, "probe_num_" + str(vis_idx), -2)
+                probe_num = catch_input(param_dict, "probe_num_" + str(vis_idx), -2)
 
                 self.vis_list[vis_idx - 1] = ProbePlot(
                     solver.image_output_dir,
@@ -152,23 +152,19 @@ class VisualizationGroup:
 
                 # Draw and save plots
                 if vis.vis_type == "field":
-                    vis.plot(
-                        sol_domain.sol_int.sol_prim,
-                        sol_domain.sol_int.sol_cons,
-                        sol_domain.sol_int.source,
-                        sol_domain.sol_int.rhs,
-                        sol_domain.gas_model,
-                        sol_domain.mesh.x_cell,
-                        "b-",
-                        first_plot,
-                    )
+                    vis.plot(sol_domain, "b-", first_plot)
 
                 elif vis.vis_type == "probe":
                     vis.plot(sol_domain.probe_vals, sol_domain.time_vals, solver.iter, "b-", first_plot)
                 else:
                     raise ValueError("Invalid vis_type:" + str(vis.vis_type))
+
                 if self.vis_save:
                     vis.save(solver.iter)
 
                 if self.vis_show:
                     vis.fig.canvas.flush_events()
+
+            # If this is not included, first plot may be empty black window
+            if self.vis_show and first_plot:
+                plt.pause(0.001)

@@ -79,18 +79,13 @@ class FieldPlot(Visualization):
         if not os.path.isdir(self.img_dir):
             os.mkdir(self.img_dir)
 
-    def plot(self, sol_prim, sol_cons, source, rhs, gas, x_cell, line_style, first_plot):
+    def plot(self, sol_domain, line_style, first_plot):
         """Draw and display field plot.
 
         Saves a decent amount of time by using set_ydata instead of repeatedly clearing axes and replotting.
 
         Args:
-            sol_prim: NumPy array of the primitive state profiles from SolutionInterior.
-            sol_cons: NumPy array of the conservative state profiles from SolutionInterior.
-            source: NumPy array of the reaction source term profiles for the num_species species transport equations.
-            rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
-            gas: GasModel object associated with the SolutionDomain.
-            x_cell: Coordinates of Mesh cell centers.
+            sol_domain: SolutionDomain with which this Visualization is associated.
             line_style: String containing matplotlib.pyplot line style option.
             first_plot: Boolean flag indicating whether this is the first time the plot is being drawn.
         """
@@ -113,12 +108,12 @@ class FieldPlot(Visualization):
                 lin_idx = np.ravel_multi_index(([col_idx], [row_idx]), (self.num_rows, self.num_cols))[0]
                 if (lin_idx + 1) > self.num_subplots:
                     ax_var.axis("off")
-                    break
+                    continue
 
-                y_data = self.get_y_data(sol_prim, sol_cons, source, rhs, self.vis_vars[lin_idx], gas)
+                x_data = self.get_x_data(sol_domain, self.vis_vars[lin_idx])
+                y_data = self.get_y_data(sol_domain, self.vis_vars[lin_idx])
 
                 if first_plot:
-                    x_data = x_cell
                     (self.ax_line[lin_idx],) = ax_var.plot(x_data, y_data, line_style)
                     ax_var.set_ylabel(self.ax_labels[lin_idx])
                     ax_var.set_xlabel(self.x_label)
@@ -136,51 +131,74 @@ class FieldPlot(Visualization):
             self.fig.tight_layout()
         self.fig.canvas.draw()
 
-    def get_y_data(self, sol_prim, sol_cons, source, rhs, var_str, gas):
+    def get_y_data(self, sol_domain, var_str):
         """Extract plotting data from flow field domain data.
 
         New inputs and var_str options must be manually added to permit new profiles to be plotted.
 
         Args:
-            sol_prim: NumPy array of the primitive state profiles from SolutionInterior.
-            sol_cons: NumPy array of the conservative state profiles from SolutionInterior.
-            source: NumPy array of the reaction source term profiles for the num_species species transport equations.
-            rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
+            sol_domain: SolutionDomain with which this Visualization is associated.
             var_str: String corresponding to variable profile to be plotted.
-            gas: GasModel object associated with the SolutionDomain.
 
         Returns:
             NumPy array of the flow field profile to be visualized.
         """
 
+        sol_int = sol_domain.sol_int
+
         if var_str == "pressure":
-            y_data = sol_prim[0, :]
+            y_data = sol_int.sol_prim[0, :]
         elif var_str == "velocity":
-            y_data = sol_prim[1, :]
+            y_data = sol_int.sol_prim[1, :]
         elif var_str == "temperature":
-            y_data = sol_prim[2, :]
+            y_data = sol_int.sol_prim[2, :]
         elif var_str == "source":
-            y_data = source[0, :]
+            y_data = sol_int.source[0, sol_domain.direct_samp_idxs]
         elif var_str == "density":
-            y_data = sol_cons[0, :]
+            y_data = sol_int.sol_cons[0, :]
         elif var_str == "momentum":
-            y_data = sol_cons[1, :]
+            y_data = sol_int.sol_cons[1, :]
         elif var_str == "energy":
-            y_data = sol_cons[2, :]
+            y_data = sol_int.sol_cons[2, :]
         elif var_str[:7] == "species":
             spec_idx = int(var_str[8:])
-            if spec_idx == gas.num_species_full:
-                massFracs = gas.calc_all_mass_fracs(sol_prim[3:, :], threshold=False)
-                y_data = massFracs[-1, :]
+            if spec_idx == sol_domain.gas_model.num_species_full:
+                y_data = sol_int.mass_fracs_full[-1, :]
             else:
-                y_data = sol_prim[3 + spec_idx - 1, :]
+                y_data = sol_int.sol_prim[3 + spec_idx - 1, :]
         elif var_str[:15] == "density-species":
             spec_idx = int(var_str[16:])
-            y_data = sol_cons[3 + spec_idx - 1, :]
+            if spec_idx == sol_domain.gas_model.num_species_full:
+                y_data = sol_int.sol_cons[0, :] * sol_int.mass_fracs_full[-1, :]
+            else:
+                y_data = sol_int.sol_cons[3 + spec_idx - 1, :]
         else:
             raise ValueError("Invalid field visualization variable:" + str(var_str))
 
         return y_data
+
+    def get_x_data(self, sol_domain, var_str):
+        """Get x-coordinates for plotting.
+
+        Handles issues with hyper-reduction where non-solution fields need to be sampled.
+        For really sparse sampling can lead to some wonky plots, but them's the breaks.
+
+        If expanding FieldPlot to plot a new non-solution profile, make sure accommodate it here.
+
+        Args:
+            sol_domain: SolutionDomain with which this Visualization is associated.
+            var_str: String corresponding to variable profile to be plotted.
+
+        Returns:
+            NumPy array of the x-coordinates for profile to be visualized.
+        """
+
+        if var_str == "source":
+            x_data = sol_domain.mesh.x_cell[sol_domain.direct_samp_idxs]
+        else:
+            x_data = sol_domain.mesh.x_cell
+
+        return x_data
 
     def save(self, iter_num, dpi=100):
         """Save plot to disk.
