@@ -1,25 +1,19 @@
+"""Miscellaneous functions that do not have a clear place in other modules."""
+
 import os
 import struct
 
 
 def write_to_file(fid, array, order="F"):
-    """
-    Write NumPy arrays to binary file using struct
+    """Write NumPy arrays to binary file using struct.
 
-    Inputs
-    ------
-    fid : file object
-        File opened with open(), in mode 'wb'
-    array : ndarray
-        Array to be written to fid
-    order (optional) : 'C' or 'F'
-        Order in which array will be flattened for output
-        'C' is row-major, 'F' is column-major
+    I used to use this for comparisons against GEMS, but is not
+    terribly useful otherwise. Kept here just in case.
 
-    Outputs
-    -------
-    None
-
+    Args:
+        fid: File opened with open(), in mode 'wb'.
+        array: Array to be written to fid.
+        order: "C" or "F", order in which array will be flattened for output. "C" is row-major, "F" is column-major.
     """
 
     if array.ndim > 1:
@@ -40,6 +34,17 @@ def write_to_file(fid, array, order="F"):
 
 
 def mkdir_shallow(base_dir, new_dir_name):
+    """Makes new directory, if it does not already exist.
+
+    Just a helper function for handling path joining.
+
+    Args:
+        base_dir: Path to directory in which new directory is to be made.
+        new_dir_name: Name of new directory to be created in base_dir.
+
+    Returns:
+        Path to new directory.
+    """
 
     new_dir = os.path.join(base_dir, new_dir_name)
     if not os.path.isdir(new_dir):

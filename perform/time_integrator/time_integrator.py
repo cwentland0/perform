@@ -7,7 +7,7 @@ class TimeIntegrator:
     with various time integrators.
 
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp.
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         dt: Physical time step size, in seconds.

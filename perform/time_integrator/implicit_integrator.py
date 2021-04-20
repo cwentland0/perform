@@ -16,7 +16,7 @@ class ImplicitIntegrator(TimeIntegrator):
     Please refer to the solver theory documentation for details on each method.
 
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp.
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         time_type: Set to "implicit".
@@ -58,7 +58,7 @@ class BDF(ImplicitIntegrator):
     Supports up to fourth-order accuracy, though anything greater than second-order is generally not stable.
 
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp.
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         coeffs: List of NumPy arrays containing the time derivative discretization coefficients for each order of accuracy.

@@ -22,8 +22,8 @@ class RomDomain:
     for separate models is necessary.
 
     When running a ROM simulation, perform.driver.main() will generate a RomDomain for each SolutionDomain for which
-    a ROM simulation is requested. The RomDomain will handle reading in the input parameters from rom_params.inp,
-    checking the validity of these parameters, and initializing all requested RomModel's.
+    a ROM simulation is requested. The RomDomain will handle reading in the input parameters from the ROM parameter
+    input file, checking the validity of these parameters, and initializing all requested RomModel's.
     
     During simulation runtime, RomDomain is responsible for executing most of each RomModel's higher-level functions
     and executing accessory functions, e.g. filtering. Beyond this, member functions of RomDomain generally handle
@@ -34,7 +34,7 @@ class RomDomain:
         solver: SystemSolver containing global simulation parameters.
 
     Attributes:
-        rom_dict: Dictionary of parameters read from rom_params.inp.
+        rom_dict: Dictionary of parameters read from ROM parameter input file.
         rom_method: String of ROM method to be applied (e.g. "LinearGalerkinProj").
         num_models: Number of separate models encapsulated by RomDomain.
         latent_dims: List of latent variable dimensions for each RomModel.

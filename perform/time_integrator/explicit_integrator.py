@@ -12,7 +12,7 @@ class ExplicitIntegrator(TimeIntegrator):
     All child classes must implement the solve_sol_change() member function.
 
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp.
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         time_type: Set to "explicit".
@@ -41,7 +41,7 @@ class RKExplicit(ExplicitIntegrator):
     Please refer to the solver theory documentation for more details on each method.
 
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         rk_rhs: List of NumPy arrays of prior RK iteration RHS evaluations.
@@ -115,7 +115,7 @@ class ClassicRK4(RKExplicit):
     """Classic explicit RK4 scheme.
     
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         subiter_max: Total number of subiterations for one physical time step.
@@ -143,7 +143,7 @@ class SSPRK3(RKExplicit):
     """Strong stability-preserving explicit RK3 scheme.
 
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         subiter_max: Total number of subiterations for one physical time step.
@@ -172,7 +172,7 @@ class JamesonLowStore(RKExplicit):
     Not actually low-storage to work with general RK format, just maintained here for consistency with old code.
 
     Args:
-        param_dict: Dictionary of parameters read from solver_params.inp
+        param_dict: Dictionary of parameters read from the solver parameters input file.
 
     Attributes:
         subiter_max: Total number of subiterations for one physical time step.

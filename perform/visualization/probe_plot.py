@@ -23,7 +23,7 @@ class ProbePlot(Visualization):
         probe_vars: List of strings of variables to be probed at each probe monitor location.
         vis_vars: List of num_subplots strings of variables to be visualized.
         probe_num: One-indexed probe number.
-        num_probes: Total number of probe monitors set in solver_params.inp
+        num_probes: Total number of probe monitors set in the solver parameters input file
         vis_x_bounds:
             List of num_subplots lists, each of length 2 including lower and upper bounds on the
             x-axis for each subplot. Setting to [None, None] allows for dynamic axis sizing.
@@ -35,7 +35,7 @@ class ProbePlot(Visualization):
     Attributes:
         vis_type: Set to "probe".
         x_label: Set to "t (s)", x-axis label.
-        probe_num: One-indexed probe number, corresponding to labels given in solver_params.inp.
+        probe_num: One-indexed probe number, corresponding to labels given in the solver parameters input file.
         probe_vars: List of strings of variables to be probed at each probe monitor location.
         ax_line: List of matplotlib.lines.Line2D artists for each subplot.
         fig_file: 

@@ -1,4 +1,5 @@
-# useful constants used throughout the code
+"""Useful constants used throughout the code"""
+
 import numpy as np
 
 # Precision of real and complex numbers
