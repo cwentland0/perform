@@ -9,10 +9,29 @@ from perform.visualization.field_plot import FieldPlot
 from perform.visualization.probe_plot import ProbePlot
 from perform.input_funcs import catch_input, catch_list
 
+# TODO: must adjust these functions for handling multiple SolutionDomains
+
 
 class VisualizationGroup:
     """
-    Container class for all visualizations
+    Container class for visualizations to be generated.
+
+    Reads input parameters and initializes an arbitrary number of Visualization objects for plotting data.
+    
+    Provides utility functions for updating, drawing, and saving these visualizations during simulation runtime.
+
+    Child classes must implement plot() and save() member functions.
+
+    Args:
+        sol_domain: SolutionDomain with which this VisualizationGroup is associated.
+        solver: SystemSolver containing global simulation parameters.
+
+    Attributes:
+        vis_show: Boolean flag indicating whether to display visualization plots on the user's screen.
+        vis_save: Boolean flag indicating whether to save visualization plot images to disk.
+        vis_interval: Physical time step interval at which to display/save visualization plots.
+        num_vis_plots: Total number of visualization figures.
+        vis_list: List containing Visualization objects to be plotted.
     """
 
     def __init__(self, sol_domain, solver):
@@ -22,7 +41,6 @@ class VisualizationGroup:
         self.vis_show = catch_input(param_dict, "vis_show", True)
         self.vis_save = catch_input(param_dict, "vis_save", False)
         self.vis_interval = catch_input(param_dict, "vis_interval", 1)
-        self.nice_vis = catch_input(param_dict, "nice_vis", False)
 
         # If not saving or showing, don't even draw the plots
         self.vis_draw = True
@@ -53,7 +71,7 @@ class VisualizationGroup:
         # Initialize each figure object
         for vis_idx in range(1, self.num_vis_plots + 1):
 
-            # some parameters all plots have
+            # Some parameters all plots have
             vis_type = str(param_dict["vis_type_" + str(vis_idx)])
             vis_vars = catch_list(param_dict, "vis_var_" + str(vis_idx), [None])
             vis_x_bounds = catch_list(
@@ -109,8 +127,14 @@ class VisualizationGroup:
             plt.pause(0.001)
 
     def draw_plots(self, sol_domain, solver):
-        """
-        Helper function to draw, display, and save plots
+        """Draw, display, and save plots if requested.
+
+        Loops through Visualization objects and draws, displays, and/or saves visualization plots
+        at the physical time step interval specified by vis_interval.
+        
+        Args:
+            sol_domain: SolutionDomain with which this VisualizationGroup is associated.
+            solver: SystemSolver containing global simulation parameters.
         """
 
         if not self.vis_draw:
@@ -128,7 +152,7 @@ class VisualizationGroup:
 
             for vis in self.vis_list:
 
-                # draw and save plots
+                # Draw and save plots
                 if vis.vis_type == "field":
                     vis.plot(
                         sol_domain.sol_int.sol_prim,

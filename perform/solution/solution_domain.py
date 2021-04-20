@@ -275,7 +275,7 @@ class SolutionDomain:
         Outputs iterations number, and for implicit time integrators, residual norms for iterative convergence.
 
         Args:
-            solver: SystemSolver containing global simulation parameters. 
+            solver: SystemSolver containing global simulation parameters.
         """
 
         if not solver.run_steady:
