@@ -95,8 +95,34 @@ class FiniteRateIrrevReaction(ReactionModel):
 
         return source, wf
 
-    def calc_jacob_prim(self, sol_int, samp_idxs=np.s_[:]):
-        """Compute and assemble source Jacobian with respect to the primitive variables.
+    def calc_jacob(self, sol_int, wrt_prim, samp_idxs=np.s_[:]):
+        """Compute source term Jacobian.
+
+        Simply a helper function to select whether to compute the Jacobian w/r/t to the primitive or
+        conservative variables, depending on whether dual time-stepping is used.
+
+        Args:
+            sol_int: SolutionInterior of the SolutionDomain with which this ReactionModel is associated.
+            samp_idxs:
+                Either a NumPy slice or NumPy array for selecting sampled cells to compute the Jacobian at.
+                Used for hyper-reduction of projection-based reduced-order models.
+
+        Returns:
+            jacob: center block diagonal of source Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its own state.
+        """
+
+        jacob = self.calc_d_source_d_sol_prim(sol_int, samp_idxs=samp_idxs)
+        # TODO: when conservative Jacobian is implemented, uncomment this
+        # if wrt_prim:
+        #     jacob = self.calc_d_source_d_sol_prim(sol_int, samp_idxs=samp_idxs)
+        # else:
+        #     jacob = self.calc_d_source_d_sol_cons(sol_int, samp_idxs=samp_idxs)
+
+        return jacob
+
+    def calc_d_source_d_sol_prim(self, sol_int, samp_idxs=np.s_[:]):
+        """Compute the source term Jacobian with respect to the primitive variables.
 
         Calculates source Jacobian with respect to each finite volume cell's own state. This ultimately
         contributes to the center block diagonal of the residual Jacobian.
@@ -158,3 +184,21 @@ class FiniteRateIrrevReaction(ReactionModel):
         )
 
         return jacob
+
+    def calc_d_source_d_sol_cons(self, sol_int, samp_idxs=np.s_[:]):
+        """Compute the source term Jacobian with respect to the conservative variables.
+
+        More details coming when this is implemented!
+
+        Args:
+            sol_int: SolutionInterior of the SolutionDomain with which this ReactionModel is associated.
+            samp_idxs:
+                Either a NumPy slice or NumPy array for selecting sampled cells to compute the Jacobian at.
+                Used for hyper-reduction of projection-based reduced-order models.
+
+        Returns:
+            jacob: center block diagonal of source Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its own conservative state.
+        """
+
+        raise ValueError("Conservative source term Jacobian not implemented yet!")

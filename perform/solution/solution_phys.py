@@ -144,6 +144,9 @@ class SolutionPhys:
         ) / (self.cp_mix - self.r_mix)
         self.sol_prim[0, :] = self.sol_cons[0, :] * self.r_mix * self.sol_prim[2, :]
 
+        # Update sound speed
+        self.c = self.gas_model.calc_sound_speed(self.sol_prim[2, :], r_mix=self.r_mix, gamma_mix=self.gamma_mix)
+
     def calc_state_from_prim(self):
         """Compute primitive state from conservative state, and thermodynamic properties.
 
@@ -178,6 +181,9 @@ class SolutionPhys:
             * (self.enth_ref_mix + self.cp_mix * self.sol_prim[2, :] + np.power(self.sol_prim[1, :], 2.0) / 2.0)
         ) - self.sol_prim[0, :]
         self.sol_cons[3:, :] = self.sol_cons[[0], :] * self.sol_prim[3:, :]
+
+        # Update sound speed
+        self.c = self.gas_model.calc_sound_speed(self.sol_prim[2, :], r_mix=self.r_mix, gamma_mix=self.gamma_mix)
 
     def calc_state_from_rho_h0(self):
         """Iteratively solve for pressure and temperature given fixed density and stagnation enthalpy.

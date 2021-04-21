@@ -82,8 +82,8 @@ class StandardViscFlux(Flux):
 
         return flux_visc
 
-    def calc_jacob_prim(self, sol_domain):
-        """Compute and assemble flux Jacobian with respect to the primitive variables.
+    def calc_jacob(self, sol_domain, wrt_prim):
+        """Compute and assemble flux Jacobian with respect to the primitive or conservative variables.
 
         Calculates analytical flux Jacobian at each face and assembles Jacobian with respect to each
         finite volume cell's state. Note that the gradient with respect to boundary ghost cell states are
@@ -91,6 +91,7 @@ class StandardViscFlux(Flux):
 
         Args:
             sol_domain: SolutionDomain with which this Flux is associated.
+            wrt_prim: 
 
         Returns:
             jacob_center_cell: center block diagonal of flux Jacobian, representing the gradient of a given cell's
@@ -109,6 +110,11 @@ class StandardViscFlux(Flux):
 
         # Jacobian of viscous flux vector at each face
         jacob_face = self.calc_d_visc_flux_d_sol_prim(sol_domain.sol_ave)
+        # TODO: when conservative Jacobian is implemented, uncomment this
+        # if wrt_prim:
+        #     jacob_face = self.calc_d_visc_flux_d_sol_prim(sol_domain.sol_ave)
+        # else:
+        #     jacob_face = self.calc_d_visc_flux_d_sol_cons(sol_domain.sol_ave)
 
         # center, lower, and upper block diagonal of full numerical flux Jacobian
         jacob_center_cell = jacob_face[:, :, center_samp + 1] - jacob_face[:, :, center_samp]
@@ -127,6 +133,9 @@ class StandardViscFlux(Flux):
 
         Args:
             sol_ave: SolutionPhys associated with the average state at each finite volume face.
+
+        Returns:
+            3D Jacobian of viscous flux Jacobian w/r/t the primitive state
         """
 
         gas = sol_ave.gas_model
@@ -150,3 +159,17 @@ class StandardViscFlux(Flux):
             d_flux_d_sol_prim[i, i, :] = sol_ave.sol_cons[0, :] * sol_ave.mass_diff_mix[i - 3, :]
 
         return d_flux_d_sol_prim
+
+    def calc_d_visc_flux_d_sol_cons(self, sol_ave):
+        """Compute Jacobian of viscous flux vector with respect to the conservative state.
+
+        Details coming when this is implemented!
+
+        Args:
+            sol_ave: SolutionPhys associated with the average state at each finite volume face.
+
+        Returns:
+
+        """
+
+        raise ValueError("Conservative Jacobian not implemented yet.")

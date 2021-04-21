@@ -109,3 +109,17 @@ class InviscFlux(Flux):
                 d_flux_d_sol_prim[i, j, :] = vel * ((i == j) * rho + mass_fracs[i - 3, :] * d_rho_d_mass_frac[j - 3, :])
 
         return d_flux_d_sol_prim
+
+    def calc_d_inv_flux_d_sol_cons(self, sol):
+        """Compute Jacobian of inviscid flux vector with respect to conservative state.
+
+        More details coming when this is implemented!
+
+        Args:
+            sol: SolutionPhys representing the left or right reconstructed face state.
+
+        Returns:
+            3D NumPy array of the inviscid flux vector Jacobian.
+        """
+
+        raise ValueError("Not implemented yet")

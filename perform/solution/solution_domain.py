@@ -401,6 +401,11 @@ class SolutionDomain:
         if self.visc_flux_name != "invisc":
             flux -= self.visc_flux_scheme.calc_flux(self)
 
+        # Compute maximum wave speeds, if requested
+        if self.time_integrator.adapt_dtau:
+            srf = np.maximum(self.sol_ave.sol_prim[1, :] + self.sol_ave.c, self.sol_ave.sol_prim[1, :] - self.sol_ave.c)
+            self.sol_int.srf[samp_idxs] = np.maximum(srf[self.flux_rhs_idxs], srf[self.flux_rhs_idxs + 1])
+
         # Compute RHS
         self.sol_int.rhs[:, samp_idxs] = flux[:, self.flux_rhs_idxs] - flux[:, self.flux_rhs_idxs + 1]
         sol_int.rhs[:, samp_idxs] /= self.mesh.dx
@@ -461,73 +466,15 @@ class SolutionDomain:
         Returns:
             2D scipy.sparse.csr_matrix of the residual Jacobian, ordered in such a way as to correspond with a
             row-major flattening of the residual vector (i.e. first by cells, then by variables).
-
         """
 
         sol_int = self.sol_int
         gas = self.gas_model
         samp_idxs = self.gamma_idxs
 
-        # Enthalpies
-        sol_int.hi[:, samp_idxs] = gas.calc_spec_enth(sol_int.sol_prim[2, samp_idxs])
-        sol_int.h0[samp_idxs] = gas.calc_stag_enth(
-            sol_int.sol_prim[1, samp_idxs], sol_int.mass_fracs_full[:, samp_idxs], spec_enth=sol_int.hi[:, samp_idxs],
-        )
-
-        # Density derivatives
-        (
-            sol_int.d_rho_d_press[samp_idxs],
-            sol_int.d_rho_d_temp[samp_idxs],
-            sol_int.d_rho_d_mass_frac[:, samp_idxs],
-        ) = gas.calc_dens_derivs(
-            sol_int.sol_cons[0, samp_idxs],
-            wrt_press=True,
-            pressure=sol_int.sol_prim[0, samp_idxs],
-            wrt_temp=True,
-            temperature=sol_int.sol_prim[2, samp_idxs],
-            wrt_spec=True,
-            mix_mol_weight=sol_int.mw_mix[samp_idxs],
-        )
-
-        # Stagnation enthalpy derivatives
-        (
-            sol_int.d_enth_d_press[samp_idxs],
-            sol_int.d_enth_d_temp[samp_idxs],
-            sol_int.d_enth_d_mass_frac[:, samp_idxs],
-        ) = gas.calc_stag_enth_derivs(
-            wrt_press=True,
-            wrt_temp=True,
-            mass_fracs=sol_int.sol_prim[3:, samp_idxs],
-            wrt_spec=True,
-            spec_enth=sol_int.hi[:, samp_idxs],
-        )
-
-        # Flux jacobians
-        (d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right) = self.invisc_flux_scheme.calc_jacob_prim(
-            self
-        )
-
-        if self.visc_flux_name != "invisc":
-            (
-                d_visc_flux_d_sol_prim,
-                d_visc_flux_d_sol_prim_left,
-                d_visc_flux_d_sol_prim_right,
-            ) = self.visc_flux_scheme.calc_jacob_prim(self)
-
-            d_flux_d_sol_prim += d_visc_flux_d_sol_prim
-            d_flux_d_sol_prim_left += d_visc_flux_d_sol_prim_left
-            d_flux_d_sol_prim_right += d_visc_flux_d_sol_prim_right
-
-        d_flux_d_sol_prim /= self.mesh.dx
-        d_flux_d_sol_prim_left /= self.mesh.dx
-        d_flux_d_sol_prim_right /= self.mesh.dx
-
-        d_rhs_d_sol_prim = d_flux_d_sol_prim.copy()
-
-        # Contribution to main block diagonal from source term Jacobian
-        if not solver.source_off:
-            d_source_d_sol_prim = self.reaction_model.calc_jacob_prim(sol_int, samp_idxs=self.direct_samp_idxs)
-            d_rhs_d_sol_prim -= d_source_d_sol_prim
+        # Calculate RHS and solution Jacobians
+        rhs_jacob_center, flux_jacob_left, flux_jacob_right = self.calc_rhs_jacob(solver)
+        sol_jacob = sol_int.calc_sol_jacob(not self.time_integrator.dual_time, samp_idxs=samp_idxs)
 
         # TODO: make this specific for each ImplicitIntegrator
         dt_coeff_idx = min(solver.iter, self.time_integrator.time_order) - 1
@@ -536,47 +483,117 @@ class SolutionDomain:
         # Modifications depending on whether dual-time integration is being used
         if self.time_integrator.dual_time:
 
-            # Contribution to main block diagonal from solution Jacobian
-            # TODO: move these conditionals into calc_adaptive_dtau(), change to calc_dtau()
-            gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim(samp_idxs=self.direct_samp_idxs)
-            if self.time_integrator.adapt_dtau:
-                dtau_inv = sol_int.calc_adaptive_dtau(self.mesh)
-            else:
-                dtau_inv = 1.0 / self.time_integrator.dtau * np.ones(self.num_samp_cells, dtype=REAL_TYPE)
-
-            d_rhs_d_sol_prim += gamma_matrix * (dtau_inv[None, None, :] + dt_inv)
+            dtau = self.calc_dtau()
+            rhs_jacob_center += sol_jacob * (1.0 / dtau[None, None, :] + dt_inv)
 
             # Assemble sparse Jacobian from main, upper, and lower block diagonals
-            res_jacob = sol_int.res_jacob_assemble(d_rhs_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right)
+            res_jacob = sol_int.res_jacob_assemble(rhs_jacob_center, flux_jacob_left, flux_jacob_right)
 
         else:
             # TODO: this is hilariously inefficient, need to make Jacobian functions w/r/t conservative state
             # 	Convergence is also noticeably worse, since this is approximate
             # 	Transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
 
-            gamma_matrix_inv = np.transpose(
-                sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=self.gamma_idxs), axes=(2, 0, 1)
-            )
+            sol_jacob = np.transpose(sol_jacob, axes=(2, 0, 1))
 
-            d_rhs_d_sol_cons = np.transpose(
-                np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_center, :, :],
-                axes=(1, 2, 0),
-            )
-            d_flux_d_sol_cons_left = np.transpose(
-                np.transpose(d_flux_d_sol_prim_left, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_left, :, :],
-                axes=(1, 2, 0),
-            )
-            d_flux_d_sol_cons_right = np.transpose(
-                np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_right, :, :],
-                axes=(1, 2, 0),
-            )
+            rhs_jacob_center = np.transpose(
+                np.transpose(rhs_jacob_center, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_center, :, :], axes=(1, 2, 0))
+            flux_jacob_left = np.transpose(
+                np.transpose(flux_jacob_left, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_left, :, :], axes=(1, 2, 0))
+            flux_jacob_right = np.transpose(
+                np.transpose(flux_jacob_right, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_right, :, :], axes=(1, 2, 0))
 
             dt_arr = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None], self.num_samp_cells, axis=2)
-            d_rhs_d_sol_cons += dt_arr
+            rhs_jacob_center += dt_arr
 
-            res_jacob = sol_int.res_jacob_assemble(d_rhs_d_sol_cons, d_flux_d_sol_cons_left, d_flux_d_sol_cons_right)
+            res_jacob = sol_int.res_jacob_assemble(rhs_jacob_center, flux_jacob_left, flux_jacob_right)
 
         return res_jacob
+
+    def calc_rhs_jacob(self, solver):
+        """Compute Jacobian of the right-hand side of the semi-discrete governing ODE.
+
+        Calculates and collects contributions from the inviscid flux, viscous flux, and reaction source term.
+        If dual_time is True, computes the Jacobians with respect to the primitive variables.
+        Otherwise computes the Jacobians with respect to the conservative variables.
+
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+
+        Returns:
+            rhs_jacob_center: center block diagonal of flux and source contributions to the Jacobian, representing
+            the gradient of a given cell's contribution with respect to its own state.
+            flux_jacob_left: lower block diagonal of flux Jacobian, representing the gradient of a given cell's
+            flux contribution with respect to its left neighbor's state.
+            flux_jacob_right: upper block diagonal of flux Jacobian, representing the gradient of a given cell's
+            flux contribution with respect to its right neighbor's state.
+        """
+
+        sol_int = self.sol_int
+
+        # Flux jacobians
+        flux_jacob_center, flux_jacob_left, flux_jacob_right = self.invisc_flux_scheme.calc_jacob(self, wrt_prim=self.time_integrator.dual_time)
+
+        if self.visc_flux_name != "invisc":
+            visc_flux_jacob_center, visc_flux_jacob_left, visc_flux_jacob_right = self.visc_flux_scheme.calc_jacob(self, wrt_prim=self.time_integrator.dual_time)
+
+            flux_jacob_center += visc_flux_jacob_center
+            flux_jacob_left += visc_flux_jacob_left
+            flux_jacob_right += visc_flux_jacob_right
+
+        flux_jacob_center /= self.mesh.dx
+        flux_jacob_left /= self.mesh.dx
+        flux_jacob_right /= self.mesh.dx
+
+        rhs_jacob_center = flux_jacob_center.copy()
+
+        # Contribution to main block diagonal from source term Jacobian
+        if not solver.source_off:
+            source_jacob = self.reaction_model.calc_jacob(sol_int, wrt_prim=self.time_integrator.dual_time, samp_idxs=self.direct_samp_idxs)
+            rhs_jacob_center -= source_jacob
+
+        return rhs_jacob_center, flux_jacob_left, flux_jacob_right
+
+    def calc_dtau(self):
+        """Calculate dtau for each cell.
+
+        If adapt_dtau is True, will adapt dtau based on user input constraints and local wave speed.
+        Otherwise, will simply return the fixed value of dtau.
+
+        Adaptation is intended to improve dual time-stepping robustness, but mostly acts to slow convergence.
+        For now, I recommend not setting adapt_dtau to False until this is completed.
+
+        Returns:
+            NumPy array of the dtau profile.
+        """
+
+        # If not adapting, just return fixed dtau
+        if not self.time_integrator.adapt_dtau:
+            dtau = self.time_integrator.dtau * np.ones(self.num_samp_cells, dtype=REAL_TYPE)
+            return dtau
+
+        gas = self.gas_model
+        sol_int = self.sol_int
+        samp_idxs = self.direct_samp_idxs
+
+        # Compute initial dtau from input cfl and srf
+        dtaum = 1.0 * self.mesh.dx / self.sol_int.srf[samp_idxs]
+        dtau = self.time_integrator.cfl * dtaum
+
+        # Limit by von Neumann number
+        if self.visc_flux_name != "invisc":
+            # TODO: calculating this is stupidly expensive
+            dyn_visc_mix = gas.calc_mix_dynamic_visc(
+                temperature=sol_int.sol_prim[2, samp_idxs], mass_fracs=sol_int.sol_prim[3:, samp_idxs]
+            )
+            nu = dyn_visc_mix / sol_int.sol_cons[0, samp_idxs]
+            dtau = np.minimum(dtau, self.time_integrator.vnn * np.square(self.mesh.dx) / nu)
+            dtaum = np.minimum(dtaum, 3.0 / nu)
+
+        # Limit dtau
+        # TODO: finish implementation
+
+        return dtau
 
     def write_iter_outputs(self, solver):
         """Store and save data at time step intervals.

@@ -67,29 +67,13 @@ class RoeInviscFlux(InviscFlux):
         sol_ave.sol_prim = fac[None, :] * sol_prim_left + fac1[None, :] * sol_prim_right
         sol_ave.mass_fracs_full = gas_model.calc_all_mass_fracs(sol_ave.sol_prim[3:, :], threshold=True)
 
-        # Adjust iteratively to conform to Roe average density and enthalpy
+        # Adjust primitive state iteratively to conform to Roe average density and enthalpy, update state
         sol_ave.calc_state_from_rho_h0()
-
-        # Compute Roe average state at faces, associated fluid properties
-        sol_ave.calc_state_from_prim()
-        sol_ave.gamma_mix = gas_model.calc_mix_gamma(sol_ave.r_mix, sol_ave.cp_mix)
-        sol_ave.c = gas_model.calc_sound_speed(
-            sol_ave.sol_prim[2, :],
-            r_mix=sol_ave.r_mix,
-            gamma_mix=sol_ave.gamma_mix,
-            mass_fracs=sol_ave.sol_prim[3:, :],
-            cp_mix=sol_ave.cp_mix,
-        )
+        sol_ave.calc_state_from_prim()        
 
         # Compute inviscid flux vectors of left and right state
         flux_left = self.calc_inv_flux(sol_cons_left, sol_prim_left, sol_left.h0)
         flux_right = self.calc_inv_flux(sol_cons_right, sol_prim_right, sol_right.h0)
-
-        # Maximum wave speed for adapting dtau, if needed
-        # TODO: need to adaptively size this for hyper-reduction
-        if sol_domain.time_integrator.adapt_dtau:
-            srf = np.maximum(sol_ave.sol_prim[1, :] + sol_ave.c, sol_ave.sol_prim[1, :] - sol_ave.c)
-            sol_domain.sol_int.srf = np.maximum(srf[:-1], srf[1:])
 
         # Dissipation term
         d_sol_prim = sol_prim_left - sol_prim_right
@@ -213,7 +197,7 @@ class RoeInviscFlux(InviscFlux):
 
         return diss_matrix
 
-    def calc_jacob_prim(self, sol_domain):
+    def calc_jacob(self, sol_domain, wrt_prim):
         """Compute and assemble numerical inviscid flux Jacobian with respect to the primitive variables.
 
         Calculates flux Jacobian at each face and assembles Jacobian with respect to each
@@ -225,11 +209,11 @@ class RoeInviscFlux(InviscFlux):
 
         Returns:
             jacob_center_cell: center block diagonal of flux Jacobian, representing the gradient of a given cell's
-            viscous flux contribution with respect to its own primitive state.
+            viscous flux contribution with respect to its own state.
             jacob_left_cell: lower block diagonal of flux Jacobian, representing the gradient of a given cell's
-            viscous flux contribution with respect to its left neighbor's primitive state.
+            viscous flux contribution with respect to its left neighbor's state.
             jacob_left_cell: upper block diagonal of flux Jacobian, representing the gradient of a given cell's
-            viscous flux contribution with respect to its right neighbor's primitive state.
+            viscous flux contribution with respect to its right neighbor's state.
         """
 
         roe_diss = sol_domain.roe_diss
@@ -240,6 +224,14 @@ class RoeInviscFlux(InviscFlux):
         # Jacobian of inviscid flux vector at left and right face reconstruction
         jacob_face_left = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
         jacob_face_right = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
+        # TODO: when conservative Jacobian is implemented, uncomment this
+        # if wrt_prim:
+        #     jacob_face_left = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
+        #     jacob_face_right = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
+        # else:
+        #     raise ValueError("Roe disspation issue not addressed yet")
+        #     jacob_face_left = self.calc_d_inv_flux_d_sol_cons(sol_domain.sol_left)
+        #     jacob_face_right = self.calc_d_inv_flux_d_sol_cons(sol_domain.sol_right)
 
         # center, lower, and upper block diagonal of full numerical flux Jacobian
         jacob_center_cell = (jacob_face_left[:, :, center_samp + 1] + roe_diss[:, :, center_samp + 1]) + (

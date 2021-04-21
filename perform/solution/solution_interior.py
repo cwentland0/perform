@@ -159,6 +159,60 @@ class SolutionInterior(SolutionPhys):
                 self.d_sol_norm_l1 = 0.0
                 self.d_sol_norm_hist = np.zeros((solver.num_steps, 2), dtype=REAL_TYPE)
 
+    def calc_sol_jacob(self, inverse, samp_idxs=np.s_[:], calc_enthalpies=True, calc_derivs=True):
+        """Compute Jacobian of conservative solution w/r/t primitive solution, or vice versa.
+
+        Utility function for computing Gamma or Gamma^-1 for residual Jacobian calculations.
+
+        Args:
+            inverse: Boolean flag. If True, calculate Gamma^-1. If False, calculate Gamma.
+            calc_enthalpies: Boolean flag indicating whether to calculate species and stagnation enthalpy.
+            calc_derivs: Boolean flag indicating whether to calculate density and stagnation enthalpy derivatives.
+
+        Returns:
+            3D NumPy array of the solution Jacobian.
+        """
+
+        gas = self.gas_model
+
+        if calc_enthalpies:
+            self.hi[:, samp_idxs] = gas.calc_spec_enth(self.sol_prim[2, samp_idxs])
+            self.h0[samp_idxs] = gas.calc_stag_enth(
+                self.sol_prim[1, samp_idxs], self.mass_fracs_full[:, samp_idxs], spec_enth=self.hi[:, samp_idxs],
+            )
+
+        if calc_derivs:
+            # Density derivatives
+            self.d_rho_d_press[samp_idxs], self.d_rho_d_temp[samp_idxs], self.d_rho_d_mass_frac[:, samp_idxs] = gas.calc_dens_derivs(
+                self.sol_cons[0, samp_idxs],
+                wrt_press=True,
+                pressure=self.sol_prim[0, samp_idxs],
+                wrt_temp=True,
+                temperature=self.sol_prim[2, samp_idxs],
+                wrt_spec=True,
+                mix_mol_weight=self.mw_mix[samp_idxs],
+            )
+
+            # Stagnation enthalpy derivatives
+            (
+                self.d_enth_d_press[samp_idxs],
+                self.d_enth_d_temp[samp_idxs],
+                self.d_enth_d_mass_frac[:, samp_idxs],
+            ) = gas.calc_stag_enth_derivs(
+                wrt_press=True,
+                wrt_temp=True,
+                mass_fracs=self.sol_prim[3:, samp_idxs],
+                wrt_spec=True,
+                spec_enth=self.hi[:, samp_idxs],
+            )
+
+        if inverse:
+            sol_jacob = self.calc_d_sol_prim_d_sol_cons(samp_idxs=samp_idxs)
+        else:
+            sol_jacob = self.calc_d_sol_cons_d_sol_prim(samp_idxs=samp_idxs)
+
+        return sol_jacob
+
     def calc_d_sol_prim_d_sol_cons(self, samp_idxs=np.s_[:]):
         """Compute the Jacobian of the primitive state w/r/t/ the conservative state
 
@@ -366,40 +420,6 @@ class SolutionInterior(SolutionPhys):
         )
 
         return res_jacob
-
-    def calc_adaptive_dtau(self, mesh):
-        """Adapt dtau for each cell based on user input constraints and local wave speed.
-
-        This function is intended to improve dual time-stepping robustness, but mostly acts to slow convergence.
-        For now, I recommend not setting adapt_dtau until this is completed.
-
-        Args:
-            mesh: Mesh associated with SolutionDomain with which this SolutionPhys is associated.
-
-        Returns:
-            Reciprocal of adapted dtau profile.
-        """
-
-        gas_model = self.gas_model
-
-        # Compute initial dtau from input cfl and srf
-        dtaum = 1.0 * mesh.dx / self.srf
-        dtau = self.time_integrator.cfl * dtaum
-
-        # Limit by von Neumann number
-        if self.visc_flux_name != "invisc":
-            # TODO: calculating this is stupidly expensive
-            self.dyn_visc_mix = gas_model.calc_mix_dynamic_visc(
-                temperature=self.sol_prim[2, :], mass_fracs=self.sol_prim[3:, :]
-            )
-            nu = self.dyn_visc_mix / self.sol_cons[0, :]
-            dtau = np.minimum(dtau, self.time_integrator.vnn * np.square(mesh.dx) / nu)
-            dtaum = np.minimum(dtaum, 3.0 / nu)
-
-        # Limit dtau
-        # TODO: finish implementation
-
-        return 1.0 / dtau
 
     def update_sol_hist(self):
         """Update time history of solution and RHS function for multi-stage time integrators.
