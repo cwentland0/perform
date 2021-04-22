@@ -364,6 +364,7 @@ class SolutionDomain:
         # Compute ghost cell state (if adjacent cell is sampled)
         # TODO: update this after higher-order contribution?
         # TODO: adapt pass to calc_boundary_state() depending on space scheme
+        # breakpoint()
         if samp_idxs[0] == 0:
             sol_inlet.calc_boundary_state(
                 solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, :2], sol_cons=sol_int.sol_cons[:, :2]
@@ -393,8 +394,11 @@ class SolutionDomain:
             sol_right.sol_prim[:, self.flux_right_extract] -= (self.mesh.dx / 2.0) * sol_prim_grad[
                 :, self.grad_right_extract
             ]
-            sol_left.calc_state_from_prim()
-            sol_right.calc_state_from_prim()
+            sol_left.update_state(from_cons=False)
+            sol_right.update_state(from_cons=False)
+
+        # Compute average state at face
+        self.invisc_flux_scheme.calc_avg_state(sol_left, sol_right, self.sol_ave)
 
         # Compute fluxes
         flux = self.invisc_flux_scheme.calc_flux(self)
@@ -497,11 +501,14 @@ class SolutionDomain:
             sol_jacob = np.transpose(sol_jacob, axes=(2, 0, 1))
 
             rhs_jacob_center = np.transpose(
-                np.transpose(rhs_jacob_center, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_center, :, :], axes=(1, 2, 0))
+                np.transpose(rhs_jacob_center, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_center, :, :], axes=(1, 2, 0)
+            )
             flux_jacob_left = np.transpose(
-                np.transpose(flux_jacob_left, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_left, :, :], axes=(1, 2, 0))
+                np.transpose(flux_jacob_left, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_left, :, :], axes=(1, 2, 0)
+            )
             flux_jacob_right = np.transpose(
-                np.transpose(flux_jacob_right, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_right, :, :], axes=(1, 2, 0))
+                np.transpose(flux_jacob_right, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_right, :, :], axes=(1, 2, 0)
+            )
 
             dt_arr = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None], self.num_samp_cells, axis=2)
             rhs_jacob_center += dt_arr
@@ -532,10 +539,14 @@ class SolutionDomain:
         sol_int = self.sol_int
 
         # Flux jacobians
-        flux_jacob_center, flux_jacob_left, flux_jacob_right = self.invisc_flux_scheme.calc_jacob(self, wrt_prim=self.time_integrator.dual_time)
+        flux_jacob_center, flux_jacob_left, flux_jacob_right = self.invisc_flux_scheme.calc_jacob(
+            self, wrt_prim=self.time_integrator.dual_time
+        )
 
         if self.visc_flux_name != "invisc":
-            visc_flux_jacob_center, visc_flux_jacob_left, visc_flux_jacob_right = self.visc_flux_scheme.calc_jacob(self, wrt_prim=self.time_integrator.dual_time)
+            visc_flux_jacob_center, visc_flux_jacob_left, visc_flux_jacob_right = self.visc_flux_scheme.calc_jacob(
+                self, wrt_prim=self.time_integrator.dual_time
+            )
 
             flux_jacob_center += visc_flux_jacob_center
             flux_jacob_left += visc_flux_jacob_left
@@ -549,7 +560,9 @@ class SolutionDomain:
 
         # Contribution to main block diagonal from source term Jacobian
         if not solver.source_off:
-            source_jacob = self.reaction_model.calc_jacob(sol_int, wrt_prim=self.time_integrator.dual_time, samp_idxs=self.direct_samp_idxs)
+            source_jacob = self.reaction_model.calc_jacob(
+                sol_int, wrt_prim=self.time_integrator.dual_time, samp_idxs=self.direct_samp_idxs
+            )
             rhs_jacob_center -= source_jacob
 
         return rhs_jacob_center, flux_jacob_left, flux_jacob_right
@@ -572,7 +585,6 @@ class SolutionDomain:
             dtau = self.time_integrator.dtau * np.ones(self.num_samp_cells, dtype=REAL_TYPE)
             return dtau
 
-        gas = self.gas_model
         sol_int = self.sol_int
         samp_idxs = self.direct_samp_idxs
 
@@ -583,12 +595,9 @@ class SolutionDomain:
         # Limit by von Neumann number
         if self.visc_flux_name != "invisc":
             # TODO: calculating this is stupidly expensive
-            dyn_visc_mix = gas.calc_mix_dynamic_visc(
-                temperature=sol_int.sol_prim[2, samp_idxs], mass_fracs=sol_int.sol_prim[3:, samp_idxs]
-            )
-            nu = dyn_visc_mix / sol_int.sol_cons[0, samp_idxs]
-            dtau = np.minimum(dtau, self.time_integrator.vnn * np.square(self.mesh.dx) / nu)
-            dtaum = np.minimum(dtaum, 3.0 / nu)
+            kin_visc_mix = sol_int.dyn_visc_mix / sol_int.sol_cons[0, samp_idxs]
+            dtau = np.minimum(dtau, self.time_integrator.vnn * np.square(self.mesh.dx) / kin_visc_mix)
+            dtaum = np.minimum(dtaum, 3.0 / kin_visc_mix)
 
         # Limit dtau
         # TODO: finish implementation
@@ -672,15 +681,6 @@ class SolutionDomain:
             solver: SystemSolver containing global simulation parameters.
         """
 
-        # TODO: throw error for source probe in ghost cells
-
-        if "inlet" in self.probe_secs:
-            mass_fracs_full_inlet = self.gas_model.calc_all_mass_fracs(self.sol_inlet.sol_prim[3:, :], threshold=False)
-        if "outlet" in self.probe_secs:
-            mass_fracs_full_outlet = self.gas_model.calc_all_mass_fracs(
-                self.sol_outlet.sol_prim[3:, :], threshold=False
-            )
-
         for probe_iter, probe_idx in enumerate(self.probe_idxs):
 
             # Determine where the probe monitor is
@@ -688,11 +688,11 @@ class SolutionDomain:
             if probe_sec == "inlet":
                 sol_prim_probe = self.sol_inlet.sol_prim[:, 0]
                 sol_cons_probe = self.sol_inlet.sol_cons[:, 0]
-                mass_fracs_full = mass_fracs_full_inlet[:, 0]
+                mass_fracs_full = self.sol_inlet.mass_fracs_full[:, 0]
             elif probe_sec == "outlet":
                 sol_prim_probe = self.sol_outlet.sol_prim[:, 0]
                 sol_cons_probe = self.sol_outlet.sol_cons[:, 0]
-                mass_fracs_full = mass_fracs_full_outlet[:, 0]
+                mass_fracs_full = self.sol_outlet.mass_fracs_full[:, 0]
             else:
                 sol_prim_probe = self.sol_int.sol_prim[:, probe_idx]
                 sol_cons_probe = self.sol_int.sol_cons[:, probe_idx]

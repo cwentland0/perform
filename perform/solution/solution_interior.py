@@ -159,10 +159,11 @@ class SolutionInterior(SolutionPhys):
                 self.d_sol_norm_l1 = 0.0
                 self.d_sol_norm_hist = np.zeros((solver.num_steps, 2), dtype=REAL_TYPE)
 
-    def calc_sol_jacob(self, inverse, samp_idxs=np.s_[:], calc_enthalpies=True, calc_derivs=True):
+    def calc_sol_jacob(self, inverse, samp_idxs=np.s_[:]):
         """Compute Jacobian of conservative solution w/r/t primitive solution, or vice versa.
 
         Utility function for computing Gamma or Gamma^-1 for residual Jacobian calculations.
+        Updates density and enthalpy derivatives, as this is required for Gamma or Gamma^-1
 
         Args:
             inverse: Boolean flag. If True, calculate Gamma^-1. If False, calculate Gamma.
@@ -173,38 +174,7 @@ class SolutionInterior(SolutionPhys):
             3D NumPy array of the solution Jacobian.
         """
 
-        gas = self.gas_model
-
-        if calc_enthalpies:
-            self.hi[:, samp_idxs] = gas.calc_spec_enth(self.sol_prim[2, samp_idxs])
-            self.h0[samp_idxs] = gas.calc_stag_enth(
-                self.sol_prim[1, samp_idxs], self.mass_fracs_full[:, samp_idxs], spec_enth=self.hi[:, samp_idxs],
-            )
-
-        if calc_derivs:
-            # Density derivatives
-            self.d_rho_d_press[samp_idxs], self.d_rho_d_temp[samp_idxs], self.d_rho_d_mass_frac[:, samp_idxs] = gas.calc_dens_derivs(
-                self.sol_cons[0, samp_idxs],
-                wrt_press=True,
-                pressure=self.sol_prim[0, samp_idxs],
-                wrt_temp=True,
-                temperature=self.sol_prim[2, samp_idxs],
-                wrt_spec=True,
-                mix_mol_weight=self.mw_mix[samp_idxs],
-            )
-
-            # Stagnation enthalpy derivatives
-            (
-                self.d_enth_d_press[samp_idxs],
-                self.d_enth_d_temp[samp_idxs],
-                self.d_enth_d_mass_frac[:, samp_idxs],
-            ) = gas.calc_stag_enth_derivs(
-                wrt_press=True,
-                wrt_temp=True,
-                mass_fracs=self.sol_prim[3:, samp_idxs],
-                wrt_spec=True,
-                spec_enth=self.hi[:, samp_idxs],
-            )
+        self.update_density_enthalpy_derivs()
 
         if inverse:
             sol_jacob = self.calc_d_sol_prim_d_sol_cons(samp_idxs=samp_idxs)

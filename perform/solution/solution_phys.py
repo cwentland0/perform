@@ -54,23 +54,24 @@ class SolutionPhys:
         self.sol_prim = np.zeros((self.gas_model.num_eqs, num_cells), dtype=REAL_TYPE)
         self.sol_cons = np.zeros((self.gas_model.num_eqs, num_cells), dtype=REAL_TYPE)
 
-        # All species mass fractions, avoid re-calculation of last species
+        # Chemical composition
         self.mass_fracs_full = np.zeros((self.gas_model.num_species_full, num_cells), dtype=REAL_TYPE)
-
-        # Chemical properties
+        self.mole_fracs_full = np.zeros((self.gas_model.num_species_full, num_cells), dtype=REAL_TYPE)
         self.mw_mix = np.zeros(num_cells, dtype=REAL_TYPE)
-        self.r_mix = np.zeros(num_cells, dtype=REAL_TYPE)
-        self.gamma_mix = np.zeros(num_cells, dtype=REAL_TYPE)
 
         # Thermodynamic properties
         self.enth_ref_mix = np.zeros(num_cells, dtype=REAL_TYPE)
+        self.r_mix = np.zeros(num_cells, dtype=REAL_TYPE)
+        self.gamma_mix = np.zeros(num_cells, dtype=REAL_TYPE)
         self.cp_mix = np.zeros(num_cells, dtype=REAL_TYPE)
         self.h0 = np.zeros(num_cells, dtype=REAL_TYPE)
         self.hi = np.zeros((self.gas_model.num_species_full, num_cells), dtype=REAL_TYPE)
         self.c = np.zeros(num_cells, dtype=REAL_TYPE)
 
         # Transport properties
+        self.spec_dyn_visc = np.zeros((self.gas_model.num_species_full, num_cells), dtype=REAL_TYPE)
         self.dyn_visc_mix = np.zeros(num_cells, dtype=REAL_TYPE)
+        self.spec_therm_cond = np.zeros((self.gas_model.num_species_full, num_cells), dtype=REAL_TYPE)
         self.therm_cond_mix = np.zeros(num_cells, dtype=REAL_TYPE)
         self.mass_diff_mix = np.zeros((self.gas_model.num_species_full, num_cells), dtype=REAL_TYPE)
 
@@ -94,8 +95,11 @@ class SolutionPhys:
         else:
             raise ValueError("Must provide either sol_prim_in or sol_cons_in to SolutionPhys")
 
-    def update_state(self, from_cons=True):
-        """Utility function to update primitive state from conservative state or vice versa.
+    def update_state(self, from_cons):
+        """Utility function to complete state from primitive or conservative solution.
+
+        Calculates chemical composition, thermodynamic properties, transport properties,
+        and primitive/conservative solution from the conservative/primitive solution.
 
         Args:
             from_cons:
@@ -103,87 +107,132 @@ class SolutionPhys:
                 If False, update conservative state from primitive state.
         """
 
+        # Get mass fractions
         if from_cons:
-            self.calc_state_from_cons()
+            self.sol_prim[3:, :] = self.sol_cons[3:, :] / self.sol_cons[[0], :]
+
+        # Update chemical composition and thermo properties
+        self.update_chemical_composition()
+        self.update_thermo_properties()
+
+        # Update primitive/conservative state
+        if from_cons:
+            self.update_prim_from_cons()
         else:
-            self.calc_state_from_prim()
+            self.update_cons_from_prim()
 
-    def calc_state_from_cons(self):
-        """Compute primitive state from conservative state, and thermodynamic properties.
+        # Finally, transport properties
+        self.update_transport_properties()
 
-        First backs out mass fractions from density-weighted mass fractions and thresholds them,
-        calculates thermodynamic properties, then computes remaining primitive solution profiles
-        from equations of state.
+    def update_prim_from_cons(self):
+        """Update primitive solution from the conservative solution.
+
+        Assumes that thermodynamic properties have already been updated.
         """
 
-        # TODO: store some other things by default
-        # 	mixture molecular weight
-        # 	species enthalpies
-
-        # Mass fractions
-        self.sol_prim[3:, :] = self.sol_cons[3:, :] / self.sol_cons[[0], :]
-        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim_in=self.sol_prim)
-        mass_fracs = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
-        self.mass_fracs_full[:, :] = mass_fracs.copy()
-        if self.gas_model.num_species_full > 1:
-            mass_fracs = mass_fracs[:-1, :]
-        self.sol_prim[3:, :] = mass_fracs
-        self.sol_cons[3:, :] = self.sol_prim[3:, :] * self.sol_cons[[0], :]
-
-        # Update thermo properties
-        self.enth_ref_mix = self.gas_model.calc_mix_enth_ref(mass_fracs)
-        self.r_mix = self.gas_model.calc_mix_gas_constant(mass_fracs)
-        self.cp_mix = self.gas_model.calc_mix_cp(mass_fracs)
-        self.gamma_mix = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
-
-        # Update primitive state
-        # TODO: GasModel references
         self.sol_prim[1, :] = self.sol_cons[1, :] / self.sol_cons[0, :]
-        self.sol_prim[2, :] = (
-            self.sol_cons[2, :] / self.sol_cons[0, :] - np.square(self.sol_prim[1, :]) / 2.0 - self.enth_ref_mix
-        ) / (self.cp_mix - self.r_mix)
-        self.sol_prim[0, :] = self.sol_cons[0, :] * self.r_mix * self.sol_prim[2, :]
+        self.sol_prim[0, :], self.sol_prim[2, :] = self.gas_model.calc_press_temp_from_consv(
+            self.sol_cons[0, :],
+            self.sol_cons[2, :],
+            velocity=self.sol_prim[1, :],
+            cp_mix=self.cp_mix,
+            r_mix=self.r_mix,
+            enth_ref_mix=self.enth_ref_mix,
+        )
 
-        # Update sound speed
-        self.c = self.gas_model.calc_sound_speed(self.sol_prim[2, :], r_mix=self.r_mix, gamma_mix=self.gamma_mix)
+    def update_cons_from_prim(self):
+        """Update conservative solution from the primitive solution.
 
-    def calc_state_from_prim(self):
-        """Compute primitive state from conservative state, and thermodynamic properties.
-
-        Thresholds mass fractions, calculates thermodynamic properties,
-        then computes conservative solution profiles from equations of state.
+        Assumes that thermodynamic properties have already been updated
         """
 
-        # TODO: store some other things by default
-        # 	species enthalpies
-
-        # Mass fractions
-        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim_in=self.sol_prim)
-        mass_fracs = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
-        self.mass_fracs_full[:, :] = mass_fracs.copy()
-        if self.gas_model.num_species_full > 1:
-            mass_fracs = mass_fracs[:-1, :]
-        self.sol_prim[3:, :] = mass_fracs
-        self.mw_mix = self.gas_model.calc_mix_mol_weight(self.mass_fracs_full)
-
-        # Update thermo properties
-        self.enth_ref_mix = self.gas_model.calc_mix_enth_ref(mass_fracs)
-        self.r_mix = self.gas_model.calc_mix_gas_constant(mass_fracs)
-        self.cp_mix = self.gas_model.calc_mix_cp(mass_fracs)
-        self.gamma_mix = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
-
-        # Update conservative variables
-        # TODO: GasModel references
         self.sol_cons[0, :] = self.sol_prim[0, :] / (self.r_mix * self.sol_prim[2, :])
         self.sol_cons[1, :] = self.sol_cons[0, :] * self.sol_prim[1, :]
-        self.sol_cons[2, :] = (
-            self.sol_cons[0, :]
-            * (self.enth_ref_mix + self.cp_mix * self.sol_prim[2, :] + np.power(self.sol_prim[1, :], 2.0) / 2.0)
-        ) - self.sol_prim[0, :]
+        self.sol_cons[2, :] = self.sol_cons[0, :] * self.h0 - self.sol_prim[0, :]
         self.sol_cons[3:, :] = self.sol_cons[[0], :] * self.sol_prim[3:, :]
 
-        # Update sound speed
-        self.c = self.gas_model.calc_sound_speed(self.sol_prim[2, :], r_mix=self.r_mix, gamma_mix=self.gamma_mix)
+    def update_chemical_composition(self):
+        """Update complete chemical composition from num_species species mass fractions.
+
+        Calculates num_species_full-th species mass fraction, mixture molecular weights, and mole fractions.
+        """
+
+        # Compute all mass fraction fields
+        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim_in=self.sol_prim)
+        mass_fracs = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
+        self.mass_fracs_full[:, :] = mass_fracs.copy()
+        if self.gas_model.num_species_full > 1:
+            mass_fracs = mass_fracs[:-1, :]
+        self.sol_prim[3:, :] = mass_fracs
+
+        self.mw_mix[:] = self.gas_model.calc_mix_mol_weight(self.mass_fracs_full)
+        self.mole_fracs_full[:, :] = self.gas_model.calc_all_mole_fracs(
+            self.mass_fracs_full, mix_mol_weight=self.mw_mix
+        )
+
+    def update_thermo_properties(self):
+        """Update thermodynamic properties.
+
+        Calculates the mixture specific gas constant, mixture specific heat capacity at constant pressure,
+        mixture ratio of specific heats, sound speed, species enthalpies, and stagnation enthalpy.
+        """
+
+        self.enth_ref_mix[:] = self.gas_model.calc_mix_enth_ref(self.sol_prim[3:, :])
+        self.r_mix[:] = self.gas_model.calc_mix_gas_constant(self.sol_prim[3:, :])
+        self.cp_mix[:] = self.gas_model.calc_mix_cp(self.sol_prim[3:, :])
+        self.gamma_mix[:] = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
+
+        self.c[:] = self.gas_model.calc_sound_speed(self.sol_prim[2, :], r_mix=self.r_mix, gamma_mix=self.gamma_mix)
+        self.hi[:, :] = self.gas_model.calc_spec_enth(self.sol_prim[2, :])
+        self.h0[:] = self.gas_model.calc_stag_enth(self.sol_prim[1, :], self.mass_fracs_full, spec_enth=self.hi)
+
+    def update_transport_properties(self):
+        """Update transport properties.
+
+        Calculates species and mixture dynamic viscosity, species and mixture thermal conductivity, and the
+        mixture mass diffusivity.
+        """
+
+        self.spec_dyn_visc[:, :] = self.gas_model.calc_species_dynamic_visc(self.sol_prim[2, :])
+        self.dyn_visc_mix[:] = self.gas_model.calc_mix_dynamic_visc(
+            spec_dyn_visc=self.spec_dyn_visc, mole_fracs=self.mole_fracs_full, mw_mix=self.mw_mix
+        )
+        self.spec_therm_cond[:, :] = self.gas_model.calc_species_therm_cond(spec_dyn_visc=self.spec_dyn_visc)
+        self.therm_cond_mix[:] = self.gas_model.calc_mix_thermal_cond(
+            spec_therm_cond=self.spec_therm_cond,
+            spec_dyn_visc=self.spec_dyn_visc,
+            mole_fracs=self.mole_fracs_full,
+            mw_mix=self.mw_mix,
+        )
+        self.mass_diff_mix[:, :] = self.gas_model.calc_species_mass_diff_coeff(
+            self.sol_cons[0, :], spec_dyn_visc=self.spec_dyn_visc
+        )
+
+    def update_density_enthalpy_derivs(self):
+        """Updates density and enthalpy derivates w/r/t pressure, temperature, and species mass fraction.
+
+        This function is not called as part of calc_state_from_prim()/cons() as it is only required from implicit
+        time integration, and is also not required for all states. These derivatives can be a bit expensive to
+        calculate, so this function should only be called where absolutely necessary.
+        """
+
+        gas = self.gas_model
+
+        # Density derivatives
+        self.d_rho_d_press[:], self.d_rho_d_temp[:], self.d_rho_d_mass_frac[:, :] = gas.calc_dens_derivs(
+            self.sol_cons[0, :],
+            wrt_press=True,
+            pressure=self.sol_prim[0, :],
+            wrt_temp=True,
+            temperature=self.sol_prim[2, :],
+            wrt_spec=True,
+            mix_mol_weight=self.mw_mix[:],
+        )
+
+        # Stagnation enthalpy derivatives
+        self.d_enth_d_press[:], self.d_enth_d_temp[:], self.d_enth_d_mass_frac[:, :] = gas.calc_stag_enth_derivs(
+            wrt_press=True, wrt_temp=True, mass_fracs=self.sol_prim[3:, :], wrt_spec=True, spec_enth=self.hi[:, :],
+        )
 
     def calc_state_from_rho_h0(self):
         """Iteratively solve for pressure and temperature given fixed density and stagnation enthalpy.
@@ -192,8 +241,6 @@ class SolutionPhys:
         The simple Roe average of all primitive fields, stagnation enthalpy, and density will
         result in an inconsistent state description otherwise.
         """
-
-        # TODO: some of this changes for TPG
 
         rho_fixed = np.squeeze(self.sol_cons[0, :])
         h0_fixed = np.squeeze(self.h0)

@@ -103,6 +103,9 @@ class FiniteRateIrrevReaction(ReactionModel):
 
         Args:
             sol_int: SolutionInterior of the SolutionDomain with which this ReactionModel is associated.
+            wrt_prim:
+                Boolean flag. If True, calculate Jacobian w/r/t the primitive variables.
+                If False, calculate w/r/t conservative variables.
             samp_idxs:
                 Either a NumPy slice or NumPy array for selecting sampled cells to compute the Jacobian at.
                 Used for hyper-reduction of projection-based reduced-order models.

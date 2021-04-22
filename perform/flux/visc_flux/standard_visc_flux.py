@@ -43,31 +43,18 @@ class StandardViscFlux(Flux):
         ) / mesh.dx
 
         # Get gradient of last species for diffusion velocity term
+        # TODO: pointless for single species, also sol_prim_grad is too big
         # TODO: maybe a sneakier way to do this?
         mass_fracs = gas.calc_all_mass_fracs(sol_prim_full[3:, :], threshold=False)
         sol_prim_grad[-1, :] = (
             mass_fracs[-1, sol_domain.flux_samp_right_idxs] - mass_fracs[-1, sol_domain.flux_samp_left_idxs]
         ) / mesh.dx
 
-        # Thermo and transport props
-        mole_fracs = gas.calc_all_mole_fracs(sol_ave.mass_fracs_full, mix_mol_weight=sol_ave.mw_mix)
-        spec_dyn_visc = gas.calc_species_dynamic_visc(sol_ave.sol_prim[2, :])
-        therm_cond_mix = gas.calc_mix_thermal_cond(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
-        dyn_visc_mix = gas.calc_mix_dynamic_visc(spec_dyn_visc=spec_dyn_visc, mole_fracs=mole_fracs)
-        mass_diff_mix = gas.calc_species_mass_diff_coeff(sol_ave.sol_cons[0, :], spec_dyn_visc=spec_dyn_visc)
-        hi = gas.calc_spec_enth(sol_ave.sol_prim[2, :])
-
-        # Copy for use later
-        sol_ave.dyn_visc_mix = dyn_visc_mix
-        sol_ave.therm_cond_mix = therm_cond_mix
-        sol_ave.mass_diff_mix = mass_diff_mix
-        sol_ave.hi = hi
-
         # Stress "tensor"
-        tau = 4.0 / 3.0 * dyn_visc_mix * sol_prim_grad[1, :]
+        tau = 4.0 / 3.0 * sol_ave.dyn_visc_mix * sol_prim_grad[1, :]
 
         # Diffusion velocity
-        diff_vel = sol_ave.sol_cons[[0], :] * mass_diff_mix * sol_prim_grad[3:, :]
+        diff_vel = sol_ave.sol_cons[[0], :] * sol_ave.mass_diff_mix * sol_prim_grad[3:, :]
 
         # Correction velocity
         corr_vel = np.sum(diff_vel, axis=0)
@@ -76,14 +63,16 @@ class StandardViscFlux(Flux):
         flux_visc = np.zeros((gas.num_eqs, sol_domain.num_flux_faces), dtype=REAL_TYPE)
         flux_visc[1, :] += tau
         flux_visc[2, :] += (
-            sol_ave.sol_prim[1, :] * tau + therm_cond_mix * sol_prim_grad[2, :] + np.sum(diff_vel * hi, axis=0)
+            sol_ave.sol_prim[1, :] * tau
+            + sol_ave.therm_cond_mix * sol_prim_grad[2, :]
+            + np.sum(diff_vel * sol_ave.hi, axis=0)
         )
         flux_visc[3:, :] += diff_vel[gas.mass_frac_slice] - sol_ave.sol_prim[3:, :] * corr_vel[None, :]
 
         return flux_visc
 
     def calc_jacob(self, sol_domain, wrt_prim):
-        """Compute and assemble flux Jacobian with respect to the primitive or conservative variables.
+        """Compute viscous flux Jacobian.
 
         Calculates analytical flux Jacobian at each face and assembles Jacobian with respect to each
         finite volume cell's state. Note that the gradient with respect to boundary ghost cell states are
@@ -91,7 +80,9 @@ class StandardViscFlux(Flux):
 
         Args:
             sol_domain: SolutionDomain with which this Flux is associated.
-            wrt_prim: 
+            wrt_prim:
+                Boolean flag. If True, calculate Jacobian w/r/t the primitive variables.
+                If False, calculate w/r/t conservative variables.
 
         Returns:
             jacob_center_cell: center block diagonal of flux Jacobian, representing the gradient of a given cell's

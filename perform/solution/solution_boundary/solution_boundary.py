@@ -59,12 +59,6 @@ class SolutionBoundary(SolutionPhys):
         ), "Must provide mass fraction state for all species at boundary"
         assert np.sum(self.mass_fracs) == 1.0, "Boundary mass fractions must sum to 1.0"
 
-        # Initialize thermodynamic properties
-        self.cp_mix = gas.calc_mix_cp(self.mass_fracs[gas.mass_frac_slice, None])
-        self.r_mix = gas.calc_mix_gas_constant(self.mass_fracs[gas.mass_frac_slice, None])
-        self.gamma_mix = gas.calc_mix_gamma(self.r_mix, self.cp_mix)
-        self.enth_ref_mix = gas.calc_mix_enth_ref(self.mass_fracs[gas.mass_frac_slice, None])
-
         # This will be updated at each iteration, just initializing with a reasonable number
         sol_dummy = np.zeros((gas.num_eqs, 1), dtype=REAL_TYPE)
         sol_dummy[0, 0] = 1e6
