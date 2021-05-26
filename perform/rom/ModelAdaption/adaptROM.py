@@ -63,7 +63,6 @@ class adaptROM():
             solDomain.solInt.solHistCons[timeIdx] = romDomain.staleSnapshots[:, :, -timeIdx].copy()
 
         solDomain.solInt.solHistCons[0] = solDomain.solInt.solHistCons[1].copy()
-
         self.trueSolution = np.load('/Users/sahilbhola/Documents/CASLAB/perform/examples/testCase/UnsteadyFieldResults/True_cons.npy')
 
 

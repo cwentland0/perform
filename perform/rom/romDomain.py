@@ -385,7 +385,7 @@ class romDomain:
 		"""
 
 		print("Iteration "+str(solver.iter))
-
+		# raise ValueError('Working....')
 		# update model which does NOT require numerical time integration
 		if not self.hasTimeIntegrator:
 			raise ValueError("Iteration advance for models without numerical time integration not yet implemented")
@@ -434,7 +434,7 @@ class romDomain:
 			# compute residual and residual Jacobian, if required
 			if self.isIntrusive:
 				if solDomain.timeIntegrator.dualTime: raise ValueError('under construction')
-				resVec = self.timeIntegrator.calcReducedResidualVec(self, solDomain, solInt.RHS, solver)
+				resVec = self.timeIntegrator.calcReducedResidualVec(self, solDomain, solver)
 				resJacob = calcDResDSolPrim(solDomain, solver)
 
 			# compute update to low-dimensional state

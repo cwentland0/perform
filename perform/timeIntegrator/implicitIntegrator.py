@@ -61,7 +61,7 @@ class bdf(implicitIntegrator):
 
 		return residual
 
-	def calcReducedResidualVec(self, romDomain, solDomain, rhs, solver):
+	def calcReducedResidualVec(self, romDomain, solDomain, solver):
 
 		timeOrder = min(solver.iter, self.timeOrder) 	# cold start
 		timeOrder = max(self.staleStatetimeOrder, timeOrder) # updating time order if stale states are available
@@ -69,6 +69,8 @@ class bdf(implicitIntegrator):
 		coeffs = self.coeffs[timeOrder - 1]
 		residual = []
 		for modelIdx, model in enumerate(romDomain.modelList):
+			#TODO: This would not work if the models are non-consecutive. Works for 1/4 models .
+
 			model.calcRHSLowDim(romDomain, solDomain)
 			residual.append(((-sum([coeffs[timeIdx] * model.codeHist[timeIdx] for timeIdx in range(timeOrder+1)])) / self.dt ) + model.rhsLowDim)
 
