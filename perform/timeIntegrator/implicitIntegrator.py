@@ -65,16 +65,25 @@ class bdf(implicitIntegrator):
 
 		timeOrder = min(solver.iter, self.timeOrder) 	# cold start
 		timeOrder = max(self.staleStatetimeOrder, timeOrder) # updating time order if stale states are available
+		resVec = np.zeros(np.sum(romDomain.latentDims))
 
 		coeffs = self.coeffs[timeOrder - 1]
-		residual = []
+
+		idx = np.insert(np.cumsum(romDomain.latentDims), 0, 0)
+
 		for modelIdx, model in enumerate(romDomain.modelList):
-			#TODO: This would not work if the models are non-consecutive. Works for 1/4 models .
-
+			#TODO: Idx for any combination of the models
+			residual = coeffs[0] * model.codeHist[0]
 			model.calcRHSLowDim(romDomain, solDomain)
-			residual.append(((-sum([coeffs[timeIdx] * model.codeHist[timeIdx] for timeIdx in range(timeOrder+1)])) / self.dt ) + model.rhsLowDim)
 
-		return np.array(residual).ravel(order = 'C')
+			for iterIdx in range(1, timeOrder + 1):
+				residual += coeffs[iterIdx] * model.codeHist[iterIdx]
+			residual = -(residual / self.dt) + model.rhsLowDim
+			resVec[idx[modelIdx]:idx[modelIdx+1]] = residual
+		return resVec
+
+
+
 
 
 

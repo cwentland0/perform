@@ -53,7 +53,6 @@ class linearGalerkinProj(linearProjROM):
 		self.code = self.projectToLowDim(self.trialBasis, solCons, transpose=True)
 		solDomain.solInt.solCons[self.varIdxs, :] = self.decodeSol(self.code)
 
-
 	def calcProjector(self, romDomain, runCalc=False):
 		"""
 		Compute RHS projection operator
@@ -78,25 +77,6 @@ class linearGalerkinProj(linearProjROM):
 		Compute change in low-dimensional state for implicit scheme Newton iteration
 		"""
 		#TODO: reduce size of res Jacobian instead of padding
-
-		# if romDomain.numModels != 1:
-		# 	padedBasis = np.zeros((solDomain.gasModel.numEqs, solDomain.solInt.numCells, self.latentDim))
-		# 	padednormFacProf = np.ones((solDomain.gasModel.numEqs, solDomain.solInt.numCells))
-		#
-		# 	padedBasis[romDomain.modelVarIdxs[modelIdx], :, :] = self.trialBasis.reshape(-1, solDomain.solInt.numCells, self.latentDim, order = 'C')
-		# 	padedBasis = padedBasis.reshape(-1, self.latentDim, order = 'C')
-		#
-		# 	padednormFacProf[romDomain.modelVarIdxs[modelIdx], :] = self.normFacProfCons
-		#
-		# else:
-		# 	padedBasis		 = self.trialBasis.copy()
-		# 	padednormFacProf = self.normFacProfCons.copy()
-		#
-		# LHS = padedBasis.T @ (resJacob / padednormFacProf.ravel(order="C")[:, np.newaxis]) @ (padedBasis * padednormFacProf.ravel(order="C")[:,None])
-		#
-		# RHS = padedBasis.T @ (res / padednormFacProf).ravel(order="C")
-
-
 
 		# V^{T}*H^{-1}*resJacob*H*V
 		LHS = self.trialBasis.T @ (resJacob / self.normFacProfCons.ravel(order="C")[:, np.newaxis]) @ (self.trialBasis * self.normFacProfCons.ravel(order="C")[:,None])
