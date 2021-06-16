@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.linalg import orth
-import copy
 import pdb
-import matplotlib.pyplot as plt
 
 
 class adaptROM():
@@ -16,7 +14,6 @@ class adaptROM():
             Method developed by Prof. Karthik Duraisamy (University of Michigan)
             """
             #TODO: Implement residual sampling step
-
             self.adaptsubIteration              =   True
             self.trueStandardizedState          =   np.zeros((model.numVars, solver.mesh.numCells))
             self.adaptionResidual               =   np.zeros((model.numVars*solver.mesh.numCells))
@@ -30,60 +27,71 @@ class adaptROM():
             Method developed by Prof. Benjamin Peherstorfer (NYU)
             """
 
-            self.adaptROMResidualSampStep   =   romDomain.adaptROMResidualSampStep
-            self.adaptROMnumResSamp         =   romDomain.adaptROMnumResSamp
-            self.adaptROMWindowSize         =   romDomain.adaptROMWindowSize
-            self.adaptROMUpdateRank         =   romDomain.adaptROMUpdateRank
+            self.adaptROMResidualSampStep   =   romDomain.adaptROMResidualSampStep  #specifies the number of step after which full residual is computed
+            self.adaptROMnumResSamp         =   romDomain.adaptROMnumResSamp        #specifies the number of samples of the residual
+            self.adaptROMWindowSize         =   romDomain.adaptROMWindowSize        #look-back widow size
+            self.adaptROMUpdateRank         =   romDomain.adaptROMUpdateRank        #basis upadate rank
+            self.adaptROMInitialSnap        =   romDomain.adaptROMInitialSnap       #specifies the "number" of samples available (same as the number of samples used for basis computation)
 
-            self.FWindow                 =   []
-            self.residualSampleIdx       =   []
+            self.FWindow                    =   np.zeros((model.numVars, solver.mesh.numCells, self.adaptROMWindowSize)) #look-back window
+            self.residualSampleIdx          =   [] #residual sample indexes (indexes fron all the states will be pooled together)
 
-            self.trueSolution = []
-            self.trueCount = 50
+            self.interPolAdaptionWindow     =   []
+            self.interPolBasis              =   []
+            self.scaledAdaptionWindow       =   np.zeros((model.numVars*solver.mesh.numCells, self.adaptROMWindowSize))
+
+
+            assert(self.adaptROMWindowSize-1<=self.adaptROMInitialSnap), 'Look back window size minus 1 should be less than equal to the available stale states'
 
         else:
             raise ValueError("Invalid selection for adaptive ROM type")
 
-    def gatherStaleCons(self, romDomain, solDomain, solver, model):
-        '''Gathers the conservative state from the stale file'''
+    def initializeLookBackWindow(self, romDomain, model):
 
-        #solDomain.solHistCons is analogous to Q
+        self.FWindow[:, :, :-1] = romDomain.staleConsSnapshots[model.varIdxs, :, -(self.adaptROMWindowSize-1):]
 
-        assert(romDomain.staleSnapshots.shape[1] == solver.mesh.numCells), 'resolution mis-match between stale states and current simulation'
-
-        romDomain.timeIntegrator.staleStatetimeOrder = min(romDomain.timeIntegrator.timeOrder, romDomain.staleSnapshots.shape[-1])
-        solDomain.timeIntegrator.staleStatetimeOrder =  romDomain.timeIntegrator.staleStatetimeOrder
-
-        self.FWindow = np.zeros((model.numVars, solver.mesh.numCells, self.adaptROMWindowSize))
-
-        if self.adaptROMWindowSize != 1 :
-            self.FWindow[:, :, :-1] = romDomain.staleSnapshots[model.varIdxs, :, -(self.adaptROMWindowSize-1):]
-
-        for timeIdx in range(1, romDomain.timeIntegrator.staleStatetimeOrder+1):
-            solDomain.solInt.solHistCons[timeIdx] = romDomain.staleSnapshots[:, :, -timeIdx].copy()
-
-        solDomain.solInt.solHistCons[0] = solDomain.solInt.solHistCons[1].copy()
-        self.trueSolution = np.load('/Users/sahilbhola/Documents/CASLAB/perform/examples/testCase/UnsteadyFieldResults/True_cons.npy')
-
-
-    def HistoryInitialization(self, romDomain, solDomain, solver, model):
+    def initializeHistory(self, romDomain, solDomain, solver, model):
         '''Computes the coded state and the reconstructed state for initializing the sub-iteration'''
 
         timeOrder = min(solver.iter, romDomain.timeIntegrator.timeOrder)  # cold start
         timeOrder = max(romDomain.timeIntegrator.staleStatetimeOrder, timeOrder)  # updating time order if stale states are available
 
-        for timeIdx in range(timeOrder+1):
-            #Updating coded history
+        for timeIdx in range(timeOrder + 1):
+            #update the coded history
             solCons = solDomain.solInt.solHistCons[timeIdx].copy()
-
-            solCons = model.standardizeData(solCons[model.varIdxs, :], normalize=True, normFacProf=model.normFacProfCons, normSubProf=model.normSubProfCons,
-									   center=True, centProf=model.centProfCons, inverse=False)
-
+            solCons = model.standardizeData(solCons[model.varIdxs, :], normalize=True,
+                                            normFacProf=model.normFacProfCons, normSubProf=model.normSubProfCons,
+            								   center=True, centProf=model.centProfCons, inverse=False)
             model.codeHist[timeIdx] = model.projectToLowDim(model.trialBasis, solCons, transpose=True)
 
-        model.code = model.codeHist[0].copy()   #Coded guess
-        model.updateSol(solDomain)              #Update reconstructed state
+        model.code = model.codeHist[0].copy()
+        model.updateSol(solDomain)
 
+
+    def gatherSamplePoints(self, romDomain, solDomain, solver, model):
+
+        if not romDomain.timeIntegrator.timeType == "implicit": raise ValueError('AADEIM not implemented for explicit framework')
+
+        if (solver.timeIter == 1 or solver.timeIter % self.adaptROMResidualSampStep == 0):
+
+            self.FWindow[:, :, -1] = self.previousStateEstimate(romDomain, solDomain, solver, model)
+
+            # adaption window
+            adaptionWindow = self.FWindow.reshape(-1, self.adaptROMWindowSize, order='C')
+            self.scaledAdaptionWindow = (adaptionWindow - model.centProfCons.ravel(order='C')[:,None] - model.normSubProfCons.ravel(order='C')[:,None]) / model.normFacProfCons.ravel(order='C')[:, None]
+
+            self.interPolAdaptionWindow = (self.scaledAdaptionWindow.reshape(model.numVars, solver.mesh.numCells, -1, order = "C")[:,solDomain.directSampIdxs,:]).reshape(-1, self.adaptROMWindowSize, order = 'C')
+            self.interPolBasis          = (model.trialBasis.reshape(model.numVars, -1, model.latentDim)[:,solDomain.directSampIdxs,:]).reshape(-1, model.latentDim, order = "C")
+
+            # residual
+            reconstructedWindow = model.trialBasis @ np.linalg.pinv(self.interPolBasis) @ self.interPolAdaptionWindow
+            residual = (self.scaledAdaptionWindow - reconstructedWindow).reshape((model.numVars, solver.mesh.numCells, -1), order='C')
+            SampleIdx = np.unique((np.argsort(np.sum(residual ** 2, axis=2), axis=1)[:, -self.adaptROMnumResSamp:]).ravel())
+
+            romDomain.residualCombinedSampleIdx = np.unique(np.append(romDomain.residualCombinedSampleIdx, SampleIdx).astype(int))
+
+        else:
+            raise ValueError('Reduced frequency residual update not implemented (modified - AADEIM)')
 
     def adaptModel(self, romDomain, solDomain, solver, model):
 
@@ -100,57 +108,35 @@ class adaptROM():
             solDomain.solInt.updateState(fromCons=True)
 
         elif romDomain.adaptiveROMMethod == "AADEIM":
+            self.residualSampleIdx = romDomain.residualCombinedSampleIdx
+            reshapedWindow = (self.scaledAdaptionWindow).reshape(model.numVars, -1,  self.adaptROMWindowSize, order = "C")
+            sampledAdaptionWindow         = (reshapedWindow[:,self.residualSampleIdx,:]).reshape(-1, self.adaptROMWindowSize, order = "C")
+            sampledBasis                  = (model.trialBasis.reshape(model.numVars, -1, model.latentDim)[:,self.residualSampleIdx,:]).reshape(-1, model.latentDim, order = "C")
 
-            if not romDomain.timeIntegrator.timeType == "implicit" : raise ValueError ('AADEIM not implemented for explicit framework')
-            if romDomain.hyperReduc: raise ValueError('AADEIM not currently hyper-reduction friendly (Check back soon...)')
+            #Computing coefficient matrix
+            CMat = np.linalg.pinv(self.interPolBasis) @ self.interPolAdaptionWindow
+            pinvCtranspose = np.linalg.pinv(CMat.T)
 
-            if (solver.timeIter == 1 or solver.timeIter % self.adaptROMResidualSampStep == 0):
+            #Computing residual
+            R = sampledBasis @ CMat - sampledAdaptionWindow
 
-                self.trueCount += 1     #Index of current predict
+            # Computing SVD
+            _, singValues, rightBasis_h = np.linalg.svd(R)
+            rightBasis = rightBasis_h.T
 
-                self.FWindow[:, :, -1] = self.previousStateEstimate(romDomain, solDomain, solver, model)
-                # self.FWindow[:, :, -1] = self.trueSolution[:, :, self.trueCount-1]      #Using FOM
+            rank = min(self.adaptROMUpdateRank, len(singValues))
 
-                #adaption window
-                adaptionWindow          = self.FWindow.reshape(-1, self.adaptROMWindowSize, order = 'C').copy()
-                scaledAdaptionWindow    = (adaptionWindow - model.centProfCons.ravel(order = 'C')[:, None] - model.normSubProfCons.ravel(order = 'C')[:, None]) / model.normFacProfCons.ravel(order = 'C')[:, None]
+            # Basis Update
+            idx = (np.arange(model.numVars*solver.mesh.numCells).reshape(model.numVars, -1, order = "C")[:, self.residualSampleIdx]).ravel(order = "C")
+            for irank in range(rank):
+                alpha = -R @ rightBasis[:, irank]
+                beta = pinvCtranspose @ rightBasis[:, irank]
+                update = alpha[:, None] @ beta[None, :]
+                # model.trialBasis[idx, :] +=  update
 
-                #residual
-                reconstructedWindow = model.trialBasis @ np.linalg.pinv(model.trialBasis) @ scaledAdaptionWindow
-                residual = scaledAdaptionWindow - reconstructedWindow
-
-            else:
-                raise ValueError('Reduced frequency residual update not implemented (AADEIM)')
-
-            self.ADEIM(model, scaledAdaptionWindow)
+            # model.trialBasis = orth( model.trialBasis)
 
             self.FWindow[:, :, :-1] = self.FWindow[:, :, 1:]
-
-    def ADEIM(self, model, scaledAdaptionWindow):
-        #Computing C matrix
-        C = np.linalg.pinv(model.trialBasis) @ scaledAdaptionWindow
-        pinvCtranspose = np.linalg.pinv(C.T)
-
-        #Computing residual
-        R = model.trialBasis @ C - scaledAdaptionWindow
-
-        #Computing SVD
-        _, singValues, rightBasis_h = np.linalg.svd(R)
-        rightBasis = rightBasis_h.T
-
-        rank = min(self.adaptROMUpdateRank, len(singValues))
-
-        OldBasis = model.trialBasis.copy()
-
-        #Basis Update
-        for irank in range(rank):
-            alpha = -R @ rightBasis[:, irank]
-            beta  = pinvCtranspose @ rightBasis[:, irank]
-            update = alpha[:, None] @ beta[None, :]
-            OldBasis = OldBasis + update
-
-        model.trialBasis = orth(OldBasis)
-
 
     def previousStateEstimate(self, romDomain, solDomain, solver, model):
 
@@ -166,7 +152,7 @@ class adaptROM():
         for iterIdx in range(2, timeOrder + 1):
             state += coeffs[iterIdx] * solInt.solHistCons[iterIdx][model.varIdxs, :].copy()
 
-        state = (- state + romDomain.timeIntegrator.dt*solInt.RHS[model.varIdxs, :]) / coeffs[1]
+        PreviousState = (- state + (romDomain.timeIntegrator.dt*solInt.RHS[model.varIdxs, :])) / coeffs[1]
 
-        return state
+        return PreviousState
 
