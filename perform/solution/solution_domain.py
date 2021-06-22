@@ -394,8 +394,9 @@ class SolutionDomain:
             sol_right.sol_prim[:, self.flux_right_extract] -= (self.mesh.dx / 2.0) * sol_prim_grad[
                 :, self.grad_right_extract
             ]
-            sol_left.update_state(from_cons=False)
-            sol_right.update_state(from_cons=False)
+
+        sol_left.update_state(from_cons=False)
+        sol_right.update_state(from_cons=False)
 
         # Compute average state at face
         self.invisc_flux_scheme.calc_avg_state(sol_left, sol_right, self.sol_ave)
