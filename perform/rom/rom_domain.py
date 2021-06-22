@@ -200,7 +200,7 @@ class RomDomain:
             # Initialize code history
             model.code_hist = [model.code.copy()] * (self.time_integrator.time_order + 1)
 
-        sol_domain.sol_int.update_state(from_cons=self.target_cons)
+        sol_domain.sol_int.update_state(from_prim=self.target_prim)
 
         # Overwrite history with initialized solution
         sol_domain.sol_int.sol_hist_cons = [sol_domain.sol_int.sol_cons.copy()] * (self.time_integrator.time_order + 1)
@@ -276,7 +276,7 @@ class RomDomain:
                 # Compute ROM residual for convergence measurement
                 model.res = code_lhs @ d_code - code_rhs
 
-            sol_int.update_state(from_cons=(not sol_domain.time_integrator.dual_time))
+            sol_int.update_state(from_prim=sol_domain.time_integrator.dual_time)
             sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
             sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
 
@@ -289,7 +289,7 @@ class RomDomain:
                 model.code = model.code_hist[0] + d_code
                 model.update_sol(sol_domain)
 
-            sol_int.update_state(from_cons=True)
+            sol_int.update_state(from_prim=False)
 
     def update_code_hist(self):
         """Update low-dimensional state history after physical time step."""

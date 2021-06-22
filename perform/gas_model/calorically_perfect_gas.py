@@ -577,7 +577,7 @@ class CaloricallyPerfectGas(GasModel):
 
         return derivs
 
-    def calc_press_temp_from_consv(
+    def calc_press_temp_from_cons(
         self,
         density,
         total_energy,

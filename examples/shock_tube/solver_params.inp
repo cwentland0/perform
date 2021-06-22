@@ -12,7 +12,7 @@ time_order  = 3
 # space discretization
 invisc_flux_name = "roe"
 visc_flux_name   = "invisc"
-space_order      = 2
+space_order      = 1
 grad_limiter     = "venkat"
 
 # inlet
@@ -49,9 +49,9 @@ probe_locs = [0.004, 0.006]
 probe_vars = ["pressure","velocity","density","temperature"]
 
 # visualization
-vis_show 	 = True
-vis_save 	 = True
-vis_interval = 50
+vis_show 	 = False
+vis_save 	 = False
+vis_interval = 1
 
 vis_type_1  = "probe"
 vis_var_1   = ["pressure", "density"]

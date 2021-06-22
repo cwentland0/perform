@@ -37,7 +37,7 @@ class SolutionDomain:
     This class provides a broad container to hold just about everything related to the unsteady solution of
     the governing PDE. This includes the SolutionPhys objects of the interior cells and boundary cells,
     the Mesh, GasModel, Flux's, ReactionModel, TimeIntegrator, and Limiters needed to compute the unsteady solution,
-    and any parameters which govern the solver behavior its the spatial domain.
+    and any parameters which govern the solver behavior and the spatial domain.
 
     This class also provides broad member functions for stepping the solution forward in time, computing the non-linear
     right-hand side, the residual and residual Jacobian for implicit time integration, and other utility functions.
@@ -246,28 +246,6 @@ class SolutionDomain:
         self.gamma_idxs_left = np.s_[:-1]
         self.gamma_idxs_right = np.s_[1:]
 
-    def fill_sol_full(self):
-        """Fill sol_prim_full and sol_cons_full from interior and ghost cells"""
-
-        # TODO: hyper-reduction indices
-
-        sol_int = self.sol_int
-        sol_inlet = self.sol_inlet
-        sol_outlet = self.sol_outlet
-
-        idx_in = sol_inlet.num_cells
-        idx_int = idx_in + sol_int.num_cells
-
-        # sol_prim_full
-        self.sol_prim_full[:, :idx_in] = sol_inlet.sol_prim.copy()
-        self.sol_prim_full[:, idx_in:idx_int] = sol_int.sol_prim.copy()
-        self.sol_prim_full[:, idx_int:] = sol_outlet.sol_prim.copy()
-
-        # sol_cons_full
-        self.sol_cons_full[:, :idx_in] = sol_inlet.sol_cons.copy()
-        self.sol_cons_full[:, idx_in:idx_int] = sol_int.sol_cons.copy()
-        self.sol_cons_full[:, idx_int:] = sol_outlet.sol_cons.copy()
-
     def advance_iter(self, solver):
         """Advance physical solution forward one physical time iteration.
 
@@ -328,7 +306,7 @@ class SolutionDomain:
             else:
                 sol_int.sol_cons += d_sol.reshape((gas_model.num_eqs, mesh.num_cells), order="C")
 
-            sol_int.update_state(from_cons=(not self.time_integrator.dual_time))
+            sol_int.update_state(from_prim=self.time_integrator.dual_time)
             sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
             sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
 
@@ -341,7 +319,7 @@ class SolutionDomain:
 
             d_sol = self.time_integrator.solve_sol_change(sol_int.rhs)
             sol_int.sol_cons = sol_int.sol_hist_cons[0] + d_sol
-            sol_int.update_state(from_cons=True)
+            sol_int.update_state(from_prim=False)
 
     def calc_rhs(self, solver):
         """Compute non-linear right-hand side function of spatially-discrete governing ODE.
@@ -354,59 +332,26 @@ class SolutionDomain:
         """
 
         sol_int = self.sol_int
-        sol_inlet = self.sol_inlet
-        sol_outlet = self.sol_outlet
-        sol_prim_full = self.sol_prim_full
-        sol_cons_full = self.sol_cons_full
         samp_idxs = self.direct_samp_idxs
-        gas = self.gas_model
 
-        # Compute ghost cell state (if adjacent cell is sampled)
-        # TODO: update this after higher-order contribution?
-        # TODO: adapt pass to calc_boundary_state() depending on space scheme
-        # breakpoint()
-        if samp_idxs[0] == 0:
-            sol_inlet.calc_boundary_state(
-                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, :2], sol_cons=sol_int.sol_cons[:, :2]
-            )
-        if samp_idxs[-1] == (self.mesh.num_cells - 1):
-            sol_outlet.calc_boundary_state(
-                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, -2:], sol_cons=sol_int.sol_cons[:, -2:]
-            )
+        # Compute ghost cell state
+        self.calc_ghost_cells(solver)
 
-        self.fill_sol_full()  # Fill sol_prim_full and sol_cons_full
+        # For gradient and viscous flux calculations
+        self.fill_sol_full()
 
-        # First-order approx at faces
-        sol_left = self.sol_left
-        sol_right = self.sol_right
-        sol_left.sol_prim[:, :] = sol_prim_full[:, self.flux_samp_left_idxs]
-        sol_left.sol_cons[:, :] = sol_cons_full[:, self.flux_samp_left_idxs]
-        sol_right.sol_prim[:, :] = sol_prim_full[:, self.flux_samp_right_idxs]
-        sol_right.sol_cons[:, :] = sol_cons_full[:, self.flux_samp_right_idxs]
-
-        # Add higher-order contribution
-        # TODO: If not dual_time, reconstruct conservative variables instead of primitive
-        if self.space_order > 1:
-            sol_prim_grad = self.calc_cell_gradients()
-            sol_left.sol_prim[:, self.flux_left_extract] += (self.mesh.dx / 2.0) * sol_prim_grad[
-                :, self.grad_left_extract
-            ]
-            sol_right.sol_prim[:, self.flux_right_extract] -= (self.mesh.dx / 2.0) * sol_prim_grad[
-                :, self.grad_right_extract
-            ]
-
-        sol_left.update_state(from_cons=False)
-        sol_right.update_state(from_cons=False)
+        # Compute face reconstructions
+        self.calc_face_recon()
 
         # Compute average state at face
-        self.invisc_flux_scheme.calc_avg_state(sol_left, sol_right, self.sol_ave)
+        self.invisc_flux_scheme.calc_avg_state(self.sol_left, self.sol_right, self.sol_ave)
 
         # Compute fluxes
         flux = self.invisc_flux_scheme.calc_flux(self)
         if self.visc_flux_name != "invisc":
             flux -= self.visc_flux_scheme.calc_flux(self)
 
-        # Compute maximum wave speeds, if requested
+        # Compute maximum wave speeds
         if self.time_integrator.adapt_dtau:
             srf = np.maximum(self.sol_ave.sol_prim[1, :] + self.sol_ave.c, self.sol_ave.sol_prim[1, :] - self.sol_ave.c)
             self.sol_int.srf[samp_idxs] = np.maximum(srf[self.flux_rhs_idxs], srf[self.flux_rhs_idxs + 1])
@@ -419,38 +364,144 @@ class SolutionDomain:
         if not solver.source_off:
             source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, samp_idxs=samp_idxs)
 
-            sol_int.source[gas.mass_frac_slice[:, None], samp_idxs[None, :]] = source
+            sol_int.source[self.gas_model.mass_frac_slice[:, None], samp_idxs[None, :]] = source
             sol_int.wf[:, samp_idxs] = wf
 
             sol_int.rhs[3:, samp_idxs] += sol_int.source[:, samp_idxs]
 
-    def calc_cell_gradients(self):
+    def calc_ghost_cells(self, solver):
+        """Calculate state in inlet and outlet boundary ghost cells.
+        
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+        """
+
+        sol_int = self.sol_int
+
+        if self.direct_samp_idxs[0] == 0:
+            self.sol_inlet.calc_boundary_state(
+                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, :2], sol_cons=sol_int.sol_cons[:, :2]
+            )
+
+        if self.direct_samp_idxs[-1] == (self.mesh.num_cells - 1):
+            self.sol_outlet.calc_boundary_state(
+                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, -2:], sol_cons=sol_int.sol_cons[:, -2:]
+            )
+
+    def fill_sol_full(self):
+        """Fill sol_prim_full and sol_cons_full from interior and ghost cells"""
+
+        # TODO: hyper-reduction indices
+
+        idx_in = self.sol_inlet.num_cells
+        idx_int = idx_in + self.sol_int.num_cells
+
+        self.sol_prim_full[:, :idx_in] = self.sol_inlet.sol_prim.copy()
+        self.sol_prim_full[:, idx_in:idx_int] = self.sol_int.sol_prim.copy()
+        self.sol_prim_full[:, idx_int:] = self.sol_outlet.sol_prim.copy()
+
+        self.sol_cons_full[:, :idx_in] = self.sol_inlet.sol_cons.copy()
+        self.sol_cons_full[:, idx_in:idx_int] = self.sol_int.sol_cons.copy()
+        self.sol_cons_full[:, idx_int:] = self.sol_outlet.sol_cons.copy()
+
+    def calc_face_recon(self):
+        """Calculate reconstruction of state at finite volume faces.
+
+        For first-order scheme, simply use cell-centered values.
+        For higher-order, use gradient to compute reconstruction.
+        """
+
+        # First order
+        self.sol_left.sol_prim[:, :] = self.sol_prim_full[:, self.flux_samp_left_idxs]
+        self.sol_left.sol_cons[:, :] = self.sol_cons_full[:, self.flux_samp_left_idxs]
+        self.sol_right.sol_prim[:, :] = self.sol_prim_full[:, self.flux_samp_right_idxs]
+        self.sol_right.sol_cons[:, :] = self.sol_cons_full[:, self.flux_samp_right_idxs]
+
+        # Higher order
+        if self.space_order > 1:
+
+            grad = self.calc_cell_gradients(self.sol_prim_full)
+            sol_left = self.sol_left.sol_prim
+            sol_right = self.sol_right.sol_prim
+
+            self.add_high_order_contrib(
+                sol_left, grad, self.grad_left_extract, self.flux_left_extract, side="left"
+            )
+
+            self.add_high_order_contrib(
+                sol_right, grad, self.grad_right_extract, self.flux_right_extract, side="right",
+            )
+
+            # TODO: the following fails miserably for dual_time = False and grad_limiter = "barth" need to check this
+
+            # if self.time_integrator.dual_time:
+            #     grad = self.calc_cell_gradients(self.sol_prim_full)
+            #     sol_left = self.sol_left.sol_prim
+            #     sol_right = self.sol_right.sol_prim
+            # else:
+            #     grad = self.calc_cell_gradients(self.sol_cons_full)
+            #     sol_left = self.sol_left.sol_cons
+            #     sol_right = self.sol_right.sol_cons
+
+            # self.add_high_order_contrib(
+            #     sol_left, grad, self.grad_left_extract, self.flux_left_extract, side="left"
+            # )
+
+            # self.add_high_order_contrib(
+            #     sol_right, grad, self.grad_right_extract, self.flux_right_extract, side="right",
+            # )
+
+        # update state and thermo properties
+        self.sol_left.update_state(from_prim=True)
+        self.sol_right.update_state(from_prim=True)
+
+        # TODO: switch above to below when you figure out the issue with dual_time=False and Barth limiter
+        # self.sol_left.update_state(from_prim=self.time_integrator.dual_time)
+        # self.sol_right.update_state(from_prim=self.time_integrator.dual_time)
+
+    def add_high_order_contrib(self, sol, grad, grad_samp_idxs, face_grad_idxs, side):
+        """Adds contribution of higher-order gradient calculations to face reconstruction.
+
+        Args:
+            sol: NumPy array of first-order solutions at left or right side of cell faces.
+            grad: NumPy array of cell-centered gradients.
+            grad_samp_idxs: NumPy array of cell indices at which to subsample grad for hyper-reduction.
+            face_grad_idxs: NumPy array of face indices at which to subsample sol for hyper-reduciton.
+            side: string; if "left", compute contribution for face's left side. If "right", compute for face's right side.
+        """
+
+        sol_change = (self.mesh.dx / 2.0) * grad[:, grad_samp_idxs]
+        if side == "left":
+            sol[:, face_grad_idxs] += sol_change
+        elif side == "right":
+            sol[:, face_grad_idxs] -= sol_change
+
+    def calc_cell_gradients(self, sol_full):
         """Compute cell-centered gradients and gradient limiters for higher-order face reconstructions.
 
         Calculates cell-centered gradients via a finite-difference stencil. If a gradient limiter is requested,
         the multiplicative limiter factor is computed and the gradient is multiplied by this factor.
 
+        Args:
+            sol_full: NumPy array of cell-centered states, including ghost cells.
+
         Returns:
-            NumPy array of cell-centered gradients of primitive state profile at all interior cells.
+            NumPy array of cell-centered gradients of state profile at all interior cells.
         """
 
-        # TODO: for dual_time = False, should be calculating conservative variable gradients
-
         # Compute gradients via finite difference stencil
-        sol_prim_grad = np.zeros((self.gas_model.num_eqs, self.num_grad_cells), dtype=REAL_TYPE)
+        grad = np.zeros((self.gas_model.num_eqs, self.num_grad_cells), dtype=REAL_TYPE)
         if self.space_order == 2:
-            sol_prim_grad = (0.5 / self.mesh.dx) * (
-                self.sol_prim_full[:, self.grad_idxs + 1] - self.sol_prim_full[:, self.grad_idxs - 1]
-            )
+            grad = (0.5 / self.mesh.dx) * (sol_full[:, self.grad_idxs + 1] - sol_full[:, self.grad_idxs - 1])
         else:
             raise ValueError("Order " + str(self.space_order) + " gradient calculations not implemented")
 
         # Compute gradient limiter and limit gradient, if requested
         if self.grad_limiter_name != "none":
-            phi = self.grad_limiter.calc_limiter(self, sol_prim_grad)
-            sol_prim_grad = sol_prim_grad * phi
+            phi = self.grad_limiter.calc_limiter(self, sol_full, grad)
+            grad *= phi
 
-        return sol_prim_grad
+        return grad
 
     def calc_res_jacob(self, solver):
         """Compute Jacobian of full-discrete residual.

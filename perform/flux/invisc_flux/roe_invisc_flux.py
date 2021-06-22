@@ -48,7 +48,7 @@ class RoeInviscFlux(InviscFlux):
 
         # Adjust primitive state iteratively to conform to Roe average density and enthalpy, update state
         sol_ave.calc_state_from_rho_h0()
-        sol_ave.update_state(from_cons=False)
+        sol_ave.update_state(from_prim=True)
 
     def calc_flux(self, sol_domain):
         """Compute numerical inviscid flux vector.

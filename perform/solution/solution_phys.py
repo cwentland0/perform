@@ -87,28 +87,28 @@ class SolutionPhys:
         if sol_prim_in is not None:
             assert sol_prim_in.shape == (self.gas_model.num_eqs, num_cells)
             self.sol_prim = sol_prim_in.copy()
-            self.update_state(from_cons=False)
+            self.update_state(from_prim=True)
         elif sol_cons_in is not None:
             assert sol_cons_in.shape == (self.gas_model.num_eqs, num_cells)
             self.sol_cons = sol_cons_in.copy()
-            self.update_state(from_cons=True)
+            self.update_state(from_prim=False)
         else:
             raise ValueError("Must provide either sol_prim_in or sol_cons_in to SolutionPhys")
 
-    def update_state(self, from_cons):
+    def update_state(self, from_prim):
         """Utility function to complete state from primitive or conservative solution.
 
         Calculates chemical composition, thermodynamic properties, transport properties,
         and primitive/conservative solution from the conservative/primitive solution.
 
         Args:
-            from_cons:
-                If True, update primitive state from conservative state.
-                If False, update conservative state from primitive state.
+            from_prim:
+                If False, update primitive state from conservative state.
+                If True, update conservative state from primitive state.
         """
 
         # Get mass fractions
-        if from_cons:
+        if not from_prim:
             self.sol_prim[3:, :] = self.sol_cons[3:, :] / self.sol_cons[[0], :]
 
         # Update chemical composition and thermo properties
@@ -116,10 +116,10 @@ class SolutionPhys:
         self.update_thermo_properties()
 
         # Update primitive/conservative state
-        if from_cons:
-            self.update_prim_from_cons()
-        else:
+        if from_prim:
             self.update_cons_from_prim()
+        else:
+            self.update_prim_from_cons()
 
         # Finally, transport properties
         self.update_transport_properties()
@@ -131,7 +131,7 @@ class SolutionPhys:
         """
 
         self.sol_prim[1, :] = self.sol_cons[1, :] / self.sol_cons[0, :]
-        self.sol_prim[0, :], self.sol_prim[2, :] = self.gas_model.calc_press_temp_from_consv(
+        self.sol_prim[0, :], self.sol_prim[2, :] = self.gas_model.calc_press_temp_from_cons(
             self.sol_cons[0, :],
             self.sol_cons[2, :],
             velocity=self.sol_prim[1, :],

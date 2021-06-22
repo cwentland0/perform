@@ -98,4 +98,4 @@ class SolutionBoundary(SolutionPhys):
 
         self.bound_func(sol_time, space_order, sol_prim=sol_prim, sol_cons=sol_cons)
 
-        self.update_state(from_cons=False)
+        self.update_state(from_prim=True)

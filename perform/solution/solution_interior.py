@@ -71,7 +71,7 @@ class SolutionInterior(SolutionPhys):
         # Add bulk velocity and update state if requested
         if solver.vel_add != 0.0:
             self.sol_prim[1, :] += solver.vel_add
-            self.update_state(from_cons=False)
+            self.update_state(from_prim=True)
 
         # Initializing time history
         self.sol_hist_cons = [self.sol_cons.copy()] * (time_int.time_order + 1)
