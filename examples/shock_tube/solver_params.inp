@@ -12,7 +12,7 @@ time_order  = 3
 # space discretization
 invisc_flux_name = "roe"
 visc_flux_name   = "invisc"
-space_order      = 1
+space_order      = 2
 grad_limiter     = "venkat"
 
 # inlet
