@@ -54,7 +54,7 @@ def get_rom_model(model_idx, rom_domain, sol_domain):
 
         else:
             raise ValueError(
-                "TF-Keras models failed to import," + " please check that TensorFlow >= 2.0" + " is installed"
+                "TF-Keras models failed to import, please check that TensorFlow >= 2.0 is installed"
             )
 
     # TODO: PyTorch autoencoder models

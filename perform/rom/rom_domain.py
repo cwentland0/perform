@@ -257,39 +257,46 @@ class RomDomain:
         if self.is_intrusive:
             sol_domain.calc_rhs(solver)
 
-        if self.time_integrator.time_type == "implicit":
+        if self.has_time_integrator:
 
-            # Compute residual and residual Jacobian
-            if self.is_intrusive:
-                res = self.time_integrator.calc_residual(
-                    sol_int.sol_hist_cons, sol_int.rhs, solver, samp_idxs=sol_domain.direct_samp_idxs
-                )
-                res_jacob = sol_domain.calc_res_jacob(solver)
+            if self.time_integrator.time_type == "implicit":
 
-            # Compute change in low-dimensional state
-            for model_idx, model in enumerate(self.model_list):
-                d_code, code_lhs, code_rhs = model.calc_d_code(res_jacob, res, sol_domain)
-                model.code += d_code
-                model.code_hist[0] = model.code.copy()
-                model.update_sol(sol_domain)
+                # Compute residual and residual Jacobian
+                if self.is_intrusive:
+                    res = self.time_integrator.calc_residual(
+                        sol_int.sol_hist_cons, sol_int.rhs, solver, samp_idxs=sol_domain.direct_samp_idxs
+                    )
+                    res_jacob = sol_domain.calc_res_jacob(solver)
 
-                # Compute ROM residual for convergence measurement
-                model.res = code_lhs @ d_code - code_rhs
+                # Compute change in low-dimensional state
+                for model_idx, model in enumerate(self.model_list):
+                    d_code, code_lhs, code_rhs = model.calc_d_code(res_jacob, res, sol_domain)
+                    model.code += d_code
+                    model.code_hist[0] = model.code.copy()
+                    model.update_sol(sol_domain)
 
-            sol_int.update_state(from_prim=sol_domain.time_integrator.dual_time)
-            sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
-            sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
+                    # Compute ROM residual for convergence measurement
+                    model.res = code_lhs @ d_code - code_rhs
+
+                sol_int.update_state(from_prim=sol_domain.time_integrator.dual_time)
+                sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
+                sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
+
+            else:
+
+                for model_idx, model in enumerate(self.model_list):
+
+                    model.calc_rhs_low_dim(self, sol_domain)
+                    d_code = self.time_integrator.solve_sol_change(model.rhs_low_dim)
+                    model.code = model.code_hist[0] + d_code
+                    model.update_sol(sol_domain)
+
+                sol_int.update_state(from_prim=False)
 
         else:
 
-            for model_idx, model in enumerate(self.model_list):
+            raise ValueError("Non-intrusive ROMs not implemented yet")
 
-                model.calc_rhs_low_dim(self, sol_domain)
-                d_code = self.time_integrator.solve_sol_change(model.rhs_low_dim)
-                model.code = model.code_hist[0] + d_code
-                model.update_sol(sol_domain)
-
-            sol_int.update_state(from_prim=False)
 
     def update_code_hist(self):
         """Update low-dimensional state history after physical time step."""
