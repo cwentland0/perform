@@ -297,7 +297,6 @@ class RomDomain:
 
             raise ValueError("Non-intrusive ROMs not implemented yet")
 
-
     def update_code_hist(self):
         """Update low-dimensional state history after physical time step."""
 
@@ -388,19 +387,19 @@ class RomDomain:
             self.has_cons_norm = True
             self.has_prim_norm = True
             self.has_prim_cent = True
-        elif self.rom_method == "autoencoder_galerkin_proj_tfkeras":
+        elif self.rom_method == "autoencoder_galerkin_proj":
             self.has_time_integrator = True
             self.is_intrusive = True
             self.target_cons = True
             self.has_cons_norm = True
             self.has_cons_cent = True
-        elif self.rom_method == "autoencoder_lspg_proj_tfkeras":
+        elif self.rom_method == "autoencoder_lspg_proj":
             self.has_time_integrator = True
             self.is_intrusive = True
             self.target_cons = True
             self.has_cons_norm = True
             self.has_cons_cent = True
-        elif self.rom_method == "autoencoder_splsvt_proj_tfkeras":
+        elif self.rom_method == "autoencoder_splsvt_proj":
             self.has_time_integrator = True
             self.is_intrusive = True
             self.target_prim = True

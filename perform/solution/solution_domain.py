@@ -424,9 +424,7 @@ class SolutionDomain:
             sol_left = self.sol_left.sol_prim
             sol_right = self.sol_right.sol_prim
 
-            self.add_high_order_contrib(
-                sol_left, grad, self.grad_left_extract, self.flux_left_extract, side="left"
-            )
+            self.add_high_order_contrib(sol_left, grad, self.grad_left_extract, self.flux_left_extract, side="left")
 
             self.add_high_order_contrib(
                 sol_right, grad, self.grad_right_extract, self.flux_right_extract, side="right",

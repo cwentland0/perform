@@ -1,13 +1,13 @@
 import numpy as np
 from scipy.linalg import pinv
 
-from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_tfkeras.autoencoder_tfkeras import AutoencoderTFKeras
+from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_proj_rom import AutoencoderProjROM
 
 
-class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
+class AutoencoderGalerkinProj(AutoencoderProjROM):
     """Class for projection-based ROM with a TF-Keras non-linear manifold decoder and Galerkin projection.
 
-    Inherits from AutoencoderTFKeras.
+    Inherits from AutoencoderProjROM.
 
     Decoder is assumed to map to the conservative variables. Allows implicit and explicit time integration.
 
@@ -36,7 +36,7 @@ class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
             sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
         """
 
-        jacob = self.calc_model_jacobian(sol_domain)
+        jacob = self.calc_jacobian(sol_domain, encoder_jacob=self.encoder_jacob)
 
         if self.encoder_jacob:
             self.projector = jacob
@@ -68,7 +68,7 @@ class AutoencoderGalerkinProjTFKeras(AutoencoderTFKeras):
 
         # TODO: this is non-general and janky, only valid for BDF
 
-        jacob = self.calc_model_jacobian(sol_domain)
+        jacob = self.calc_jacobian(sol_domain, encoder_jacob=self.encoder_jacob)
 
         if self.encoder_jacob:
             jacob_pinv = jacob * self.norm_fac_prof_cons.ravel(order="C")[None, :]
