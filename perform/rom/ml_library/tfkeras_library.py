@@ -1,4 +1,5 @@
 import os
+from packaging import version
 
 import numpy as np
 import tensorflow as tf
@@ -9,16 +10,24 @@ from perform.constants import FD_STEP_DEFAULT
 
 
 class TFKerasLibrary(MLLibrary):
-    """Class for accessing Tensorflow-Keras functionalities."""
+    """Class for implementing Tensorflow-Keras functionalities.
+    
+    This class assumes that Tensorflow >=2.0 is installed. 
+
+    Args:
+        rom_domain: RomDomain which contains relevant ROM input dictionary.
+    """
 
     def __init__(self, rom_domain):
 
         super().__init__(rom_domain)
+        if version.parse(tf.__version__) < version.parse("2.0"):
+            raise ValueError("You must use TensorFlow >=2.0, please upgrade your installation of Tensorflow.")
 
     def init_device(self, run_gpu):
-        """Initializes GPU execution, if requested
+        """Initializes GPU execution, if requested.
 
-        TensorFlow 2+ can execute from CPU or GPU, this function does some prep work.
+        TensorFlow >=2.0 can execute from CPU or GPU, this function does some prep work.
 
         Passing run_gpu=True will limit GPU memory growth, as unlimited TensorFlow memory allocation can be
         quite aggressive on first call.
@@ -50,61 +59,70 @@ class TFKerasLibrary(MLLibrary):
         """Load model object from file.
 
         This function loads a trained Tensorflow-Keras model.
-        Either the newer SavedModel
+        Either the newer SavedModel format or old Keras HDF5 format are supported.
 
         Args:
             model_path: string path to the model file to be loaded.
+            custom_objects: dictionary of custom classes or functions for use in model.
 
         Returns:
-            Uncompiled Keras model object. As no training is being done, there is no need to compile.
+            Uncompiled tf.keras.Model object. As no training is being done, there is no need to compile.
         """
 
         model_obj = load_model(model_path, compile=False, custom_objects=custom_objects)
 
         return model_obj
 
-    def init_persistent_mem(self, input_shape, input_dtype="float64", prepend_batch=False):
+    def init_persistent_mem(self, data_shape, dtype="float64", prepend_batch=False):
         """Initialize persistent memory for graph computations.
 
         In order to use tf.function for efficient graph computations, some persistent memory must be allocated.
 
         Args:
-            model: child class of RomModel which provides necessary Boolean flags.
-            model_type: string denoting the appropriate types of memory to allocate for a given model.
-            sol_domain: SolutionDomain containing physical solutions.
-            code: low-dimensional latent variables.
+            data_shape: tuple shape of memory object to be created.
+            dtype: data type of memory object to be created.
+            prepend_batch: Boolean flag indicating whether to prepend a singleton batch dimension to memory object.
 
         Returns:
-            Tuple of presistent memory variables, specific to the requested model_type.
+            tf.Variable object to be used for persistent memory.
         """
 
-        mem_input = np.zeros(input_shape, dtype=input_dtype)
+        mem_np = np.zeros(data_shape, dtype=dtype)
         if prepend_batch:
-            mem_input = np.expand_dims(mem_input, axis=0)
-        mem_obj = tf.Variable(mem_input, dtype=input_dtype)
+            mem_np = np.expand_dims(mem_np, axis=0)
+        mem_obj = tf.Variable(mem_np, dtype=dtype)
 
         return mem_obj
 
     def check_conv_io_format(self, io_format):
-        """Checks for convolutional model I/O compatability."""
+        """Checks for convolutional model I/O compatability.
+        
+        Tensorflow >=2.0 cannot handle NCHW convolutional layers when running on a CPU.
+        The user input is really only for handing input/output convolutional layers, if inner layers
+        in a deep network use incompatible convolutional layers then execution will still fail on CPUs.
 
-        # "nchw" (channels first) or "nhwc" (channels last)
-        if io_format == "nchw":
-            assert self.run_gpu, "Tensorflow cannot handle NCHW on CPUs"
-        elif io_format == "nhwc":
+        Args:
+            io_format: either "channels_first" or "channels_last", indicating convolutional layer format.
+        """
+
+        # "channels_first" or "channels_last"
+        if io_format == "channels_first":
+            assert self.run_gpu, "Tensorflow cannot handle channels_first on CPUs"
+        elif io_format == "channels_last":
             pass  # works on GPU or CPU
         else:
             raise ValueError(
-                'io_format for a convolutional model must be either "nchw" or "nhwc"; you entered ' + str(io_format)
+                'io_format for a convolutional model must be either "channels_first" or "channels_last"; you entered ' + str(io_format)
             )
 
     def get_io_shape(self, model):
         """Gets model I/O shape, excluding batch dimension.
 
-        
-
         Args:
-            shape: output of tf.keras.Model.Layer.input_shape or tf.keras.Model.Layer.output_shape
+            model: tf.keras.Model instance.
+
+        Returns:
+            Tuple shapes of model input and model output.
         """
 
         input_shape = self.get_shape_tuple(model.layers[0].input_shape)[1:]
@@ -113,6 +131,14 @@ class TFKerasLibrary(MLLibrary):
         return (input_shape, output_shape)
 
     def get_io_dtype(self, model):
+        """Gets model I/O data types.
+        
+        Args:
+            model: tf.keras.Model instance.
+        
+        Returns:
+            List of model input and output data types.
+        """
 
         return [model.layers[0].dtype, model.layers[-1].dtype]
 
@@ -120,8 +146,8 @@ class TFKerasLibrary(MLLibrary):
         """Compute inference of model.
 
         Args:
-            model: Keras model object.
-            inputs: NumPy array of inputs.
+            model: tf.keras.Model instance.
+            inputs: NumPy array of inputs to model.
 
         Returns:
             NumPy array of inferred output, with batch dimension squeezed.
@@ -139,7 +165,7 @@ class TFKerasLibrary(MLLibrary):
         The GradientTape method computes this using automatic differentiation.
 
         Args:
-            model: tf.keras.Model for which the analytical Jacobian should be computed.
+            model: tf.keras.Model instance.
             inputs: tf.Variable containing inputs to model about which the model Jacobian should be computed.
 
         Returns:
@@ -155,22 +181,24 @@ class TFKerasLibrary(MLLibrary):
     def calc_model_jacobian(
         self, model, input, output_shape, numerical=False, fd_step=FD_STEP_DEFAULT, persistent_input=None
     ):
-        """Helper function for calculating TensorFlow-Keras model Jacobian
-
-        Computes analytical or numerical Jacobian of a decoder or encoder, depending on the requested
-        ROM solution method. Handles the various data formats and array shapes produced by each option,
-        and returns the properly-formatted model Jacobian to the child classes calling this function.
+        """Helper function for calculating an analytical or numerical ML model Jacobian.
 
         Args:
-            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+            model: tf.keras.Model instance.
+            input: NumPy array of inputs to model about which the Jacobian should be computed.
+            output_shape: tuple shape of model output, assumed to be correct.
+            numerical: Boolean flag indicating whether to calculate numerical Jacobian
+            fd_step: float, numerical Jacobian finite difference step size.
+            presistent_input: persistent tf.Variable for analytical Jacobian calculation.
 
         Returns:
-            NumPy array of model Jacobian, formatted appropriately for time integration.
+            NumPy array of model Jacobian.
         """
 
         if numerical:
             jacob = self.calc_numerical_model_jacobian(model, input, output_shape, fd_step)
         else:
+            assert persistent_input is not None, "Must supply persistent tf.Variable to persistent_input for analytical Jacobian calculation."
             persistent_input.assign(np.expand_dims(input, axis=0))
             jacob_tf = self.calc_analytical_model_jacobian(model, persistent_input)
             jacob = tf.squeeze(jacob_tf, axis=[0, len(output_shape) + 1]).numpy()

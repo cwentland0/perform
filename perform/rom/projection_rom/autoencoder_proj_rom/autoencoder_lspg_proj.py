@@ -57,7 +57,7 @@ class AutoencoderLSPGProj(AutoencoderProjROM):
         """
 
         # decoder Jacobian, scaled
-        jacob = self.calc_jacobian(sol_domain, encoder_jacob=self.encoder_jacob)
+        jacob = self.calc_jacobian(sol_domain)
         scaled_jacob = jacob * self.norm_fac_prof_cons.ravel(order="C")[:, None]
 
         # test basis

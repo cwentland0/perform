@@ -7,7 +7,15 @@ from perform.constants import FD_STEP_DEFAULT, REAL_TYPE
 class MLLibrary:
     """Base class for abstracting machine learning library functionality.
 
+    Child classes implement library-specific (e.g. Tensorflow, PyTorch) routines for accomplishing basic
+    machine learning tasks, such as model inference or device memory management.
+    This class implements higher-level tasks which utilize various child class routines.
+    
+    Routines here and in child classes should be written to be intentionally general and leave most specifics
+    to be implemented in RomModel child classes.
 
+    Args:
+        rom_domain: RomDomain which contains relevant ROM input dictionary.
     """
 
     def __init__(self, rom_domain):
@@ -17,7 +25,21 @@ class MLLibrary:
         self.init_device(run_gpu)
 
     def check_model_io(self, model, input_shape, output_shape, isconv=False, io_format=None):
-        """
+        """Checks ML model hardware compatabilty and I/O shape against expected shapes.
+
+        Args:
+            model: ML model object.
+            input_shape: tuple of expected model input shape.
+            output_shape: tuple of expected model output shape.
+            isconv: 
+                if True, indicates that model contains convolutional input or output layers,
+                and checks whether hardware running ML model supports the format given by io_format.
+            io_format: 
+                string indicating convolutional input/output format,
+                either "channels_first" (i.e. NCHW) or "channels_last" (i.e. NHWC)
+
+        Returns:
+            List of model I/O tuple shapes and list of model I/O data types.
         """
 
         if isconv:
@@ -29,14 +51,12 @@ class MLLibrary:
         return (io_shapes, io_dtypes)
 
     def check_io_shape(self, model, input_shape, output_shape):
-        """Check input/output dimensions and returns I/O dtypes
-
-        Extracts shapes of the model's input and output laters and checks whether they match the expected shapes.
+        """Check input/output dimensions against expected shapes.
 
         Args:
-            model:
-            input_shape:
-            output_shape:
+            model: ML model object.
+            input_shape: tuple of expected model input shape.
+            output_shape: tuple of expected model output shape.
         """
 
         input_shape_model, output_shape_model = self.get_io_shape(model)
@@ -50,16 +70,19 @@ class MLLibrary:
         )
 
     def get_shape_tuple(self, shape_var):
-        """
+        """Get shape tuple from layer I/O shape.
 
-        This takes in the output of tf.keras.Model.Layer.input_shape or tf.keras.Model.Layer.output_shape.
+        Takes in shape of model layer (usually input of first layer or output of last layer).
         If the shape is already a tuple, simply returns the shape.
-        If the shape is a list (as occasionally happens), it returns the shape tuple associated with this list.
+        If the shape is a list (as may happen), it returns the shape tuple associated with this list.
+
+        Args:
+            shape_var: either a tuple shape or single-element list containing a tuple shape.
         """
 
         if type(shape_var) is list:
             if len(shape_var) != 1:
-                raise ValueError("Invalid TF model I/O size")
+                raise ValueError("Invalid model I/O size")
             else:
                 shape_var = shape_var[0]
         elif type(shape_var) is tuple:
@@ -73,17 +96,23 @@ class MLLibrary:
         """Compute numerical Jacobian of model using finite-difference.
 
         Calculates the numerical Jacobian of a model with respect to the given inputs.
-        A finite-difference approximation of the gradient with respect to each element of inputs is calculated.
+        A finite-difference approximation of the gradient with respect to each element of the inputs is calculated.
         The fd_step attribute determines the finite difference step size.
+        
+        This method is agnostic to the number of input/output dimensions and their shapes, but assumes that
+        output_shape is correct.
 
         Args:
-            model: model object for which the numerical Jacobian should be computed.
+            model: model object for which the numerical Jacobian is to be computed.
             inputs: NumPy array containing inputs about which the model Jacobian should be computed.
+            output_shape: tuple shape of model output.
+            fd_step: float size of finite difference step.
 
         Returns:
             NumPy array containing the numerical Jacobian.
         """
 
+        # prep Jacobian and indices into Jacobian 
         jacob = np.zeros(output_shape + inputs.shape, dtype=REAL_TYPE)
         num_indices_output = np.product(output_shape)
         output_slice = ((np.s_[:],) * len(output_shape))

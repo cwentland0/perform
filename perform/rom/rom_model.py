@@ -57,6 +57,7 @@ class RomModel:
         # Just copy some stuff for less clutter
         model_dir = rom_domain.model_dir
         self.target_cons = rom_domain.target_cons
+        self.target_prim = rom_domain.target_prim
 
         self.code = np.zeros(self.latent_dim, dtype=REAL_TYPE)
         self.res = np.zeros(self.latent_dim, dtype=REAL_TYPE)

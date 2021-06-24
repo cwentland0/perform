@@ -125,7 +125,7 @@ class LinearProjROM(ProjectionROM):
             self.code = self.project_to_low_dim(self.trial_basis, sol, transpose=True)
             sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
 
-        else:
+        elif self.target_prim:
             sol = self.scale_profile(
                 sol_domain.sol_int.sol_prim[self.var_idxs, :],
                 normalize=True,
@@ -138,6 +138,9 @@ class LinearProjROM(ProjectionROM):
 
             self.code = self.project_to_low_dim(self.trial_basis, sol, transpose=True)
             sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
+
+        else:
+            raise ValueError("Invalid variable mapping.")
 
     def apply_decoder(self, code):
         """Compute raw decoding of code.

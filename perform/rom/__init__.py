@@ -11,10 +11,8 @@ from perform.rom.projection_rom.linear_proj_rom.linear_splsvt_proj import Linear
 TFKERAS_IMPORT_SUCCESS = True
 try:
     import os
-
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # don't print all the TensorFlow warnings
     import tensorflow as tf
-
     from perform.rom.ml_library.tfkeras_library import TFKerasLibrary
 
 except ImportError:
@@ -24,6 +22,7 @@ except ImportError:
 TORCH_IMPORT_SUCCESS = True
 try:
     import torch
+    from perform.rom.ml_library.pytorch_library import PyTorchLibrary
 
 except ImportError:
     TORCH_IMPORT_SUCCESS = False
@@ -73,7 +72,7 @@ def get_rom_model(model_idx, rom_domain, sol_domain):
             assert rom_domain.rom_method in pytorch_classes, (
                 "Requested ROM method (" + rom_domain.rom_method + ") is not available with PyTorch."
             )
-            # TODO: add mllib when it's implemented for PyTorch
+            rom_domain.mllib = PyTorchLibrary(rom_domain)
 
         else:
             raise ValueError("Invalid mllib_name: " + str(rom_domain.mllib_name))
