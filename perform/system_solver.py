@@ -49,6 +49,7 @@ class SystemSolver:
         prim_out: Boolean flag indicating whether to store and save primitive solution profile snapshots.
         cons_out: Boolean flag indicating whether to store and save conservative solution profile snapshots.
         source_out: Boolean flag indicating whether to store and save source term profile snapshots.
+        hr_out: Boolean flag indicating whether to store and save unsteady heat release profile snapshots.
         rhs_out:
             Boolean flag indicating whether to store and save semi-discrete right-hand side function profile snapshots.
         num_snaps: Total number of snapshots to be stored and saved, assuming the simulation runs to completion.
@@ -116,6 +117,7 @@ class SystemSolver:
         self.prim_out = catch_input(param_dict, "prim_out", True)
         self.cons_out = catch_input(param_dict, "cons_out", False)
         self.source_out = catch_input(param_dict, "source_out", False)
+        self.hr_out = catch_input(param_dict, "hr_out", False)
         self.rhs_out = catch_input(param_dict, "rhs_out", False)
 
         assert self.out_interval > 0, "out_interval must be a positive integer"

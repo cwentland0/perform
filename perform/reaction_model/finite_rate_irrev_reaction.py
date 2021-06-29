@@ -89,11 +89,18 @@ class FiniteRateIrrevReaction(ReactionModel):
         )
 
         # Threshold
-        wf = np.minimum(wf, rho_mass_frac[gas.mass_frac_slice, :] / dt)
+        # TODO: vectorize
+        for spec_idx in range(gas.num_species_full):
+            for reac_idx in range(self.num_reactions):
+                if self.nu[reac_idx, spec_idx] != 0.0:
+                    wf[reac_idx, :] = np.minimum(wf[reac_idx, :], rho_mass_frac[spec_idx, :] / dt)
 
-        source = -np.sum(self.mol_weight_nu[:, gas.mass_frac_slice, None] * wf[:, None, :], axis=0)
+        # Source term
+        reaction_source = np.zeros(rho_mass_frac.shape, dtype=REAL_TYPE)
+        for spec_idx in range(gas.num_species_full):
+            reaction_source[spec_idx, :] = -np.sum(self.mol_weight_nu[:, spec_idx, None] * wf, axis=0)
 
-        return source, wf
+        return reaction_source, wf
 
     def calc_jacob(self, sol_int, wrt_prim, samp_idxs=np.s_[:]):
         """Compute source term Jacobian.

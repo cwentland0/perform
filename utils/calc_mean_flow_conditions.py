@@ -74,9 +74,9 @@ if add_vel:
 
 # set up solutions
 sol_inlet = SolutionPhys(gas, 1, sol_prim_in=sol_prim_in)
-sol_inlet.update_state(from_cons=False)
+sol_inlet.update_state(from_prim=True)
 sol_outlet = SolutionPhys(gas, 1, sol_prim_in=sol_prim_out)
-sol_outlet.update_state(from_cons=False)
+sol_outlet.update_state(from_prim=True)
 
 # set some variables for ease of use
 press_in = sol_inlet.sol_prim[0, 0]

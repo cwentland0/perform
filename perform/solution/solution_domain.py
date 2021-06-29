@@ -19,7 +19,7 @@ from perform.flux.visc_flux.standard_visc_flux import StandardViscFlux
 
 # gradient limiters
 # TODO: make an __init__.py with get_limiter()
-from perform.limiter.barth_jesp_limiter import BarthJespLimiter
+from perform.limiter.barth_jesp_limiter import BarthJespCellLimiter, BarthJespFaceLimiter
 from perform.limiter.venkat_limiter import VenkatLimiter
 
 # gas models
@@ -164,7 +164,9 @@ class SolutionDomain:
             if self.grad_limiter_name == "none":
                 pass
             elif self.grad_limiter_name == "barth":
-                self.grad_limiter = BarthJespLimiter()
+                self.grad_limiter = BarthJespCellLimiter()
+            elif self.grad_limiter_name == "barth_face":
+                self.grad_limiter = BarthJespFaceLimiter()
             elif self.grad_limiter_name == "venkat":
                 self.grad_limiter = VenkatLimiter()
             else:
@@ -362,12 +364,15 @@ class SolutionDomain:
 
         # Compute source term
         if not solver.source_off:
-            source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, samp_idxs=samp_idxs)
+            reaction_source, wf, heat_release = self.reaction_model.calc_reaction(
+                self.sol_int, solver.dt, samp_idxs=samp_idxs
+            )
 
-            sol_int.source[self.gas_model.mass_frac_slice[:, None], samp_idxs[None, :]] = source
+            sol_int.reaction_source[:, samp_idxs] = reaction_source
             sol_int.wf[:, samp_idxs] = wf
+            sol_int.heat_release[samp_idxs] = heat_release
 
-            sol_int.rhs[3:, samp_idxs] += sol_int.source[:, samp_idxs]
+            sol_int.rhs[3:, samp_idxs] += sol_int.reaction_source[:-1, samp_idxs]
 
     def calc_ghost_cells(self, solver):
         """Calculate state in inlet and outlet boundary ghost cells.
@@ -746,7 +751,8 @@ class SolutionDomain:
             else:
                 sol_prim_probe = self.sol_int.sol_prim[:, probe_idx]
                 sol_cons_probe = self.sol_int.sol_cons[:, probe_idx]
-                sol_source_probe = self.sol_int.source[:, probe_idx]
+                sol_source_probe = self.sol_int.reaction_source[:, probe_idx]
+                sol_hr_probe = self.sol_int.heat_release[probe_idx]
                 mass_fracs_full = self.sol_int.mass_fracs_full[:, probe_idx]
 
             # Gather probe monitor data
@@ -758,8 +764,6 @@ class SolutionDomain:
                     probe.append(sol_prim_probe[1])
                 elif var_str == "temperature":
                     probe.append(sol_prim_probe[2])
-                elif var_str == "source":
-                    probe.append(sol_source_probe[0])
                 elif var_str == "density":
                     probe.append(sol_cons_probe[0])
                 elif var_str == "momentum":
@@ -777,6 +781,11 @@ class SolutionDomain:
                         probe.append(mass_fracs_full[-1] * sol_cons_probe[0])
                     else:
                         probe.append(sol_cons_probe[3 + spec_idx - 1])
+                elif var_str[:6] == "source":
+                    spec_idx = int(var_str[7:])
+                    probe.append(sol_source_probe[spec_idx - 1])
+                elif var_str == "heat_release":
+                    probe.append(sol_hr_probe)
                 else:
                     raise ValueError("Invalid probe variable " + str(var_str))
 

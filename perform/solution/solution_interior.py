@@ -31,14 +31,15 @@ class SolutionInterior(SolutionPhys):
         wf:
             NumPy array of the rate-of-progress profiles for the num_reactions reactions,
             if modeling reactions by a finite-rate reaction model.
-        source: NumPy array of the reaction source term profiles for the num_species species transport equations.
+        reaction_source: NumPy array of the reaction source term profiles for the num_species species transport equations.
+        heat_release: NumPy array of the unsteady heat release profile.
         rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
         sol_hist_cons: List of NumPy arrays of the prior time_int.time_order conservative state profiles.
         sol_hist_prim: List of NumPy arrays of the prior time_int.time_order primitive state profiles.
         rhs_hist: List of NumPy arrays of the prior time_int.time_order RHS function profiles.
         prim_snap: NumPy array of the primitive state snapshot array to be written to disk.
         cons_snap: NumPy array of the conservative state snapshot array to be written to disk.
-        source_snap: NumPy array of the source term snapshot array to be written to disk.
+        reaction_source_snap: NumPy array of the source term snapshot array to be written to disk.
         rhs_snap: NumPy array of the RHS function snapshot array to be written to disk.
         res: NumPy array of the full-discrete residual function profile.
         res_norm_l2: L2 norm of the Newton iteration linear solve residual, normalized.
@@ -65,7 +66,8 @@ class SolutionInterior(SolutionPhys):
 
         if num_reactions > 0:
             self.wf = np.zeros((num_reactions, num_cells), dtype=REAL_TYPE)
-        self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)
+        self.reaction_source = np.zeros((gas.num_species_full, num_cells), dtype=REAL_TYPE)
+        self.heat_release = np.zeros(num_cells, dtype=REAL_TYPE)
         self.rhs = np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)
 
         # Add bulk velocity and update state if requested
@@ -88,9 +90,11 @@ class SolutionInterior(SolutionPhys):
             self.cons_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps + 1), dtype=REAL_TYPE)
             self.cons_snap[:, :, 0] = self.sol_cons.copy()
 
-        # These don't include the source/RHS associated with the final solution
+        # These don't include the profile associated with the final solution
         if solver.source_out:
-            self.source_snap = np.zeros((gas.num_species, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+            self.reaction_source_snap = np.zeros((gas.num_species, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+        if solver.hr_out:
+            self.heat_release_snap = np.zeros((num_cells, solver.num_snaps), dtype=REAL_TYPE)
         if solver.rhs_out:
             self.rhs_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps), dtype=REAL_TYPE)
 
@@ -424,8 +428,12 @@ class SolutionInterior(SolutionPhys):
             self.prim_snap[:, :, store_idx] = self.sol_prim
         if solver.cons_out:
             self.cons_snap[:, :, store_idx] = self.sol_cons
+
+        # TODO: need to subsample these profiles
         if solver.source_out:
-            self.source_snap[:, :, store_idx - 1] = self.source
+            self.reaction_source_snap[:, :, store_idx - 1] = self.reaction_source
+        if solver.hr_out:
+            self.heat_release_snap[:, store_idx - 1] = self.heat_release
         if solver.rhs_out:
             self.rhs_snap[:, :, store_idx - 1] = self.rhs
 
@@ -457,7 +465,11 @@ class SolutionInterior(SolutionPhys):
 
         if solver.source_out:
             source_file = os.path.join(unsteady_output_dir, "source_" + solver.sim_type + ".npy")
-            np.save(source_file, self.source_snap[:, :, : final_idx - 1])
+            np.save(source_file, self.reaction_source_snap[:, :, : final_idx - 1])
+
+        if solver.hr_out:
+            hr_file = os.path.join(unsteady_output_dir, "heat_release_" + solver.sim_type + ".npy")
+            np.save(hr_file, self.heat_release_snap[:, : final_idx - 1])
 
         if solver.rhs_out:
             sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + solver.sim_type + ".npy")

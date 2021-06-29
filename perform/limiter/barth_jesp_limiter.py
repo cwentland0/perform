@@ -5,9 +5,9 @@ from perform.limiter.limiter import Limiter
 
 
 class BarthJespLimiter(Limiter):
-    """Barth-Jespersen limiter.
+    """Baseline Barth-Jespersen limiter.
 
-    This implements the limiter of Barth and Jespersen (1989) in one dimension.
+    Child classes implement variations of the limiter of Barth and Jespersen (1989) in one dimension.
     Ensures that no new minima or maxima are introduced in reconstruction, but is non-differentiable.
     """
 
@@ -37,7 +37,7 @@ class BarthJespLimiter(Limiter):
         sol_max = sol_max[:, sol_domain.grad_neigh_extract]
 
         # unconstrained reconstruction at neighboring cell centers
-        d_sol = grad * sol_domain.mesh.dx
+        d_sol = self.calc_d_sol(grad, sol_domain.mesh.dx)
         sol_left = sol - d_sol
         sol_right = sol + d_sol
 
@@ -69,3 +69,27 @@ class BarthJespLimiter(Limiter):
         phi = np.minimum(phi_left, phi_right)
 
         return phi
+
+
+class BarthJespCellLimiter(BarthJespLimiter):
+    """Barth-Jespersen limiter, based on reconstruction at cell centers."""
+
+    def __init__(self):
+
+        super().__init__()
+
+    def calc_d_sol(self, grad, dx):
+
+        return grad * dx
+
+
+class BarthJespFaceLimiter(BarthJespLimiter):
+    """Barth-Jespersen limiter, based on reconstruction at face instead of cell centers."""
+
+    def __init__(self):
+
+        super().__init__()
+
+    def calc_d_sol(self, grad, dx):
+
+        return grad * dx / 2.0

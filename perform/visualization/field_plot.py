@@ -152,8 +152,6 @@ class FieldPlot(Visualization):
             y_data = sol_int.sol_prim[1, :]
         elif var_str == "temperature":
             y_data = sol_int.sol_prim[2, :]
-        elif var_str == "source":
-            y_data = sol_int.source[0, sol_domain.direct_samp_idxs]
         elif var_str == "density":
             y_data = sol_int.sol_cons[0, :]
         elif var_str == "momentum":
@@ -172,6 +170,11 @@ class FieldPlot(Visualization):
                 y_data = sol_int.sol_cons[0, :] * sol_int.mass_fracs_full[-1, :]
             else:
                 y_data = sol_int.sol_cons[3 + spec_idx - 1, :]
+        elif var_str[:6] == "source":
+            spec_idx = int(var_str[7:])
+            y_data = sol_int.reaction_source[spec_idx - 1, sol_domain.direct_samp_idxs]
+        elif var_str == "heat_release":
+            y_data = sol_int.heat_release[sol_domain.direct_samp_idxs]
         else:
             raise ValueError("Invalid field visualization variable:" + str(var_str))
 
@@ -193,7 +196,7 @@ class FieldPlot(Visualization):
             NumPy array of the x-coordinates for profile to be visualized.
         """
 
-        if var_str == "source":
+        if (var_str[:6] == "source") or (var_str == "heat_release"):
             x_data = sol_domain.mesh.x_cell[sol_domain.direct_samp_idxs]
         else:
             x_data = sol_domain.mesh.x_cell

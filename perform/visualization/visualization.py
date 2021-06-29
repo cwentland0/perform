@@ -56,14 +56,16 @@ class Visualization:
             # Check requested variables
             self.vis_vars = vis_vars
             for vis_var in self.vis_vars:
-                if vis_var in ["pressure", "velocity", "temperature", "source", "density", "momentum", "energy"]:
+                if vis_var in ["pressure", "velocity", "temperature", "density", "momentum", "energy", "heat_release"]:
                     pass
-                elif (vis_var[:7] == "species") or (vis_var[:15] == "density-species"):
+                elif (vis_var[:7] == "species") or (vis_var[:15] == "density-species") or (vis_var[:6] == "source"):
                     try:
                         if vis_var[:7] == "species":
                             species_idx = int(vis_var[8:])
                         elif vis_var[:15] == "density-species":
                             species_idx = int(vis_var[16:])
+                        elif vis_var[:6] == "source":
+                            species_idx = int(vis_var[7:])
 
                         assert (species_idx > 0) and (species_idx <= num_species_full), (
                             "Species number must be a positive integer " + "<= the number of chemical species"
@@ -124,8 +126,6 @@ class Visualization:
                     self.ax_labels[ax_idx] = r"Velocity $\left( \frac{m}{s} \right)$"
                 elif var_str == "temperature":
                     self.ax_labels[ax_idx] = r"Temperature $\left( K \right)$"
-                elif var_str == "source":
-                    self.ax_labels[ax_idx] = r"Source Term $\left( \frac{kg}{m^3 \; s} \right)$"
                 elif var_str == "density":
                     self.ax_labels[ax_idx] = r"Density $\left( \frac{kg}{m^3} \right)$"
                 elif var_str == "momentum":
@@ -136,5 +136,11 @@ class Visualization:
                     self.ax_labels[ax_idx] = r"$Y_{%s}$" % (self.species_names[int(var_str[8:]) - 1])
                 elif var_str[:15] == "density-species":
                     self.ax_labels[ax_idx] = r"$\rho Y_{%s}$" % (self.species_names[int(var_str[16:]) - 1])
+                elif var_str[:6] == "source":
+                    self.ax_labels[ax_idx] = r"$\dot{\omega}_{%s} \left( \frac{kg}{m^3 \; s} \right)$" % (
+                        self.species_names[int(var_str[7:]) - 1]
+                    )
+                elif var_str == "heat_release":
+                    self.ax_labels[ax_idx] = r"Heat Release $\left( \frac{W}{m^3} \right)$"
                 else:
                     raise ValueError("Invalid field visualization variable:" + str(var_str))

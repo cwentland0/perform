@@ -11,6 +11,7 @@ from perform.rom.projection_rom.linear_proj_rom.linear_splsvt_proj import Linear
 TFKERAS_IMPORT_SUCCESS = True
 try:
     import os
+
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # don't print all the TensorFlow warnings
     import tensorflow as tf
     from perform.rom.ml_library.tfkeras_library import TFKerasLibrary
