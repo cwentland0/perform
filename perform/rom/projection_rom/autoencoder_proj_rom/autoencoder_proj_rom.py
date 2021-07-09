@@ -77,7 +77,9 @@ class AutoencoderProjROM(ProjectionROM):
                     self.num_cells,
                 )
             else:
-                raise ValueError('Must specify model_io_format as "channels_first" or "channels_last" if model_isconv = True')
+                raise ValueError(
+                    'Must specify model_io_format as "channels_first" or "channels_last" if model_isconv = True'
+                )
         else:
             decoder_output_shape = (self.num_cells * self.num_vars,)
         self.decoder_io_shapes, self.decoder_io_dtypes = self.mllib.check_model_io(
@@ -112,7 +114,9 @@ class AutoencoderProjROM(ProjectionROM):
                         self.num_cells,
                     )
                 else:
-                    raise ValueError('Must specify encoder_io_format as "channels_first" or "channels_last" if encoder_isconv = True')
+                    raise ValueError(
+                        'Must specify encoder_io_format as "channels_first" or "channels_last" if encoder_isconv = True'
+                    )
             else:
                 encoder_input_shape = (self.num_cells * self.num_vars,)
             self.encoder_io_shapes, self.encoder_io_dtypes = self.mllib.check_model_io(

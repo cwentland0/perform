@@ -1,5 +1,6 @@
 from perform.rom.rom_model import RomModel
 
+
 class NonIntrusiveRom(RomModel):
     """Base class for non-intrusive ROMs.
 
@@ -21,4 +22,3 @@ class NonIntrusiveRom(RomModel):
         # If no numerical time integration, only use one step
         if not rom_domain.has_time_integrator:
             rom_domain.time_integrator.subiter_max = 1
-    

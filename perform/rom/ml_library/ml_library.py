@@ -112,17 +112,19 @@ class MLLibrary:
             NumPy array containing the numerical Jacobian.
         """
 
-        # prep Jacobian and indices into Jacobian 
+        # prep Jacobian and indices into Jacobian
         jacob = np.zeros(output_shape + inputs.shape, dtype=REAL_TYPE)
         num_indices_output = np.product(output_shape)
-        output_slice = ((np.s_[:],) * len(output_shape))
+        output_slice = (np.s_[:],) * len(output_shape)
 
         # get initial prediction
         pred_base = self.infer_model(model, inputs)
 
         # get nd array indeces from linear indices
         num_indices_input = np.product(inputs.shape)
-        pert_indices = list(map(tuple, np.stack(np.unravel_index(np.arange(num_indices_input), inputs.shape, order='C'), axis=1)))
+        pert_indices = list(
+            map(tuple, np.stack(np.unravel_index(np.arange(num_indices_input), inputs.shape, order="C"), axis=1))
+        )
 
         for elem_idx in range(num_indices_input):
 

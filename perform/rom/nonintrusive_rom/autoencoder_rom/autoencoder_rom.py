@@ -1,5 +1,6 @@
 from perform.rom.nonintrusive_rom.nonintrusive_rom import NonIntrusiveRom
 
+
 class AutoencoderRom(NonIntrusiveRom):
     """Base class for all autoencoder-based ROMs.
 
@@ -12,7 +13,6 @@ class AutoencoderRom(NonIntrusiveRom):
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
-
     def decode_sol():
         """
         """
@@ -20,5 +20,3 @@ class AutoencoderRom(NonIntrusiveRom):
     def init_from_sol():
         """
         """
-
-    

@@ -112,7 +112,8 @@ class TFKerasLibrary(MLLibrary):
             pass  # works on GPU or CPU
         else:
             raise ValueError(
-                'io_format for a convolutional model must be either "channels_first" or "channels_last"; you entered ' + str(io_format)
+                'io_format for a convolutional model must be either "channels_first" or "channels_last"; you entered '
+                + str(io_format)
             )
 
     def get_io_shape(self, model):
@@ -198,7 +199,9 @@ class TFKerasLibrary(MLLibrary):
         if numerical:
             jacob = self.calc_numerical_model_jacobian(model, input, output_shape, fd_step)
         else:
-            assert persistent_input is not None, "Must supply persistent tf.Variable to persistent_input for analytical Jacobian calculation."
+            assert (
+                persistent_input is not None
+            ), "Must supply persistent tf.Variable to persistent_input for analytical Jacobian calculation."
             persistent_input.assign(np.expand_dims(input, axis=0))
             jacob_tf = self.calc_analytical_model_jacobian(model, persistent_input)
             jacob = tf.squeeze(jacob_tf, axis=[0, len(output_shape) + 1]).numpy()
