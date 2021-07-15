@@ -2,6 +2,7 @@ import os
 import time
 
 import numpy as np
+from scipy.sparse import vstack
 
 from perform.constants import REAL_TYPE
 
@@ -59,7 +60,12 @@ class RomModel:
         self.target_cons = rom_domain.target_cons
 
         self.code = np.zeros(self.latent_dim, dtype=REAL_TYPE)
-        self.res = np.zeros(self.latent_dim, dtype=REAL_TYPE)
+        self.d_code = np.zeros(self.latent_dim, dtype=REAL_TYPE)
+
+        # For implicit solve
+        if rom_domain.has_time_integrator:
+            if rom_domain.time_integrator.time_type == "implicit":
+                self.res = np.zeros(self.latent_dim, dtype=REAL_TYPE)
 
         # Get normalization profiles, if necessary
         self.norm_sub_prof_cons = None

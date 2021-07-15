@@ -75,6 +75,9 @@ class AutoencoderProjROM(ProjectionROM):
         self.numerical_jacob = catch_input(rom_dict, "numerical_jacob", False)
         self.fd_step = catch_input(rom_dict, "fd_step", FD_STEP_DEFAULT)
 
+    def models_init(self, sol_domain, rom_domain):
+        pass
+
     def encode_sol(self, sol_in):
         """Compute full encoding of solution, including centering and normalization.
 

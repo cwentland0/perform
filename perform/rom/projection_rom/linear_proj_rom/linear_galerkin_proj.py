@@ -1,3 +1,4 @@
+from perform.constants import REAL_TYPE
 import numpy as np
 
 from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearProjROM
@@ -54,8 +55,11 @@ class LinearGalerkinProj(LinearProjROM):
         else:
             self.projector = self.trial_basis.T
 
-    def calc_d_code(self, res_jacob, res, sol_domain):
+    def calc_d_code(self, res_jacob, res, sol_domain, rom_domain):
         """Compute change in low-dimensional state for implicit scheme Newton iteration.
+
+        This acts more as a utility function than a class method, since it takes in rom_domain and
+        operates over all models. This is due to the coupled nature of the ROM equations.
 
         This function computes the iterative change in the low-dimensional state for a given Newton iteration
         of an implicit time integration scheme. For Galerkin projection, this is given by
@@ -68,28 +72,34 @@ class LinearGalerkinProj(LinearProjROM):
                 the conservative variables.
             res: NumPy array of fully-discrete residual, already negated for Newton iteration.
             sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+            rom_domain: RomDomain within which this RomModel is contained.
 
         Returns:
-            d_code:
-                Solution of low-dimensional linear solve, representing the iterative change in
-                the low-dimensional state.
             lhs: Left-hand side of low-dimensional linear solve.
             rhs: Right-hand side of low-dimensional linear solve.
         """
 
-        lhs = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[
-            self.direct_samp_idxs_flat, None
-        ]
-        res_scaled = (res / self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
+        if rom_domain.num_models == 1:
+            lhs = np.array(res_jacob @ rom_domain.trial_basis_scaled_concat)
+        else:
+            lhs = (res_jacob @ rom_domain.trial_basis_scaled_concat).toarray()
 
-        # Project LHS and RHS onto low-dimensional space, solve linear system
+        # scaling
+        res_scaled = np.zeros(lhs.shape[0], dtype=REAL_TYPE)
+        for model in rom_domain.model_list:
+            for iter_idx, var_idx in enumerate(model.var_idxs):
+                row_slice = np.s_[var_idx * sol_domain.mesh.num_cells : (var_idx + 1) * sol_domain.mesh.num_cells]
+                res_scaled[row_slice] = (
+                    res[var_idx, :] / model.norm_fac_prof_cons[iter_idx, sol_domain.direct_samp_idxs]
+                )
+                lhs[row_slice, :] /= model.norm_fac_prof_cons[iter_idx, self.direct_samp_idxs_flat, None]
+
+        # Project LHS and RHS onto low-dimensional space
         if self.hyper_reduc:
             lhs = self.hyper_reduc_operator @ lhs
             rhs = self.hyper_reduc_operator @ res_scaled
         else:
-            lhs = self.trial_basis.T @ lhs
-            rhs = self.trial_basis.T @ res_scaled
+            lhs = rom_domain.trial_basis_concat.T @ lhs
+            rhs = rom_domain.trial_basis_concat.T @ res_scaled
 
-        d_code = np.linalg.solve(lhs, rhs)
-
-        return d_code, lhs, rhs
+        return lhs, rhs

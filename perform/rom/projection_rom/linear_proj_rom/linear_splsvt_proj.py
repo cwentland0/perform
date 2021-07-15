@@ -1,3 +1,4 @@
+from perform.constants import REAL_TYPE
 import numpy as np
 
 from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearProjROM
@@ -39,8 +40,11 @@ class LinearSPLSVTProj(LinearProjROM):
         if self.hyper_reduc:
             self.hyper_reduc_operator = np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
 
-    def calc_d_code(self, res_jacob, res, sol_domain):
+    def calc_d_code(self, res_jacob, res, sol_domain, rom_domain):
         """Compute change in low-dimensional state for implicit scheme Newton iteration.
+
+        This acts more as a utility function than a class method, since it takes in rom_domain and
+        operates over all models. This is due to the coupled nature of the ROM equations.
 
         This function computes the iterative change in the low-dimensional state for a given Newton iteration
         of an implicit time integration scheme. For SP-LSVT projection, this is given by
@@ -57,31 +61,35 @@ class LinearSPLSVTProj(LinearProjROM):
                 primitive variables.
             res: NumPy array of fully-discrete residual, already negated for Newton iteration.
             sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+            rom_domain: RomDomain within which this RomModel is contained.
 
         Returns:
-            d_code:
-                Solution of low-dimensional linear solve, representing the iterative change in
-                the low-dimensional state.
             lhs: Left-hand side of low-dimensional linear solve.
             rhs: Right-hand side of low-dimensional linear solve.
         """
 
         # compute test basis
-        test_basis = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[
-            self.direct_samp_idxs_flat, None
-        ]
+        if rom_domain.num_models == 1:
+            test_basis = np.array(res_jacob @ rom_domain.trial_basis_scaled_concat)
+        else:
+            test_basis = (res_jacob @ rom_domain.trial_basis_scaled_concat).toarray()
+
+        # scaling
+        res_scaled = np.zeros(test_basis.shape[0], dtype=REAL_TYPE)
+        for model in rom_domain.model_list:
+            for iter_idx, var_idx in enumerate(model.var_idxs):
+                row_slice = np.s_[var_idx * sol_domain.mesh.num_cells : (var_idx + 1) * sol_domain.mesh.num_cells]
+                res_scaled[row_slice] = (
+                    res[var_idx, :] / model.norm_fac_prof_cons[iter_idx, sol_domain.direct_samp_idxs]
+                )
+                test_basis[row_slice, :] /= model.norm_fac_prof_cons[iter_idx, self.direct_samp_idxs_flat, None]
+
         if self.hyper_reduc:
+            res_scaled = self.hyper_reduc_operator @ res_scaled
             test_basis = self.hyper_reduc_operator @ test_basis
 
         # LHS and RHS of Newton iteration
         lhs = test_basis.T @ test_basis
-
-        res_scaled = (res / self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
-        if self.hyper_reduc:
-            res_scaled = self.hyper_reduc_operator @ res_scaled
         rhs = test_basis.T @ res_scaled
 
-        # linear solve
-        dCode = np.linalg.solve(lhs, rhs)
-
-        return dCode, lhs, rhs
+        return lhs, rhs
