@@ -47,11 +47,12 @@ class adaptROM():
             raise ValueError("Invalid selection for adaptive ROM type")
 
     def initializeLookBackWindow(self, romDomain, model):
+        """Initialize the look-back window with the stale conservative variables. Used for the AADEIM basis adaptation method"""
 
         self.FWindow[:, :, :-1] = romDomain.staleConsSnapshots[model.varIdxs, :, -(self.adaptROMWindowSize-1):]
 
     def initializeHistory(self, romDomain, solDomain, solver, model):
-        '''Computes the coded state and the reconstructed state for initializing the sub-iteration'''
+        """Computes the coded state and the reconstructed state for initializing the sub-iteration, ensuring the consistency"""
 
         timeOrder = min(solver.iter, romDomain.timeIntegrator.timeOrder)  # cold start
         timeOrder = max(romDomain.timeIntegrator.staleStatetimeOrder, timeOrder)  # updating time order if stale states are available
@@ -69,10 +70,11 @@ class adaptROM():
 
 
     def gatherSamplePoints(self, romDomain, solDomain, solver, model):
-
+        """Gather the residual sample points"""
         if not romDomain.timeIntegrator.timeType == "implicit": raise ValueError('AADEIM not implemented for explicit framework')
 
         if (solver.timeIter == 1 or solver.timeIter % self.adaptROMResidualSampStep == 0):
+            #Updating the residual sample points
 
             self.FWindow[:, :, -1] = self.previousStateEstimate(romDomain, solDomain, solver, model)
 
@@ -89,12 +91,13 @@ class adaptROM():
             SampleIdx = np.unique((np.argsort(np.sum(residual ** 2, axis=2), axis=1)[:, -self.adaptROMnumResSamp:]).ravel())
 
             romDomain.residualCombinedSampleIdx = np.unique(np.append(romDomain.residualCombinedSampleIdx, SampleIdx).astype(int))
-
         else:
-            raise ValueError('Reduced frequency residual update not implemented (modified - AADEIM)')
+            #Retaining the residual sample points from the previous iteration 
+            self.FWindow[:, :, -1] = self.previousStateEstimate(romDomain, solDomain, solver, model, interPol=True)
+
 
     def adaptModel(self, romDomain, solDomain, solver, model):
-
+        """Basis adaptation"""
         if romDomain.adaptiveROMMethod == "OSAB":
             if romDomain.timeIntegrator.timeType == "implicit" : raise ValueError('One step adaptive basis not implemented for implicit framework')
 
@@ -132,14 +135,16 @@ class adaptROM():
                 alpha = -R @ rightBasis[:, irank]
                 beta = pinvCtranspose @ rightBasis[:, irank]
                 update = alpha[:, None] @ beta[None, :]
-                # model.trialBasis[idx, :] +=  update
+                model.trialBasis[idx, :] +=  update
 
-            # model.trialBasis = orth( model.trialBasis)
+            model.trialBasis = orth( model.trialBasis)
 
             self.FWindow[:, :, :-1] = self.FWindow[:, :, 1:]
 
-    def previousStateEstimate(self, romDomain, solDomain, solver, model):
-
+    def previousStateEstimate(self, romDomain, solDomain, solver, model, interPol=False):
+        """Based on the current state and the current basis and interpolation points, the previous state is re-estimated
+        interPol : If True then the previous state is reconstructed from interpolated previous state estimate. 
+        """
         solInt = solDomain.solInt
 
         timeOrder = min(solver.iter, romDomain.timeIntegrator.timeOrder)  # cold start
@@ -147,12 +152,24 @@ class adaptROM():
 
         coeffs = romDomain.timeIntegrator.coeffs[timeOrder - 1]
 
-        state = coeffs[0] * solInt.solHistCons[0][model.varIdxs, :].copy()
+        if interPol == False:
+            state = coeffs[0] * solInt.solHistCons[0][model.varIdxs, :].copy()
 
-        for iterIdx in range(2, timeOrder + 1):
-            state += coeffs[iterIdx] * solInt.solHistCons[iterIdx][model.varIdxs, :].copy()
+            for iterIdx in range(2, timeOrder + 1):
+                state += coeffs[iterIdx] * solInt.solHistCons[iterIdx][model.varIdxs, :].copy()
 
-        PreviousState = (- state + (romDomain.timeIntegrator.dt*solInt.RHS[model.varIdxs, :])) / coeffs[1]
+            previousState = (- state + (romDomain.timeIntegrator.dt*solInt.RHS[model.varIdxs, :])) / coeffs[1]
+        else:
+            #TODO: Make it hyper-reduction friendly 
+            #previousState = trialBasis*[interpolatedBasis]^{+}*interpolatedPreviousState
+            state = coeffs[0] * solInt.solHistCons[0][model.varIdxs, solDomain.directSampIdxs].copy()
+            
+            for iterIdx in range(2, timeOrder + 1):
+                state += coeffs[iterIdx] * solInt.solHistCons[iterIdx][model.varIdxs, solDomain.directSampIdxs].copy()
+            
+            interpolatedPreviousState = (- state + (romDomain.timeIntegrator.dt*solInt.RHS[model.varIdxs, solDomain.directSampIdxs])) / coeffs[1]
+            if romDomain.hyperReduc: raise ValueError('reconstruction of the interpolated state not yet implemented for AADEIM')
+            previousState = interpolatedPreviousState #Not true in case of hyper reduction. Based on the interpolatedPreviousState, previousState needs to be constructed
 
-        return PreviousState
+        return previousState
 

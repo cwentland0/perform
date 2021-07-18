@@ -92,14 +92,12 @@ class romDomain:
 		self.adaptiveROM = catchInput(romDict, "adaptiveROM", False)
 		if self.adaptiveROM:
 				self.adaptiveROMMethod 				=	catchInput(romDict, "adaptiveROMMethod", "OSAB")
-				self.adaptROMResidualSampStep		=	catchInput(romDict, "adaptROMResidualSampStep", 1)
-				self.adaptROMnumResSamp				=	catchInput(romDict, "adaptROMnumResSamp", solver.mesh.numCells)
-				self.adaptROMInitialSnap			=	catchInput(romDict, "adaptROMInitialSnap", 1)
-				self.adaptROMWindowSize				=	catchInput(romDict, "adaptROMWindowSize", 1)
-				self.adaptROMUpdateRank				=	catchInput(romDict, "adaptROMUpdateRank", 1)
-				self.adaptROMConsSnapFName			=	catchInput(romDict, "adaptROMConsSnapFName", "solCons_FOM.npy")
-
-
+				self.adaptROMResidualSampStep		=	catchInput(romDict, "adaptROMResidualSampStep", 1) #Steps after which the residual samples will get updated
+				self.adaptROMnumResSamp				=	catchInput(romDict, "adaptROMnumResSamp", solver.mesh.numCells) #Number of points at which the residual is sampled 
+				self.adaptROMInitialSnap			=	catchInput(romDict, "adaptROMInitialSnap", 1) #Numder of initial snapshots (of Cons. state) available (also used for the initial basis)
+				self.adaptROMWindowSize				=	catchInput(romDict, "adaptROMWindowSize", 1) #Look back window size
+				self.adaptROMUpdateRank				=	catchInput(romDict, "adaptROMUpdateRank", 1) #Rank of updated to the basis
+				self.adaptROMConsSnapFName			=	catchInput(romDict, "adaptROMConsSnapFName", "solCons_FOM.npy") #File name of the cons. snaps file
 		# set up hyper-reduction, if necessary
 		self.hyperReduc = catchInput(romDict, "hyperReduc", False)
 		if (self.isIntrusive and self.hyperReduc):
@@ -136,6 +134,7 @@ class romDomain:
 
 		solDomain.solInt.updateState(fromCons=self.targetCons)
 
+
 		# get time integrator, if necessary
 		# TODO: timeScheme should be specific to the romDomain, not the solver
 		if self.hasTimeIntegrator:
@@ -153,9 +152,9 @@ class romDomain:
 		solDomain.solInt.solHistCons = [solDomain.solInt.solCons.copy()] * (self.timeIntegrator.timeOrder+1)
 		solDomain.solInt.solHistPrim = [solDomain.solInt.solPrim.copy()] * (self.timeIntegrator.timeOrder+1)
 
-
-		# gather solution history from stale solution data
 		if self.adaptiveROM and self.adaptiveROMMethod=='AADEIM':
+			"""Gather the available (pre-computed) conservative variables from an input file"""
+
 			assert (os.path.exists(os.path.join(const.unsteadyOutputDir, self.adaptROMConsSnapFName))), \
 				'Path for stale conservative state : '+ str(os.path.join(const.unsteadyOutputDir, self.adaptROMConsSnapFName))+ ' does not exist'
 
@@ -165,7 +164,7 @@ class romDomain:
 			self.timeIntegrator.staleStatetimeOrder = min(self.timeIntegrator.timeOrder,self.staleConsSnapshots.shape[-1])
 			solDomain.timeIntegrator.staleStatetimeOrder = self.timeIntegrator.staleStatetimeOrder
 
-			for timeIdx in range(1, self.timeIntegrator.staleStatetimeOrder + 1):
+			for timeIdx in range(1, self.timeIntegrator.staleStatetimeOrder + 1): 
 				solDomain.solInt.solHistCons[timeIdx] = self.staleConsSnapshots[:, :, -timeIdx].copy()
 
 			solDomain.solInt.solHistCons[0] = solDomain.solInt.solHistCons[1].copy()
@@ -173,6 +172,7 @@ class romDomain:
 			solDomain.solInt.updateState(fromCons=True)
 
 			for modelIdx, model in enumerate(self.modelList): model.adapt.initializeLookBackWindow(self, model)
+		
 
 
 	def setModelFlags(self):
@@ -398,16 +398,16 @@ class romDomain:
 		else:
 			self.CombinedBasis = block_diag([model.trialBasis for modelIdx, model in enumerate(self.modelList)])
 			if self.hyperReduc:
-				raise ValueError('still in the works')
+				raise ValueError('Linear system solver (in advanceSubiter) not hyperreduction friendly')
 				self.sampledCombinedBasisPinv = block_diag(
 					[np.linalg.pinv(model.trialBasis[solDomain.directSampIdxs, :]) for modelIdx, model in
 					 enumerate(self.modelList)])
 
 			if self.adaptiveROM and self.adaptiveROMMethod == 'AADEIM':
-				if solDomain.timeIntegrator.dualTime: raise ValueError('AADEIM currently implemented for conservative variables...')
+				if solDomain.timeIntegrator.dualTime: raise ValueError('AADEIM not implemented for primitive variable solve')
 				for modelIdx, model in enumerate(self.modelList): model.adapt.initializeHistory(self, solDomain, solver, model)
 				solDomain.solInt.updateState(fromCons=True)
-
+			
 			for self.timeIntegrator.subiter in range(self.timeIntegrator.subiterMax):
 				self.advanceSubiter(solDomain, solver)
 
@@ -415,14 +415,14 @@ class romDomain:
 					self.calcCodeResNorms(solDomain, solver, self.timeIntegrator.subiter)
 					if (solDomain.solInt.resNormL2 < self.timeIntegrator.resTol):
 						break
-
+			
 			if self.adaptiveROM and self.adaptiveROMMethod == 'AADEIM':
 				#There exists a bottle-neck : Basis update pools all the residual sampling points.
 				# In the 'model' structure, two different loops are required to first gather the sampling points and then update the basis.
 
 				self.residualCombinedSampleIdx = []
-				for modelIdx, model in enumerate(self.modelList):model.adapt.gatherSamplePoints(self, solDomain, solver, model)
-				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)
+				for modelIdx, model in enumerate(self.modelList):model.adapt.gatherSamplePoints(self, solDomain, solver, model)	#gathering the residual sample points
+				for modelIdx, model in enumerate(self.modelList): model.adapt.adaptModel(self, solDomain, solver, model)	#updating the basis
 
 		solDomain.solInt.updateSolHist()
 		self.updateCodeHist()

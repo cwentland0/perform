@@ -1,0 +1,32 @@
+# model definition
+romMethod = "linearGalerkinProj"
+numModels = 4
+latentDims = [10, 10, 10, 10]
+modelVarIdxs = [[0], [1], [2], [3]]
+
+# model data paths
+modelDir = "/Users/sahilbhola/Documents/CASLAB/perform_copy/examples/shock_tube/UnsteadyFieldResults/Basis_train_50_snapshots_individual"
+modelFiles = ["spatialModes_0.npy", "spatialModes_1.npy", "spatialModes_2.npy", "spatialModes_3.npy"]
+
+# standardization profiles
+normSubConsIn = ["normSubProf_0.npy", "normSubProf_1.npy", "normSubProf_2.npy", "normSubProf_3.npy"]
+normFacConsIn = ["normFacProf_0.npy", "normFacProf_1.npy", "normFacProf_2.npy", "normFacProf_3.npy"]
+centConsIn    = ["centProf_0.npy", "centProf_1.npy", "centProf_2.npy", "centProf_3.npy"]
+
+# hyper-reduction
+hyperReduc = False
+adaptiveHyperReduc = False
+sampFile = "sampFile.npy"
+hyperReducFiles = ["spatialModes_0.npy", "spatialModes_1.npy", "spatialModes_2.npy", "spatialModes_3.npy"]
+hyperReducDims = [70]
+
+# Adaptation
+adaptiveROM       = True
+adaptiveROMMethod = "AADEIM"
+adaptROMInitialSnap = 50
+adaptROMWindowSize  = 10
+adaptROMUpdateRank = 1
+adaptROMnumResSamp = 1600
+adaptROMResidualSampStep = 2 
+adaptROMConsSnapFName = "solCons_FOM_train_50_snapshots.npy"
+
