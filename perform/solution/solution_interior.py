@@ -488,7 +488,9 @@ class SolutionInterior(SolutionPhys):
 
         # Write restart file to zipped file
         restart_file = os.path.join(solver.restart_output_dir, "restart_file_" + str(solver.restart_iter) + ".npz")
-        np.savez(restart_file, sol_time=solver.sol_time, sol_prim=self.sol_prim, sol_cons=self.sol_cons)
+        sol_prim_out = np.stack(self.sol_hist_prim[-1:0:-1], axis=-1)
+        sol_cons_out = np.stack(self.sol_hist_cons[-1:0:-1], axis=-1)
+        np.savez(restart_file, sol_time=solver.sol_time, sol_prim=sol_prim_out, sol_cons=sol_cons_out)
 
         # Write iteration number files
         restartIterFile = os.path.join(solver.restart_output_dir, "restart_iter.dat")
