@@ -1,5 +1,8 @@
 import os
 
+import matplotlib as mpl
+if os.environ["PLT_USE_AGG"] == "1":
+    mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
