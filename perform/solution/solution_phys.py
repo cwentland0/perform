@@ -44,7 +44,7 @@ class SolutionPhys:
             NumPy array of derivative of stagnation enthalpy w/r/t the first num_species mass fraction profiles.
     """
 
-    def __init__(self, gas, num_cells, sol_prim_in=None, sol_cons_in=None):
+    def __init__(self, gas, num_cells, sol_prim_in=None, sol_cons_in=None, time_order=1):
 
         self.gas_model = gas
 
@@ -83,17 +83,54 @@ class SolutionPhys:
         self.d_enth_d_temp = np.zeros(num_cells, dtype=REAL_TYPE)
         self.d_enth_d_mass_frac = np.zeros((self.gas_model.num_species, num_cells), dtype=REAL_TYPE)
 
-        # Set initial condition
+        # Compute complete initial state history and set initial condition        
+        self.sol_hist_cons = [None] * (time_order + 1)
+        self.sol_hist_prim = [None] * (time_order + 1)
         if sol_prim_in is not None:
-            assert sol_prim_in.shape == (self.gas_model.num_eqs, num_cells)
-            self.sol_prim = sol_prim_in.copy()
-            self.update_state(from_prim=True)
+            # account for inputs without time dimension
+            if sol_prim_in.ndim == 2:
+                sol_prim_in = np.expand_dims(sol_prim_in, -1)
+            init_snaps = sol_prim_in.shape[-1]
+            assert init_snaps <= time_order, "CRW: Need to fix initialization loop"
+
+            # set "history" component of sol_hist_*
+            for init_idx in range(0, init_snaps):
+                # NOTE: have to reverse order of snapshots
+                self.sol_prim = sol_prim_in[:, :, init_idx].copy()
+                assert self.sol_prim.shape == (self.gas_model.num_eqs, num_cells)
+                self.update_state(from_prim=True)
+                snap_idx = init_snaps - init_idx
+                self.sol_hist_prim[snap_idx] = self.sol_prim.copy()
+                self.sol_hist_cons[snap_idx] = self.sol_cons.copy()
+
+        # mirror of above, for conservative initial state
         elif sol_cons_in is not None:
-            assert sol_cons_in.shape == (self.gas_model.num_eqs, num_cells)
-            self.sol_cons = sol_cons_in.copy()
-            self.update_state(from_prim=False)
+            if sol_cons_in.ndim == 2:
+                sol_cons_in = np.expand_dims(sol_cons_in, -1)
+            init_snaps = sol_cons_in.shape[-1]
+            assert init_snaps <= time_order, "CRW: Need to fix initialization loop"
+
+            for init_idx in range(0, init_snaps):
+                # NOTE: have to reverse order of snapshots
+                self.sol_cons = sol_cons_in[:, :, init_idx].copy()
+                assert self.sol_cons.shape == (self.gas_model.num_eqs, num_cells)
+                self.update_state(from_prim=False)
+                snap_idx = init_snaps - init_idx
+                self.sol_hist_prim[snap_idx] = self.sol_prim.copy()
+                self.sol_hist_cons[snap_idx] = self.sol_cons.copy()
+
+
         else:
             raise ValueError("Must provide either sol_prim_in or sol_cons_in to SolutionPhys")
+
+        # initial guess for next step
+        self.sol_hist_prim[0] = self.sol_hist_prim[1].copy()
+        self.sol_hist_cons[0] = self.sol_hist_cons[1].copy()
+
+        # fill in any remaining snapshots in history
+        for snap_idx in range(init_snaps + 1, time_order + 1):
+            self.sol_hist_prim[snap_idx] = self.sol_hist_prim[init_snaps].copy()
+            self.sol_hist_cons[snap_idx] = self.sol_hist_cons[init_snaps].copy()
 
     def update_state(self, from_prim):
         """Utility function to complete state from primitive or conservative solution.

@@ -267,6 +267,16 @@ def get_initial_conditions(sol_domain, solver):
         # Attempt to get solver.sol_time, if given
         solver.sol_time = catch_input(solver.param_dict, "sol_time_init", 0.0)
 
+    # deal with higher-order initialization
+    if sol_prim_init.ndim == 2:
+        # assume it's [num_eqs, num_cells], expand time dimension
+        sol_prim_init = np.expand_dims(sol_prim_init, axis=-1)
+    elif sol_prim_init.ndim == 3:
+        # last dimension is time dimension
+        pass
+    else:
+        raise ValueError("sol_prim_init had an unexpected number of dimensions: " + str(sol_prim_init.ndim))
+
     return sol_prim_init
 
 

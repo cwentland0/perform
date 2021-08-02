@@ -60,7 +60,7 @@ class SolutionInterior(SolutionPhys):
 
     def __init__(self, gas, sol_prim_in, solver, num_cells, num_reactions, time_int):
 
-        super().__init__(gas, num_cells, sol_prim_in=sol_prim_in)
+        super().__init__(gas, num_cells, sol_prim_in=sol_prim_in, time_order=time_int.time_order)
 
         gas = self.gas_model
 
@@ -75,9 +75,11 @@ class SolutionInterior(SolutionPhys):
             self.sol_prim[1, :] += solver.vel_add
             self.update_state(from_prim=True)
 
-        # Initializing time history
-        self.sol_hist_cons = [self.sol_cons.copy()] * (time_int.time_order + 1)
-        self.sol_hist_prim = [self.sol_prim.copy()] * (time_int.time_order + 1)
+        # indicate whether time integrator needs a cold or hot start
+        if sol_prim_in.ndim == 2:
+            time_int.cold_start_iter = 1
+        else:
+            time_int.cold_start_iter = sol_prim_in.shape[-1]
 
         # RHS storage for multi-stage schemes
         self.rhs_hist = [self.rhs.copy()] * (time_int.time_order + 1)

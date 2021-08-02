@@ -532,11 +532,12 @@ class SolutionDomain:
         samp_idxs = self.gamma_idxs
 
         # Calculate RHS and solution Jacobians
-        rhs_jacob_center, flux_jacob_left, flux_jacob_right = self.calc_rhs_jacob(solver)
         sol_jacob = sol_int.calc_sol_jacob(not self.time_integrator.dual_time, samp_idxs=samp_idxs)
+        rhs_jacob_center, flux_jacob_left, flux_jacob_right = self.calc_rhs_jacob(solver)
 
         # TODO: make this specific for each ImplicitIntegrator
-        dt_coeff_idx = min(solver.iter, self.time_integrator.time_order) - 1
+        dt_coeff_idx = min(self.time_integrator.cold_start_iter, self.time_integrator.time_order) - 1
+        # dt_coeff_idx = min(solver.iter, self.time_integrator.time_order) - 1
         dt_inv = self.time_integrator.coeffs[dt_coeff_idx][0] / self.time_integrator.dt
 
         # Modifications depending on whether dual-time integration is being used
