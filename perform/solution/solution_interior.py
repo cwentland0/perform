@@ -439,13 +439,18 @@ class SolutionInterior(SolutionPhys):
         if solver.rhs_out:
             self.rhs_snap[:, :, store_idx - 1] = self.rhs
 
-    def write_snapshots(self, solver, failed):
+    def write_snapshots(self, solver, intermediate=False, failed=False):
         """Save snapshot matrices to disk after completed/failed simulation.
 
         Args:
             solver: SystemSolver containing global simulation parameters.
+            intermediate: Boolean flag indicating whether these results are intermediate results
             failed: Boolean flag indicating whether a simulation has failed before completion.
         """
+
+        assert not (intermediate and failed), (
+            "Something went wrong, tried to write intermediate and failed snapshots at same time"
+        )
 
         unsteady_output_dir = solver.unsteady_output_dir
 
@@ -455,27 +460,67 @@ class SolutionInterior(SolutionPhys):
             offset = 1
         else:
             offset = 2
+
+        suffix = solver.sim_type
+        if intermediate:
+            suffix += "_ITMDT"
+            if not solver.out_itmdt_match:
+                offset -= 1
+        elif failed:
+            suffix += "_FAILED"
+
         final_idx = int((solver.iter - 1) / solver.out_interval) + offset
 
         if solver.prim_out:
-            sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_" + solver.sim_type + ".npy")
+            sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_" + suffix + ".npy")
             np.save(sol_prim_file, self.prim_snap[:, :, :final_idx])
 
         if solver.cons_out:
-            sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_" + solver.sim_type + ".npy")
+            sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_" + suffix + ".npy")
             np.save(sol_cons_file, self.cons_snap[:, :, :final_idx])
 
         if solver.source_out:
-            source_file = os.path.join(unsteady_output_dir, "source_" + solver.sim_type + ".npy")
+            source_file = os.path.join(unsteady_output_dir, "source_" + suffix + ".npy")
             np.save(source_file, self.reaction_source_snap[:, :, : final_idx - 1])
 
         if solver.hr_out:
-            hr_file = os.path.join(unsteady_output_dir, "heat_release_" + solver.sim_type + ".npy")
+            hr_file = os.path.join(unsteady_output_dir, "heat_release_" + suffix + ".npy")
             np.save(hr_file, self.heat_release_snap[:, : final_idx - 1])
 
         if solver.rhs_out:
-            sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + solver.sim_type + ".npy")
+            sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + suffix + ".npy")
             np.save(sol_rhs_file, self.rhs_snap[:, :, : final_idx - 1])
+
+    def delete_itmdt_snapshots(self, solver):
+        """Delete intermediate snapshot data
+        
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+        """
+
+        unsteady_output_dir = solver.unsteady_output_dir
+
+        suffix = solver.sim_type + "_ITMDT"
+
+        if solver.prim_out:
+            sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_" + suffix + ".npy")
+            os.remove(sol_prim_file)
+
+        if solver.cons_out:
+            sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_" + suffix + ".npy")
+            os.remove(sol_cons_file)
+
+        if solver.source_out:
+            source_file = os.path.join(unsteady_output_dir, "source_" + suffix + ".npy")
+            os.remove(source_file)
+
+        if solver.hr_out:
+            hr_file = os.path.join(unsteady_output_dir, "heat_release_" + suffix + ".npy")
+            os.remove(hr_file)
+
+        if solver.rhs_out:
+            sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + suffix + ".npy")
+            os.remove(sol_rhs_file)
 
     def write_restart_file(self, solver):
         """Write restart files to disk.

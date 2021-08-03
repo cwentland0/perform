@@ -114,6 +114,7 @@ class SystemSolver:
 
         # unsteady output
         self.out_interval = catch_input(param_dict, "out_interval", 1)
+        self.out_itmdt_interval = catch_input(param_dict, "out_itmdt_interval", None)
         self.prim_out = catch_input(param_dict, "prim_out", True)
         self.cons_out = catch_input(param_dict, "cons_out", False)
         self.source_out = catch_input(param_dict, "source_out", False)
@@ -122,6 +123,17 @@ class SystemSolver:
 
         assert self.out_interval > 0, "out_interval must be a positive integer"
         self.num_snaps = int(self.num_steps / self.out_interval)
+        
+        # handle intermediate output finagling
+        if self.out_itmdt_interval is not None:
+            assert self.out_itmdt_interval > 0, "out_itmdt_interval must be a positive integer"
+            self.out_itmdt_match = False
+            if self.out_itmdt_interval >= self.out_interval:
+                if (self.out_itmdt_interval % self.out_interval) == 0:
+                    self.out_itmdt_match = True
+            else:
+                if (self.out_interval % self.out_itmdt_interval) == 0:
+                    self.out_itmdt_match = True
 
         # misc
         self.vel_add = catch_input(param_dict, "vel_add", 0.0)

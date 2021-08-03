@@ -684,6 +684,16 @@ class SolutionDomain:
             if (solver.iter % solver.out_interval) == 0:
                 self.sol_int.update_snapshots(solver)
 
+            # write intermediate snapshots, if requested
+            if solver.out_itmdt_interval is not None:
+                if (solver.iter % solver.out_itmdt_interval) == 0:
+                    self.sol_int.write_snapshots(solver, intermediate=True, failed=False)
+
+        # write intermediate probes, if requested
+        if solver.out_itmdt_interval is not None:
+            if ((solver.iter % solver.out_itmdt_interval) == 0) and (self.num_probes > 0):
+                self.write_probes(solver, intermediate=True, failed=False)
+
     def write_steady_outputs(self, solver):
         """Saves "steady" solver outputs and check "convergence" criterion.
 
@@ -721,14 +731,17 @@ class SolutionDomain:
             solver: SystemSolver containing global simulation parameters.
         """
 
-        if solver.solve_failed:
-            solver.sim_type += "_FAILED"
-
         if not solver.run_steady:
-            self.sol_int.write_snapshots(solver, solver.solve_failed)
+            self.sol_int.write_snapshots(solver, intermediate=False, failed=solver.solve_failed)
 
         if self.num_probes > 0:
-            self.write_probes(solver)
+            self.write_probes(solver, intermediate=False, failed=solver.solve_failed)
+
+        # clean up intermediate results, if any
+        if solver.out_itmdt_interval is not None:
+            if (solver.iter / solver.out_itmdt_interval) > 1:
+                self.delete_itmdt_probes(solver)
+                self.sol_int.delete_itmdt_snapshots(solver)
 
     def update_probes(self, solver):
         """Update probe monitor array from current solution.
@@ -793,9 +806,43 @@ class SolutionDomain:
             # Insert into probe data array
             self.probe_vals[probe_iter, :, solver.iter - 1] = probe
 
-    def write_probes(self, solver):
+    def write_probes(self, solver, intermediate=False, failed=False):
         """Save probe data to disk at end/failure of simulation.
 
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+        """
+
+        assert not (intermediate and failed), (
+            "Something went wrong, tried to write intermediate and failed snapshots at same time"
+        )
+
+        # Get output file name
+        probe_file_base_name = "probe"
+        for vis_var in self.probe_vars:
+            probe_file_base_name += "_" + vis_var
+
+        suffix = solver.sim_type
+        if intermediate:
+            suffix += "_ITMDT"
+        elif failed:
+            suffix += "_FAILED"
+
+        for probe_num in range(self.num_probes):
+
+            # Account for failed simulations
+            time_out = self.time_vals[: solver.iter]
+            probe_out = self.probe_vals[probe_num, :, : solver.iter]
+
+            probe_file_name = probe_file_base_name + "_" + str(probe_num + 1) + "_" + suffix + ".npy"
+            probe_file = os.path.join(solver.probe_output_dir, probe_file_name)
+
+            probe_save = np.concatenate((time_out[None, :], probe_out), axis=0)
+            np.save(probe_file, probe_save)
+
+    def delete_itmdt_probes(self, solver):
+        """Delete intermediate probe data
+        
         Args:
             solver: SystemSolver containing global simulation parameters.
         """
@@ -805,14 +852,8 @@ class SolutionDomain:
         for vis_var in self.probe_vars:
             probe_file_base_name += "_" + vis_var
 
+        suffix = solver.sim_type + "_ITMDT"
         for probe_num in range(self.num_probes):
-
-            # Account for failed simulations
-            time_out = self.time_vals[: solver.iter]
-            probe_out = self.probe_vals[probe_num, :, : solver.iter]
-
-            probe_file_name = probe_file_base_name + "_" + str(probe_num + 1) + "_" + solver.sim_type + ".npy"
+            probe_file_name = probe_file_base_name + "_" + str(probe_num + 1) + "_" + suffix + ".npy"
             probe_file = os.path.join(solver.probe_output_dir, probe_file_name)
-
-            probe_save = np.concatenate((time_out[None, :], probe_out), axis=0)
-            np.save(probe_file, probe_save)
+            os.remove(probe_file)

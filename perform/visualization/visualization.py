@@ -1,8 +1,11 @@
 import os
 
 import matplotlib as mpl
-if os.environ["PLT_USE_AGG"] == "1":
-    mpl.use('Agg')
+try:
+    if os.environ["PLT_USE_AGG"] == "1":
+        mpl.use('Agg')
+except KeyError:
+    pass
 
 mpl.rc("font", family="serif", size="10")
 mpl.rc("axes", labelsize="x-large")

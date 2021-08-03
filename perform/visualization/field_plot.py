@@ -3,9 +3,11 @@ from math import floor, log
 
 import numpy as np
 import matplotlib as mpl
-if os.environ["PLT_USE_AGG"] == "1":
-    mpl.use('Agg')
-
+try:
+    if os.environ["PLT_USE_AGG"] == "1":
+        mpl.use('Agg')
+except KeyError:
+    pass
 import matplotlib.pyplot as plt
 
 from perform.visualization.visualization import Visualization

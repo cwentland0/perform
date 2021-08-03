@@ -2,8 +2,11 @@ import os
 from time import sleep
 
 import matplotlib as mpl
-if os.environ["PLT_USE_AGG"] == "1":
-    mpl.use('Agg')
+try:
+    if os.environ["PLT_USE_AGG"] == "1":
+        mpl.use('Agg')
+except KeyError:
+    pass
 import matplotlib.pyplot as plt
 
 from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
