@@ -218,7 +218,7 @@ class SolutionDomain:
 
         # TODO: include initial conditions in probe_vals, time_vals
         self.time_vals = np.linspace(
-            solver.dt * (solver.time_iter),
+            solver.sol_time + solver.dt * (solver.time_iter),
             solver.dt * (solver.time_iter - 1 + solver.num_steps),
             solver.num_steps,
             dtype=REAL_TYPE,
