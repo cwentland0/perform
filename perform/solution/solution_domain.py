@@ -798,7 +798,7 @@ class SolutionDomain:
                 elif var_str[:6] == "source":
                     spec_idx = int(var_str[7:])
                     probe.append(sol_source_probe[spec_idx - 1])
-                elif var_str == "heat_release":
+                elif var_str == "heat-release":
                     probe.append(sol_hr_probe)
                 else:
                     raise ValueError("Invalid probe variable " + str(var_str))
