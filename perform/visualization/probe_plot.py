@@ -67,8 +67,8 @@ class ProbePlot(Visualization):
 
         self.probe_num = probe_num
         self.probe_vars = probe_vars
-        assert self.probe_num > 0, "Must provide positive integer probe number for probe plot " + str(self.vis_id)
-        assert self.probe_num <= num_probes, "probe_num_" + str(self.vis_id) + " must correspond to a valid probe"
+        assert self.probe_num >= 0, "Must provide non-negative (>= 0) integer probe number for probe plot " + str(self.vis_id)
+        assert self.probe_num < num_probes, "probe_num_" + str(self.vis_id) + " must correspond to a valid probe"
         assert vis_vars[0] is not None, "Must provide vis_vars for probe plot " + str(self.vis_id)
 
         super().__init__(vis_id, vis_vars, vis_x_bounds, vis_y_bounds, species_names)
@@ -148,7 +148,7 @@ class ProbePlot(Visualization):
         """
 
         var_idx = np.squeeze(np.argwhere(self.probe_vars == var_str)[0])
-        y_data = probe_vals[self.probe_num - 1, var_idx, :iter_num]
+        y_data = probe_vals[self.probe_num, var_idx, :iter_num]
 
         return y_data
 

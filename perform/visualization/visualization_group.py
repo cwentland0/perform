@@ -58,7 +58,7 @@ class VisualizationGroup:
         plot_count = True
         while plot_count:
             try:
-                key_name = "vis_type_" + str(self.num_vis_plots + 1)
+                key_name = "vis_type_" + str(self.num_vis_plots)
                 plot_type = str(param_dict[key_name])
                 # TODO: should honestly just fail for incorrect input
                 assert plot_type in ["field", "probe", "residual"], (
@@ -74,7 +74,7 @@ class VisualizationGroup:
         self.vis_list = [None] * self.num_vis_plots
 
         # Initialize each figure object
-        for vis_idx in range(1, self.num_vis_plots + 1):
+        for vis_idx in range(self.num_vis_plots):
 
             # Some parameters all plots have
             vis_type = str(param_dict["vis_type_" + str(vis_idx)])
@@ -87,7 +87,7 @@ class VisualizationGroup:
             )
 
             if vis_type == "field":
-                self.vis_list[vis_idx - 1] = FieldPlot(
+                self.vis_list[vis_idx] = FieldPlot(
                     solver.image_output_dir,
                     vis_idx,
                     self.vis_interval,
@@ -102,7 +102,7 @@ class VisualizationGroup:
             elif vis_type == "probe":
                 probe_num = catch_input(param_dict, "probe_num_" + str(vis_idx), -2)
 
-                self.vis_list[vis_idx - 1] = ProbePlot(
+                self.vis_list[vis_idx] = ProbePlot(
                     solver.image_output_dir,
                     vis_idx,
                     solver.sim_type,
