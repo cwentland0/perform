@@ -44,7 +44,7 @@ class AutoencoderGalerkinProj(AutoencoderProjROM):
         else:
             self.projector = pinv(jacob)
 
-    def calc_d_code(self, res_jacob, res, sol_domain):
+    def calc_d_code(self, res_jacob, res, sol_domain, rom_domain):
         """Compute change in low-dimensional state for implicit scheme Newton iteration.
 
         This function computes the iterative change in the low-dimensional state for a given Newton iteration
@@ -59,9 +59,6 @@ class AutoencoderGalerkinProj(AutoencoderProjROM):
             sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
 
         Returns:
-            d_code:
-                Solution of low-dimensional linear solve, representing the iterative change in
-                the low-dimensional state.
             lhs: Left-hand side of low-dimensional linear solve.
             rhs: Right-hand side of low-dimensional linear solve.
         """
@@ -81,6 +78,4 @@ class AutoencoderGalerkinProj(AutoencoderProjROM):
         lhs = jacob_pinv @ ((res_jacob @ scaled_jacob) / self.norm_fac_prof_cons.ravel(order="C")[:, None])
         rhs = jacob_pinv @ (res / self.norm_fac_prof_cons).ravel(order="C")
 
-        d_code = np.linalg.solve(lhs, rhs)
-
-        return d_code, lhs, rhs
+        return lhs, rhs

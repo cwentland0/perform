@@ -183,10 +183,12 @@ class RomDomain:
 
         # Initialize
         self.model_list = [None] * self.num_models
+        self.latent_dim_total = 0
         for model_idx in range(self.num_models):
             # Initialize model
             self.model_list[model_idx] = get_rom_model(model_idx, self, sol_domain)
             model = self.model_list[model_idx]
+            self.latent_dim_total += model.latent_dim
 
             # Initialize state
             init_file = self.low_dim_init_files[model_idx]
@@ -205,6 +207,10 @@ class RomDomain:
         # Overwrite history with initialized solution
         sol_domain.sol_int.sol_hist_cons = [sol_domain.sol_int.sol_cons.copy()] * (self.time_integrator.time_order + 1)
         sol_domain.sol_int.sol_hist_prim = [sol_domain.sol_int.sol_prim.copy()] * (self.time_integrator.time_order + 1)
+
+        # Any necessary additional initialization across domain
+        # This utility is accessed through the first model in model_list no matter what
+        self.model_list[0].models_init(sol_domain, self)
 
     def advance_iter(self, sol_domain, solver):
         """Advance low-dimensional state and full solution forward one physical time iteration.
@@ -269,11 +275,21 @@ class RomDomain:
                     res_jacob = sol_domain.calc_res_jacob(solver)
 
                 # Compute change in low-dimensional state
-                for model_idx, model in enumerate(self.model_list):
-                    d_code, code_lhs, code_rhs = model.calc_d_code(res_jacob, res, sol_domain)
-                    model.code += d_code
+                code_lhs, code_rhs = self.model_list[0].calc_d_code(res_jacob, res, sol_domain, self)
+                d_code = np.linalg.solve(code_lhs, code_rhs)
+                res_solve = code_lhs @ d_code - code_rhs
+
+                # Update state for each model
+                latent_dim_idx = 0
+                for model in self.model_list:
+
+                    model.d_code[:] = d_code[latent_dim_idx : latent_dim_idx + model.latent_dim]
+                    model.res[:] = res_solve[latent_dim_idx : latent_dim_idx + model.latent_dim]
+                    model.code += model.d_code
                     model.code_hist[0] = model.code.copy()
                     model.update_sol(sol_domain)
+
+                    latent_dim_idx += model.latent_dim
 
                     # Compute ROM residual for convergence measurement
                     model.res = code_lhs @ d_code - code_rhs
@@ -284,7 +300,7 @@ class RomDomain:
 
             else:
 
-                for model_idx, model in enumerate(self.model_list):
+                for model in self.model_list:
 
                     model.calc_rhs_low_dim(self, sol_domain)
                     d_code = self.time_integrator.solve_sol_change(model.rhs_low_dim)

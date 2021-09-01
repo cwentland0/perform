@@ -1,3 +1,5 @@
+from scipy.sparse.csr import csr_matrix
+from perform.constants import REAL_TYPE
 import numpy as np
 
 from perform.rom.projection_rom.projection_rom import ProjectionROM
@@ -99,6 +101,35 @@ class LinearProjROM(ProjectionROM):
 
         else:
             self.direct_samp_idxs_flat = np.s_[:]
+
+    def models_init(self, sol_domain, rom_domain):
+        """Utility function for generating concatenated trial bases for implicit solve.
+        
+        Operates over all models in rom_domain.
+        """
+
+        if rom_domain.num_models == 1:
+            rom_domain.trial_basis_concat = rom_domain.model_list[0].trial_basis.copy()
+            rom_domain.trial_basis_scaled_concat = rom_domain.model_list[0].trial_basis_scaled.copy()
+        else:
+            num_cells = sol_domain.mesh.num_cells
+            trial_basis_concat = np.zeros(
+                (num_cells * sol_domain.gas_model.num_eqs, rom_domain.latent_dim_total), dtype=REAL_TYPE
+            )
+            trial_basis_scaled_concat = trial_basis_concat.copy()
+            latent_dim_idx = 0
+            for model in rom_domain.model_list:
+                col_slice = np.s_[latent_dim_idx : latent_dim_idx + model.latent_dim]
+                for iter_idx, var_idx in enumerate(model.var_idxs):
+                    row_slice_basis = np.s_[iter_idx * num_cells : (iter_idx + 1) * num_cells]
+                    row_slice_concat = np.s_[var_idx * num_cells : (var_idx + 1) * num_cells]
+                    trial_basis_concat[row_slice_concat, col_slice] = model.trial_basis[row_slice_basis, :]
+                    trial_basis_scaled_concat[row_slice_concat, col_slice] = model.trial_basis_scaled[
+                        row_slice_basis, :
+                    ]
+                latent_dim_idx += model.latent_dim
+            rom_domain.trial_basis_concat = np.array(trial_basis_concat)
+            rom_domain.trial_basis_scaled_concat = csr_matrix(trial_basis_scaled_concat)
 
     def init_from_sol(self, sol_domain):
         """Initialize full-order solution from projection of loaded full-order initial conditions.

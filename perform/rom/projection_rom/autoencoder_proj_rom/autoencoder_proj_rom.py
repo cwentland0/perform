@@ -177,6 +177,10 @@ class AutoencoderProjROM(ProjectionROM):
 
         return code
 
+    def models_init(self, sol_domain, rom_domain):
+        
+        assert rom_domain.num_models == 1, "Separate models not fixed for non-linear ROMs"
+
     def encode_sol(self, sol_in):
         """Compute full encoding of solution, including centering and normalization.
 

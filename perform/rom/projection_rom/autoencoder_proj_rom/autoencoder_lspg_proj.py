@@ -34,7 +34,7 @@ class AutoencoderLSPGProj(AutoencoderProjROM):
                 "LSPG is not equipped with an encoder Jacobian approximation, please set encoder_jacob = False"
             )
 
-    def calc_d_code(self, res_jacob, res, sol_domain):
+    def calc_d_code(self, res_jacob, res, sol_domain, rom_domain):
         """Compute change in low-dimensional state for implicit scheme Newton iteration.
 
         This function computes the iterative change in the low-dimensional state for a given Newton iteration
@@ -49,9 +49,6 @@ class AutoencoderLSPGProj(AutoencoderProjROM):
             sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
 
         Returns:
-            d_code:
-                Solution of low-dimensional linear solve, representing the iterative change in
-                the low-dimensional state.
             lhs: Left-hand side of low-dimensional linear solve.
             rhs: Right-hand side of low-dimensional linear solve.
         """
@@ -66,6 +63,5 @@ class AutoencoderLSPGProj(AutoencoderProjROM):
         # Newton iteration linear solve
         lhs = test_basis.T @ test_basis
         rhs = test_basis.T @ (res / self.norm_fac_prof_cons).ravel(order="C")
-        d_code = np.linalg.solve(lhs, rhs)
 
-        return d_code, lhs, rhs
+        return lhs, rhs
