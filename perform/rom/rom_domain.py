@@ -291,9 +291,6 @@ class RomDomain:
 
                     latent_dim_idx += model.latent_dim
 
-                    # Compute ROM residual for convergence measurement
-                    model.res = code_lhs @ d_code - code_rhs
-
                 sol_int.update_state(from_prim=sol_domain.time_integrator.dual_time)
                 sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
                 sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
