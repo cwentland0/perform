@@ -24,10 +24,9 @@ class ProjectionMethod(RomMethod):
         # all projection-based ROMs use numerical time integration
         rom_dict["time_stepper"] = "numerical"
 
-        super().__init__()
+        super().__init__(sol_domain, rom_domain)
 
         # Set up hyper-reduction, if necessary
-        # TODO: move this to ProjectionMethod (I think?)
         self.hyper_reduc = catch_input(rom_dict, "hyper_reduc", False)
         if self.hyper_reduc:
             rom_domain.load_hyper_reduc(sol_domain)

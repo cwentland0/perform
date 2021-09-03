@@ -18,9 +18,9 @@ class GalerkinProjection(ProjectionMethod):
         assert "cent_cons" in rom_dict
         assert "norm_fac_cons" in rom_dict
         assert "norm_sub_cons" in rom_dict
-        rom_dict["cent_prof"] = rom_dict["cent_cons"]
-        rom_dict["norm_fac_prof"] = rom_dict["norm_fac_cons"]
-        rom_dict["norm_sub_prof"] = rom_dict["norm_sub_cons"]
+        rom_dict["cent_profs"] = rom_dict["cent_cons"]
+        rom_dict["norm_fac_profs"] = rom_dict["norm_fac_cons"]
+        rom_dict["norm_sub_profs"] = rom_dict["norm_sub_cons"]
 
         # check that variable mapping maps to conservative variables
         if "var_mapping" in rom_dict:

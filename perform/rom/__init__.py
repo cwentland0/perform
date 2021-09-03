@@ -42,11 +42,11 @@ from time import sleep
 # ROM methods
 from perform.rom.rom_method.projection_method.galerkin_projection import GalerkinProjection
 from perform.rom.rom_method.projection_method.lspg_projection import LSPGProjection
+from perform.rom.rom_method.projection_method.mplsvt_projection import MPLSVTProjection
 
 # variable mappings
 from perform.rom.rom_variable_mapping.prim_variable_mapping import PrimVariableMapping
 from perform.rom.rom_variable_mapping.cons_variable_mapping import ConsVariableMapping
-from perform.rom.rom_variable_mapping.lifted_xi_c_variable_mapping import LiftedXiCVariableMapping
 
 # time steppers
 from perform.rom.rom_time_stepper.numerical_stepper import NumericalStepper
@@ -60,6 +60,8 @@ def get_rom_method(rom_method, sol_domain, rom_domain):
         return GalerkinProjection(sol_domain, rom_domain)
     elif rom_method == "lspg":
         return LSPGProjection(sol_domain, rom_domain)
+    elif rom_method == "mplsvt":
+        return MPLSVTProjection(sol_domain, rom_domain)
     else:
         raise ValueError("Invalid ROM rom_method: " + str(rom_method))
 
@@ -70,8 +72,6 @@ def get_variable_mapping(var_mapping, sol_domain, rom_domain):
         return PrimVariableMapping(sol_domain, rom_domain)
     elif var_mapping == "conservative":
         return ConsVariableMapping(sol_domain, rom_domain)
-    elif var_mapping == "lifted-xi-c":
-        return LiftedXiCVariableMapping(sol_domain, rom_domain)
     else:
         raise ValueError("Invalid ROM var_mapping: " + str(var_mapping))
 

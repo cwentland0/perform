@@ -17,9 +17,9 @@ class RomSpaceMapping():
 
         # all mappings require scaling by default, specific methods may include additional scalings
         model_dir = rom_dict["model_dir"]
-        self.cent_prof = self.load_feature_scaling(os.path.join(model_dir, rom_dict["cent_prof"][model_idx]), default="zeros")
-        self.norm_fac_prof = self.load_feature_scaling(os.path.join(model_dir, rom_dict["norm_fac_prof"][model_idx]), default="ones")
-        self.norm_sub_prof = self.load_feature_scaling(os.path.join(model_dir, rom_dict["norm_sub_prof"][model_idx]), default="zeros")
+        self.cent_prof = self.load_feature_scaling(os.path.join(model_dir, rom_dict["cent_profs"][model_idx]), default="zeros")
+        self.norm_fac_prof = self.load_feature_scaling(os.path.join(model_dir, rom_dict["norm_fac_profs"][model_idx]), default="ones")
+        self.norm_sub_prof = self.load_feature_scaling(os.path.join(model_dir, rom_dict["norm_sub_profs"][model_idx]), default="zeros")
         if callable(getattr(rom_domain.rom_method, "load_extra_scalings", None)):
             rom_domain.rom_method.load_extra_scalings(model_idx, sol_domain, rom_domain)
 
