@@ -6,9 +6,10 @@ import numpy as np
 from perform.constants import REAL_TYPE
 from perform.input_funcs import read_input_file, catch_list, catch_input
 from perform.solution.solution_phys import SolutionPhys
-from perform.time_integrator import get_time_integrator
-from perform.rom import get_rom_model
+from perform.rom import get_rom_method, get_variable_mapping, get_time_stepper
+from perform.rom.rom_model import RomModel
 
+# TODO: initializing latent code from files (removed from previous version)
 
 class RomDomain:
     """Container class for all ROM models to be applied within a given SolutionDomain.
@@ -78,7 +79,7 @@ class RomDomain:
             Boolean flag indicating whether a given rom_method requires primitive variable centering profiles.
         hyper_reduc: Boolean flag indicating whether hyper-reduction is to be used for an intrusive rom_method.
         model_list: list containing num_models RomModel objects associated with this RomDomain.
-        low_dim_init_files:
+        code_init_files:
             list of strings of file names associated with low-dimensional state initialization profiles
             for each RomModel.
     """
@@ -88,15 +89,13 @@ class RomDomain:
         rom_dict = read_input_file(solver.rom_inputs)
         self.rom_dict = rom_dict
 
-        # Load model parameters
-        self.rom_method = str(rom_dict["rom_method"])
+        # Load and check latent dimensions
         self.num_models = int(rom_dict["num_models"])
         self.latent_dims = catch_list(rom_dict, "latent_dims", [0], len_highest=self.num_models)
-        model_var_idxs = catch_list(rom_dict, "model_var_idxs", [[-1]], len_highest=self.num_models)
-
-        # Check model parameters
-        for i in self.latent_dims:
-            assert i > 0, "latent_dims must contain positive integers"
+        self.latent_dim_total = 0
+        for latent_dim in self.latent_dims:
+            assert latent_dim > 0, "latent_dims must contain positive integers"
+            self.latent_dim_total += latent_dim
 
         if self.num_models == 1:
             assert len(self.latent_dims) == 1, "Must provide only one value of latent_dims when num_models = 1"
@@ -112,105 +111,39 @@ class RomDomain:
                 raise ValueError("Must provide either num_models" + "or 1 entry in latent_dims")
 
         # Load and check model_var_idxs
+        self.model_var_idxs = catch_list(rom_dict, "model_var_idxs", [[-1]], len_highest=self.num_models)
         for model_idx in range(self.num_models):
-            assert model_var_idxs[model_idx][0] != -1, "model_var_idxs input incorrectly, probably too few lists"
-        assert len(model_var_idxs) == self.num_models, "Must specify model_var_idxs for every model"
-        model_var_sum = 0
-        for model_idx in range(self.num_models):
-            model_var_sum += len(model_var_idxs[model_idx])
-            for model_var_idx in model_var_idxs[model_idx]:
-                assert model_var_idx >= 0, "model_var_idxs must be non-negative integers"
-                assert (
-                    model_var_idx < sol_domain.gas_model.num_eqs
-                ), "model_var_idxs must less than the number of governing equations"
-        assert model_var_sum == sol_domain.gas_model.num_eqs, (
-            "Must specify as many model_var_idxs entries as governing equations ("
-            + str(model_var_sum)
-            + " != "
-            + str(sol_domain.gas_model.num_eqs)
-            + ")"
-        )
-        model_var_idxs_one_list = sum(model_var_idxs, [])
-        assert len(model_var_idxs_one_list) == len(
-            set(model_var_idxs_one_list)
-        ), "All entries in model_var_idxs must be unique"
-        self.model_var_idxs = model_var_idxs
+            assert self.model_var_idxs[model_idx][0] != -1, "model_var_idxs input incorrectly, probably too few lists"
+        assert len(self.model_var_idxs) == self.num_models, "Must specify model_var_idxs for every model"
 
-        # Load and check model input locations
+        # Initialize RomMethod, RomVariableMapping, and RomTimeStepper
+        self.rom_method = get_rom_method(rom_dict["rom_method"], sol_domain, self)
+        self.var_mapping = get_variable_mapping(rom_dict["var_mapping"], sol_domain, self)
+        self.time_stepper = get_time_stepper(rom_dict["time_stepper"], sol_domain, self)
+
+        # Check model base directory
         self.model_dir = str(rom_dict["model_dir"])
-        model_files = rom_dict["model_files"]
-        self.model_files = [None] * self.num_models
-        assert len(model_files) == self.num_models, "Must provide model_files for each model"
-        for model_idx in range(self.num_models):
-            in_file = os.path.join(self.model_dir, model_files[model_idx])
-            assert os.path.isfile(in_file), "Could not find model file at " + in_file
-            self.model_files[model_idx] = in_file
+        assert os.path.isdir(self.model_dir), "Could not find model_dir at " + self.model_dir
 
-        # Load standardization profiles, if they are required
-        self.cent_ic = catch_input(rom_dict, "cent_ic", False)
-        self.norm_sub_cons_in = catch_list(rom_dict, "norm_sub_cons", [""])
-        self.norm_fac_cons_in = catch_list(rom_dict, "norm_fac_cons", [""])
-        self.cent_cons_in = catch_list(rom_dict, "cent_cons", [""])
-        self.norm_sub_prim_in = catch_list(rom_dict, "norm_sub_prim", [""])
-        self.norm_fac_prim_in = catch_list(rom_dict, "norm_fac_prim", [""])
-        self.cent_prim_in = catch_list(rom_dict, "cent_prim", [""])
-
-        self.set_model_flags()
-
-        # Set up hyper-reduction, if necessary
-        if self.is_intrusive:
-            self.hyper_reduc = catch_input(rom_dict, "hyper_reduc", False)
-            if self.hyper_reduc:
-                self.load_hyper_reduc(sol_domain)
-
-        # Get time integrator, if necessary
-        # TODO: time_scheme should be specific to RomDomain, not the solver
-        if self.has_time_integrator:
-            self.time_integrator = get_time_integrator(solver.time_scheme, solver.param_dict)
-        else:
-            self.time_integrator = None  # TODO: this might be pointless
-
-        # check init files
-        self.low_dim_init_files = catch_list(rom_dict, "low_dim_init_files", [""])
-        if (len(self.low_dim_init_files) != 1) or (self.low_dim_init_files[0] != ""):
-            assert len(self.low_dim_init_files) == self.num_models, (
+        # Check latent code init files
+        self.code_init_files = catch_list(rom_dict, "code_init_files", [""])
+        if (len(self.code_init_files) != 1) or (self.code_init_files[0] != ""):
+            assert len(self.code_init_files) == self.num_models, (
                 "If initializing any ROM model from a file, must provide list entries for every model. "
-                + "If you don't wish to initialize from file for a model, input an empty string "
-                " in the list entry."
+                + "If you don't wish to initialize from file for a model, input an empty string in the list entry."
             )
         else:
-            self.low_dim_init_files = [""] * self.num_models
+            self.code_init_files = [""] * self.num_models
 
-        # Initialize
+        # Initialize RomModels (and associated RomSpaceMappings)
         self.model_list = [None] * self.num_models
-        self.latent_dim_total = 0
         for model_idx in range(self.num_models):
-            # Initialize model
-            self.model_list[model_idx] = get_rom_model(model_idx, self, sol_domain)
-            model = self.model_list[model_idx]
-            self.latent_dim_total += model.latent_dim
+            self.model_list[model_idx] = RomModel(model_idx, sol_domain, self)
 
-            # Initialize state
-            init_file = self.low_dim_init_files[model_idx]
-            if init_file != "":
-                assert os.path.isfile(init_file), "Could not find ROM initialization file at " + init_file
-                model.code = np.load(init_file)
-                model.update_sol(sol_domain)
-            else:
-                model.init_from_sol(sol_domain)
+        # Additional initializations specific to RomTimeStepper and RomMethod
+        self.time_stepper.init_state(sol_domain, self)
+        self.rom_method.init_method(sol_domain, self)
 
-            # Initialize code history
-            model.code_hist = [model.code.copy()] * (self.time_integrator.time_order + 1)
-
-        sol_domain.sol_int.update_state(from_prim=self.target_prim)
-
-        # Overwrite history with initialized solution
-        sol_domain.sol_int.sol_hist_cons = [sol_domain.sol_int.sol_cons.copy()] * (self.time_integrator.time_order + 1)
-        sol_domain.sol_int.sol_hist_prim = [sol_domain.sol_int.sol_prim.copy()] * (self.time_integrator.time_order + 1)
-
-        # Any necessary additional initialization across domain
-        # This utility is accessed through the first model in model_list no matter what
-        self.model_list[0].models_init(sol_domain, self)
 
     def advance_iter(self, sol_domain, solver):
         """Advance low-dimensional state and full solution forward one physical time iteration.
@@ -226,89 +159,10 @@ class RomDomain:
         """
 
         print("Iteration " + str(solver.iter))
-
-        # Update model which does NOT require numerical time integration
-        if not self.has_time_integrator:
-            raise ValueError("Iteration advance for models without numerical time integration not yet implemented")
-
-        # If method requires numerical time integration
-        else:
-
-            for self.time_integrator.subiter in range(self.time_integrator.subiter_max):
-
-                self.advance_subiter(sol_domain, solver)
-
-                if self.time_integrator.time_type == "implicit":
-                    self.calc_code_res_norms(sol_domain, solver, self.time_integrator.subiter)
-
-                    if sol_domain.sol_int.res_norm_l2 < self.time_integrator.res_tol:
-                        break
+        self.time_stepper.advance_iter(sol_domain, solver, self)    
 
         sol_domain.sol_int.update_sol_hist()
         self.update_code_hist()
-
-    def advance_subiter(self, sol_domain, solver):
-        """Advance low-dimensional state and full solution forward one subiteration of time integrator.
-
-        For intrusive ROMs, computes RHS and RHS Jacobian (if necessary).
-
-        Args:
-            sol_domain: SolutionDomain with which this RomDomain is associated.
-            solver: SystemSolver containing global simulation parameters.
-        """
-
-        sol_int = sol_domain.sol_int
-        res, res_jacob = None, None
-
-        if self.is_intrusive:
-            sol_domain.calc_rhs(solver)
-
-        if self.has_time_integrator:
-
-            if self.time_integrator.time_type == "implicit":
-
-                # Compute residual and residual Jacobian
-                if self.is_intrusive:
-                    res = self.time_integrator.calc_residual(
-                        sol_int.sol_hist_cons, sol_int.rhs, solver, samp_idxs=sol_domain.direct_samp_idxs
-                    )
-                    res_jacob = sol_domain.calc_res_jacob(solver)
-
-                # Compute change in low-dimensional state
-                code_lhs, code_rhs = self.model_list[0].calc_d_code(res_jacob, res, sol_domain, self)
-                d_code = np.linalg.solve(code_lhs, code_rhs)
-                res_solve = code_lhs @ d_code - code_rhs
-
-                # Update state for each model
-                latent_dim_idx = 0
-                for model in self.model_list:
-
-                    model.d_code[:] = d_code[latent_dim_idx : latent_dim_idx + model.latent_dim]
-                    model.res[:] = res_solve[latent_dim_idx : latent_dim_idx + model.latent_dim]
-                    model.code += model.d_code
-                    model.code_hist[0] = model.code.copy()
-                    model.update_sol(sol_domain)
-
-                    latent_dim_idx += model.latent_dim
-
-                sol_int.update_state(from_prim=sol_domain.time_integrator.dual_time)
-                sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
-                sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
-
-            else:
-
-                for model in self.model_list:
-
-                    model.calc_rhs_low_dim(self, sol_domain)
-                    d_code = self.time_integrator.solve_sol_change(model.rhs_low_dim)
-                    model.code = model.code_hist[0] + d_code
-                    model.update_sol(sol_domain)
-
-                sol_int.update_state(from_prim=False)
-
-        else:
-
-            raise ValueError("Non-intrusive ROMs not implemented yet")
 
     def update_code_hist(self):
         """Update low-dimensional state history after physical time step."""
@@ -317,113 +171,6 @@ class RomDomain:
 
             model.code_hist[1:] = model.code_hist[:-1]
             model.code_hist[0] = model.code.copy()
-
-    def calc_code_res_norms(self, sol_domain, solver, subiter):
-        """Calculate and print low-dimensional linear solve residual norms.
-
-        Computes L2 and L1 norms of low-dimensional linear solve residuals for each RomModel,
-        as computed in advance_subiter(). These are averaged across all RomModels and printed to the terminal,
-        and are used in advance_iter() to determine whether the Newton's method iterative solve has
-        converged sufficiently. If the norm is below numerical precision, it defaults to 1e-16.
-
-        Note that terminal output is ORDER OF MAGNITUDE (i.e. 1e-X, where X is the order of magnitude).
-
-        Args:
-            sol_domain: SolutionDomain with which this RomDomain is associated.
-            solver: SystemSolver containing global simulation parameters.
-            subiter: Current subiteration number within current time step's Newton's method iterative solve.
-        """
-
-        # Compute residual norm for each model
-        norm_l2_sum = 0.0
-        norm_l1_sum = 0.0
-        for model in self.model_list:
-            norm_l2, norm_l1 = model.calc_code_norms()
-            norm_l2_sum += norm_l2
-            norm_l1_sum += norm_l1
-
-        # Average over all models
-        norm_l2 = norm_l2_sum / self.num_models
-        norm_l1 = norm_l1_sum / self.num_models
-
-        # Norm is sometimes zero, just default to -16 I guess
-        if norm_l2 == 0.0:
-            norm_out_l2 = -16.0
-        else:
-            norm_out_l2 = np.log10(norm_l2)
-
-        if norm_l1 == 0.0:
-            norm_out_l1 = -16.0
-        else:
-            norm_out_l1 = np.log10(norm_l1)
-
-        # Print to terminal
-        out_string = (str(subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1,)
-        print(out_string)
-
-        sol_domain.sol_int.res_norm_l2 = norm_l2
-        sol_domain.sol_int.resNormL1 = norm_l1
-        sol_domain.sol_int.res_norm_hist[solver.iter - 1, :] = [norm_l2, norm_l1]
-
-    def set_model_flags(self):
-        """Set universal ROM method flags that dictate various execution behaviors.
-
-        If a new RomModel is created, its flags should be set here.
-        """
-
-        self.has_time_integrator = False
-        self.is_intrusive = False
-        self.target_cons = False
-        self.target_prim = False
-
-        self.has_cons_norm = False
-        self.has_cons_cent = False
-        self.has_prim_norm = False
-        self.has_prim_cent = False
-
-        if self.rom_method == "linear_galerkin_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "linear_lspg_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "linear_splsvt_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_prim = True
-            self.has_cons_norm = True
-            self.has_prim_norm = True
-            self.has_prim_cent = True
-        elif self.rom_method == "autoencoder_galerkin_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "autoencoder_lspg_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_cons = True
-            self.has_cons_norm = True
-            self.has_cons_cent = True
-        elif self.rom_method == "autoencoder_splsvt_proj":
-            self.has_time_integrator = True
-            self.is_intrusive = True
-            self.target_prim = True
-            self.has_cons_norm = True
-            self.has_prim_norm = True
-            self.has_prim_cent = True
-        else:
-            raise ValueError("Invalid ROM method name: " + self.rom_method)
-
-        # TODO: not strictly true for the non-intrusive models
-        assert self.target_cons != self.target_prim, "Model must target either the primitive or conservative variables"
 
     def load_hyper_reduc(self, sol_domain):
         """Loads direct sampling indices and determines cell indices for hyper-reduction array slicing.

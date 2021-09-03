@@ -177,6 +177,35 @@ class SolutionPhys:
             enth_ref_mix=self.enth_ref_mix,
         )
 
+    def calc_prim_from_cons(self, sol_cons):
+        """Calculate and return primitive solution from given conservative solution.
+        
+        Computes all required thermodynamic quantities internally, and does not modify the calling SolutionPhys.
+        """
+
+        sol_prim = np.zeros(sol_cons.shape, dtype=sol_cons.dtype)
+
+        # species mass fraction and velocity
+        sol_prim[3:, :] = sol_cons[3:, :] / sol_cons[[0], :]
+        sol_prim[1, :] = sol_cons[1, :] / sol_cons[0, :]
+        
+        # thermodynamic quantities
+        enth_ref_mix = self.gas_model.calc_mix_enth_ref(sol_prim[3:, :])
+        r_mix = self.gas_model.calc_mix_gas_constant(sol_prim[3:, :])
+        cp_mix = self.gas_model.calc_mix_cp(sol_prim[3:, :])
+
+        # pressure and temperature
+        sol_prim[0, :], sol_prim[2, :] = self.gas_model.calc_press_temp_from_cons(
+            sol_cons[0, :],
+            sol_cons[2, :],
+            velocity=sol_prim[1, :],
+            cp_mix=cp_mix,
+            r_mix=r_mix,
+            enth_ref_mix=enth_ref_mix,
+        )
+
+        return sol_prim
+
     def update_cons_from_prim(self):
         """Update conservative solution from the primitive solution.
 
@@ -187,6 +216,31 @@ class SolutionPhys:
         self.sol_cons[1, :] = self.sol_cons[0, :] * self.sol_prim[1, :]
         self.sol_cons[2, :] = self.sol_cons[0, :] * self.h0 - self.sol_prim[0, :]
         self.sol_cons[3:, :] = self.sol_cons[[0], :] * self.sol_prim[3:, :]
+
+    def calc_cons_from_prim(self, sol_prim):
+        """Calculate and return conservative solution from given primitive solution.
+        
+        Computes all required thermodynamic quantities internally, and does not modify the calling SolutionPhys.
+        """
+
+        sol_cons = np.zeros(sol_prim.shape, dtype=sol_prim.dtype)
+
+        # chemical composition
+        mass_fracs = self.gas_model.get_mass_frac_array(sol_prim_in=sol_prim)
+        mass_fracs_full = self.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
+
+        # thermodynamic quantities
+        hi = self.gas_model.calc_spec_enth(sol_prim[2, :])
+        h0 = self.gas_model.calc_stag_enth(sol_prim[1, :], mass_fracs_full, spec_enth=hi)
+        r_mix = self.gas_model.calc_mix_gas_constant(sol_prim[3:, :])
+
+        # conservative state
+        sol_cons[0, :] = sol_prim[0, :] / (r_mix * sol_prim[2, :])
+        sol_cons[1, :] = sol_cons[0, :] * sol_prim[1, :]
+        sol_cons[2, :] = sol_cons[0, :] * h0 - sol_prim[0, :]
+        sol_cons[3:, :] = sol_cons[[0], :] * sol_prim[3:, :]
+
+        return sol_cons
 
     def update_chemical_composition(self):
         """Update complete chemical composition from num_species species mass fractions.
