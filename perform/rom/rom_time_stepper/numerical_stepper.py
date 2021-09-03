@@ -118,7 +118,6 @@ class NumericalStepper(RomTimeStepper):
 
             # Update SolutionDomain state
             rom_domain.var_mapping.update_full_state(sol_domain, rom_domain)
-            # sol_int.update_state(from_prim=sol_domain.time_integrator.dual_time)
 
             # If intrusive method, update primitive and conservative history
             if rom_domain.rom_method.is_intrusive:

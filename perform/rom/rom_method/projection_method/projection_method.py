@@ -68,6 +68,13 @@ class ProjectionMethod(RomMethod):
         #         @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
         #     )
 
+        # This was from LSPG projection
+        # Precompute hyper-reduction projector, [S^T * U]^+
+        # TODO: may want to have an option to compute U * [S^T * U]^+
+        #   The matrix can be big, but it's necessary for conservative LSPG, different least-square problem
+        # if self.hyper_reduc:
+        #     self.hyper_reduc_operator = np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
+
     def init_method(self, sol_domain, rom_domain):
         """Utility function for generating concatenated trial bases for implicit solve.
         

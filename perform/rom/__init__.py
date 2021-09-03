@@ -41,6 +41,7 @@ from time import sleep
 
 # ROM methods
 from perform.rom.rom_method.projection_method.galerkin_projection import GalerkinProjection
+from perform.rom.rom_method.projection_method.lspg_projection import LSPGProjection
 
 # variable mappings
 from perform.rom.rom_variable_mapping.prim_variable_mapping import PrimVariableMapping
@@ -57,6 +58,8 @@ def get_rom_method(rom_method, sol_domain, rom_domain):
 
     if rom_method == "galerkin":
         return GalerkinProjection(sol_domain, rom_domain)
+    elif rom_method == "lspg":
+        return LSPGProjection(sol_domain, rom_domain)
     else:
         raise ValueError("Invalid ROM rom_method: " + str(rom_method))
 
