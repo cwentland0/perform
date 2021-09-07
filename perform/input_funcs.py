@@ -101,7 +101,10 @@ def catch_list(in_dict, in_key, default, len_highest=1):
         if list_of_lists_flag:
             val_list = []
             for list_idx in range(len_highest):
-                val_list.append(default[0])
+                if len(default) == len_highest:
+                    val_list.append(default[list_idx])
+                else:
+                    val_list.append(default[0])
         else:
             val_list = default
 
