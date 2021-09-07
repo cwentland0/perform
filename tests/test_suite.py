@@ -2,6 +2,8 @@ import unittest
 
 import test_constants
 import test_input_funcs
+import test_misc_funcs
+import test_mesh
 
 
 def suite():
@@ -9,6 +11,8 @@ def suite():
     loader = unittest.TestLoader()
     suite.addTest(loader.loadTestsFromTestCase(test_constants.ConstantsTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_input_funcs.InputParsersTestCase))
+    suite.addTests(loader.loadTestsFromTestCase(test_misc_funcs.MiscFuncsTestCase))
+    suite.addTests(loader.loadTestsFromTestCase(test_mesh.MeshTestCase))
     return suite
 
 
