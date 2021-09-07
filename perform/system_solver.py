@@ -67,6 +67,7 @@ class SystemSolver:
     """
 
     # TODO: time_scheme should not be associated with SystemSolver
+    # TODO: iters should really be zero indexed
 
     def __init__(self, working_dir):
 

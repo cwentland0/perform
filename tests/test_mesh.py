@@ -2,6 +2,7 @@ import unittest
 
 from perform.mesh import Mesh
 
+
 class MeshTestCase(unittest.TestCase):
     def setUp(self):
 
@@ -31,3 +32,7 @@ class MeshTestCase(unittest.TestCase):
         self.assertEqual(mesh.x_cell.shape[0], self.num_cells)
         self.assertEqual(mesh.x_cell[0], self.x_left + self.dx / 2.0)
         self.assertEqual(mesh.x_cell[-1], self.x_right - self.dx / 2.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

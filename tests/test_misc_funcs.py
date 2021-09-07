@@ -3,8 +3,8 @@ import os
 
 import perform.misc_funcs as misc_funcs
 
-class MiscFuncsTestCase(unittest.TestCase):
 
+class MiscFuncsTestCase(unittest.TestCase):
     def setUp(self):
 
         self.test_dir = "test_dir"
@@ -21,3 +21,7 @@ class MiscFuncsTestCase(unittest.TestCase):
 
         misc_funcs.mkdir_shallow("", self.test_dir)
         self.assertTrue(os.path.isdir(self.test_dir))
+
+
+if __name__ == "__main__":
+    unittest.main()
