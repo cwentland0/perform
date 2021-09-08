@@ -74,10 +74,15 @@ class GasModelMethodsTestCase(unittest.TestCase):
         mass_fracs_out = self.gas.calc_all_mass_fracs(self.mass_fracs[:-1, :], threshold=True)
         self.assertTrue(np.allclose(mass_fracs_out, self.mass_fracs))
 
-    # def test_calc_mix_mol_weight(self):
+    def test_calc_mix_mol_weight(self):
 
-    # def test_calc_all_mole_fracs(self):
+        mix_mol_weight = self.gas.calc_mix_mol_weight(self.mass_fracs)
+        self.assertTrue(np.allclose(mix_mol_weight, np.array([31.0571321, 31.0571321])))
 
+    def test_calc_all_mole_fracs(self):
+
+        mole_fracs = self.gas.calc_all_mole_fracs(self.mass_fracs)
+        self.assertTrue(np.allclose(mole_fracs, np.array([[0.73286097, 0.73286097], [0.25666501, 0.25666501], [0.010474018, 0.010474018]])))
 
 if __name__ == "__main__":
     unittest.main()
