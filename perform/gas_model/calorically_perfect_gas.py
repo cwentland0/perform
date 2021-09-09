@@ -82,16 +82,25 @@ class CaloricallyPerfectGas(GasModel):
 
         return r_mix
 
-    def calc_mix_gamma(self, r_mix, cp_mix):
+    def calc_mix_gamma(self, mass_fracs=None, r_mix=None, cp_mix=None):
         """Compute mixture ratio of specific heats.
 
         Args:
+            mass_fracs: NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
             r_mix: NumPy array of the mixture specific gas constant profile.
             cp_mix: NumPy array of the mixture specific heat capacity at constant pressure profile.
 
         Returns:
             NumPy array of the mixture ratio of specific heats profile.
         """
+
+        if mass_fracs is None:
+            assert (r_mix is not None) and (cp_mix is not None), "Must provide mass fractions if not providing mixture gas constant and specific heat at constant pressure"
+        else:
+            if r_mix is None:
+                r_mix = self.calc_mix_gas_constant(mass_fracs)
+            if cp_mix is None:
+                cp_mix = self.calc_mix_cp(mass_fracs)
 
         gamma_mix = cp_mix / (cp_mix - r_mix)
 
@@ -426,7 +435,7 @@ class CaloricallyPerfectGas(GasModel):
             else:
                 cp_mix = np.squeeze(cp_mix)
 
-            gamma_mix = self.calc_mix_gamma(r_mix, cp_mix)
+            gamma_mix = self.calc_mix_gamma(r_mix=r_mix, cp_mix=cp_mix)
         else:
             gamma_mix = np.squeeze(gamma_mix)
 

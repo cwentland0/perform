@@ -217,7 +217,7 @@ class SolutionPhys:
         self.enth_ref_mix[:] = self.gas_model.calc_mix_enth_ref(self.sol_prim[3:, :])
         self.r_mix[:] = self.gas_model.calc_mix_gas_constant(self.sol_prim[3:, :])
         self.cp_mix[:] = self.gas_model.calc_mix_cp(self.sol_prim[3:, :])
-        self.gamma_mix[:] = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
+        self.gamma_mix[:] = self.gas_model.calc_mix_gamma(r_mix=self.r_mix, cp_mix=self.cp_mix)
 
         self.c[:] = self.gas_model.calc_sound_speed(self.sol_prim[2, :], r_mix=self.r_mix, gamma_mix=self.gamma_mix)
         self.hi[:, :] = self.gas_model.calc_spec_enth(self.sol_prim[2, :])
