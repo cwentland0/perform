@@ -120,30 +120,65 @@ class GasModelMethodsTestCase(unittest.TestCase):
     def test_calc_mix_dynamic_visc(self):
 
         mix_dyn_visc = self.gas.calc_mix_dynamic_visc(temperature=self.sol_prim[2, :], mass_fracs=self.mass_fracs)
+        self.assertTrue(np.allclose(mix_dyn_visc, np.array([1.8300075e-5, 1.8300075e-5,])))
 
     def test_calc_species_therm_cond(self):
 
         spec_therm_cond = self.gas.calc_species_therm_cond(temperature=self.sol_prim[2, :])
+        self.assertTrue(np.allclose(spec_therm_cond, np.repeat(np.array([[0.02603096], [0.02549303], [0.01719186]]), repeats=2, axis=1)))
 
     def test_calc_mix_thermal_cond(self):
 
         mix_therm_cond = self.gas.calc_mix_thermal_cond(temperature=self.sol_prim[2, :], mass_fracs=self.mass_fracs)
+        self.assertTrue(np.allclose(mix_therm_cond, np.array([0.02550461, 0.02550461])))
 
     def test_calc_species_mass_diff_coeff(self):
 
         density = self.gas.calc_density(self.sol_prim)
         spec_mass_diff = self.gas.calc_species_mass_diff_coeff(density, temperature=self.sol_prim[2, :])
+        self.assertTrue(np.allclose(spec_mass_diff, np.repeat(np.array([[2.9138003e-6], [2.4774341e-6], [3.195327e-6]]), repeats=2, axis=1)))
 
     def test_calc_sound_speed(self):
 
         sound_speed = self.gas.calc_sound_speed(self.sol_prim[2, :], mass_fracs=self.mass_fracs)
+        self.assertTrue(np.allclose(sound_speed, np.array([347.30181, 347.30181])))
 
-    # def test_calc_dens_derivs(self):
+    def test_calc_dens_derivs(self):
 
-    # def test_calc_stag_enth_derivs(self):
+        density = self.gas.calc_density(self.sol_prim)
+        dens_derivs = self.gas.calc_dens_derivs(
+            density,
+            wrt_press=True,
+            pressure=self.sol_prim[0, :],
+            wrt_temp=True,
+            temperature=self.sol_prim[2, :],
+            wrt_spec=True,
+            mass_fracs=self.mass_fracs,
+        )
+
+        self.assertTrue(np.allclose(dens_derivs[0], np.array([1.160804e-5, 1.160804e-5])))
+        self.assertTrue(np.allclose(dens_derivs[1], np.array([-0.03869349, -0.03869349])))
+        self.assertTrue(np.allclose(dens_derivs[2], np.repeat(np.array([[-2.10065], [-3.601114]]), repeats=2, axis=1)))
+
+    def test_calc_stag_enth_derivs(self):
+
+        stag_enth_derivs = self.gas.calc_stag_enth_derivs(
+            wrt_press=True,
+            wrt_temp=True,
+            mass_fracs=self.mass_fracs,
+            wrt_vel=True,
+            velocity=self.sol_prim[1, :],
+            wrt_spec=True,
+            temperature=self.sol_prim[2, :],
+        )
+
+        self.assertTrue(np.allclose(stag_enth_derivs[0], np.array([0.0, 0.0])))
+        self.assertTrue(np.allclose(stag_enth_derivs[1], np.array([[1004.788506], [1004.788506]])))
+        self.assertTrue(np.allclose(stag_enth_derivs[2], self.sol_prim[1, :]))
+        self.assertTrue(np.allclose(stag_enth_derivs[3], np.repeat(np.array([[119310.0], [155910.0]]), repeats=2, axis=1)))
 
     # def test_calc_press_temp_from_cons(self):
-
+    # TODO: this is an iterative procedure, not sure how to test this easily
 
 if __name__ == "__main__":
     unittest.main()
