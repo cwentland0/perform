@@ -25,6 +25,8 @@ def main():
 	plotHSVs			= romDict["plotHSVs"]
 	plotEigs			= romDict["plotEigs"]
 
+	nMarkov = nMarkov/2
+
 	out_dir = os.path.expanduser(BROMOutDir)
 	if not os.path.isdir(BROMOutDir):
 		os.mkdir(BROMOutDir)
