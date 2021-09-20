@@ -1,0 +1,17 @@
+BROMOutDir = "../../examples/standing_flame/LinearROMInOut"
+
+# model parameters
+pert_type = "pressure" 			#pressure or unitImpulse
+pert_freq = [215000.0]
+pert_perc = 0.0001
+press_back = 976139.8702576306
+num_steps = 200					#total number of time steps
+dt = 1.0e-9						#FOM time step
+num_eqs = 4
+sgap = 100						#Impulse response snapshots are collected every 100 time steps
+								#Impulse response needs to be regenerated for other sampling rates.
+nMarkov = 500
+plotHSVs = False
+plotEigs = False
+plotField = False
+rom_vis_interval = 1
