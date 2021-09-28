@@ -4,31 +4,24 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.gas_model.gas_model import GasModel
-
+from constants import CHEM_DICT_AIR
 
 class GasModelInitTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.num_species = 3
-        self.mol_weights = np.array([32.0, 28.0, 40.0], dtype=REAL_TYPE)
-        self.species_names = np.array(["oxygen", "nitrogen", "argon"])
-
-        self.chem_dict = {}
-        self.chem_dict["num_species"] = self.num_species
-        self.chem_dict["mol_weights"] = self.mol_weights
-        self.chem_dict["species_names"] = self.species_names
+        self.chem_dict = CHEM_DICT_AIR
 
     def test_gas_model_init(self):
 
         gas = GasModel(self.chem_dict)
 
         # check inputs
-        self.assertEqual(gas.num_species_full, self.num_species)
-        self.assertTrue(np.array_equal(gas.mol_weights, self.mol_weights))
-        self.assertTrue(np.array_equal(gas.species_names, self.species_names))
+        self.assertEqual(gas.num_species_full, self.chem_dict["num_species"])
+        self.assertTrue(np.array_equal(gas.mol_weights, self.chem_dict["mol_weights"]))
+        self.assertTrue(np.array_equal(gas.species_names, self.chem_dict["species_names"]))
 
         # check other attributes
-        self.assertEqual(gas.num_species, self.num_species - 1)
+        self.assertEqual(gas.num_species, self.chem_dict["num_species"] - 1)
         self.assertTrue(np.array_equal(gas.mass_frac_slice, np.array([0, 1])))
         self.assertAlmostEqual(gas.mw_inv[0], 0.03125)
         self.assertAlmostEqual(gas.mw_inv[1], 0.0357142857)
@@ -51,14 +44,7 @@ class GasModelInitTestCase(unittest.TestCase):
 class GasModelMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.num_species = 3
-        self.mol_weights = np.array([32.0, 28.0, 40.0], dtype=REAL_TYPE)
-        self.species_names = np.array(["oxygen", "nitrogen", "argon"])
-
-        self.chem_dict = {}
-        self.chem_dict["num_species"] = self.num_species
-        self.chem_dict["mol_weights"] = self.mol_weights
-        self.chem_dict["species_names"] = self.species_names
+        self.chem_dict = CHEM_DICT_AIR
 
         self.mass_fracs = np.repeat(np.array([[0.231537], [0.755063], [0.0134]], dtype=REAL_TYPE), repeats=2, axis=1)
 

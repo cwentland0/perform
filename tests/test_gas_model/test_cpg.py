@@ -4,42 +4,23 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
-
+from constants import CHEM_DICT_AIR
 
 class CPGInitTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.num_species = 3
-        self.mol_weights = np.array([32.0, 28.0, 40.0], dtype=REAL_TYPE)
-        self.species_names = np.array(["oxygen", "nitrogen", "argon"])
-        self.enth_ref = np.array([0.0, 0.0, 0.0], dtype=REAL_TYPE)
-        self.cp = np.array([918.0, 1040.0, 520.3], dtype=REAL_TYPE)
-        self.pr = np.array([0.730, 0.718, 0.687], dtype=REAL_TYPE)
-        self.sc = np.array([0.612, 0.612, 0.612], dtype=REAL_TYPE)
-        self.mu_ref = np.array([2.07e-5, 1.76e-5, 2.27e-5], dtype=REAL_TYPE)
-        self.temp_ref = np.array([0.0, 0.0, 0.0], dtype=REAL_TYPE)
-
-        self.chem_dict = {}
-        self.chem_dict["num_species"] = self.num_species
-        self.chem_dict["mol_weights"] = self.mol_weights
-        self.chem_dict["species_names"] = self.species_names
-        self.chem_dict["enth_ref"] = self.enth_ref
-        self.chem_dict["cp"] = self.cp
-        self.chem_dict["pr"] = self.pr
-        self.chem_dict["sc"] = self.sc
-        self.chem_dict["mu_ref"] = self.mu_ref
-        self.chem_dict["temp_ref"] = self.temp_ref
+        self.chem_dict = CHEM_DICT_AIR
 
     def test_cpg_init(self):
 
         gas = CaloricallyPerfectGas(self.chem_dict)
 
         # check inputs
-        self.assertTrue(np.array_equal(gas.cp, self.cp))
-        self.assertTrue(np.array_equal(gas.pr, self.pr))
-        self.assertTrue(np.array_equal(gas.sc, self.sc))
-        self.assertTrue(np.array_equal(gas.mu_ref, self.mu_ref))
-        self.assertTrue(np.array_equal(gas.temp_ref, self.temp_ref))
+        self.assertTrue(np.array_equal(gas.cp, self.chem_dict["cp"]))
+        self.assertTrue(np.array_equal(gas.pr, self.chem_dict["pr"]))
+        self.assertTrue(np.array_equal(gas.sc, self.chem_dict["sc"]))
+        self.assertTrue(np.array_equal(gas.mu_ref, self.chem_dict["mu_ref"]))
+        self.assertTrue(np.array_equal(gas.temp_ref, self.chem_dict["temp_ref"]))
 
         # check other quantities
         self.assertTrue(np.array_equal(gas.const_visc_idxs, np.array([0, 1, 2])))
@@ -51,26 +32,7 @@ class CPGInitTestCase(unittest.TestCase):
 class GasModelMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.num_species = 3
-        self.mol_weights = np.array([32.0, 28.0, 40.0], dtype=REAL_TYPE)
-        self.species_names = np.array(["oxygen", "nitrogen", "argon"])
-        self.enth_ref = np.array([0.0, 0.0, 0.0], dtype=REAL_TYPE)
-        self.cp = np.array([918.0, 1040.0, 520.3], dtype=REAL_TYPE)
-        self.pr = np.array([0.730, 0.718, 0.687], dtype=REAL_TYPE)
-        self.sc = np.array([0.612, 0.612, 0.612], dtype=REAL_TYPE)
-        self.mu_ref = np.array([2.07e-5, 1.76e-5, 2.27e-5], dtype=REAL_TYPE)
-        self.temp_ref = np.array([0.0, 0.0, 0.0], dtype=REAL_TYPE)
-
-        self.chem_dict = {}
-        self.chem_dict["num_species"] = self.num_species
-        self.chem_dict["mol_weights"] = self.mol_weights
-        self.chem_dict["species_names"] = self.species_names
-        self.chem_dict["enth_ref"] = self.enth_ref
-        self.chem_dict["cp"] = self.cp
-        self.chem_dict["pr"] = self.pr
-        self.chem_dict["sc"] = self.sc
-        self.chem_dict["mu_ref"] = self.mu_ref
-        self.chem_dict["temp_ref"] = self.temp_ref
+        self.chem_dict = CHEM_DICT_AIR
 
         self.sol_prim = np.repeat(np.array([[1e6], [10.0], [300]], dtype=REAL_TYPE), repeats=2, axis=1)
         self.mass_fracs = np.repeat(np.array([[0.231537], [0.755063], [0.0134]], dtype=REAL_TYPE), repeats=2, axis=1)
