@@ -119,7 +119,6 @@ class SolutionPhys:
                 self.sol_hist_prim[snap_idx] = self.sol_prim.copy()
                 self.sol_hist_cons[snap_idx] = self.sol_cons.copy()
 
-
         else:
             raise ValueError("Must provide either sol_prim_in or sol_cons_in to SolutionPhys")
 
