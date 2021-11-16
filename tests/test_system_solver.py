@@ -42,7 +42,7 @@ class SystemSolverInitTestCase(unittest.TestCase):
         self.assertTrue(os.path.isdir(os.path.join(self.test_dir, constants.RESTART_OUTPUT_DIR_NAME)))
 
         # check set inputs
-        self.assertEqual(solver.init_file, "test_init_file.npy")
+        self.assertEqual(solver.init_file, os.path.join(self.test_dir, "test_init_file.npy"))
         self.assertEqual(solver.dt, 1e-8)
         self.assertEqual(solver.num_steps, 100)
         self.assertTrue(solver.save_restarts)

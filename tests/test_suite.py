@@ -8,6 +8,8 @@ import test_system_solver
 from test_gas_model import test_gas_model, test_cpg
 from test_time_integrator import test_time_integrator, test_explicit_integrator
 
+from regression_tests.examples_fom import test_examples_fom
+
 loader = unittest.TestLoader()
 
 def init_unit_test_suite():
@@ -31,6 +33,14 @@ def init_unit_test_suite():
     return suite
 
 
+def regression_test_suite():
+    """Test cases for running full simulation examples"""
+
+    suite = unittest.TestSuite()
+    suite.addTest(loader.loadTestsFromTestCase(test_examples_fom.FOMRegressionTests))
+    return suite
+
 if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=3)
     runner.run(init_unit_test_suite())
+    runner.run(regression_test_suite())
