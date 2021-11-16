@@ -22,15 +22,12 @@ from perform.rom.rom_domain import RomDomain
 warnings.filterwarnings("error")
 
 
-def main():
+def driver(working_dir):
     """Main driver function which initializes all necessary constructs and advances the solution in time"""
 
     # ----- Start setup -----
 
-    # Read working directory input
-    parser = argparse.ArgumentParser(description="Read working directory")
-    parser.add_argument("working_dir", type=str, default="./", help="runtime working directory")
-    working_dir = os.path.expanduser(parser.parse_args().working_dir)
+    working_dir = os.path.expanduser(working_dir)
     assert os.path.isdir(working_dir), "Given working directory does not exist"
 
     # Retrieve global solver parameters
@@ -93,7 +90,18 @@ def main():
     # ----- End post-processing -----
 
 
+def main():
+
+    # Read working directory input
+    parser = argparse.ArgumentParser(description="Read working directory")
+    parser.add_argument("working_dir", type=str, default="./", help="runtime working directory")
+    working_dir = parser.parse_args().working_dir
+
+    driver(working_dir)
+
+
 if __name__ == "__main__":
+
     try:
         main()
     except:

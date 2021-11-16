@@ -83,7 +83,7 @@ class SolutionPhys:
         self.d_enth_d_temp = np.zeros(num_cells, dtype=REAL_TYPE)
         self.d_enth_d_mass_frac = np.zeros((self.gas_model.num_species, num_cells), dtype=REAL_TYPE)
 
-        # Compute complete initial state history and set initial condition        
+        # Compute complete initial state history and set initial condition
         self.sol_hist_cons = [None] * (time_order + 1)
         self.sol_hist_prim = [None] * (time_order + 1)
         if sol_prim_in is not None:

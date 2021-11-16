@@ -1,7 +1,7 @@
 import os
 
 import perform.constants as const
-from perform.input_funcs import read_input_file, catch_input
+from perform.input_funcs import read_input_file, catch_input, get_absolute_path
 from perform.misc_funcs import mkdir_shallow
 
 
@@ -86,6 +86,7 @@ class SystemSolver:
         # initial condition file
         try:
             self.init_file = str(param_dict["init_file"])
+            self.init_file = get_absolute_path(self.init_file, self.working_dir)
         except KeyError:
             self.init_file = None
 
@@ -111,7 +112,7 @@ class SystemSolver:
         self.init_from_restart = catch_input(param_dict, "init_from_restart", False)
 
         if (self.init_file is None) and (not self.init_from_restart):
-            self.ic_params_file = str(param_dict["ic_params_file"])
+            self.ic_params_file = get_absolute_path(str(param_dict["ic_params_file"]), self.working_dir)
 
         # unsteady output
         self.out_interval = catch_input(param_dict, "out_interval", 1)
@@ -124,7 +125,7 @@ class SystemSolver:
 
         assert self.out_interval > 0, "out_interval must be a positive integer"
         self.num_snaps = int(self.num_steps / self.out_interval)
-        
+
         # handle intermediate output finagling
         if self.out_itmdt_interval is not None:
             assert self.out_itmdt_interval > 0, "out_itmdt_interval must be a positive integer"

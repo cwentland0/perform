@@ -3,9 +3,10 @@ from math import floor, log
 
 import numpy as np
 import matplotlib as mpl
+
 try:
     if os.environ["PLT_USE_AGG"] == "1":
-        mpl.use('Agg')
+        mpl.use("Agg")
 except KeyError:
     pass
 import matplotlib.pyplot as plt

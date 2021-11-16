@@ -31,7 +31,8 @@ class SolutionInterior(SolutionPhys):
         wf:
             NumPy array of the rate-of-progress profiles for the num_reactions reactions,
             if modeling reactions by a finite-rate reaction model.
-        reaction_source: NumPy array of the reaction source term profiles for the num_species species transport equations.
+        reaction_source:
+            NumPy array of the reaction source term profiles for the num_species species transport equations.
         heat_release: NumPy array of the unsteady heat release profile.
         rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
         sol_hist_cons: List of NumPy arrays of the prior time_int.time_order conservative state profiles.
@@ -448,9 +449,9 @@ class SolutionInterior(SolutionPhys):
             failed: Boolean flag indicating whether a simulation has failed before completion.
         """
 
-        assert not (intermediate and failed), (
-            "Something went wrong, tried to write intermediate and failed snapshots at same time"
-        )
+        assert not (
+            intermediate and failed
+        ), "Something went wrong, tried to write intermediate and failed snapshots at same time"
 
         unsteady_output_dir = solver.unsteady_output_dir
 
@@ -493,7 +494,7 @@ class SolutionInterior(SolutionPhys):
 
     def delete_itmdt_snapshots(self, solver):
         """Delete intermediate snapshot data
-        
+
         Args:
             solver: SystemSolver containing global simulation parameters.
         """

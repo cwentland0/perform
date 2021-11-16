@@ -4,7 +4,7 @@ import numpy as np
 from scipy.sparse.linalg import spsolve
 
 from perform.constants import REAL_TYPE
-from perform.input_funcs import get_initial_conditions, catch_list, catch_input, read_input_file
+from perform.input_funcs import get_initial_conditions, catch_list, catch_input, read_input_file, get_absolute_path
 from perform.mesh import Mesh
 from perform.solution.solution_phys import SolutionPhys
 from perform.solution.solution_interior import SolutionInterior
@@ -96,12 +96,12 @@ class SolutionDomain:
         param_dict = solver.param_dict
 
         # Spatial domain
-        mesh_file = str(param_dict["mesh_file"])
+        mesh_file = get_absolute_path(str(param_dict["mesh_file"]), solver.working_dir)
         mesh_dict = read_input_file(mesh_file)
         self.mesh = Mesh(mesh_dict)
 
         # Gas model
-        chem_file = str(param_dict["chem_file"])
+        chem_file = get_absolute_path(str(param_dict["chem_file"]), solver.working_dir)
         chem_dict = read_input_file(chem_file)
         gas_model_name = catch_input(chem_dict, "gas_model", "cpg")
         if gas_model_name == "cpg":
@@ -376,7 +376,7 @@ class SolutionDomain:
 
     def calc_ghost_cells(self, solver):
         """Calculate state in inlet and outlet boundary ghost cells.
-        
+
         Args:
             solver: SystemSolver containing global simulation parameters.
         """
@@ -470,7 +470,7 @@ class SolutionDomain:
             grad: NumPy array of cell-centered gradients.
             grad_samp_idxs: NumPy array of cell indices at which to subsample grad for hyper-reduction.
             face_grad_idxs: NumPy array of face indices at which to subsample sol for hyper-reduciton.
-            side: string; if "left", compute contribution for face's left side. If "right", compute for face's right side.
+            side: string; if "left", compute for face's left side. If "right", compute for face's right side.
         """
 
         sol_change = (self.mesh.dx / 2.0) * grad[:, grad_samp_idxs]
@@ -813,9 +813,9 @@ class SolutionDomain:
             solver: SystemSolver containing global simulation parameters.
         """
 
-        assert not (intermediate and failed), (
-            "Something went wrong, tried to write intermediate and failed snapshots at same time"
-        )
+        assert not (
+            intermediate and failed
+        ), "Something went wrong, tried to write intermediate and failed snapshots at same time"
 
         # Get output file name
         probe_file_base_name = "probe"
@@ -842,7 +842,7 @@ class SolutionDomain:
 
     def delete_itmdt_probes(self, solver):
         """Delete intermediate probe data
-        
+
         Args:
             solver: SystemSolver containing global simulation parameters.
         """

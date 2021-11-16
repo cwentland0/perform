@@ -95,7 +95,9 @@ class CaloricallyPerfectGas(GasModel):
         """
 
         if mass_fracs is None:
-            assert (r_mix is not None) and (cp_mix is not None), "Must provide mass fractions if not providing mixture gas constant and specific heat at constant pressure"
+            assert (r_mix is not None) and (
+                cp_mix is not None
+            ), "Must provide mass fractions if not providing mixture gas constant and specific heat"
         else:
             if r_mix is None:
                 r_mix = self.calc_mix_gas_constant(mass_fracs)
