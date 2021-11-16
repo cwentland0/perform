@@ -6,6 +6,7 @@ from perform.constants import REAL_TYPE
 from perform.gas_model.gas_model import GasModel
 from constants import CHEM_DICT_AIR
 
+
 class GasModelInitTestCase(unittest.TestCase):
     def setUp(self):
 

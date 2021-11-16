@@ -10,7 +10,6 @@ from perform.driver import driver
 
 
 class FOMRegressionTests(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.localdir = os.path.dirname(__file__)
@@ -18,7 +17,9 @@ class FOMRegressionTests(unittest.TestCase):
         # shock tube
         cls.shock_tube_test_dir = os.path.join(cls.localdir, "shock_tube")
         cls.shock_tube_script = os.path.join(cls.shock_tube_test_dir, "get_results.sh")
-        cls.shock_tube_work_dir = os.path.join(cls.localdir, "../../../examples/shock_tube/")  # TODO: this is pretty jank
+        cls.shock_tube_work_dir = os.path.join(
+            cls.localdir, "../../../examples/shock_tube/"
+        )  # TODO: this is pretty jank
         subprocess.call(cls.shock_tube_script)
 
         # contact surface
@@ -47,7 +48,7 @@ class FOMRegressionTests(unittest.TestCase):
         subprocess.call("rm " + cls.transient_flame_test_dir + "/*.npy", shell=True)
 
     def test_shock_tube(self):
-        
+
         # run shock tube case and load results
         driver(self.shock_tube_work_dir)
         unst_dir = os.path.join(self.shock_tube_work_dir, "unsteady_field_results")
@@ -60,9 +61,13 @@ class FOMRegressionTests(unittest.TestCase):
         # load truth results
         sol_cons_truth = np.load(os.path.join(self.shock_tube_test_dir, "sol_cons_FOM.npy"))
         sol_prim_truth = np.load(os.path.join(self.shock_tube_test_dir, "sol_prim_FOM.npy"))
-        probe_1_truth = np.load(os.path.join(self.shock_tube_test_dir, "probe_pressure_velocity_density_temperature_1_FOM.npy"))
-        probe_2_truth = np.load(os.path.join(self.shock_tube_test_dir, "probe_pressure_velocity_density_temperature_2_FOM.npy"))
-        
+        probe_1_truth = np.load(
+            os.path.join(self.shock_tube_test_dir, "probe_pressure_velocity_density_temperature_1_FOM.npy")
+        )
+        probe_2_truth = np.load(
+            os.path.join(self.shock_tube_test_dir, "probe_pressure_velocity_density_temperature_2_FOM.npy")
+        )
+
         # compare
         self.assertTrue(np.array_equal(sol_cons_truth, sol_cons_test))
         self.assertTrue(np.array_equal(sol_prim_truth, sol_prim_test))
@@ -70,7 +75,7 @@ class FOMRegressionTests(unittest.TestCase):
         self.assertTrue(np.array_equal(probe_2_truth, probe_2_test))
 
     def test_constact_surface(self):
-        
+
         # run contact surface case and load results
         driver(self.contact_surface_work_dir)
         unst_dir = os.path.join(self.contact_surface_work_dir, "unsteady_field_results")
@@ -85,7 +90,7 @@ class FOMRegressionTests(unittest.TestCase):
         sol_prim_truth = np.load(os.path.join(self.contact_surface_test_dir, "sol_prim_FOM.npy"))
         probe_1_truth = np.load(os.path.join(self.contact_surface_test_dir, "probe_pressure_velocity_1_FOM.npy"))
         probe_2_truth = np.load(os.path.join(self.contact_surface_test_dir, "probe_pressure_velocity_2_FOM.npy"))
-        
+
         # compare
         self.assertTrue(np.array_equal(sol_cons_truth, sol_cons_test))
         self.assertTrue(np.array_equal(sol_prim_truth, sol_prim_test))
@@ -93,7 +98,7 @@ class FOMRegressionTests(unittest.TestCase):
         self.assertTrue(np.array_equal(probe_2_truth, probe_2_test))
 
     def test_standing_flame(self):
-        
+
         # run standing flame case and load results
         driver(self.standing_flame_work_dir)
         unst_dir = os.path.join(self.standing_flame_work_dir, "unsteady_field_results")
@@ -108,7 +113,7 @@ class FOMRegressionTests(unittest.TestCase):
         sol_prim_truth = np.load(os.path.join(self.standing_flame_test_dir, "sol_prim_FOM.npy"))
         probe_1_truth = np.load(os.path.join(self.standing_flame_test_dir, "probe_pressure_velocity_1_FOM.npy"))
         probe_2_truth = np.load(os.path.join(self.standing_flame_test_dir, "probe_pressure_velocity_2_FOM.npy"))
-        
+
         # compare
         self.assertTrue(np.array_equal(sol_cons_truth, sol_cons_test))
         self.assertTrue(np.array_equal(sol_prim_truth, sol_prim_test))
@@ -116,7 +121,7 @@ class FOMRegressionTests(unittest.TestCase):
         self.assertTrue(np.array_equal(probe_2_truth, probe_2_test))
 
     def test_transient_flame_unforced(self):
-    
+
         # run transient flame case and load results
         driver(self.transient_flame_work_dir)
         unst_dir = os.path.join(self.transient_flame_work_dir, "unsteady_field_results")
@@ -131,7 +136,7 @@ class FOMRegressionTests(unittest.TestCase):
         sol_prim_truth = np.load(os.path.join(self.transient_flame_test_dir, "sol_prim_FOM.npy"))
         probe_1_truth = np.load(os.path.join(self.transient_flame_test_dir, "probe_pressure_velocity_1_FOM.npy"))
         probe_2_truth = np.load(os.path.join(self.transient_flame_test_dir, "probe_pressure_velocity_2_FOM.npy"))
-        
+
         # compare
         self.assertTrue(np.array_equal(sol_cons_truth, sol_cons_test))
         self.assertTrue(np.array_equal(sol_prim_truth, sol_prim_test))

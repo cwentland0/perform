@@ -6,6 +6,7 @@ from perform.constants import REAL_TYPE
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 from constants import CHEM_DICT_AIR
 
+
 class CPGInitTestCase(unittest.TestCase):
     def setUp(self):
 
@@ -85,7 +86,7 @@ class GasModelMethodsTestCase(unittest.TestCase):
     def test_calc_mix_dynamic_visc(self):
 
         mix_dyn_visc = self.gas.calc_mix_dynamic_visc(temperature=self.sol_prim[2, :], mass_fracs=self.mass_fracs)
-        self.assertTrue(np.allclose(mix_dyn_visc, np.array([1.8300075e-5, 1.8300075e-5,])))
+        self.assertTrue(np.allclose(mix_dyn_visc, np.array([1.8300075e-5, 1.8300075e-5])))
 
     def test_calc_species_therm_cond(self):
 
@@ -158,14 +159,12 @@ class GasModelMethodsTestCase(unittest.TestCase):
         stag_enth = self.gas.calc_stag_enth(self.sol_prim[1, :], self.mass_fracs, temperature=self.sol_prim[2, :])
         total_energy = density * stag_enth - self.sol_prim[0, :]
         press, temp = self.gas.calc_press_temp_from_cons(
-            density,
-            total_energy,
-            velocity=self.sol_prim[1, :],
-            mass_fracs_in=self.mass_fracs,
+            density, total_energy, velocity=self.sol_prim[1, :], mass_fracs_in=self.mass_fracs,
         )
 
         self.assertTrue(np.allclose(press, np.array([1e6, 1e6])))
         self.assertTrue(np.allclose(temp, np.array([300.0, 300.0])))
+
 
 if __name__ == "__main__":
     unittest.main()

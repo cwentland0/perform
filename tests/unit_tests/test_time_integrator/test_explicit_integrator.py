@@ -2,7 +2,13 @@ import unittest
 
 import numpy as np
 
-from perform.time_integrator.explicit_integrator import ExplicitIntegrator, RKExplicit, ClassicRK4, SSPRK3, JamesonLowStore
+from perform.time_integrator.explicit_integrator import (
+    ExplicitIntegrator,
+    RKExplicit,
+    ClassicRK4,
+    SSPRK3,
+    JamesonLowStore,
+)
 
 
 class ExplicitTimeIntInitTestCase(unittest.TestCase):
@@ -17,7 +23,7 @@ class ExplicitTimeIntInitTestCase(unittest.TestCase):
     def test_explicit_time_int_init(self):
 
         time_int = ExplicitIntegrator(self.param_dict)
-        
+
         self.assertEqual(time_int.time_type, "explicit")
         self.assertFalse(time_int.dual_time)
         self.assertFalse(time_int.adapt_dtau)
@@ -86,5 +92,6 @@ class SSPRK3InitTestCase(unittest.TestCase):
         self.assertEqual(time_int.rk_a_vals.shape, (3, 3))
         self.assertEqual(time_int.rk_b_vals.shape, (3,))
         self.assertEqual(time_int.rk_c_vals.shape, (3,))
+
 
 # TODO: Jameson low storage
