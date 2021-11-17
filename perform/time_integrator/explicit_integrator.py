@@ -33,7 +33,7 @@ class ExplicitIntegrator(TimeIntegrator):
 
 
 class RKExplicit(ExplicitIntegrator):
-    """ Base class for explicit Runge-Kutta time integrators:
+    """Base class for explicit Runge-Kutta time integrators:
 
     All child classes must simply define their Butcher tableu via the attributes rk_a, rk_b, and rk_c.
     Additionally, each must set the variable subiter_max.
@@ -166,7 +166,7 @@ class SSPRK3(RKExplicit):
 
 
 class JamesonLowStore(RKExplicit):
-    """"Low-storage" class of RK schemes by Jameson.
+    """ "Low-storage" class of RK schemes by Jameson.
 
     Not actually appropriate for unsteady problems, supposedly.
     Not actually low-storage to work with general RK format, just maintained here for consistency with old code.

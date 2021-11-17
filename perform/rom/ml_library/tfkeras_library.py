@@ -11,8 +11,8 @@ from perform.constants import FD_STEP_DEFAULT
 
 class TFKerasLibrary(MLLibrary):
     """Class for implementing Tensorflow-Keras functionalities.
-    
-    This class assumes that Tensorflow >=2.0 is installed. 
+
+    This class assumes that Tensorflow >=2.0 is installed.
 
     Args:
         rom_domain: RomDomain which contains relevant ROM input dictionary.
@@ -96,7 +96,7 @@ class TFKerasLibrary(MLLibrary):
 
     def check_conv_io_format(self, io_format):
         """Checks for convolutional model I/O compatability.
-        
+
         Tensorflow >=2.0 cannot handle NCHW convolutional layers when running on a CPU.
         The user input is really only for handing input/output convolutional layers, if inner layers
         in a deep network use incompatible convolutional layers then execution will still fail on CPUs.
@@ -133,10 +133,10 @@ class TFKerasLibrary(MLLibrary):
 
     def get_io_dtype(self, model):
         """Gets model I/O data types.
-        
+
         Args:
             model: tf.keras.Model instance.
-        
+
         Returns:
             List of model input and output data types.
         """

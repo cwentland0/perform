@@ -267,7 +267,11 @@ class SolutionPhys:
 
         # Stagnation enthalpy derivatives
         self.d_enth_d_press[:], self.d_enth_d_temp[:], self.d_enth_d_mass_frac[:, :] = gas.calc_stag_enth_derivs(
-            wrt_press=True, wrt_temp=True, mass_fracs=self.sol_prim[3:, :], wrt_spec=True, spec_enth=self.hi[:, :],
+            wrt_press=True,
+            wrt_temp=True,
+            mass_fracs=self.sol_prim[3:, :],
+            wrt_spec=True,
+            spec_enth=self.hi[:, :],
         )
 
     def calc_state_from_rho_h0(self):

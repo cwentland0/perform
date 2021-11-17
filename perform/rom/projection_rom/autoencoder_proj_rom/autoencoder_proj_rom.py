@@ -27,7 +27,7 @@ class AutoencoderProjROM(ProjectionROM):
         decoder_isconv: Boolean flag indicating whether decoder output layer is convolutional.
         decoder_io_format:
             Either "channels_first" (i.e. NCHW) or "channels_last" (i.e. NHWC) format of decoder output
-            convolutional layer, if decoder_isconv = True. 
+            convolutional layer, if decoder_isconv = True.
         decoder_io_dtypes: List containing the data type of the decoder input and output.
         decoder_io_shapes: tuple containing the tuple shapes of the decoder input and output.
         encoder_jacob:
@@ -39,7 +39,7 @@ class AutoencoderProjROM(ProjectionROM):
         encoder_isconv: Boolean flag indicating whether encoder input layer is convolutional.
         encoder_io_format:
             Either "channels_first" (i.e. NCHW) or "channels_last" (i.e. NHWC) format of encoder input
-            convolutional layer, if decoder_isconv = True. 
+            convolutional layer, if decoder_isconv = True.
         encoder_io_dtypes: List containing the data type of the encoder input and output.
         encoder_io_shapes: tuple containing the tuple shapes of the encoder input and output.
         numerical_jacob:
@@ -254,7 +254,7 @@ class AutoencoderProjROM(ProjectionROM):
         Args:
             sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
             encoder_jacob: Boolean flag indicating whether the encoder Jacobian should be computed
-        
+
         Returns:
             NumPy array of encoder or decoder Jacobian, reshaped for use with implicit time-integration.
         """

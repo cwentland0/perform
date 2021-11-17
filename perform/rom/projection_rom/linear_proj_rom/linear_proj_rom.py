@@ -104,7 +104,7 @@ class LinearProjROM(ProjectionROM):
 
     def models_init(self, sol_domain, rom_domain):
         """Utility function for generating concatenated trial bases for implicit solve.
-        
+
         Operates over all models in rom_domain.
         """
 

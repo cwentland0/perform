@@ -10,7 +10,7 @@ class MLLibrary:
     Child classes implement library-specific (e.g. Tensorflow, PyTorch) routines for accomplishing basic
     machine learning tasks, such as model inference or device memory management.
     This class implements higher-level tasks which utilize various child class routines.
-    
+
     Routines here and in child classes should be written to be intentionally general and leave most specifics
     to be implemented in RomModel child classes.
 
@@ -31,10 +31,10 @@ class MLLibrary:
             model: ML model object.
             input_shape: tuple of expected model input shape.
             output_shape: tuple of expected model output shape.
-            isconv: 
+            isconv:
                 if True, indicates that model contains convolutional input or output layers,
                 and checks whether hardware running ML model supports the format given by io_format.
-            io_format: 
+            io_format:
                 string indicating convolutional input/output format,
                 either "channels_first" (i.e. NCHW) or "channels_last" (i.e. NHWC)
 
@@ -98,7 +98,7 @@ class MLLibrary:
         Calculates the numerical Jacobian of a model with respect to the given inputs.
         A finite-difference approximation of the gradient with respect to each element of the inputs is calculated.
         The fd_step attribute determines the finite difference step size.
-        
+
         This method is agnostic to the number of input/output dimensions and their shapes, but assumes that
         output_shape is correct.
 
