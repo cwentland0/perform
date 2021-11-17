@@ -16,3 +16,15 @@ CHEM_DICT_AIR["pr"] = np.array([0.730, 0.718, 0.687], dtype=REAL_TYPE)
 CHEM_DICT_AIR["sc"] = np.array([0.612, 0.612, 0.612], dtype=REAL_TYPE)
 CHEM_DICT_AIR["mu_ref"] = np.array([2.07e-5, 1.76e-5, 2.27e-5], dtype=REAL_TYPE)
 CHEM_DICT_AIR["temp_ref"] = np.array([0.0, 0.0, 0.0], dtype=REAL_TYPE)
+
+# sample reactant-product chemistry dictionary
+CHEM_DICT_REACT = {}
+CHEM_DICT_REACT["num_species"] = 2
+CHEM_DICT_REACT["mol_weights"] = np.array([21.32, 21.32], dtype=REAL_TYPE)
+CHEM_DICT_REACT["species_names"] = np.array(["Reactant", "Product"])
+CHEM_DICT_REACT["enth_ref"] = np.array([-7.4320e6, -10.8e6], dtype=REAL_TYPE)
+CHEM_DICT_REACT["cp"] = np.array([1538.22, 1538.22], dtype=REAL_TYPE)
+CHEM_DICT_REACT["pr"] = np.array([0.713, 0.713], dtype=REAL_TYPE)
+CHEM_DICT_REACT["sc"] = np.array([0.62, 0.62], dtype=REAL_TYPE)
+CHEM_DICT_REACT["mu_ref"] = np.array([7.35e-4, 7.35e-4], dtype=REAL_TYPE)
+CHEM_DICT_REACT["temp_ref"] = np.array([0.0, 0.0], dtype=REAL_TYPE)

@@ -60,6 +60,10 @@ class BDFTestCase(unittest.TestCase):
             f.write('time_scheme = "bdf"\n')
             f.write("num_steps = 100\n")
 
+        # set SystemSolver and time integrator
+        self.solver = SystemSolver(self.test_dir)
+        self.time_int = BDF(self.param_dict)
+
         # set solution and RHS variables
         self.sol_hist = [
             np.array([[2.0, 5.0], [3.0, 6.0], [4.0, 7.0]]),
@@ -74,8 +78,5 @@ class BDFTestCase(unittest.TestCase):
 
     def test_calc_residual(self):
 
-        solver = SystemSolver(self.test_dir)
-        time_int = BDF(self.param_dict)
-
-        residual = time_int.calc_residual(self.sol_hist, self.rhs, solver)
+        residual = self.time_int.calc_residual(self.sol_hist, self.rhs, self.solver)
         self.assertTrue(np.allclose(residual, np.array([[0.0, 3e7], [1e7, 4e7], [2e7, 5e7]])))

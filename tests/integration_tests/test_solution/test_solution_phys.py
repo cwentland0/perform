@@ -37,6 +37,7 @@ class SolutionPhysInitTestCase(unittest.TestCase):
 
         # check initialization from primitive state
         sol = SolutionPhys(self.gas, self.num_cells, sol_prim_in=self.sol_prim_in)
+        self.assertTrue(np.array_equal(sol.sol_prim, self.sol_prim_in))
         self.assertTrue(np.allclose(
             sol.sol_cons,
             np.array([
@@ -52,6 +53,7 @@ class SolutionPhysInitTestCase(unittest.TestCase):
 
         # check initialization from conservative state (just check that primitive state is correct this time)
         sol = SolutionPhys(self.gas, self.num_cells, sol_cons_in=self.sol_cons_in)
+        self.assertTrue(np.array_equal(sol.sol_cons, self.sol_cons_in))
         self.assertTrue(np.allclose(
             sol.sol_prim,
             np.array([
