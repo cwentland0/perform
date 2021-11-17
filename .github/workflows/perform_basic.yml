@@ -31,7 +31,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          cd test/unit_tests
+          cd tests/unit_tests
           python test_suite.py
 
   # Check code formatting using black
