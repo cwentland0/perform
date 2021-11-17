@@ -52,5 +52,19 @@ jobs:
         black perform --check --diff -l 120 --target-version py38
 
   # Check consistency with PEP8 using flake8
-  # .flake8 
-  # flake8:
+  # .flake8 dictates acceptable formatting exceptions 
+  flake8:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Check flake8
+      run: |
+        pip install flake8==4.0.1
+        flake8 perform --append-config .flake8 --count --show-source --statistics
