@@ -22,7 +22,7 @@ except ImportError:
 # PyTorch
 TORCH_IMPORT_SUCCESS = True
 try:
-    import torch
+    # TODO: import torch
     from perform.rom.ml_library.pytorch_library import PyTorchLibrary
 
 except ImportError:

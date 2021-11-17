@@ -1,4 +1,3 @@
-import numpy as np
 from scipy.linalg import pinv
 
 from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_proj_rom import AutoencoderProjROM

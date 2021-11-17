@@ -2,7 +2,6 @@ import os
 import time
 
 import numpy as np
-from scipy.sparse import vstack
 
 from perform.constants import REAL_TYPE
 

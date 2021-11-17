@@ -114,7 +114,6 @@ class MLLibrary:
 
         # prep Jacobian and indices into Jacobian
         jacob = np.zeros(output_shape + inputs.shape, dtype=REAL_TYPE)
-        num_indices_output = np.product(output_shape)
         output_slice = (np.s_[:],) * len(output_shape)
 
         # get initial prediction
