@@ -33,6 +33,11 @@ jobs:
         run: |
           cd tests/unit_tests
           python test_suite.py
+        
+      - name: Run integration tests
+        run: |
+          cd tests/integration_tests
+          python test_suite.py
 
   # Check code formatting using black
   black:

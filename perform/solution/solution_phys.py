@@ -328,3 +328,5 @@ class SolutionPhys:
             self.sol_prim[2, :] += d_temp
 
             iter_count += 1
+
+        self.update_state(from_prim=True)
