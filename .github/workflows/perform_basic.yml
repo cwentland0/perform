@@ -6,8 +6,8 @@ name: Basic PERFORM actions
 on: 
   push:
   pull_request:
-  # schedule:
-  #   - cron: 0 5 * * *
+  schedule:
+    - cron: 0 5 * * *
 
 
 jobs:
