@@ -4,12 +4,11 @@ name: Time-intensive PERFORM actions
 # Executed on pull request to main, and at 5:00 UTC
 
 on:
-  push:
-  # pull_request:
-  #   branches:
-  #     - main
-  # schedule:
-  #   - cron: 0 5 * * *
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: 0 5 * * *
 
 
 jobs:
@@ -31,7 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Run unit tests
+      - name: Run regression tests
         run: |
           cd tests/regression_tests
           python test_suite.py
