@@ -44,6 +44,7 @@ def time_int_test_suite():
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4InitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3InitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4MethodsTestCase))
+    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3MethodsTestCase))
     return suite
 
 if __name__ == "__main__":
