@@ -18,3 +18,4 @@ class TimeIntegratorTestCase(unittest.TestCase):
         self.assertEqual(time_integrator.dt, 1e-7)
         self.assertEqual(time_integrator.time_scheme, "bdf")
         self.assertEqual(time_integrator.time_order, 2)
+        self.assertEqual(time_integrator.subiter, 0)

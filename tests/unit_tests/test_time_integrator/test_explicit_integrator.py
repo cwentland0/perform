@@ -18,7 +18,7 @@ class ExplicitTimeIntInitTestCase(unittest.TestCase):
         self.param_dict = {}
         self.param_dict["dt"] = 1e-7
         self.param_dict["time_scheme"] = "classic_rk4"
-        self.param_dict["time_order"] = 3
+        self.param_dict["time_order"] = 4
 
     def test_explicit_time_int_init(self):
 
@@ -28,6 +28,20 @@ class ExplicitTimeIntInitTestCase(unittest.TestCase):
         self.assertFalse(time_int.dual_time)
         self.assertFalse(time_int.adapt_dtau)
 
+class RKExplicitInitTestCase(unittest.TestCase):
+    def setUp(self):
+
+        # set up param_dict
+        self.param_dict = {}
+        self.param_dict["dt"] = 1e-7
+        self.param_dict["time_scheme"] = "classic_rk4"
+        self.param_dict["time_order"] = 4
+
+    def test_rk_explicit_int_init(self):
+
+        time_int = RKExplicit(self.param_dict)
+
+        self.assertEqual(len(time_int.rk_rhs), 4)
 
 class ClassicRK4InitTestCase(unittest.TestCase):
     def setUp(self):
