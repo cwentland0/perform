@@ -35,21 +35,21 @@ jobs:
           python test_suite.py
 
   # Check code formatting using black
-  # black:
-  #   runs-on: ubuntu-latest
+  black:
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #   - uses: actions/checkout@v2
+    steps:
+    - uses: actions/checkout@v2
 
-  #   - name: Set up Python 3.8
-  #     uses: actions/setup-python@v2
-  #     with:
-  #       python-version: '3.8'
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
 
-  #   - name: Check black
-  #     run: |
-  #       pip install black==21.10b0
-  #       black perform --check --diff -l 120 --target-version py38
+    - name: Check black
+      run: |
+        pip install black==21.10b0
+        black perform --check --diff -l 120 --target-version py38
 
   # Check consistency with PEP8 using flake8
   # .flake8 
