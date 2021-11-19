@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # clear out the current output directory and remake it
     localdir = os.path.dirname(__file__)
     # handle weirdness with GHA and subprocess
-    if localdir == ".":
+    if localdir in ["", "."]:
         localdir = "./"
     outputdir = os.path.join(localdir, "output_dir")
     if os.path.isdir(outputdir):
