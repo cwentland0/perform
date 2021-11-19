@@ -37,7 +37,6 @@ jobs:
       - name: Run integration tests
         run: |
           cd tests/integration_tests
-          ls
           python test_suite.py
 
   # Check code formatting using black
