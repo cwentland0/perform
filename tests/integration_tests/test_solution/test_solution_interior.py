@@ -15,6 +15,9 @@ from perform.solution.solution_interior import SolutionInterior
 class SolutionIntInitTestCase(unittest.TestCase):
     def setUp(self):
 
+        self.output_mode = bool(os.environ["PERFORM_TEST_OUTPUT_MODE"])
+        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
+
         # set chemistry
         self.chem_dict = CHEM_DICT_REACT
         self.gas = CaloricallyPerfectGas(self.chem_dict)
@@ -36,7 +39,7 @@ class SolutionIntInitTestCase(unittest.TestCase):
         self.test_file = os.path.join(self.test_dir, constants.PARAM_INPUTS)
         with open(self.test_file, "w") as f:
             f.write('init_file = "test_init_file.npy"\n')
-            f.write("dt = 1e-8\n")
+            f.write("dt = 1e-7\n")
             f.write('time_scheme = "bdf"\n')
             f.write("num_steps = 100\n")
 
@@ -63,22 +66,27 @@ class SolutionIntInitTestCase(unittest.TestCase):
     def test_solution_int_init(self):
 
         sol = SolutionInterior(self.gas, self.sol_prim_in, self.solver, self.num_cells, self.num_reactions, self.time_int)
-        self.assertTrue(np.array_equal(sol.sol_prim, self.sol_prim_in))
-        self.assertTrue(np.allclose(
-            sol.sol_cons,
-            np.array([
-                [2.56420677,  0.213683897],
-                [5.12841354,  0.213683897],
-                [-1.95673648e7, -1.72547963e6],
-                [1.53852406,  8.54735590e-02],
-            ])
-        ))
-    
-        # TODO: a LOT of checking of other variables
+
+        if self.output_mode:
+
+            np.save(os.path.join(self.output_dir, "sol_int_init_sol_cons.npy"), sol.sol_cons)
+
+        else:
+
+            self.assertTrue(np.array_equal(sol.sol_prim, self.sol_prim_in))
+            self.assertTrue(np.allclose(
+                sol.sol_cons,
+                np.load(os.path.join(self.output_dir, "sol_int_init_sol_cons.npy"))
+            ))
+        
+            # TODO: a LOT of checking of other variables
 
 
 class SolutionIntMethodsTestCase(unittest.TestCase):
     def setUp(self):
+
+        self.output_mode = bool(os.environ["PERFORM_TEST_OUTPUT_MODE"])
+        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
 
         # set chemistry
         self.chem_dict = CHEM_DICT_REACT
@@ -132,4 +140,18 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         sol_jacob = self.sol.calc_sol_jacob(inverse=False)
         sol_jacob_inv = self.sol.calc_sol_jacob(inverse=True)
 
-        pass
+        if self.output_mode:
+
+            np.save(os.path.join(self.output_dir, "sol_int_sol_jacob.npy"), sol_jacob)
+            np.save(os.path.join(self.output_dir, "sol_int_sol_jacob_inv.npy"), sol_jacob_inv)
+
+        else:
+
+            self.assertTrue(np.allclose(
+                sol_jacob,
+                np.load(os.path.join(self.output_dir, "sol_int_sol_jacob.npy"))
+            ))
+            self.assertTrue(np.allclose(
+                sol_jacob_inv,
+                np.load(os.path.join(self.output_dir, "sol_int_sol_jacob_inv.npy"))
+            ))
