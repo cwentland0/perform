@@ -50,6 +50,8 @@ if __name__ == "__main__":
     else:
         os.environ["PERFORM_TEST_OUTPUT_MODE"] = "0"
         # retrieve current "truth" results
+        print(localdir)
+        print(os.path.join(localdir, "get_results.sh"))
         subprocess.call(os.path.join(localdir, "get_results.sh"))
 
 
