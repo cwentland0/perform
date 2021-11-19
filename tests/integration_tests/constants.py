@@ -7,6 +7,7 @@ from perform.constants import REAL_TYPE
 
 # sample air chemistry dictionary
 CHEM_DICT_AIR = {}
+CHEM_DICT_AIR["gas_model"] = "cpg"
 CHEM_DICT_AIR["num_species"] = 3
 CHEM_DICT_AIR["mol_weights"] = np.array([32.0, 28.0, 40.0], dtype=REAL_TYPE)
 CHEM_DICT_AIR["species_names"] = np.array(["oxygen", "nitrogen", "argon"])
@@ -19,6 +20,7 @@ CHEM_DICT_AIR["temp_ref"] = np.array([0.0, 0.0, 0.0], dtype=REAL_TYPE)
 
 # sample reactant-product chemistry and reaction dictionaries
 CHEM_DICT_REACT = {}
+CHEM_DICT_REACT["gas_model"] = "cpg"
 CHEM_DICT_REACT["num_species"] = 2
 CHEM_DICT_REACT["mol_weights"] = np.array([21.32, 21.32], dtype=REAL_TYPE)
 CHEM_DICT_REACT["species_names"] = np.array(["Reactant", "Product"])
@@ -29,6 +31,7 @@ CHEM_DICT_REACT["sc"] = np.array([0.62, 0.62], dtype=REAL_TYPE)
 CHEM_DICT_REACT["mu_ref"] = np.array([7.35e-4, 7.35e-4], dtype=REAL_TYPE)
 CHEM_DICT_REACT["temp_ref"] = np.array([0.0, 0.0], dtype=REAL_TYPE)
 
+CHEM_DICT_REACT["reaction_model"] = "fr_irrev"
 CHEM_DICT_REACT["num_reactions"] = 1
 CHEM_DICT_REACT["nu"] = [[1.0, -1.0]]
 CHEM_DICT_REACT["nu_arr"] = [[1.0, 0.0]]

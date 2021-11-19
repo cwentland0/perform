@@ -4,7 +4,8 @@ import shutil
 import subprocess
 from argparse import ArgumentParser
 
-from test_solution import test_solution_phys, test_solution_interior
+from test_solution import test_solution_phys, test_solution_interior, test_solution_domain
+from test_solution.test_solution_boundary import test_solution_boundary
 from test_reaction_model import test_finite_rate_irrev_reaction
 from test_flux.invisc_flux import test_invisc_flux
 
@@ -15,16 +16,22 @@ def integration_test_suite(output_mode=False):
 
     suite = unittest.TestSuite()
 
-    # initializations
+    # basic initializations
     suite.addTests(loader.loadTestsFromTestCase(test_solution_phys.SolutionPhysInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_interior.SolutionIntInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_solution_boundary.SolutionBoundaryInitTestCase))
 
-    # methods
+    # basic methods
     suite.addTest(loader.loadTestsFromTestCase(test_solution_phys.SolutionPhysMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_interior.SolutionIntMethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_solution_boundary.SolutionBoundaryMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_invisc_flux.InviscFluxMethodsTestCase))
+
+    # SolutionDomain initialization
+    suite.addTest(loader.loadTestsFromTestCase(test_solution_domain.SolutionDomainInitTestCase))
+    
 
     return suite
 

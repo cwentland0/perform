@@ -43,9 +43,8 @@ class SolutionIntInitTestCase(unittest.TestCase):
             f.write('time_scheme = "bdf"\n')
             f.write("num_steps = 100\n")
 
-        # set SystemSolver and time integrator
+        # set SystemSolver
         self.solver = SystemSolver(self.test_dir)
-        self.time_int = BDF(self.param_dict)
 
         # set primitive state
         self.sol_prim_in = np.array([
@@ -113,7 +112,7 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
             f.write('time_scheme = "bdf"\n')
             f.write("num_steps = 100\n")
 
-        # set SystemSolver and time integrator
+        # set SystemSolver
         self.solver = SystemSolver(self.test_dir)
 
         # set primitive state
