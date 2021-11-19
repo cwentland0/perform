@@ -15,7 +15,7 @@ from perform.solution.solution_interior import SolutionInterior
 class SolutionIntInitTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(os.environ["PERFORM_TEST_OUTPUT_MODE"])
+        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
         self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
 
         # set chemistry
@@ -85,7 +85,7 @@ class SolutionIntInitTestCase(unittest.TestCase):
 class SolutionIntMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(os.environ["PERFORM_TEST_OUTPUT_MODE"])
+        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
         self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
 
         # set chemistry

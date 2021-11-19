@@ -11,7 +11,7 @@ from perform.solution.solution_phys import SolutionPhys
 class SolutionPhysInitTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(os.environ["PERFORM_TEST_OUTPUT_MODE"])
+        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
         self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
 
         self.chem_dict = CHEM_DICT_AIR
@@ -75,7 +75,7 @@ class SolutionPhysMethodsTestCase(unittest.TestCase):
 
     def setUp(self):
 
-        self.output_mode = bool(os.environ["PERFORM_TEST_OUTPUT_MODE"])
+        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
         self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
 
         self.chem_dict = CHEM_DICT_AIR
@@ -102,7 +102,7 @@ class SolutionPhysMethodsTestCase(unittest.TestCase):
             np.save(os.path.join(self.output_dir, "d_rho_d_press.npy"), self.sol.d_rho_d_press)
             np.save(os.path.join(self.output_dir, "d_rho_d_temp.npy"), self.sol.d_rho_d_temp)
             np.save(os.path.join(self.output_dir, "d_rho_d_mass_frac.npy"), self.sol.d_rho_d_mass_frac)
-            np.save(os.path.join(self.output_dir, "d_enth_d_press.npy"), self.sol.d_rho_d_press)
+            np.save(os.path.join(self.output_dir, "d_enth_d_press.npy"), self.sol.d_enth_d_press)
             np.save(os.path.join(self.output_dir, "d_enth_d_temp.npy"), self.sol.d_enth_d_temp)
             np.save(os.path.join(self.output_dir, "d_enth_d_mass_frac.npy"), self.sol.d_enth_d_mass_frac)
 

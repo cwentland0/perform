@@ -32,7 +32,7 @@ class FiniteRateIrrevReactionInitTestCase(unittest.TestCase):
 class FiniteRateIrrevReactionMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(os.environ["PERFORM_TEST_OUTPUT_MODE"])
+        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
         self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
 
         # setup gas and reaction model
