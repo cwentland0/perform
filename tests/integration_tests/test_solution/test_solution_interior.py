@@ -115,7 +115,6 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
 
         # set SystemSolver and time integrator
         self.solver = SystemSolver(self.test_dir)
-        self.time_int = BDF(self.param_dict)
 
         # set primitive state
         self.sol_prim_in = np.array([

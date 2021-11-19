@@ -5,22 +5,24 @@ import subprocess
 from argparse import ArgumentParser
 
 from test_solution import test_solution_phys, test_solution_interior
+from test_reaction_model import test_finite_rate_irrev_reaction
 
 loader = unittest.TestLoader()
 
 
-def solution_integration_test_suite(output_mode=False):
+def integration_test_suite(output_mode=False):
 
     suite = unittest.TestSuite()
 
     # initializations
     suite.addTests(loader.loadTestsFromTestCase(test_solution_phys.SolutionPhysInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_interior.SolutionIntInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionInitTestCase))
 
     # methods
     suite.addTest(loader.loadTestsFromTestCase(test_solution_phys.SolutionPhysMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_interior.SolutionIntMethodsTestCase))
-    
+    suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionMethodsTestCase))
 
     return suite
 
@@ -52,7 +54,6 @@ if __name__ == "__main__":
         # retrieve current "truth" results
         subprocess.call(os.path.join(localdir, "get_results.sh"))
 
-
     runner = unittest.TextTestRunner(verbosity=3)
-    runner.run(solution_integration_test_suite(output_mode=output_mode))
+    runner.run(integration_test_suite(output_mode=output_mode))
 
