@@ -5,7 +5,7 @@ import subprocess
 from argparse import ArgumentParser
 
 from test_solution import test_solution_phys, test_solution_interior, test_solution_domain
-from test_solution.test_solution_boundary import test_solution_boundary
+from test_solution.test_solution_boundary import test_solution_boundary, test_solution_inlet
 from test_reaction_model import test_finite_rate_irrev_reaction
 from test_flux.invisc_flux import test_invisc_flux
 
@@ -26,6 +26,7 @@ def integration_test_suite(output_mode=False):
     suite.addTest(loader.loadTestsFromTestCase(test_solution_phys.SolutionPhysMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_interior.SolutionIntMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_boundary.SolutionBoundaryMethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_solution_inlet.SolutionInletMethodTests))
     suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_invisc_flux.InviscFluxMethodsTestCase))
 
@@ -51,9 +52,12 @@ if __name__ == "__main__":
     if localdir in ["", "."]:
         localdir = "./"
     outputdir = os.path.join(localdir, "output_dir")
-    if os.path.isdir(outputdir):
-        shutil.rmtree(outputdir)
-    os.mkdir(outputdir)
+
+    # if os.path.isdir(outputdir):
+    #     shutil.rmtree(outputdir)
+    if not os.path.isdir(outputdir):
+        os.mkdir(outputdir)
+    
     os.environ["PERFORM_TEST_OUTPUT_DIR"] = outputdir
 
     if output_mode:
@@ -61,7 +65,7 @@ if __name__ == "__main__":
     else:
         os.environ["PERFORM_TEST_OUTPUT_MODE"] = "0"
         # retrieve current "truth" results
-        subprocess.call(os.path.join(localdir, "get_results.sh"))
+        # subprocess.call(os.path.join(localdir, "get_results.sh"))
 
     runner = unittest.TextTestRunner(verbosity=3)
     runner.run(integration_test_suite(output_mode=output_mode))
