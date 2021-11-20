@@ -127,13 +127,13 @@ class SolutionOutlet(SolutionBoundary):
 
         # Extrapolate to exterior
         if space_order == 1:
-            w_1_bound = w_1_out[0]
-            w_2_bound = w_2_out[0]
-            w_4_bound = w_4_out[:, 0]
+            w_1_bound = w_1_out[-1]
+            w_2_bound = w_2_out[-1]
+            w_4_bound = w_4_out[:, -1]
         elif space_order == 2:
-            w_1_bound = 2.0 * w_1_out[0] - w_1_out[1]
-            w_2_bound = 2.0 * w_2_out[0] - w_2_out[1]
-            w_4_bound = 2.0 * w_4_out[:, 0] - w_4_out[:, 0]
+            w_1_bound = 2.0 * w_1_out[-1] - w_1_out[-2]
+            w_2_bound = 2.0 * w_2_out[-1] - w_2_out[-2]
+            w_4_bound = 2.0 * w_4_out[:, -1] - w_4_out[:, -2]
         else:
             raise ValueError(
                 "Higher order extrapolation implementation required for spatial order " + str(space_order)

@@ -5,7 +5,7 @@ import subprocess
 from argparse import ArgumentParser
 
 from test_solution import test_solution_phys, test_solution_interior, test_solution_domain
-from test_solution.test_solution_boundary import test_solution_boundary, test_solution_inlet
+from test_solution.test_solution_boundary import test_solution_boundary, test_solution_inlet, test_solution_outlet
 from test_reaction_model import test_finite_rate_irrev_reaction
 from test_flux.invisc_flux import test_invisc_flux
 
@@ -27,6 +27,7 @@ def integration_test_suite(output_mode=False):
     suite.addTest(loader.loadTestsFromTestCase(test_solution_interior.SolutionIntMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_boundary.SolutionBoundaryMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_inlet.SolutionInletMethodTests))
+    suite.addTest(loader.loadTestsFromTestCase(test_solution_outlet.SolutionOutletMethodTests))
     suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_invisc_flux.InviscFluxMethodsTestCase))
 
