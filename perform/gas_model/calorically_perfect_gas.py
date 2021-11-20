@@ -499,7 +499,7 @@ class CaloricallyPerfectGas(GasModel):
         if wrt_spec:
             # calculate mixture molecular weight
             if mix_mol_weight is None:
-                assert mass_fracs is not None, "Must provide mass fractions to" + " calculate mixture mol weight"
+                assert mass_fracs is not None, "Must provide mass fractions to calculate mixture mol weight"
                 mix_mol_weight = self.calc_mix_mol_weight(mass_fracs)
 
             d_dens_d_mass_frac = np.zeros((self.num_species, density.shape[0]), dtype=REAL_TYPE)

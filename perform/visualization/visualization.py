@@ -76,7 +76,7 @@ class Visualization:
                             species_idx = int(vis_var[7:])
 
                         assert (species_idx >= 0) and (species_idx < num_species_full), (
-                            "Species number must be a non-negative (>= 0) integer " + "< the number of chemical species"
+                            "Species number must be a non-negative (>= 0) integer < the number of chemical species"
                         )
                     except ValueError:
                         raise ValueError(
@@ -118,7 +118,7 @@ class Visualization:
             self.num_rows = 3
             self.num_cols = 3
         else:
-            raise ValueError("Cannot plot more than nine" + " subplots in the same image")
+            raise ValueError("Cannot plot more than nine subplots in the same image")
 
         # Axis labels
         # TODO: could change this to a dictionary reference

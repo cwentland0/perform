@@ -83,7 +83,7 @@ class SolutionOutlet(SolutionBoundary):
             j = 2.0 * j_p1 - j_p2
         else:
             raise ValueError(
-                "Higher order extrapolation implementation " + "required for spatial order " + str(space_order)
+                "Higher order extrapolation implementation required for spatial order " + str(space_order)
             )
 
         # Compute exterior state
@@ -136,7 +136,7 @@ class SolutionOutlet(SolutionBoundary):
             w_4_bound = 2.0 * w_4_out[:, 0] - w_4_out[:, 0]
         else:
             raise ValueError(
-                "Higher order extrapolation implementation " + "required for spatial order " + str(space_order)
+                "Higher order extrapolation implementation required for spatial order " + str(space_order)
             )
 
         # compute exterior state

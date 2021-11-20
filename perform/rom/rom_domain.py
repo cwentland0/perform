@@ -105,11 +105,11 @@ class RomDomain:
             if len(self.latent_dims) == self.num_models:
                 pass
             elif len(self.latent_dims) == 1:
-                print("Only one value provided in latent_dims," + " applying to all models")
+                print("Only one value provided in latent_dims, applying to all models")
                 sleep(1.0)
                 self.latent_dims = [self.latent_dims[0]] * self.num_models
             else:
-                raise ValueError("Must provide either num_models" + "or 1 entry in latent_dims")
+                raise ValueError("Must provide either num_models or 1 entry in latent_dims")
 
         # Load and check model_var_idxs
         for model_idx in range(self.num_models):
@@ -553,7 +553,7 @@ class RomDomain:
                 )
 
             else:
-                raise ValueError("Sampling for higher-order schemes" + " not implemented yet")
+                raise ValueError("Sampling for higher-order schemes not implemented yet")
 
         # for Jacobian calculations
         if sol_domain.direct_samp_idxs[0] == 0:
