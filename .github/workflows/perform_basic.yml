@@ -44,7 +44,7 @@ jobs:
         run: |
           cd tests/
           coverage combine .coverage_unit .coverage_int
-          coveralls --service=github
+          coveralls --service=github --rcfile=../.coveragerc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
