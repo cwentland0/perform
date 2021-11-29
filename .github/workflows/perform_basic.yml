@@ -28,16 +28,29 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
+          pip install coverage
 
       - name: Run unit tests
         run: |
-          cd tests/unit_tests
-          python test_suite.py
+          cd tests/
+          COVERAGE_FILE=.coverage_unit coverage run --source=../perform ./unit_tests/test_suite.py
         
       - name: Run integration tests
         run: |
-          cd tests/integration_tests
-          python test_suite.py
+          cd tests/
+          COVERAGE_FILE=.coverage_int coverage run --source=../perform ./integration_tests/test_suite.py
+
+      - name: Combine coverage reports
+        run: |
+          cd tests/
+          coverage combine .coverage_unit .coverage_int
+
+      - name: Report coverage
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: "./tests/.coverage"
+        
 
   # Check code formatting using black
   black:
