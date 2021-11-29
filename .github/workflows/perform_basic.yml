@@ -46,13 +46,12 @@ jobs:
       #     coverage combine .coverage_unit .coverage_int
 
       - name: Report coverage
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd tests/
           coverage combine .coverage_unit .coverage_int
           coveralls --service=github
-          
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # Check code formatting using black
   black:
