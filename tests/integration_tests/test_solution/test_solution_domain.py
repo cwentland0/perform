@@ -39,6 +39,7 @@ def solution_domain_setup(run_dir):
         f.write('init_file = "test_init_file.npy" \n')
         f.write("dt = 1e-7 \n")
         f.write('time_scheme = "bdf" \n')
+        f.write("adapt_dtau = True \n")
         f.write("time_order = 2 \n")
         f.write("num_steps = 10 \n")
         f.write('invisc_flux_scheme = "roe" \n')
@@ -56,6 +57,8 @@ def solution_domain_setup(run_dir):
         f.write("vel_outlet = 1522.0 \n")
         f.write("rho_outlet = 2958.0 \n")
         f.write("mass_fracs_outlet = [0.4, 0.6] \n")
+        f.write("probe_locs = [-1.0, 5e-6, 1.0] \n")
+        f.write('probe_vars = ["pressure", "velocity"] \n')
 
 class SolutionDomainInitTestCase(unittest.TestCase):
     def setUp(self):
@@ -154,4 +157,46 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
             self.assertTrue(np.allclose(
                 self.sol_domain.sol_int.rhs,
                 np.load(os.path.join(self.output_dir, "sol_domain_rhs.npy"))
+            ))
+
+    def test_calc_rhs_jacob(self):
+
+        self.sol_domain.calc_rhs(self.solver)
+        rhs_jacob_center, rhs_jacob_left, rhs_jacob_right = self.sol_domain.calc_rhs_jacob(self.solver)
+
+        if self.output_mode:
+
+            np.save(os.path.join(self.output_dir, "sol_domain_rhs_jacob_center.npy"), rhs_jacob_center)
+            np.save(os.path.join(self.output_dir, "sol_domain_rhs_jacob_left.npy"), rhs_jacob_left)
+            np.save(os.path.join(self.output_dir, "sol_domain_rhs_jacob_right.npy"), rhs_jacob_right)
+
+        else:
+
+            self.assertTrue(np.allclose(
+                rhs_jacob_center,
+                np.load(os.path.join(self.output_dir, "sol_domain_rhs_jacob_center.npy"))
+            ))
+            self.assertTrue(np.allclose(
+                rhs_jacob_left,
+                np.load(os.path.join(self.output_dir, "sol_domain_rhs_jacob_left.npy"))
+            ))
+            self.assertTrue(np.allclose(
+                rhs_jacob_right,
+                np.load(os.path.join(self.output_dir, "sol_domain_rhs_jacob_right.npy"))
+            ))
+
+    def test_calc_res_jacob(self):
+
+        self.sol_domain.calc_rhs(self.solver)
+        res_jacob = self.sol_domain.calc_res_jacob(self.solver).todense()
+
+        if self.output_mode:
+
+            np.save(os.path.join(self.output_dir, "sol_domain_res_jacob.npy"), res_jacob)
+
+        else:
+
+            self.assertTrue(np.allclose(
+                res_jacob,
+                np.load(os.path.join(self.output_dir, "sol_domain_res_jacob.npy"))
             ))
