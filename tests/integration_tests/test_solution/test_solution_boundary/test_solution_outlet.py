@@ -30,7 +30,7 @@ class SolutionOutletMethodTests(unittest.TestCase):
 
         # NOTE: press, vel, temp, and rho set later, depending on boundary condition
         self.bound_type = "outlet"
-        self.mass_fracs = [0.6, 0.4]
+        self.mass_fracs = [0.4, 0.6]
         self.pert_type = "pressure"
         self.pert_perc = 0.025
         self.pert_freq = [125e3]

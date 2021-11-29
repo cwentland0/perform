@@ -54,8 +54,8 @@ if __name__ == "__main__":
         localdir = "./"
     outputdir = os.path.join(localdir, "output_dir")
 
-    # if os.path.isdir(outputdir):
-    #     shutil.rmtree(outputdir)
+    if os.path.isdir(outputdir):
+        shutil.rmtree(outputdir)
     if not os.path.isdir(outputdir):
         os.mkdir(outputdir)
     
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     else:
         os.environ["PERFORM_TEST_OUTPUT_MODE"] = "0"
         # retrieve current "truth" results
-        # subprocess.call(os.path.join(localdir, "get_results.sh"))
+        subprocess.call(os.path.join(localdir, "get_results.sh"))
 
     runner = unittest.TextTestRunner(verbosity=3)
     runner.run(integration_test_suite(output_mode=output_mode))
