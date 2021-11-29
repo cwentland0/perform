@@ -4,62 +4,11 @@ import shutil
 
 import numpy as np
 
-from constants import CHEM_DICT_REACT
-import perform.constants as constants
+from constants import solution_domain_setup
 from perform.system_solver import SystemSolver
-from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
-from perform.time_integrator.implicit_integrator import BDF
 from perform.solution.solution_domain import SolutionDomain
 
-def solution_domain_setup(run_dir):
 
-    # generate mesh file
-    mesh_file = os.path.join(run_dir, "mesh.inp")
-    with open(mesh_file, "w") as f:
-        f.write('x_left = 0.0\n')
-        f.write('x_right = 2e-5\n')
-        f.write('num_cells = 2\n')
-
-    # generate chemistry file
-    chem_file = os.path.join(run_dir, "chem.inp")
-    with open(chem_file, "w") as f:
-        for key, item in CHEM_DICT_REACT.items():
-            if isinstance(item, str):
-                f.write(key + " = \"" + str(item) + "\"\n")
-            elif isinstance(item, list) or isinstance(item, np.ndarray):
-                f.write(key + ' = [' + ','.join(str(val) for val in item) + ']\n')
-            else:
-                f.write(key + " = " + str(item) + "\n")
-
-    # generate solver input files
-    inp_file = os.path.join(run_dir, constants.PARAM_INPUTS)
-    with open(inp_file, "w") as f:
-        f.write('chem_file = "./chem.inp" \n')
-        f.write('mesh_file = "./mesh.inp" \n')
-        f.write('init_file = "test_init_file.npy" \n')
-        f.write("dt = 1e-7 \n")
-        f.write('time_scheme = "bdf" \n')
-        f.write("adapt_dtau = True \n")
-        f.write("time_order = 2 \n")
-        f.write("num_steps = 10 \n")
-        f.write("res_tol = 1e-11 \n")
-        f.write('invisc_flux_scheme = "roe" \n')
-        f.write('visc_flux_scheme = "standard" \n')
-        f.write("space_order = 2 \n")
-        f.write('grad_limiter = "barth_face" \n')
-        f.write('bound_cond_inlet = "meanflow" \n')
-        f.write("press_inlet = 1003706.0 \n")
-        f.write("temp_inlet = 1000.0 \n")
-        f.write("vel_inlet = 1853.0 \n")
-        f.write("rho_inlet = 3944.0 \n")
-        f.write("mass_fracs_inlet = [0.6, 0.4] \n")
-        f.write('bound_cond_outlet = "meanflow" \n')
-        f.write("press_outlet = 898477.0 \n")
-        f.write("vel_outlet = 1522.0 \n")
-        f.write("rho_outlet = 2958.0 \n")
-        f.write("mass_fracs_outlet = [0.4, 0.6] \n")
-        f.write("probe_locs = [-1.0, 5e-6, 1.0] \n")
-        f.write('probe_vars = ["pressure", "velocity"] \n')
 
 class SolutionDomainInitTestCase(unittest.TestCase):
     def setUp(self):
