@@ -40,11 +40,6 @@ jobs:
           cd tests/
           COVERAGE_FILE=.coverage_int coverage run --source=../perform ./integration_tests/test_suite.py
 
-      # - name: Combine coverage reports
-      #   run: |
-      #     cd tests/
-      #     coverage combine .coverage_unit .coverage_int
-
       - name: Report coverage
         run: |
           cd tests/

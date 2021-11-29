@@ -1,0 +1,5 @@
+[report]
+exclude_lines = 
+    pass
+    raise ValueError
+    if __name__ == "__main__":

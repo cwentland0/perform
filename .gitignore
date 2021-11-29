@@ -26,4 +26,5 @@ build/
 _build/
 .vscode/
 __pycache__/
-.coverage*
+.coverage_*
+.coverage
