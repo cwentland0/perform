@@ -42,6 +42,7 @@ def solution_domain_setup(run_dir):
         f.write("adapt_dtau = True \n")
         f.write("time_order = 2 \n")
         f.write("num_steps = 10 \n")
+        f.write("res_tol = 1e-11 \n")
         f.write('invisc_flux_scheme = "roe" \n')
         f.write('visc_flux_scheme = "standard" \n')
         f.write("space_order = 2 \n")
@@ -199,4 +200,55 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
             self.assertTrue(np.allclose(
                 res_jacob,
                 np.load(os.path.join(self.output_dir, "sol_domain_res_jacob.npy"))
+            ))
+
+    def test_advance_subiter(self):
+
+        self.sol_domain.time_integrator.subiter = 0
+        self.sol_domain.advance_subiter(self.solver)
+
+        if self.output_mode:
+
+            np.save(os.path.join(self.output_dir, "sol_domain_subiter_sol_prim.npy"), self.sol_domain.sol_int.sol_prim)
+            np.save(os.path.join(self.output_dir, "sol_domain_subiter_sol_cons.npy"), self.sol_domain.sol_int.sol_cons)
+            np.save(os.path.join(self.output_dir, "sol_domain_subiter_res.npy"), self.sol_domain.sol_int.res)
+
+        else:
+
+            self.assertTrue(np.allclose(
+                self.sol_domain.sol_int.sol_prim,
+                np.load(os.path.join(self.output_dir, "sol_domain_subiter_sol_prim.npy"))
+            ))
+            self.assertTrue(np.allclose(
+                self.sol_domain.sol_int.sol_cons,
+                np.load(os.path.join(self.output_dir, "sol_domain_subiter_sol_cons.npy"))
+            ))
+            self.assertTrue(np.allclose(
+                self.sol_domain.sol_int.res,
+                np.load(os.path.join(self.output_dir, "sol_domain_subiter_res.npy"))
+            ))
+
+    def test_advance_iter(self):
+        
+        self.sol_domain.advance_iter(self.solver)
+
+        if self.output_mode:
+
+            np.save(os.path.join(self.output_dir, "sol_domain_iter_sol_prim.npy"), self.sol_domain.sol_int.sol_prim)
+            np.save(os.path.join(self.output_dir, "sol_domain_iter_sol_cons.npy"), self.sol_domain.sol_int.sol_cons)
+            np.save(os.path.join(self.output_dir, "sol_domain_iter_res.npy"), self.sol_domain.sol_int.res)
+
+        else:
+
+            self.assertTrue(np.allclose(
+                self.sol_domain.sol_int.sol_prim,
+                np.load(os.path.join(self.output_dir, "sol_domain_iter_sol_prim.npy"))
+            ))
+            self.assertTrue(np.allclose(
+                self.sol_domain.sol_int.sol_cons,
+                np.load(os.path.join(self.output_dir, "sol_domain_iter_sol_cons.npy"))
+            ))
+            self.assertTrue(np.allclose(
+                self.sol_domain.sol_int.res,
+                np.load(os.path.join(self.output_dir, "sol_domain_iter_res.npy"))
             ))
