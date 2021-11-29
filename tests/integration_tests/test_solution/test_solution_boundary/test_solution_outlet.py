@@ -50,7 +50,7 @@ class SolutionOutletMethodTests(unittest.TestCase):
 
         # set "interior" solution
         self.sol_prim_in = np.array([
-            [1e6, 1e5],
+            [1e6, 9e5],
             [2.0, 1.0],
             [1000.0, 1200.0],
             [0.6, 0.4],
@@ -74,8 +74,8 @@ class SolutionOutletMethodTests(unittest.TestCase):
         solver = SystemSolver(self.test_dir)
 
         sol_bound = SolutionOutlet(self.gas, solver)
-        sol_bound.calc_boundary_state(1e-6, 1, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
-        
+        sol_bound.calc_boundary_state(1e-6, 2, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
+
         if self.output_mode:
 
             np.save(os.path.join(self.output_dir, "bound_outlet_subsonic_sol_prim.npy"), sol_bound.sol_prim)
@@ -94,9 +94,9 @@ class SolutionOutletMethodTests(unittest.TestCase):
 
     def test_calc_mean_flow_bc(self):
 
-        self.press = 99830
-        self.vel = 169
-        self.rho = 328
+        self.press = 898477.0
+        self.vel = 1522.0
+        self.rho = 2958.0
         with open(self.test_file, "a") as f:
             f.write('bound_cond_' + self.bound_type + ' = "meanflow"\n')
             f.write("press_" + self.bound_type + " = " + str(self.press) + "\n")
@@ -105,7 +105,7 @@ class SolutionOutletMethodTests(unittest.TestCase):
         solver = SystemSolver(self.test_dir)
 
         sol_bound = SolutionOutlet(self.gas, solver)
-        sol_bound.calc_boundary_state(0, 1, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
+        sol_bound.calc_boundary_state(0, 2, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
 
         if self.output_mode:
 

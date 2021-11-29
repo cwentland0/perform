@@ -75,9 +75,9 @@ class Visualization:
                         elif vis_var[:6] == "source":
                             species_idx = int(vis_var[7:])
 
-                        assert (species_idx >= 0) and (species_idx < num_species_full), (
-                            "Species number must be a non-negative (>= 0) integer < the number of chemical species"
-                        )
+                        assert (species_idx >= 0) and (
+                            species_idx < num_species_full
+                        ), "Species number must be a non-negative (>= 0) integer < the number of chemical species"
                     except ValueError:
                         raise ValueError(
                             "vis_var entry "

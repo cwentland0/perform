@@ -70,9 +70,7 @@ class SolutionInlet(SolutionBoundary):
         elif space_order == 2:
             J = 2.0 * j1 - j2
         else:
-            raise ValueError(
-                "Higher order extrapolation implementation required for spatial order " + str(space_order)
-            )
+            raise ValueError("Higher order extrapolation implementation required for spatial order " + str(space_order))
 
         # Quadratic form for exterior Mach number
         c2 = gamma_mix * r_mix * self.temp
@@ -175,9 +173,7 @@ class SolutionInlet(SolutionBoundary):
         elif space_order == 2:
             w_3_bound = 2.0 * w_3_in[0] - w_3_in[1]
         else:
-            raise ValueError(
-                "Higher order extrapolation implementation required for spatial order " + str(space_order)
-            )
+            raise ValueError("Higher order extrapolation implementation required for spatial order " + str(space_order))
 
         # Compute exterior state
         press_bound = (press_up - w_3_bound * rho_c_mean) / 2.0

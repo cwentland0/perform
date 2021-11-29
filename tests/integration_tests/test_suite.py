@@ -33,7 +33,7 @@ def integration_test_suite(output_mode=False):
 
     # SolutionDomain initialization
     suite.addTest(loader.loadTestsFromTestCase(test_solution_domain.SolutionDomainInitTestCase))
-    
+    suite.addTest(loader.loadTestsFromTestCase(test_solution_domain.SolutionDomainMethodsTestCase))
 
     return suite
 

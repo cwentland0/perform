@@ -50,7 +50,7 @@ class SolutionInletMethodTests(unittest.TestCase):
 
         # set "interior" solution
         self.sol_prim_in = np.array([
-            [1e6, 1e5],
+            [1e6, 9e5],
             [2.0, 1.0],
             [1000.0, 1200.0],
             [0.6, 0.4],
@@ -76,8 +76,8 @@ class SolutionInletMethodTests(unittest.TestCase):
         solver = SystemSolver(self.test_dir)
 
         sol_bound = SolutionInlet(self.gas, solver)
-        sol_bound.calc_boundary_state(1e-6, 1, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
-        
+        sol_bound.calc_boundary_state(1e-6, 2, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
+
         if self.output_mode:
 
             np.save(os.path.join(self.output_dir, "bound_inlet_stagnation_sol_prim.npy"), sol_bound.sol_prim)
@@ -108,8 +108,8 @@ class SolutionInletMethodTests(unittest.TestCase):
         solver = SystemSolver(self.test_dir)
 
         sol_bound = SolutionInlet(self.gas, solver)
-        sol_bound.calc_boundary_state(1e-6, 1, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
-        
+        sol_bound.calc_boundary_state(1e-6, 2, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
+
         if self.output_mode:
 
             np.save(os.path.join(self.output_dir, "bound_inlet_fullstate_sol_prim.npy"), sol_bound.sol_prim)
@@ -141,7 +141,7 @@ class SolutionInletMethodTests(unittest.TestCase):
         solver = SystemSolver(self.test_dir)
 
         sol_bound = SolutionInlet(self.gas, solver)
-        sol_bound.calc_boundary_state(1e-6, 1, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
+        sol_bound.calc_boundary_state(1e-6, 2, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
 
         if self.output_mode:
 

@@ -56,15 +56,13 @@ class BarthJespLimiter(Limiter):
             1.0, (sol_max[cond1_left] - sol[cond1_left]) / (sol_left[cond1_left] - sol[cond1_left])
         )
         phi_right[cond1_right] = np.minimum(
-            1.0,
-            (sol_max[cond1_right] - sol[cond1_right]) / (sol_right[cond1_right] - sol[cond1_right]),
+            1.0, (sol_max[cond1_right] - sol[cond1_right]) / (sol_right[cond1_right] - sol[cond1_right]),
         )
         phi_left[cond2_left] = np.minimum(
             1.0, (sol_min[cond2_left] - sol[cond2_left]) / (sol_left[cond2_left] - sol[cond2_left])
         )
         phi_right[cond2_right] = np.minimum(
-            1.0,
-            (sol_min[cond2_right] - sol[cond2_right]) / (sol_right[cond2_right] - sol[cond2_right]),
+            1.0, (sol_min[cond2_right] - sol[cond2_right]) / (sol_right[cond2_right] - sol[cond2_right]),
         )
 
         # take minimum limiter from left and right
