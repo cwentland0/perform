@@ -432,7 +432,11 @@ class SolutionDomain:
             self.add_high_order_contrib(sol_left, grad, self.grad_left_extract, self.flux_left_extract, side="left")
 
             self.add_high_order_contrib(
-                sol_right, grad, self.grad_right_extract, self.flux_right_extract, side="right",
+                sol_right,
+                grad,
+                self.grad_right_extract,
+                self.flux_right_extract,
+                side="right",
             )
 
             # TODO: the following fails miserably for dual_time = False and grad_limiter = "barth" need to check this

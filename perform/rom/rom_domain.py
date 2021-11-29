@@ -358,7 +358,10 @@ class RomDomain:
             norm_out_l1 = np.log10(norm_l1)
 
         # Print to terminal
-        out_string = (str(subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1,)
+        out_string = (str(subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (
+            norm_out_l2,
+            norm_out_l1,
+        )
         print(out_string)
 
         sol_domain.sol_int.res_norm_l2 = norm_l2
@@ -500,7 +503,11 @@ class RomDomain:
 
                 # Indices of cells for which gradients need to be calculated, within sol_prim/cons_full
                 sol_domain.grad_idxs = np.concatenate(
-                    (sol_domain.direct_samp_idxs + 1, sol_domain.direct_samp_idxs, sol_domain.direct_samp_idxs + 2,)
+                    (
+                        sol_domain.direct_samp_idxs + 1,
+                        sol_domain.direct_samp_idxs,
+                        sol_domain.direct_samp_idxs + 2,
+                    )
                 )
                 sol_domain.grad_idxs = np.unique(sol_domain.grad_idxs)
 
@@ -526,17 +533,23 @@ class RomDomain:
 
                 # Indices within gradient neighbor indices to extract gradient cells, excluding boundaries
                 _, _, sol_domain.grad_neigh_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.grad_neigh_idxs, return_indices=True,
+                    sol_domain.grad_idxs,
+                    sol_domain.grad_neigh_idxs,
+                    return_indices=True,
                 )
 
                 # Indices of grad_idxs in flux_samp_left_idxs and flux_samp_right_idxs and vice versa
                 _, sol_domain.grad_left_extract, sol_domain.flux_left_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.flux_samp_left_idxs, return_indices=True,
+                    sol_domain.grad_idxs,
+                    sol_domain.flux_samp_left_idxs,
+                    return_indices=True,
                 )
 
                 # Indices of grad_idxs in flux_samp_right_idxs and flux_samp_right_idxs and vice versa
                 _, sol_domain.grad_right_extract, sol_domain.flux_right_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.flux_samp_right_idxs, return_indices=True,
+                    sol_domain.grad_idxs,
+                    sol_domain.flux_samp_right_idxs,
+                    return_indices=True,
                 )
 
             else:
@@ -657,13 +670,19 @@ class RomDomain:
                 sol_domain.gamma_idxs = sol_domain.gamma_idxs[:-1]
 
         _, sol_domain.gamma_idxs_center, _ = np.intersect1d(
-            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs, return_indices=True,
+            sol_domain.gamma_idxs,
+            sol_domain.direct_samp_idxs,
+            return_indices=True,
         )
 
         _, sol_domain.gamma_idxs_left, _ = np.intersect1d(
-            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs - 1, return_indices=True,
+            sol_domain.gamma_idxs,
+            sol_domain.direct_samp_idxs - 1,
+            return_indices=True,
         )
 
         _, sol_domain.gamma_idxs_right, _ = np.intersect1d(
-            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs + 1, return_indices=True,
+            sol_domain.gamma_idxs,
+            sol_domain.direct_samp_idxs + 1,
+            return_indices=True,
         )
