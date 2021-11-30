@@ -150,7 +150,7 @@ class ProbePlot(Visualization):
             iter_num: One-indexed simulation iteration number.
         """
 
-        var_idx = np.squeeze(np.argwhere(self.probe_vars == var_str)[0])
+        var_idx = np.squeeze(np.argwhere(np.array(self.probe_vars) == var_str)[0])
         y_data = probe_vals[self.probe_num, var_idx, :iter_num]
 
         return y_data

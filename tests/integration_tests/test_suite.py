@@ -42,6 +42,7 @@ def integration_test_suite(output_mode=False):
     suite.addTest(loader.loadTestsFromTestCase(test_field_plot.FieldPlotInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_field_plot.FieldPlotMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_probe_plot.ProbePlotInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_probe_plot.ProbePlotMethodsTestCase))
 
     return suite
 
