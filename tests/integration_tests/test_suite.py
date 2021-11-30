@@ -9,7 +9,7 @@ from test_solution.test_solution_boundary import test_solution_boundary, test_so
 from test_reaction_model import test_finite_rate_irrev_reaction
 from test_flux.invisc_flux import test_invisc_flux
 from test_limiter import test_limiters
-from test_visualization import test_field_plot
+from test_visualization import test_field_plot, test_probe_plot
 
 loader = unittest.TestLoader()
 
@@ -41,6 +41,7 @@ def integration_test_suite(output_mode=False):
     suite.addTest(loader.loadTestsFromTestCase(test_limiters.LimiterMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_field_plot.FieldPlotInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_field_plot.FieldPlotMethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_probe_plot.ProbePlotInitTestCase))
 
     return suite
 

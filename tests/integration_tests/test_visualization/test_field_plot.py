@@ -14,9 +14,6 @@ from perform.visualization.field_plot import FieldPlot
 class FieldPlotInitTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
-        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
-
         # generate working directory
         self.test_dir = "test_dir"
         if os.path.isdir(self.test_dir):
@@ -79,9 +76,6 @@ class FieldPlotInitTestCase(unittest.TestCase):
 
 class FieldPlotMethodsTestCase(unittest.TestCase):
     def setUp(self):
-
-        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
-        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
 
         # generate working directory
         self.test_dir = "test_dir"
