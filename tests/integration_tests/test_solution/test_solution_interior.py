@@ -115,6 +115,7 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
             f.write('time_scheme = "bdf" \n')
             f.write("num_steps = 10 \n")
             f.write("out_interval = 2 \n")
+            f.write("out_itmdt_interval = 5 \n")
             f.write("prim_out = True \n")
             f.write("cons_out = True \n")
             f.write("source_out = True \n")
@@ -188,5 +189,109 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         ))
         self.assertTrue(np.array_equal(
             self.sol.rhs_snap,
+            np.repeat(self.sol.rhs[:, :, None], 5, axis=2)
+        ))
+
+    def test_snapshot_output(self):
+
+        for self.solver.iter in range(1, self.solver.num_steps + 1):
+
+            # update the snapshot matrix
+            if (self.solver.iter % self.solver.out_interval) == 0:
+                self.sol.update_snapshots(self.solver)
+
+            # write and check intermediate results
+            if ((self.solver.iter % self.solver.out_itmdt_interval) == 0) and (self.solver.iter != self.solver.num_steps):
+                    self.sol.write_snapshots(self.solver, intermediate=True, failed=False)
+                    
+                    sol_prim_itmdt = np.load(os.path.join(self.solver.unsteady_output_dir, "sol_prim_" + self.solver.sim_type + "_ITMDT.npy"))
+                    sol_cons_itmdt = np.load(os.path.join(self.solver.unsteady_output_dir, "sol_cons_" + self.solver.sim_type + "_ITMDT.npy"))
+                    source_itmdt = np.load(os.path.join(self.solver.unsteady_output_dir, "source_" + self.solver.sim_type + "_ITMDT.npy"))
+                    heat_release_itmdt = np.load(os.path.join(self.solver.unsteady_output_dir, "heat_release_" + self.solver.sim_type + "_ITMDT.npy"))
+                    rhs_itmdt = np.load(os.path.join(self.solver.unsteady_output_dir, "rhs_" + self.solver.sim_type + "_ITMDT.npy"))
+                    self.assertTrue(np.array_equal(
+                        sol_prim_itmdt,
+                        np.repeat(self.sol.sol_prim[:, :, None], 3, axis=2)
+                    ))
+                    self.assertTrue(np.array_equal(
+                        sol_cons_itmdt,
+                        np.repeat(self.sol.sol_cons[:, :, None], 3, axis=2)
+                    ))
+                    self.assertTrue(np.array_equal(
+                        source_itmdt,
+                        np.repeat(self.sol.reaction_source[:, :, None], 2, axis=2)
+                    ))
+                    self.assertTrue(np.array_equal(
+                        heat_release_itmdt,
+                        np.repeat(self.sol.heat_release[:, None], 2, axis=1)
+                    ))
+                    self.assertTrue(np.array_equal(
+                        rhs_itmdt,
+                        np.repeat(self.sol.rhs[:, :, None], 2, axis=2)
+                    ))
+
+            # write and check "failed" snapshots
+            if self.solver.iter == 7:
+                self.sol.write_snapshots(self.solver, intermediate=False, failed=True)
+                    
+                sol_prim_failed = np.load(os.path.join(self.solver.unsteady_output_dir, "sol_prim_" + self.solver.sim_type + "_FAILED.npy"))
+                sol_cons_failed = np.load(os.path.join(self.solver.unsteady_output_dir, "sol_cons_" + self.solver.sim_type + "_FAILED.npy"))
+                source_failed = np.load(os.path.join(self.solver.unsteady_output_dir, "source_" + self.solver.sim_type + "_FAILED.npy"))
+                heat_release_failed = np.load(os.path.join(self.solver.unsteady_output_dir, "heat_release_" + self.solver.sim_type + "_FAILED.npy"))
+                rhs_failed = np.load(os.path.join(self.solver.unsteady_output_dir, "rhs_" + self.solver.sim_type + "_FAILED.npy"))
+                self.assertTrue(np.array_equal(
+                    sol_prim_failed,
+                    np.repeat(self.sol.sol_prim[:, :, None], 4, axis=2)
+                ))
+                self.assertTrue(np.array_equal(
+                    sol_cons_failed,
+                    np.repeat(self.sol.sol_cons[:, :, None], 4, axis=2)
+                ))
+                self.assertTrue(np.array_equal(
+                    source_failed,
+                    np.repeat(self.sol.reaction_source[:, :, None], 3, axis=2)
+                ))
+                self.assertTrue(np.array_equal(
+                    heat_release_failed,
+                    np.repeat(self.sol.heat_release[:, None], 3, axis=1)
+                ))
+                self.assertTrue(np.array_equal(
+                    rhs_failed,
+                    np.repeat(self.sol.rhs[:, :, None], 3, axis=2)
+                ))
+
+        # delete intermediate results and check that they deleted properly
+        self.sol.delete_itmdt_snapshots(self.solver)
+        self.assertFalse(os.path.isfile(os.path.join(self.solver.unsteady_output_dir, "sol_prim_" + self.solver.sim_type + "_ITMDT.npy")))
+        self.assertFalse(os.path.isfile(os.path.join(self.solver.unsteady_output_dir, "sol_cons_" + self.solver.sim_type + "_ITMDT.npy")))
+        self.assertFalse(os.path.isfile(os.path.join(self.solver.unsteady_output_dir, "source_" + self.solver.sim_type + "_ITMDT.npy")))
+        self.assertFalse(os.path.isfile(os.path.join(self.solver.unsteady_output_dir, "heat_release_" + self.solver.sim_type + "_ITMDT.npy")))
+        self.assertFalse(os.path.isfile(os.path.join(self.solver.unsteady_output_dir, "rhs_" + self.solver.sim_type + "_ITMDT.npy")))
+
+        # write final snapshots
+        self.sol.write_snapshots(self.solver, intermediate=False, failed=False)
+        sol_prim_final = np.load(os.path.join(self.solver.unsteady_output_dir, "sol_prim_" + self.solver.sim_type + ".npy"))
+        sol_cons_final = np.load(os.path.join(self.solver.unsteady_output_dir, "sol_cons_" + self.solver.sim_type + ".npy"))
+        source_final = np.load(os.path.join(self.solver.unsteady_output_dir, "source_" + self.solver.sim_type + ".npy"))
+        heat_release_final = np.load(os.path.join(self.solver.unsteady_output_dir, "heat_release_" + self.solver.sim_type + ".npy"))
+        rhs_final = np.load(os.path.join(self.solver.unsteady_output_dir, "rhs_" + self.solver.sim_type + ".npy"))
+        self.assertTrue(np.array_equal(
+            sol_prim_final,
+            np.repeat(self.sol.sol_prim[:, :, None], 6, axis=2)
+        ))
+        self.assertTrue(np.array_equal(
+            sol_cons_final,
+            np.repeat(self.sol.sol_cons[:, :, None], 6, axis=2)
+        ))
+        self.assertTrue(np.array_equal(
+            source_final,
+            np.repeat(self.sol.reaction_source[:, :, None], 5, axis=2)
+        ))
+        self.assertTrue(np.array_equal(
+            heat_release_final,
+            np.repeat(self.sol.heat_release[:, None], 5, axis=1)
+        ))
+        self.assertTrue(np.array_equal(
+            rhs_final,
             np.repeat(self.sol.rhs[:, :, None], 5, axis=2)
         ))
