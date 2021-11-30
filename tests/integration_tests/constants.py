@@ -66,6 +66,7 @@ def solution_domain_setup(run_dir):
     # generate solver input files
     inp_file = os.path.join(run_dir, PARAM_INPUTS)
     with open(inp_file, "w") as f:
+        f.write("stdout = False \n")
         f.write('chem_file = "./chem.inp" \n')
         f.write('mesh_file = "./mesh.inp" \n')
         f.write('init_file = "test_init_file.npy" \n')
@@ -92,6 +93,13 @@ def solution_domain_setup(run_dir):
         f.write("mass_fracs_outlet = [0.4, 0.6] \n")
         f.write("probe_locs = [-1.0, 5e-6, 1.0] \n")
         f.write('probe_vars = ["pressure", "temperature", "species-0", "density"] \n')
+        f.write("save_restarts = True \n")
+        f.write("restart_interval = 5 \n")
+        f.write("prim_out = True \n")
+        f.write("cons_out = True \n")
+        f.write("source_out = True \n")
+        f.write("hr_out = True \n")
+        f.write("rhs_out = True \n")
         f.write("vis_show = False \n")
         f.write("vis_save = True \n")
         f.write("vis_interval = 1 \n")
@@ -101,4 +109,4 @@ def solution_domain_setup(run_dir):
         f.write('vis_type_1 = "probe" \n')
         f.write('vis_var_1 = ["temperature", "density", "pressure", "species-0"] \n')
         f.write("vis_y_bounds_1 = [[500, 1500], [1.8, 2.6], [1.2e6, 8e5], [-0.1, 1.1]] \n")
-        f.write("probe_num_1 = 1")
+        f.write("probe_num_1 = 1 \n")
