@@ -36,10 +36,10 @@ class ImplicitTimeIntInitTestCase(unittest.TestCase):
         self.assertEqual(time_int.cfl, self.param_dict["cfl"])
         self.assertEqual(time_int.vnn, self.param_dict["vnn"])
 
-class BDFTestCase(unittest.TestCase):
 
+class BDFTestCase(unittest.TestCase):
     def setUp(self):
-        
+
         # set up param_dict
         self.param_dict = {}
         self.param_dict["dt"] = 1e-7

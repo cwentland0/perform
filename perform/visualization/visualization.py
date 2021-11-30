@@ -9,13 +9,13 @@ except KeyError:
     pass
 import matplotlib.pyplot as plt
 
+from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
+
 mpl.rc("font", family="serif", size="10")
 mpl.rc("axes", labelsize="x-large")
 mpl.rc("figure", facecolor="w")
 mpl.rc("text", usetex=False)
 mpl.rc("text.latex", preamble=r"\usepackage{amsmath}")
-
-from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
 
 # TODO: adapt axis label font size to number of subplots
 # TODO: add RHS, flux plotting

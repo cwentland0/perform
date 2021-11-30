@@ -47,12 +47,14 @@ class SolutionIntInitTestCase(unittest.TestCase):
         self.solver = SystemSolver(self.test_dir)
 
         # set primitive state
-        self.sol_prim_in = np.array([
-            [1e6, 1e5],
-            [2.0, 1.0],
-            [1000.0, 1200.0],
-            [0.6, 0.4],
-        ])
+        self.sol_prim_in = np.array(
+            [
+                [1e6, 1e5],
+                [2.0, 1.0],
+                [1000.0, 1200.0],
+                [0.6, 0.4],
+            ]
+        )
 
         self.num_cells = 2
         self.num_reactions = 1
@@ -64,7 +66,9 @@ class SolutionIntInitTestCase(unittest.TestCase):
 
     def test_solution_int_init(self):
 
-        sol = SolutionInterior(self.gas, self.sol_prim_in, self.solver, self.num_cells, self.num_reactions, self.time_int)
+        sol = SolutionInterior(
+            self.gas, self.sol_prim_in, self.solver, self.num_cells, self.num_reactions, self.time_int
+        )
 
         if self.output_mode:
 
@@ -73,11 +77,10 @@ class SolutionIntInitTestCase(unittest.TestCase):
         else:
 
             self.assertTrue(np.array_equal(sol.sol_prim, self.sol_prim_in))
-            self.assertTrue(np.allclose(
-                sol.sol_cons,
-                np.load(os.path.join(self.output_dir, "sol_int_init_sol_cons.npy"))
-            ))
-        
+            self.assertTrue(
+                np.allclose(sol.sol_cons, np.load(os.path.join(self.output_dir, "sol_int_init_sol_cons.npy")))
+            )
+
             # TODO: a LOT of checking of other variables
 
 
@@ -116,17 +119,21 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         self.solver = SystemSolver(self.test_dir)
 
         # set primitive state
-        self.sol_prim_in = np.array([
-            [1e6, 1e5],
-            [2.0, 1.0],
-            [1000.0, 1200.0],
-            [0.6, 0.4],
-        ])
+        self.sol_prim_in = np.array(
+            [
+                [1e6, 1e5],
+                [2.0, 1.0],
+                [1000.0, 1200.0],
+                [0.6, 0.4],
+            ]
+        )
 
         self.num_cells = 2
         self.num_reactions = 1
 
-        self.sol = SolutionInterior(self.gas, self.sol_prim_in, self.solver, self.num_cells, self.num_reactions, self.time_int)
+        self.sol = SolutionInterior(
+            self.gas, self.sol_prim_in, self.solver, self.num_cells, self.num_reactions, self.time_int
+        )
 
     def tearDown(self):
 
@@ -145,11 +152,7 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
 
         else:
 
-            self.assertTrue(np.allclose(
-                sol_jacob,
-                np.load(os.path.join(self.output_dir, "sol_int_sol_jacob.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                sol_jacob_inv,
-                np.load(os.path.join(self.output_dir, "sol_int_sol_jacob_inv.npy"))
-            ))
+            self.assertTrue(np.allclose(sol_jacob, np.load(os.path.join(self.output_dir, "sol_int_sol_jacob.npy"))))
+            self.assertTrue(
+                np.allclose(sol_jacob_inv, np.load(os.path.join(self.output_dir, "sol_int_sol_jacob_inv.npy")))
+            )

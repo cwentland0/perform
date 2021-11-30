@@ -17,21 +17,17 @@ class SolutionPhysInitTestCase(unittest.TestCase):
         self.chem_dict = CHEM_DICT_AIR
         self.gas = CaloricallyPerfectGas(self.chem_dict)
 
-        self.sol_prim_in = np.array([
-            [1e6, 1e5],
-            [2.0, 1.0],
-            [300.0, 400.0],
-            [0.4, 0.6],
-            [0.6, 0.4],
-        ])
+        self.sol_prim_in = np.array(
+            [
+                [1e6, 1e5],
+                [2.0, 1.0],
+                [300.0, 400.0],
+                [0.4, 0.6],
+                [0.6, 0.4],
+            ]
+        )
 
-        self.sol_cons_in = np.array([
-            [11.8, 0.9],
-            [23.6, 0.9],
-            [2.45e6, 2.45e5],
-            [4.72, 0.54],
-            [7.08, 0.36]
-        ])
+        self.sol_cons_in = np.array([[11.8, 0.9], [23.6, 0.9], [2.45e6, 2.45e5], [4.72, 0.54], [7.08, 0.36]])
 
         self.num_cells = 2
 
@@ -49,10 +45,9 @@ class SolutionPhysInitTestCase(unittest.TestCase):
         else:
 
             self.assertTrue(np.array_equal(sol.sol_prim, self.sol_prim_in))
-            self.assertTrue(np.allclose(
-                sol.sol_cons,
-                np.load(os.path.join(self.output_dir, "sol_phys_init_sol_cons.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(sol.sol_cons, np.load(os.path.join(self.output_dir, "sol_phys_init_sol_cons.npy")))
+            )
 
             # TODO: a LOT of checking of other variables
 
@@ -66,13 +61,12 @@ class SolutionPhysInitTestCase(unittest.TestCase):
         else:
 
             self.assertTrue(np.array_equal(sol.sol_cons, self.sol_cons_in))
-            self.assertTrue(np.allclose(
-                sol.sol_prim,
-                np.load(os.path.join(self.output_dir, "sol_phys_init_sol_prim.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(sol.sol_prim, np.load(os.path.join(self.output_dir, "sol_phys_init_sol_prim.npy")))
+            )
+
 
 class SolutionPhysMethodsTestCase(unittest.TestCase):
-
     def setUp(self):
 
         self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
@@ -81,13 +75,15 @@ class SolutionPhysMethodsTestCase(unittest.TestCase):
         self.chem_dict = CHEM_DICT_AIR
         self.gas = CaloricallyPerfectGas(self.chem_dict)
 
-        self.sol_prim_in = np.array([
-            [1e6, 1e5],
-            [2.0, 1.0],
-            [300.0, 400.0],
-            [0.4, 0.6],
-            [0.6, 0.4],
-        ])
+        self.sol_prim_in = np.array(
+            [
+                [1e6, 1e5],
+                [2.0, 1.0],
+                [300.0, 400.0],
+                [0.4, 0.6],
+                [0.6, 0.4],
+            ]
+        )
 
         self.num_cells = 2
 
@@ -109,41 +105,37 @@ class SolutionPhysMethodsTestCase(unittest.TestCase):
         else:
 
             # check density derivatives
-            self.assertTrue(np.allclose(
-                self.sol.d_rho_d_press,
-                np.load(os.path.join(self.output_dir, "d_rho_d_press.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                self.sol.d_rho_d_temp,
-                np.load(os.path.join(self.output_dir, "d_rho_d_temp.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                self.sol.d_rho_d_mass_frac,
-                np.load(os.path.join(self.output_dir, "d_rho_d_mass_frac.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(self.sol.d_rho_d_press, np.load(os.path.join(self.output_dir, "d_rho_d_press.npy")))
+            )
+            self.assertTrue(
+                np.allclose(self.sol.d_rho_d_temp, np.load(os.path.join(self.output_dir, "d_rho_d_temp.npy")))
+            )
+            self.assertTrue(
+                np.allclose(self.sol.d_rho_d_mass_frac, np.load(os.path.join(self.output_dir, "d_rho_d_mass_frac.npy")))
+            )
 
             # check enthalpy derivatives
-            self.assertTrue(np.allclose(
-                self.sol.d_enth_d_press,
-                np.load(os.path.join(self.output_dir, "d_enth_d_press.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                self.sol.d_enth_d_temp,
-                np.load(os.path.join(self.output_dir, "d_enth_d_temp.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                self.sol.d_enth_d_mass_frac,
-                np.load(os.path.join(self.output_dir, "d_enth_d_mass_frac.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(self.sol.d_enth_d_press, np.load(os.path.join(self.output_dir, "d_enth_d_press.npy")))
+            )
+            self.assertTrue(
+                np.allclose(self.sol.d_enth_d_temp, np.load(os.path.join(self.output_dir, "d_enth_d_temp.npy")))
+            )
+            self.assertTrue(
+                np.allclose(
+                    self.sol.d_enth_d_mass_frac, np.load(os.path.join(self.output_dir, "d_enth_d_mass_frac.npy"))
+                )
+            )
 
     def test_calc_state_from_rho_h0(self):
 
         # slightly modify stagnation enthalpy and density
-        self.sol.h0 = np.array([290000., 380000.])
-        self.sol.sol_cons[0, :] = np.array([11.8,  0.9])
+        self.sol.h0 = np.array([290000.0, 380000.0])
+        self.sol.sol_cons[0, :] = np.array([11.8, 0.9])
 
         self.sol.calc_state_from_rho_h0()
-        
+
         if self.output_mode:
 
             np.save(os.path.join(self.output_dir, "sol_prim_from_rho_h0.npy"), self.sol.sol_prim)
@@ -152,12 +144,10 @@ class SolutionPhysMethodsTestCase(unittest.TestCase):
         else:
 
             # check new state
-            self.assertTrue(np.allclose(
-                self.sol.sol_prim,
-                np.load(os.path.join(self.output_dir, "sol_prim_from_rho_h0.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(self.sol.sol_prim, np.load(os.path.join(self.output_dir, "sol_prim_from_rho_h0.npy")))
+            )
 
-            self.assertTrue(np.allclose(
-                self.sol.sol_cons,
-                np.load(os.path.join(self.output_dir, "sol_cons_from_rho_h0.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(self.sol.sol_cons, np.load(os.path.join(self.output_dir, "sol_cons_from_rho_h0.npy")))
+            )

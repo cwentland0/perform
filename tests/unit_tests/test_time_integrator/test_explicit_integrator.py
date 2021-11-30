@@ -7,7 +7,6 @@ from perform.time_integrator.explicit_integrator import (
     RKExplicit,
     ClassicRK4,
     SSPRK3,
-    JamesonLowStore,
 )
 
 
@@ -28,6 +27,7 @@ class ExplicitTimeIntInitTestCase(unittest.TestCase):
         self.assertFalse(time_int.dual_time)
         self.assertFalse(time_int.adapt_dtau)
 
+
 class RKExplicitInitTestCase(unittest.TestCase):
     def setUp(self):
 
@@ -42,6 +42,7 @@ class RKExplicitInitTestCase(unittest.TestCase):
         time_int = RKExplicit(self.param_dict)
 
         self.assertEqual(len(time_int.rk_rhs), 4)
+
 
 class ClassicRK4InitTestCase(unittest.TestCase):
     def setUp(self):
@@ -106,7 +107,7 @@ class ClassicRK4MethodsTestCase(unittest.TestCase):
             elif self.time_int.subiter == 1:
                 self.assertTrue(np.allclose(dsol, np.array([[5.0e-8, 2.0e-7], [1.0e-7, 2.5e-7], [1.5e-07, 3.0e-7]])))
             elif self.time_int.subiter == 2:
-                self.assertTrue(np.allclose(dsol, np.array([[2.0e-7, 5.e-7], [3.0e-7, 6.0e-7], [3.0e-7, 7.0e-7]])))
+                self.assertTrue(np.allclose(dsol, np.array([[2.0e-7, 5.0e-7], [3.0e-7, 6.0e-7], [3.0e-7, 7.0e-7]])))
             elif self.time_int.subiter == 3:
                 self.assertTrue(np.allclose(dsol, np.array([[1.5e-7, 4.5e-7], [2.5e-7, 5.5e-7], [3e-7, 6.5e-7]])))
 
@@ -158,7 +159,7 @@ class SSPRK3MethodsTestCase(unittest.TestCase):
 
         self.time_int.rk_rhs = self.rk_rhs
         dsol = self.time_int.solve_sol_change_iter(self.rhs)
-        self.assertTrue(np.allclose(dsol, np.array([[1.5, 4.5], [2.5, 5.5], [17/6, 6.5]])))
+        self.assertTrue(np.allclose(dsol, np.array([[1.5, 4.5], [2.5, 5.5], [17 / 6, 6.5]])))
 
     def test_solve_sol_change(self):
 
@@ -169,8 +170,13 @@ class SSPRK3MethodsTestCase(unittest.TestCase):
             if self.time_int.subiter == 0:
                 self.assertTrue(np.allclose(dsol, np.array([[0, 3e-7], [1e-7, 4e-7], [2e-7, 5e-7]])))
             elif self.time_int.subiter == 1:
-                self.assertTrue(np.allclose(dsol, np.array([[2.5e-8, 1.75e-7], [7.5e-8, 2.25e-7], [1.25e-07, 2.75e-7]])))
+                self.assertTrue(
+                    np.allclose(dsol, np.array([[2.5e-8, 1.75e-7], [7.5e-8, 2.25e-7], [1.25e-07, 2.75e-7]]))
+                )
             elif self.time_int.subiter == 2:
-                self.assertTrue(np.allclose(dsol, np.array([[1.5e-7, 4.5e-7], [2.5e-7, 5.5e-7], [(17/6)*1e-7, 6.5e-7]])))
+                self.assertTrue(
+                    np.allclose(dsol, np.array([[1.5e-7, 4.5e-7], [2.5e-7, 5.5e-7], [(17 / 6) * 1e-7, 6.5e-7]]))
+                )
+
 
 # TODO: Jameson low storage

@@ -8,7 +8,7 @@ from constants import CHEM_DICT_REACT
 import perform.constants as constants
 from perform.system_solver import SystemSolver
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
-from perform.solution.solution_phys import SolutionPhys 
+from perform.solution.solution_phys import SolutionPhys
 from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
 
 
@@ -44,17 +44,19 @@ class SolutionOutletMethodTests(unittest.TestCase):
             f.write("num_steps = 100\n")
 
             f.write("mass_fracs_" + self.bound_type + " = " + str(self.mass_fracs) + "\n")
-            f.write("pert_type_" + self.bound_type + " = \"" + str(self.pert_type) + "\"\n")
+            f.write("pert_type_" + self.bound_type + ' = "' + str(self.pert_type) + '"\n')
             f.write("pert_perc_" + self.bound_type + " = " + str(self.pert_perc) + "\n")
             f.write("pert_freq_" + self.bound_type + " = " + str(self.pert_freq) + "\n")
 
         # set "interior" solution
-        self.sol_prim_in = np.array([
-            [1e6, 9e5],
-            [2.0, 1.0],
-            [1000.0, 1200.0],
-            [0.6, 0.4],
-        ])
+        self.sol_prim_in = np.array(
+            [
+                [1e6, 9e5],
+                [2.0, 1.0],
+                [1000.0, 1200.0],
+                [0.6, 0.4],
+            ]
+        )
         self.num_cells = 2
         self.sol = SolutionPhys(self.gas, self.num_cells, sol_prim_in=self.sol_prim_in)
 
@@ -65,11 +67,11 @@ class SolutionOutletMethodTests(unittest.TestCase):
 
     def test_calc_subsonic_bc(self):
 
-        # NOTE: need to set up new SystemSolver for each case because 
-        # bound_cond is read from SystemSolver.param_dict, which is set at instantiation 
+        # NOTE: need to set up new SystemSolver for each case because
+        # bound_cond is read from SystemSolver.param_dict, which is set at instantiation
         self.press = 2e5
         with open(self.test_file, "a") as f:
-            f.write('bound_cond_' + self.bound_type + ' = "subsonic"\n')
+            f.write("bound_cond_" + self.bound_type + ' = "subsonic"\n')
             f.write("press_" + self.bound_type + " = " + str(self.press) + "\n")
         solver = SystemSolver(self.test_dir)
 
@@ -83,14 +85,16 @@ class SolutionOutletMethodTests(unittest.TestCase):
 
         else:
 
-            self.assertTrue(np.allclose(
-                sol_bound.sol_prim,
-                np.load(os.path.join(self.output_dir, "bound_outlet_subsonic_sol_prim.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                sol_bound.sol_cons,
-                np.load(os.path.join(self.output_dir, "bound_outlet_subsonic_sol_cons.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(
+                    sol_bound.sol_prim, np.load(os.path.join(self.output_dir, "bound_outlet_subsonic_sol_prim.npy"))
+                )
+            )
+            self.assertTrue(
+                np.allclose(
+                    sol_bound.sol_cons, np.load(os.path.join(self.output_dir, "bound_outlet_subsonic_sol_cons.npy"))
+                )
+            )
 
     def test_calc_mean_flow_bc(self):
 
@@ -98,7 +102,7 @@ class SolutionOutletMethodTests(unittest.TestCase):
         self.vel = 1522.0
         self.rho = 2958.0
         with open(self.test_file, "a") as f:
-            f.write('bound_cond_' + self.bound_type + ' = "meanflow"\n')
+            f.write("bound_cond_" + self.bound_type + ' = "meanflow"\n')
             f.write("press_" + self.bound_type + " = " + str(self.press) + "\n")
             f.write("vel_" + self.bound_type + " = " + str(self.vel) + "\n")
             f.write("rho_" + self.bound_type + " = " + str(self.rho) + "\n")
@@ -114,11 +118,13 @@ class SolutionOutletMethodTests(unittest.TestCase):
 
         else:
 
-            self.assertTrue(np.allclose(
-                sol_bound.sol_prim,
-                np.load(os.path.join(self.output_dir, "bound_outlet_meanflow_sol_prim.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                sol_bound.sol_cons,
-                np.load(os.path.join(self.output_dir, "bound_outlet_meanflow_sol_cons.npy"))
-            ))
+            self.assertTrue(
+                np.allclose(
+                    sol_bound.sol_prim, np.load(os.path.join(self.output_dir, "bound_outlet_meanflow_sol_prim.npy"))
+                )
+            )
+            self.assertTrue(
+                np.allclose(
+                    sol_bound.sol_cons, np.load(os.path.join(self.output_dir, "bound_outlet_meanflow_sol_cons.npy"))
+                )
+            )

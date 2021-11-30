@@ -159,7 +159,10 @@ class GasModelMethodsTestCase(unittest.TestCase):
         stag_enth = self.gas.calc_stag_enth(self.sol_prim[1, :], self.mass_fracs, temperature=self.sol_prim[2, :])
         total_energy = density * stag_enth - self.sol_prim[0, :]
         press, temp = self.gas.calc_press_temp_from_cons(
-            density, total_energy, velocity=self.sol_prim[1, :], mass_fracs_in=self.mass_fracs,
+            density,
+            total_energy,
+            velocity=self.sol_prim[1, :],
+            mass_fracs_in=self.mass_fracs,
         )
 
         self.assertTrue(np.allclose(press, np.array([1e6, 1e6])))

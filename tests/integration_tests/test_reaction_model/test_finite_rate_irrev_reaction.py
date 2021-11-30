@@ -12,12 +12,13 @@ from perform.reaction_model.finite_rate_irrev_reaction import FiniteRateIrrevRea
 from perform.time_integrator.implicit_integrator import BDF
 from perform.solution.solution_interior import SolutionInterior
 
+
 class FiniteRateIrrevReactionInitTestCase(unittest.TestCase):
     def setUp(self):
-        
+
         self.chem_dict = CHEM_DICT_REACT
         self.gas = CaloricallyPerfectGas(self.chem_dict)
-        
+
     def test_finite_rate_irrev_reaction_init(self):
 
         reaction_model = FiniteRateIrrevReaction(self.gas, self.chem_dict)
@@ -67,21 +68,18 @@ class FiniteRateIrrevReactionMethodsTestCase(unittest.TestCase):
         self.solver = SystemSolver(self.test_dir)
 
         # setup solution
-        self.sol_prim_in = np.array([
-            [1e6, 1e5],
-            [2.0, 1.0],
-            [1000.0, 1200.0],
-            [0.6, 0.4],
-        ])
+        self.sol_prim_in = np.array(
+            [
+                [1e6, 1e5],
+                [2.0, 1.0],
+                [1000.0, 1200.0],
+                [0.6, 0.4],
+            ]
+        )
         self.num_cells = 2
         self.num_reactions = 1
         self.sol = SolutionInterior(
-            self.gas,
-            self.sol_prim_in,
-            self.solver,
-            self.num_cells,
-            self.num_reactions,
-            self.time_int
+            self.gas, self.sol_prim_in, self.solver, self.num_cells, self.num_reactions, self.time_int
         )
 
     def tearDown(self):
@@ -94,7 +92,6 @@ class FiniteRateIrrevReactionMethodsTestCase(unittest.TestCase):
         self.sol.update_density_enthalpy_derivs()
         source, wf, heat_release = self.reaction_model.calc_reaction(self.sol, self.dt)
 
-
         if self.output_mode:
 
             np.save(os.path.join(self.output_dir, "frirrev_source.npy"), source)
@@ -103,18 +100,11 @@ class FiniteRateIrrevReactionMethodsTestCase(unittest.TestCase):
 
         else:
 
-            self.assertTrue(np.allclose(
-                source,
-                np.load(os.path.join(self.output_dir, "frirrev_source.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                wf,
-                np.load(os.path.join(self.output_dir, "frirrev_wf.npy"))
-            ))
-            self.assertTrue(np.allclose(
-                heat_release,
-                np.load(os.path.join(self.output_dir, "frirrev_heat_release.npy"))
-            ))
+            self.assertTrue(np.allclose(source, np.load(os.path.join(self.output_dir, "frirrev_source.npy"))))
+            self.assertTrue(np.allclose(wf, np.load(os.path.join(self.output_dir, "frirrev_wf.npy"))))
+            self.assertTrue(
+                np.allclose(heat_release, np.load(os.path.join(self.output_dir, "frirrev_heat_release.npy")))
+            )
 
     def test_calc_jacob(self):
 
@@ -124,16 +114,11 @@ class FiniteRateIrrevReactionMethodsTestCase(unittest.TestCase):
         jacob_prim = self.reaction_model.calc_jacob(self.sol, True)
 
         # TODO: test conservative Jacobian when it's implemented
-        
+
         if self.output_mode:
 
             np.save(os.path.join(self.output_dir, "frirrev_jacob_prim.npy"), jacob_prim)
 
         else:
 
-            self.assertTrue(np.allclose(
-                jacob_prim,
-                np.load(os.path.join(self.output_dir, "frirrev_jacob_prim.npy"))
-            ))
-
-    
+            self.assertTrue(np.allclose(jacob_prim, np.load(os.path.join(self.output_dir, "frirrev_jacob_prim.npy"))))

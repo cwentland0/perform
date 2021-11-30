@@ -10,6 +10,7 @@ from perform.system_solver import SystemSolver
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 from perform.solution.solution_boundary.solution_boundary import SolutionBoundary
 
+
 class SolutionBoundaryInitTestCase(unittest.TestCase):
     def setUp(self):
         # set chemistry
@@ -45,7 +46,7 @@ class SolutionBoundaryInitTestCase(unittest.TestCase):
             f.write("temp_" + self.bound_type + " = " + str(self.temp) + "\n")
             f.write("mass_fracs_" + self.bound_type + " = " + str(self.mass_fracs) + "\n")
             f.write("rho_" + self.bound_type + " = " + str(self.rho) + "\n")
-            f.write("pert_type_" + self.bound_type + " = \"" + str(self.pert_type) + "\"\n")
+            f.write("pert_type_" + self.bound_type + ' = "' + str(self.pert_type) + '"\n')
             f.write("pert_perc_" + self.bound_type + " = " + str(self.pert_perc) + "\n")
             f.write("pert_freq_" + self.bound_type + " = " + str(self.pert_freq) + "\n")
 
@@ -60,7 +61,7 @@ class SolutionBoundaryInitTestCase(unittest.TestCase):
     def test_solution_boundary_init(self):
 
         sol = SolutionBoundary(self.gas, self.solver, "inlet")
-        
+
         self.assertEqual(sol.press, self.press)
         self.assertEqual(sol.vel, self.vel)
         self.assertEqual(sol.temp, self.temp)
@@ -110,7 +111,7 @@ class SolutionBoundaryMethodsTestCase(unittest.TestCase):
             f.write("temp_" + self.bound_type + " = " + str(self.temp) + "\n")
             f.write("mass_fracs_" + self.bound_type + " = " + str(self.mass_fracs) + "\n")
             f.write("rho_" + self.bound_type + " = " + str(self.rho) + "\n")
-            f.write("pert_type_" + self.bound_type + " = \"" + str(self.pert_type) + "\"\n")
+            f.write("pert_type_" + self.bound_type + ' = "' + str(self.pert_type) + '"\n')
             f.write("pert_perc_" + self.bound_type + " = " + str(self.pert_perc) + "\n")
             f.write("pert_freq_" + self.bound_type + " = " + str(self.pert_freq) + "\n")
 
@@ -124,16 +125,12 @@ class SolutionBoundaryMethodsTestCase(unittest.TestCase):
 
         if os.path.isdir(self.test_dir):
             shutil.rmtree(self.test_dir)
-    
+
     def test_calc_pert(self):
 
         pert = self.sol.calc_pert(1e-6)
-        
+
         if self.output_mode:
             np.save(os.path.join(self.output_dir, "bound_pert.npy"), np.array([pert]))
         else:
-            self.assertTrue(np.allclose(
-                np.array([pert]),
-                np.load(os.path.join(self.output_dir, "bound_pert.npy"))
-            ))
-        
+            self.assertTrue(np.allclose(np.array([pert]), np.load(os.path.join(self.output_dir, "bound_pert.npy"))))

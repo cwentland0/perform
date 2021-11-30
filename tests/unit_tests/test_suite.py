@@ -16,13 +16,13 @@ def indep_unit_test_suite():
     """Test cases for independent class unit tests"""
 
     suite = unittest.TestSuite()
-    
+
     suite.addTest(loader.loadTestsFromTestCase(test_constants.ConstantsTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_input_funcs.InputParsersTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_misc_funcs.MiscFuncsTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_mesh.MeshTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_system_solver.SystemSolverInitTestCase))
-    
+
     return suite
 
 
@@ -30,12 +30,12 @@ def gas_model_test_suite():
     """Test cases for gas model unit tests"""
 
     suite = unittest.TestSuite()
-    
+
     suite.addTests(loader.loadTestsFromTestCase(test_gas_model.GasModelInitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_gas_model.GasModelMethodsTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_cpg.CPGInitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_cpg.GasModelMethodsTestCase))
-    
+
     return suite
 
 
@@ -43,9 +43,9 @@ def time_int_test_suite():
     """Test cases for time integrator unit tests"""
 
     suite = unittest.TestSuite()
-    
+
     suite.addTests(loader.loadTestsFromTestCase(test_time_integrator.TimeIntegratorTestCase))
-    
+
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ExplicitTimeIntInitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4InitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3InitTestCase))
@@ -56,6 +56,7 @@ def time_int_test_suite():
     suite.addTest(loader.loadTestsFromTestCase(test_implicit_integrator.BDFTestCase))
 
     return suite
+
 
 if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=3)
