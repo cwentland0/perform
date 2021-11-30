@@ -8,6 +8,7 @@ from test_solution import test_solution_phys, test_solution_interior, test_solut
 from test_solution.test_solution_boundary import test_solution_boundary, test_solution_inlet, test_solution_outlet
 from test_reaction_model import test_finite_rate_irrev_reaction
 from test_flux.invisc_flux import test_invisc_flux
+from test_limiter import test_limiters
 
 loader = unittest.TestLoader()
 
@@ -31,9 +32,12 @@ def integration_test_suite(output_mode=False):
     suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_invisc_flux.InviscFluxMethodsTestCase))
 
-    # SolutionDomain initialization
+    # SolutionDomain
     suite.addTest(loader.loadTestsFromTestCase(test_solution_domain.SolutionDomainInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_domain.SolutionDomainMethodsTestCase))
+
+    # classes that depend on SolutionDomain
+    suite.addTest(loader.loadTestsFromTestCase(test_limiters.LimiterMethodsTestCase))
 
     return suite
 
