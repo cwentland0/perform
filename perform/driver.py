@@ -74,7 +74,8 @@ def driver(working_dir):
             visGroup.draw_plots(sol_domain, solver)
 
         runtime = time() - time_start
-        print("Solve finished in %.8f seconds, writing to disk" % runtime)
+        if solver.stdout:
+            print("Solve finished in %.8f seconds, writing to disk" % runtime)
 
     except RuntimeWarning:
         solver.solve_failed = True

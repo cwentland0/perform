@@ -257,7 +257,7 @@ class SolutionDomain:
             solver: SystemSolver containing global simulation parameters.
         """
 
-        if not solver.run_steady:
+        if (not solver.run_steady) and solver.stdout:
             print("Iteration " + str(solver.iter))
 
         for self.time_integrator.subiter in range(self.time_integrator.subiter_max):

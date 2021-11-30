@@ -2,6 +2,7 @@
 exclude_lines =
     pragma: no cover
     pass
-	assert
+    assert
     raise ValueError
     if __name__ == "__main__":
+    def main():

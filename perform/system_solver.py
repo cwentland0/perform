@@ -138,6 +138,7 @@ class SystemSolver:
                     self.out_itmdt_match = True
 
         # misc
+        self.stdout = catch_input(param_dict, "stdout", True)
         self.vel_add = catch_input(param_dict, "vel_add", 0.0)
         self.res_norm_prim = catch_input(param_dict, "res_norm_prim", [None])
         self.source_off = catch_input(param_dict, "source_off", False)

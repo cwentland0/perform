@@ -638,7 +638,8 @@ class SolutionInterior(SolutionPhys):
         norm_out_l2 = np.log10(norm_l2)
         norm_out_l1 = np.log10(norm_l1)
         out_string = ("%8i:   L2: %18.14f,   L1: %18.14f") % (solver.time_iter, norm_out_l2, norm_out_l1)
-        print(out_string)
+        if solver.stdout:
+            print(out_string)
 
         self.d_sol_norm_l2 = norm_l2
         self.d_sol_norm_l1 = norm_l1
@@ -664,7 +665,8 @@ class SolutionInterior(SolutionPhys):
             norm_out_l2 = np.log10(norm_l2)
             norm_out_l1 = np.log10(norm_l1)
             out_string = (str(subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1)
-            print(out_string)
+            if solver.stdout:
+                print(out_string)
 
         self.res_norm_l2 = norm_l2
         self.res_norm_l1 = norm_l1
