@@ -1,7 +1,3 @@
-[run]
-omit =
-    driver.py
-
 [report]
 exclude_lines =
     pragma: no cover
@@ -10,3 +6,5 @@ exclude_lines =
     raise ValueError
     if __name__ == "__main__":
     def main():
+omit =
+    driver.py
