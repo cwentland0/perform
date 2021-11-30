@@ -1,6 +1,8 @@
 import unittest
 import os
 import shutil
+import subprocess
+from argparse import ArgumentParser
 
 import numpy as np
 
@@ -141,3 +143,42 @@ class DriverTestCase(unittest.TestCase):
                 restart_2["sol_cons"],
                 np.load(os.path.join(self.output_dir, "driver_restart_2_cons.npy"))
             ))
+
+if __name__ == "__main__":
+
+    # Check whether to run in output mode
+    # In output mode, will not check method results, but will instead save them to disk
+    # These outputs are retrieved from remote storage and used for comparison when not in output mode
+    parser = ArgumentParser()
+    parser.add_argument(
+        "-o", action="store_true", dest="output_mode", default=False, help="Run method tests in output mode"
+    )
+    output_mode = parser.parse_args().output_mode
+
+    # clear out the current output directory and remake it
+    localdir = os.path.dirname(__file__)
+    # handle weirdness with GHA and subprocess
+    if localdir in ["", "."]:
+        localdir = "./"
+    outputdir = os.path.join(localdir, "output_dir_driver")
+
+    if os.path.isdir(outputdir):
+        shutil.rmtree(outputdir)
+    if not os.path.isdir(outputdir):
+        os.mkdir(outputdir)
+
+    os.environ["PERFORM_TEST_OUTPUT_DIR"] = outputdir
+
+    if output_mode:
+        os.environ["PERFORM_TEST_OUTPUT_MODE"] = "1"
+    else:
+        os.environ["PERFORM_TEST_OUTPUT_MODE"] = "0"
+        # retrieve current "truth" results
+        subprocess.call(os.path.join(localdir, "get_results_driver.sh"))
+
+    runner = unittest.TextTestRunner(verbosity=3)
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
+
+    suite.addTest(loader.loadTestsFromTestCase(DriverTestCase))
+    runner.run(suite)

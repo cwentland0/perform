@@ -40,6 +40,11 @@ jobs:
           cd tests/
           COVERAGE_FILE=.coverage_int coverage run --source=../perform ./integration_tests/test_suite.py
 
+      - name: Run driver test
+        run: |
+          cd tests/
+          python ./integration_tests/test_driver.py
+
       - name: Report coverage
         run: |
           cd tests/
