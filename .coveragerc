@@ -4,7 +4,8 @@ exclude_lines =
     pass
     assert
     raise ValueError
-    if __name__ == "__main__":
-    def main():
+    if __name__ == "__main__"
+    def main()
+
 omit =
-    perform/driver.py
+    */perform/driver.py
