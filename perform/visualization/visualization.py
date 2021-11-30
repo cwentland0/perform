@@ -7,12 +7,15 @@ try:
         mpl.use("Agg")
 except KeyError:
     pass
+import matplotlib.pyplot as plt
 
 mpl.rc("font", family="serif", size="10")
 mpl.rc("axes", labelsize="x-large")
 mpl.rc("figure", facecolor="w")
 mpl.rc("text", usetex=False)
 mpl.rc("text.latex", preamble=r"\usepackage{amsmath}")
+
+from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
 
 # TODO: adapt axis label font size to number of subplots
 # TODO: add RHS, flux plotting
@@ -152,3 +155,7 @@ class Visualization:
                     self.ax_labels[ax_idx] = r"Heat Release $\left( \frac{W}{m^3} \right)$"
                 else:
                     raise ValueError("Invalid field visualization variable: " + str(var_str))
+
+        self.fig, self.ax = plt.subplots(
+            nrows=self.num_rows, ncols=self.num_cols, num=self.vis_id, figsize=(FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT)
+        )

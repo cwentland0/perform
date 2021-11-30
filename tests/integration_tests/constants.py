@@ -48,18 +48,18 @@ def solution_domain_setup(run_dir):
     # generate mesh file
     mesh_file = os.path.join(run_dir, "mesh.inp")
     with open(mesh_file, "w") as f:
-        f.write('x_left = 0.0\n')
-        f.write('x_right = 2e-5\n')
-        f.write('num_cells = 2\n')
+        f.write("x_left = 0.0\n")
+        f.write("x_right = 2e-5\n")
+        f.write("num_cells = 2\n")
 
     # generate chemistry file
     chem_file = os.path.join(run_dir, "chem.inp")
     with open(chem_file, "w") as f:
         for key, item in CHEM_DICT_REACT.items():
             if isinstance(item, str):
-                f.write(key + " = \"" + str(item) + "\"\n")
+                f.write(key + ' = "' + str(item) + '"\n')
             elif isinstance(item, list) or isinstance(item, np.ndarray):
-                f.write(key + ' = [' + ','.join(str(val) for val in item) + ']\n')
+                f.write(key + " = [" + ",".join(str(val) for val in item) + "]\n")
             else:
                 f.write(key + " = " + str(item) + "\n")
 
@@ -92,3 +92,9 @@ def solution_domain_setup(run_dir):
         f.write("mass_fracs_outlet = [0.4, 0.6] \n")
         f.write("probe_locs = [-1.0, 5e-6, 1.0] \n")
         f.write('probe_vars = ["pressure", "velocity"] \n')
+        f.write("vis_show = False \n")
+        f.write("vis_save = True \n")
+        f.write("vis_interval = 1 \n")
+        f.write('vis_type_0 = "field" \n')
+        f.write('vis_var_0 = ["temperature", "density", "pressure", "species-0"] \n')
+        f.write("vis_y_bounds_0 = [[500, 1500], [1.8, 2.6], [1.2e6, 8e5], [-0.1, 1.1]] \n")
