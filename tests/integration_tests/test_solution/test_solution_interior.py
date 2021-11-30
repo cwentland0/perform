@@ -110,10 +110,16 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         # generate file with necessary input files
         self.test_file = os.path.join(self.test_dir, constants.PARAM_INPUTS)
         with open(self.test_file, "w") as f:
-            f.write('init_file = "test_init_file.npy"\n')
-            f.write("dt = 1e-8\n")
-            f.write('time_scheme = "bdf"\n')
-            f.write("num_steps = 100\n")
+            f.write('init_file = "test_init_file.npy" \n')
+            f.write("dt = 1e-8 \n")
+            f.write('time_scheme = "bdf" \n')
+            f.write("num_steps = 10 \n")
+            f.write("out_interval = 2 \n")
+            f.write("prim_out = True \n")
+            f.write("cons_out = True \n")
+            f.write("source_out = True \n")
+            f.write("hr_out = True \n")
+            f.write("rhs_out = True \n")
 
         # set SystemSolver
         self.solver = SystemSolver(self.test_dir)
@@ -156,3 +162,31 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
             self.assertTrue(
                 np.allclose(sol_jacob_inv, np.load(os.path.join(self.output_dir, "sol_int_sol_jacob_inv.npy")))
             )
+
+    def test_update_snapshots(self):
+
+        # update the snapshot matrix
+        for self.solver.iter in range(1, self.solver.num_steps + 1):
+            if (self.solver.iter % self.solver.out_interval) == 0:
+                self.sol.update_snapshots(self.solver)
+
+        self.assertTrue(np.array_equal(
+            self.sol.prim_snap,
+            np.repeat(self.sol.sol_prim[:, :, None], 6, axis=2)
+        ))
+        self.assertTrue(np.array_equal(
+            self.sol.cons_snap,
+            np.repeat(self.sol.sol_cons[:, :, None], 6, axis=2)
+        ))
+        self.assertTrue(np.array_equal(
+            self.sol.reaction_source_snap,
+            np.repeat(self.sol.reaction_source[:, :, None], 5, axis=2)
+        ))
+        self.assertTrue(np.array_equal(
+            self.sol.heat_release_snap,
+            np.repeat(self.sol.heat_release[:, None], 5, axis=1)
+        ))
+        self.assertTrue(np.array_equal(
+            self.sol.rhs_snap,
+            np.repeat(self.sol.rhs[:, :, None], 5, axis=2)
+        ))

@@ -95,7 +95,7 @@ class SolutionInterior(SolutionPhys):
 
         # These don't include the profile associated with the final solution
         if solver.source_out:
-            self.reaction_source_snap = np.zeros((gas.num_species, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+            self.reaction_source_snap = np.zeros((gas.num_species_full, num_cells, solver.num_snaps), dtype=REAL_TYPE)
         if solver.hr_out:
             self.heat_release_snap = np.zeros((num_cells, solver.num_snaps), dtype=REAL_TYPE)
         if solver.rhs_out:
