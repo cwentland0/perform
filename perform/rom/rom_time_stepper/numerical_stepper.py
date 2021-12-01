@@ -44,7 +44,7 @@ class NumericalStepper(RomTimeStepper):
                 rom_model.code[:] = code[0].copy()
                 rom_model.code_hist = [code[0].copy()] * (self.time_integrator.time_order + 1)
                 rom_model.sol[:, :] = sol_encoded[0].copy()
-                rom_model.sol_hist = [sol_encoded[0].copy()] * (self.time_integrator.time_order + 1)
+                rom_model.sol_hist = [sol_encoded[0].copy() for _ in range(self.time_integrator.time_order + 1)]
 
             # Implicit solve code residual
             if self.time_integrator.time_type == "implicit":

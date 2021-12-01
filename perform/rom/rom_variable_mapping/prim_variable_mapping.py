@@ -51,5 +51,5 @@ class PrimVariableMapping(RomVariableMapping):
                 var_idxs = rom_model.var_idxs
                 sol_int.sol_hist_prim[sol_idx][var_idxs, :] = rom_model.sol_hist[sol_idx].copy()
 
-            # update primitive state history
+            # update conservative state history
             sol_int.sol_hist_cons[sol_idx] = sol_int.calc_cons_from_prim(sol_int.sol_hist_prim[sol_idx])

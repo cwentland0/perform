@@ -5,7 +5,7 @@ import subprocess
 from argparse import ArgumentParser
 import sys
 
-from test_rom import test_rom_domain
+from test_rom import test_rom_domain, test_rom_variable_mapping
 
 
 loader = unittest.TestLoader()
@@ -18,6 +18,9 @@ def integration_test_suite():
     # RomDomain initialization
     # NOTE: basically all ROM classes require RomDomain, so this has to come first
     suite.addTests(loader.loadTestsFromTestCase(test_rom_domain.RomDomainInitTestCase))
+
+    # RomVariableMapping tests
+    suite.addTest(loader.loadTestsFromTestCase(test_rom_variable_mapping.RomPrimVarMappingMethodsTestCase))
 
     return suite
 
@@ -52,7 +55,7 @@ if __name__ == "__main__":
     else:
         os.environ["PERFORM_TEST_OUTPUT_MODE"] = "0"
         # retrieve current "truth" results
-        # subprocess.call(os.path.join(localdir, "get_results_rom.sh"))
+        subprocess.call(os.path.join(localdir, "get_results_rom.sh"))
 
     runner = unittest.TextTestRunner(verbosity=3)
     ret = not runner.run(integration_test_suite()).wasSuccessful()
