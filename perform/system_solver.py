@@ -155,3 +155,4 @@ class SystemSolver:
         else:
             self.sim_type = "ROM"
             self.rom_inputs = os.path.join(self.working_dir, const.ROM_INPUTS)
+            self.rom_dict = read_input_file(self.rom_inputs)

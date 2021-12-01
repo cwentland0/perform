@@ -87,7 +87,7 @@ class RomDomain:
 
     def __init__(self, sol_domain, solver):
 
-        rom_dict = read_input_file(solver.rom_inputs)
+        rom_dict = solver.rom_dict
         self.rom_dict = rom_dict
 
         # Load and check latent dimensions

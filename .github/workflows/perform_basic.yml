@@ -35,20 +35,25 @@ jobs:
           cd tests/
           COVERAGE_FILE=.coverage_unit coverage run --source=../perform ./unit_tests/test_suite.py
         
-      - name: Run integration tests
+      - name: Run FOM integration tests
         run: |
           cd tests/
           COVERAGE_FILE=.coverage_int coverage run --source=../perform ./integration_tests/test_suite.py
 
-      - name: Run driver test
+      - name: Run FOM driver test
         run: |
           cd tests/
           python ./integration_tests/test_driver.py
 
+      - name: Run ROM integration tests
+        run: |
+          cd tests/
+          COVERAGE_FILE=.coverage_int_rom coverage run --source=../perform ./integration_tests/test_suite_rom.py
+
       - name: Report coverage
         run: |
           cd tests/
-          coverage combine .coverage_unit .coverage_int
+          coverage combine .coverage_unit .coverage_int .coverage_int_rom
           coveralls --service=github --rcfile=../.coveragerc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

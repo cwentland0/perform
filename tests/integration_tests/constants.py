@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from perform.constants import REAL_TYPE, PARAM_INPUTS
+from perform.constants import REAL_TYPE, PARAM_INPUTS, ROM_INPUTS
 
 
 # Constants to use throughout testing
@@ -110,3 +110,27 @@ def solution_domain_setup(run_dir):
         f.write('vis_var_1 = ["temperature", "density", "pressure", "species-0"] \n')
         f.write("vis_y_bounds_1 = [[500, 1500], [1.8, 2.6], [1.2e6, 8e5], [-0.1, 1.1]] \n")
         f.write("probe_num_1 = 1 \n")
+
+
+def rom_domain_setup(run_dir):
+
+    # presumably this has already been generated
+    inp_file = os.path.join(run_dir, PARAM_INPUTS)
+    with open(inp_file, "a") as f:
+        f.write("calc_rom = True \n")
+
+    # generate ROM input file
+    inp_file = os.path.join(run_dir, ROM_INPUTS)
+    with open(inp_file, "w") as f:
+        f.write('rom_method = "mplsvt" \n')
+        f.write('var_mapping = "primitive" \n')
+        f.write('space_mapping = "linear" \n')
+        f.write('num_models = 1 \n')
+        f.write('latent_dims = [8] \n')
+        f.write('model_var_idxs = [[0, 1, 2, 3]] \n')
+        f.write('basis_files = ["spatial_modes.npy"] \n')
+        f.write('cent_prim = ["cent_prof_prim.npy"] \n')
+        f.write('norm_sub_prim = ["norm_sub_prof_prim.npy"] \n')
+        f.write('norm_fac_prim = ["norm_fac_prof_prim.npy"] \n')
+        f.write('norm_sub_cons = ["norm_sub_prof_cons.npy"] \n')
+        f.write('norm_fac_cons = ["norm_fac_prof_cons.npy"] \n')
