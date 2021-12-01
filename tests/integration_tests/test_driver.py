@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 from argparse import ArgumentParser
+import sys
 
 import numpy as np
 
@@ -164,4 +165,5 @@ if __name__ == "__main__":
     suite = unittest.TestSuite()
 
     suite.addTest(loader.loadTestsFromTestCase(DriverTestCase))
-    runner.run(suite)
+    ret = not runner.run(suite).wasSuccessful()
+    sys.exit(ret)  # this is NOT the recommended usage, need to figure out how to use unittest.main()

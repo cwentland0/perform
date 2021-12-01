@@ -1,4 +1,5 @@
 import unittest
+import sys
 
 import test_constants
 import test_input_funcs
@@ -60,6 +61,10 @@ def time_int_test_suite():
 
 if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=3)
-    runner.run(indep_unit_test_suite())
-    runner.run(gas_model_test_suite())
-    runner.run(time_int_test_suite())
+    ret_list = []
+    ret_list.append(runner.run(indep_unit_test_suite()).wasSuccessful())
+    ret_list.append(runner.run(gas_model_test_suite()).wasSuccessful())
+    ret_list.append(runner.run(time_int_test_suite()).wasSuccessful())
+
+    ret = not all(ret_list)
+    sys.exit(ret)  # this is NOT the recommended usage, need to figure out how to use unittest.main()

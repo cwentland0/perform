@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 from argparse import ArgumentParser
+import sys
 
 from test_solution import test_solution_phys, test_solution_interior, test_solution_domain
 from test_solution.test_solution_boundary import test_solution_boundary, test_solution_inlet, test_solution_outlet
@@ -83,4 +84,5 @@ if __name__ == "__main__":
         subprocess.call(os.path.join(localdir, "get_results.sh"))
 
     runner = unittest.TextTestRunner(verbosity=3)
-    runner.run(integration_test_suite())
+    ret = not runner.run(integration_test_suite()).wasSuccessful()
+    sys.exit(ret)  # this is NOT the recommended usage, need to figure out how to use unittest.main()
