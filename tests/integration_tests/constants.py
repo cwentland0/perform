@@ -102,7 +102,7 @@ def solution_domain_setup(run_dir):
         f.write("rhs_out = True \n")
         f.write("vis_show = False \n")
         f.write("vis_save = True \n")
-        f.write("vis_interval = 1 \n")
+        f.write("vis_interval = 3 \n")
         f.write('vis_type_0 = "field" \n')
         f.write('vis_var_0 = ["temperature", "density", "pressure", "species-0"] \n')
         f.write("vis_y_bounds_0 = [[500, 1500], [1.8, 2.6], [1.2e6, 8e5], [-0.1, 1.1]] \n")
