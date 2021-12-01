@@ -21,6 +21,7 @@ def integration_test_suite():
 
     # RomVariableMapping tests
     suite.addTest(loader.loadTestsFromTestCase(test_rom_variable_mapping.RomPrimVarMappingMethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_rom_variable_mapping.RomConsVarMappingMethodsTestCase))
 
     return suite
 
