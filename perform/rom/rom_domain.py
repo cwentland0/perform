@@ -4,7 +4,7 @@ from time import sleep
 import numpy as np
 
 from perform.constants import REAL_TYPE
-from perform.input_funcs import read_input_file, catch_list, catch_input
+from perform.input_funcs import catch_list, catch_input
 from perform.solution.solution_phys import SolutionPhys
 from perform.rom import get_rom_method, get_variable_mapping, get_time_stepper
 from perform.rom.rom_model import RomModel
