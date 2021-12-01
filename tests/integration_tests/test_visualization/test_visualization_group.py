@@ -1,10 +1,8 @@
 import unittest
-import os
-import shutil
 
 import numpy as np
 
-from constants import solution_domain_setup
+from constants import TEST_DIR, del_test_dir, gen_test_dir, solution_domain_setup
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
 from perform.visualization.visualization_group import VisualizationGroup
@@ -14,33 +12,18 @@ class VisGroupInitTestCase(unittest.TestCase):
     def setUp(self):
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         # generate input text files
-        solution_domain_setup(self.test_dir)
-
-        # generate initial condition file
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
-        np.save(os.path.join(self.test_dir, "test_init_file.npy"), self.sol_prim_in)
+        solution_domain_setup()
 
         # set SystemSolver and SolutionDomain
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
         self.sol_domain = SolutionDomain(self.solver)
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_vis_group_init(self):
 
@@ -68,35 +51,20 @@ class VisGroupMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         # generate input text files
-        solution_domain_setup(self.test_dir)
-
-        # generate initial condition file
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
-        np.save(os.path.join(self.test_dir, "test_init_file.npy"), self.sol_prim_in)
+        solution_domain_setup()
 
         # set SystemSolver and SolutionDomain
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
         self.sol_domain = SolutionDomain(self.solver)
 
         self.vis_group = VisualizationGroup(self.sol_domain, self.solver)
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_draw_plots(self):
 

@@ -1,10 +1,9 @@
 import unittest
 import os
-import shutil
 
 import numpy as np
 
-from constants import CHEM_DICT_REACT
+from constants import CHEM_DICT_REACT, TEST_DIR, del_test_dir, gen_test_dir, get_output_mode
 import perform.constants as constants
 from perform.system_solver import SystemSolver
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
@@ -18,10 +17,7 @@ class SolutionBoundaryInitTestCase(unittest.TestCase):
         self.gas = CaloricallyPerfectGas(self.chem_dict)
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         self.bound_type = "inlet"
         self.press = 1e6
@@ -34,7 +30,7 @@ class SolutionBoundaryInitTestCase(unittest.TestCase):
         self.pert_freq = [125e3]
 
         # generate file with necessary input files
-        self.test_file = os.path.join(self.test_dir, constants.PARAM_INPUTS)
+        self.test_file = os.path.join(TEST_DIR, constants.PARAM_INPUTS)
         with open(self.test_file, "w") as f:
             f.write('init_file = "test_init_file.npy"\n')
             f.write("dt = 1e-8\n")
@@ -51,12 +47,11 @@ class SolutionBoundaryInitTestCase(unittest.TestCase):
             f.write("pert_freq_" + self.bound_type + " = " + str(self.pert_freq) + "\n")
 
         # set SystemSolver
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_solution_boundary_init(self):
 
@@ -75,18 +70,14 @@ class SolutionBoundaryInitTestCase(unittest.TestCase):
 class SolutionBoundaryMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
-        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
+        self.output_mode, self.output_dir = get_output_mode()
 
         # set chemistry
         self.chem_dict = CHEM_DICT_REACT
         self.gas = CaloricallyPerfectGas(self.chem_dict)
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         self.bound_type = "inlet"
         self.press = 1e6
@@ -99,7 +90,7 @@ class SolutionBoundaryMethodsTestCase(unittest.TestCase):
         self.pert_freq = [125e3]
 
         # generate file with necessary input files
-        self.test_file = os.path.join(self.test_dir, constants.PARAM_INPUTS)
+        self.test_file = os.path.join(TEST_DIR, constants.PARAM_INPUTS)
         with open(self.test_file, "w") as f:
             f.write('init_file = "test_init_file.npy"\n')
             f.write("dt = 1e-8\n")
@@ -116,15 +107,14 @@ class SolutionBoundaryMethodsTestCase(unittest.TestCase):
             f.write("pert_freq_" + self.bound_type + " = " + str(self.pert_freq) + "\n")
 
         # set SystemSolver
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
 
         # set solution
         self.sol = SolutionBoundary(self.gas, self.solver, "inlet")
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_calc_pert(self):
 

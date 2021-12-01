@@ -1,10 +1,8 @@
 import unittest
-import os
-import shutil
 
 import numpy as np
 
-from constants import solution_domain_setup
+from constants import TEST_DIR, del_test_dir, gen_test_dir, solution_domain_setup
 from perform.constants import REAL_TYPE
 from perform.input_funcs import catch_list
 from perform.system_solver import SystemSolver
@@ -16,27 +14,13 @@ class ProbePlotInitTestCase(unittest.TestCase):
     def setUp(self):
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         # generate input text files
-        solution_domain_setup(self.test_dir)
-
-        # generate initial condition file
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
-        np.save(os.path.join(self.test_dir, "test_init_file.npy"), self.sol_prim_in)
+        solution_domain_setup(TEST_DIR)
 
         # set SystemSolver and SolutionDomain
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
         self.sol_domain = SolutionDomain(self.solver)
 
         # get some plotting variables
@@ -47,8 +31,7 @@ class ProbePlotInitTestCase(unittest.TestCase):
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_field_plot_init(self):
 
@@ -79,33 +62,18 @@ class ProbePlotMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         # generate input text files
-        solution_domain_setup(self.test_dir)
-
-        # generate initial condition file
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
-        np.save(os.path.join(self.test_dir, "test_init_file.npy"), self.sol_prim_in)
+        solution_domain_setup()
 
         # set SystemSolver and SolutionDomain
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
         self.sol_domain = SolutionDomain(self.solver)
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_probe_plot_plot(self):
 

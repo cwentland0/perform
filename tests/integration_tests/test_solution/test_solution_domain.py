@@ -1,10 +1,9 @@
 import unittest
 import os
-import shutil
 
 import numpy as np
 
-from constants import solution_domain_setup
+from constants import TEST_DIR, del_test_dir, gen_test_dir, get_output_mode, solution_domain_setup, SOL_PRIM_IN_REACT
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
 
@@ -12,36 +11,20 @@ from perform.solution.solution_domain import SolutionDomain
 class SolutionDomainInitTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
-        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
+        self.output_mode, self.output_dir = get_output_mode()
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         # generate input text files
-        solution_domain_setup(self.test_dir)
-
-        # generate initial condition file
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
-        np.save(os.path.join(self.test_dir, "test_init_file.npy"), self.sol_prim_in)
+        solution_domain_setup()
 
         # set SystemSolver
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_solution_domain_init(self):
 
@@ -53,7 +36,7 @@ class SolutionDomainInitTestCase(unittest.TestCase):
 
         else:
 
-            self.assertTrue(np.array_equal(sol.sol_int.sol_prim, self.sol_prim_in))
+            self.assertTrue(np.array_equal(sol.sol_int.sol_prim, SOL_PRIM_IN_REACT))
             self.assertTrue(
                 np.allclose(
                     sol.sol_int.sol_cons, np.load(os.path.join(self.output_dir, "sol_domain_int_init_sol_cons.npy"))
@@ -66,37 +49,21 @@ class SolutionDomainInitTestCase(unittest.TestCase):
 class SolutionDomainMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
-        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
+        self.output_mode, self.output_dir = get_output_mode()
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         # generate input text files
-        solution_domain_setup(self.test_dir)
-
-        # generate initial condition file
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
-        np.save(os.path.join(self.test_dir, "test_init_file.npy"), self.sol_prim_in)
+        solution_domain_setup()
 
         # set SystemSolver and SolutionDomain
-        self.solver = SystemSolver(self.test_dir)
+        self.solver = SystemSolver(TEST_DIR)
         self.sol_domain = SolutionDomain(self.solver)
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_calc_rhs(self):
 

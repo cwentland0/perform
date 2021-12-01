@@ -1,10 +1,9 @@
 import unittest
 import os
-import shutil
 
 import numpy as np
 
-from constants import CHEM_DICT_REACT
+from constants import CHEM_DICT_REACT, SOL_PRIM_IN_REACT, TEST_DIR, del_test_dir, gen_test_dir, get_output_mode
 import perform.constants as constants
 from perform.system_solver import SystemSolver
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
@@ -15,18 +14,14 @@ from perform.solution.solution_boundary.solution_outlet import SolutionOutlet
 class SolutionOutletMethodTests(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
-        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
+        self.output_mode, self.output_dir = get_output_mode()
 
         # set chemistry
         self.chem_dict = CHEM_DICT_REACT
         self.gas = CaloricallyPerfectGas(self.chem_dict)
 
         # generate working directory
-        self.test_dir = "test_dir"
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
-        os.mkdir(self.test_dir)
+        gen_test_dir()
 
         # NOTE: press, vel, temp, and rho set later, depending on boundary condition
         self.bound_type = "outlet"
@@ -36,7 +31,7 @@ class SolutionOutletMethodTests(unittest.TestCase):
         self.pert_freq = [125e3]
 
         # generate file with necessary input files
-        self.test_file = os.path.join(self.test_dir, constants.PARAM_INPUTS)
+        self.test_file = os.path.join(TEST_DIR, constants.PARAM_INPUTS)
         with open(self.test_file, "w") as f:
             f.write('init_file = "test_init_file.npy"\n')
             f.write("dt = 1e-7\n")
@@ -49,21 +44,12 @@ class SolutionOutletMethodTests(unittest.TestCase):
             f.write("pert_freq_" + self.bound_type + " = " + str(self.pert_freq) + "\n")
 
         # set "interior" solution
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
         self.num_cells = 2
-        self.sol = SolutionPhys(self.gas, self.num_cells, sol_prim_in=self.sol_prim_in)
+        self.sol = SolutionPhys(self.gas, self.num_cells, sol_prim_in=SOL_PRIM_IN_REACT)
 
     def tearDown(self):
 
-        if os.path.isdir(self.test_dir):
-            shutil.rmtree(self.test_dir)
+        del_test_dir()
 
     def test_calc_subsonic_bc(self):
 
@@ -73,7 +59,7 @@ class SolutionOutletMethodTests(unittest.TestCase):
         with open(self.test_file, "a") as f:
             f.write("bound_cond_" + self.bound_type + ' = "subsonic"\n')
             f.write("press_" + self.bound_type + " = " + str(self.press) + "\n")
-        solver = SystemSolver(self.test_dir)
+        solver = SystemSolver(TEST_DIR)
 
         sol_bound = SolutionOutlet(self.gas, solver)
         sol_bound.calc_boundary_state(1e-6, 2, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)
@@ -106,7 +92,7 @@ class SolutionOutletMethodTests(unittest.TestCase):
             f.write("press_" + self.bound_type + " = " + str(self.press) + "\n")
             f.write("vel_" + self.bound_type + " = " + str(self.vel) + "\n")
             f.write("rho_" + self.bound_type + " = " + str(self.rho) + "\n")
-        solver = SystemSolver(self.test_dir)
+        solver = SystemSolver(TEST_DIR)
 
         sol_bound = SolutionOutlet(self.gas, solver)
         sol_bound.calc_boundary_state(0, 2, sol_prim=self.sol.sol_prim, sol_cons=self.sol.sol_cons)

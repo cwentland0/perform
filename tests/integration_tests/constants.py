@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import numpy as np
 
@@ -41,9 +42,52 @@ CHEM_DICT_REACT["pre_exp_fact"] = [2.12e10]
 CHEM_DICT_REACT["temp_exp"] = [0.0]
 CHEM_DICT_REACT["act_energy"] = [2.025237e8]
 
+# consistent primitive initial conditions
+SOL_PRIM_IN_AIR = np.array(
+    [
+        [1e6, 1e5],
+        [2.0, 1.0],
+        [300.0, 400.0],
+        [0.4, 0.6],
+        [0.6, 0.4],
+    ]
+)
+SOL_PRIM_IN_REACT = np.array(
+    [
+        [1e6, 9e5],
+        [2.0, 1.0],
+        [1000.0, 1200.0],
+        [0.6, 0.4],
+    ]
+)
+
+# generate directory which acts as PERFORM working directory
+TEST_DIR = "test_dir"
+
+
+def gen_test_dir():
+    if os.path.isdir(TEST_DIR):
+        shutil.rmtree(TEST_DIR)
+    os.mkdir(TEST_DIR)
+
+
+# delete working directory on cleanup
+def del_test_dir():
+    if os.path.isdir(TEST_DIR):
+        shutil.rmtree(TEST_DIR)
+
+
+# get output mode and directory
+def get_output_mode():
+
+    output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
+    output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
+
+    return output_mode, output_dir
+
 
 # sample input files necessary for solution domain initialization
-def solution_domain_setup(run_dir):
+def solution_domain_setup(run_dir=TEST_DIR):
 
     # generate mesh file
     mesh_file = os.path.join(run_dir, "mesh.inp")
@@ -95,6 +139,8 @@ def solution_domain_setup(run_dir):
         f.write('probe_vars = ["pressure", "temperature", "species-0", "density"] \n')
         f.write("save_restarts = True \n")
         f.write("restart_interval = 5 \n")
+        f.write("out_interval = 2 \n")
+        f.write("out_itmdt_interval = 5 \n")
         f.write("prim_out = True \n")
         f.write("cons_out = True \n")
         f.write("source_out = True \n")
@@ -111,8 +157,14 @@ def solution_domain_setup(run_dir):
         f.write("vis_y_bounds_1 = [[500, 1500], [1.8, 2.6], [1.2e6, 8e5], [-0.1, 1.1]] \n")
         f.write("probe_num_1 = 1 \n")
 
+    np.save(os.path.join(run_dir, "test_init_file.npy"), SOL_PRIM_IN_REACT)
 
-def rom_domain_setup(run_dir):
+
+def rom_domain_setup(run_dir=TEST_DIR, method="galerkin", space_mapping="linear", var_mapping="conservative"):
+
+    assert method in ["galerkin", "lspg", "mplsvt"]
+    assert space_mapping in ["linear", "nonlinear"]
+    assert var_mapping in ["conservative", "primitive"]
 
     # presumably this has already been generated
     inp_file = os.path.join(run_dir, PARAM_INPUTS)
@@ -121,16 +173,34 @@ def rom_domain_setup(run_dir):
 
     # generate ROM input file
     inp_file = os.path.join(run_dir, ROM_INPUTS)
+    model_dir = os.path.join(run_dir, "model_files")
+    os.mkdir(model_dir)
     with open(inp_file, "w") as f:
-        f.write('rom_method = "mplsvt" \n')
-        f.write('var_mapping = "primitive" \n')
-        f.write('space_mapping = "linear" \n')
-        f.write('num_models = 1 \n')
-        f.write('latent_dims = [8] \n')
-        f.write('model_var_idxs = [[0, 1, 2, 3]] \n')
+        f.write('rom_method = "' + method + '" \n')
+        f.write('var_mapping = "' + var_mapping + '" \n')
+        f.write('space_mapping = "' + space_mapping + '" \n')
+        f.write("num_models = 1 \n")
+        f.write("latent_dims = [8] \n")
+        f.write("model_var_idxs = [[0, 1, 2, 3]] \n")
+        f.write('model_dir = "' + model_dir + '" \n')
         f.write('basis_files = ["spatial_modes.npy"] \n')
         f.write('cent_prim = ["cent_prof_prim.npy"] \n')
+        f.write('cent_cons = ["cent_prof_cons.npy"] \n')
         f.write('norm_sub_prim = ["norm_sub_prof_prim.npy"] \n')
         f.write('norm_fac_prim = ["norm_fac_prof_prim.npy"] \n')
         f.write('norm_sub_cons = ["norm_sub_prof_cons.npy"] \n')
         f.write('norm_fac_cons = ["norm_fac_prof_cons.npy"] \n')
+
+    # generate model files, standardization profiles
+    modes = np.reshape(np.eye(8), (4, 2, 8))
+    cent_prof = np.zeros((4, 2), dtype=REAL_TYPE)
+    norm_sub_prof = np.zeros((4, 2), dtype=REAL_TYPE)
+    norm_fac_prof = np.ones((4, 2), dtype=REAL_TYPE)
+
+    np.save(os.path.join(model_dir, "spatial_modes.npy"), modes)
+    np.save(os.path.join(model_dir, "cent_prof_prim.npy"), cent_prof)
+    np.save(os.path.join(model_dir, "cent_prof_cons.npy"), cent_prof)
+    np.save(os.path.join(model_dir, "norm_sub_prof_prim.npy"), norm_sub_prof)
+    np.save(os.path.join(model_dir, "norm_fac_prof_prim.npy"), norm_fac_prof)
+    np.save(os.path.join(model_dir, "norm_sub_prof_cons.npy"), norm_sub_prof)
+    np.save(os.path.join(model_dir, "norm_fac_prof_cons.npy"), norm_fac_prof)

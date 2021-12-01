@@ -7,7 +7,7 @@ import sys
 
 import numpy as np
 
-from constants import solution_domain_setup
+from constants import get_output_mode, solution_domain_setup
 from perform.constants import UNSTEADY_OUTPUT_DIR_NAME, PROBE_OUTPUT_DIR_NAME, RESTART_OUTPUT_DIR_NAME
 from perform.driver import driver
 
@@ -15,8 +15,7 @@ from perform.driver import driver
 class DriverTestCase(unittest.TestCase):
     def setUp(self):
 
-        self.output_mode = bool(int(os.environ["PERFORM_TEST_OUTPUT_MODE"]))
-        self.output_dir = os.environ["PERFORM_TEST_OUTPUT_DIR"]
+        self.output_mode, self.output_dir = get_output_mode()
 
         # generate working directory
         self.test_dir = "test_dir"
@@ -26,17 +25,6 @@ class DriverTestCase(unittest.TestCase):
 
         # generate input text files
         solution_domain_setup(self.test_dir)
-
-        # generate initial condition file
-        self.sol_prim_in = np.array(
-            [
-                [1e6, 9e5],
-                [2.0, 1.0],
-                [1000.0, 1200.0],
-                [0.6, 0.4],
-            ]
-        )
-        np.save(os.path.join(self.test_dir, "test_init_file.npy"), self.sol_prim_in)
 
     def tearDown(self):
 

@@ -1,3 +1,6 @@
+import os
+import shutil
+
 import numpy as np
 
 from perform.constants import REAL_TYPE
@@ -16,3 +19,12 @@ CHEM_DICT_AIR["pr"] = np.array([0.730, 0.718, 0.687], dtype=REAL_TYPE)
 CHEM_DICT_AIR["sc"] = np.array([0.612, 0.612, 0.612], dtype=REAL_TYPE)
 CHEM_DICT_AIR["mu_ref"] = np.array([2.07e-5, 1.76e-5, 2.27e-5], dtype=REAL_TYPE)
 CHEM_DICT_AIR["temp_ref"] = np.array([0.0, 0.0, 0.0], dtype=REAL_TYPE)
+
+
+TEST_DIR = "test_dir"
+
+
+# delete working directory on cleanup
+def del_test_dir():
+    if os.path.isdir(TEST_DIR):
+        shutil.rmtree(TEST_DIR)
