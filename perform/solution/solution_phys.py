@@ -83,7 +83,7 @@ class SolutionPhys:
         self.d_enth_d_temp = np.zeros(num_cells, dtype=REAL_TYPE)
         self.d_enth_d_mass_frac = np.zeros((self.gas_model.num_species, num_cells), dtype=REAL_TYPE)
 
-        # Compute complete initial state history and set initial condition        
+        # Compute complete initial state history and set initial condition
         self.sol_hist_cons = [None] * (time_order + 1)
         self.sol_hist_prim = [None] * (time_order + 1)
         if sol_prim_in is not None:
@@ -118,7 +118,6 @@ class SolutionPhys:
                 snap_idx = init_snaps - init_idx
                 self.sol_hist_prim[snap_idx] = self.sol_prim.copy()
                 self.sol_hist_cons[snap_idx] = self.sol_cons.copy()
-
 
         else:
             raise ValueError("Must provide either sol_prim_in or sol_cons_in to SolutionPhys")
@@ -271,7 +270,7 @@ class SolutionPhys:
         self.enth_ref_mix[:] = self.gas_model.calc_mix_enth_ref(self.sol_prim[3:, :])
         self.r_mix[:] = self.gas_model.calc_mix_gas_constant(self.sol_prim[3:, :])
         self.cp_mix[:] = self.gas_model.calc_mix_cp(self.sol_prim[3:, :])
-        self.gamma_mix[:] = self.gas_model.calc_mix_gamma(self.r_mix, self.cp_mix)
+        self.gamma_mix[:] = self.gas_model.calc_mix_gamma(r_mix=self.r_mix, cp_mix=self.cp_mix)
 
         self.c[:] = self.gas_model.calc_sound_speed(self.sol_prim[2, :], r_mix=self.r_mix, gamma_mix=self.gamma_mix)
         self.hi[:, :] = self.gas_model.calc_spec_enth(self.sol_prim[2, :])
@@ -322,7 +321,11 @@ class SolutionPhys:
 
         # Stagnation enthalpy derivatives
         self.d_enth_d_press[:], self.d_enth_d_temp[:], self.d_enth_d_mass_frac[:, :] = gas.calc_stag_enth_derivs(
-            wrt_press=True, wrt_temp=True, mass_fracs=self.sol_prim[3:, :], wrt_spec=True, spec_enth=self.hi[:, :],
+            wrt_press=True,
+            wrt_temp=True,
+            mass_fracs=self.sol_prim[3:, :],
+            wrt_spec=True,
+            spec_enth=self.hi[:, :],
         )
 
     def calc_state_from_rho_h0(self):
@@ -379,3 +382,5 @@ class SolutionPhys:
             self.sol_prim[2, :] += d_temp
 
             iter_count += 1
+
+        self.update_state(from_prim=True)

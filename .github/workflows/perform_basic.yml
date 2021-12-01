@@ -1,0 +1,89 @@
+name: Basic PERFORM actions
+
+# Runs unit and integration tests, and checks code formatting
+# Executed every time code is pushed to any branch, on any pull request, and at 5:00 UTC
+
+on: 
+  push:
+  pull_request:
+  schedule:
+    - cron: 0 5 * * *
+
+
+jobs:
+
+  # Run unit and integration tests, which should be pretty quick
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: Install PERFORM and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install coverage coveralls
+
+      - name: Run unit tests
+        run: |
+          cd tests/
+          COVERAGE_FILE=.coverage_unit coverage run --source=../perform ./unit_tests/test_suite.py
+        
+      - name: Run integration tests
+        run: |
+          cd tests/
+          COVERAGE_FILE=.coverage_int coverage run --source=../perform ./integration_tests/test_suite.py
+
+      - name: Run driver test
+        run: |
+          cd tests/
+          python ./integration_tests/test_driver.py
+
+      - name: Report coverage
+        run: |
+          cd tests/
+          coverage combine .coverage_unit .coverage_int
+          coveralls --service=github --rcfile=../.coveragerc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Check code formatting using black
+  black:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Check black
+      run: |
+        pip install black==21.10b0
+        black perform --check --diff -l 120 --target-version py38
+
+  # Check consistency with PEP8 using flake8
+  # .flake8 dictates acceptable formatting exceptions 
+  flake8:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Check flake8
+      run: |
+        pip install flake8==4.0.1
+        flake8 perform --append-config .flake8 --count --show-source --statistics

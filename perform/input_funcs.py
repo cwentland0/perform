@@ -101,7 +101,10 @@ def catch_list(in_dict, in_key, default, len_highest=1):
         if list_of_lists_flag:
             val_list = []
             for list_idx in range(len_highest):
-                val_list.append(default[0])
+                if len(default) == len_highest:
+                    val_list.append(default[list_idx])
+                else:
+                    val_list.append(default[0])
         else:
             val_list = default
 
@@ -362,3 +365,20 @@ def read_restart_file(solver):
     restart_iter += 1  # so this restart file doesn't get overwritten
 
     return sol_time, sol_prim, restart_iter
+
+
+def get_absolute_path(path_in, working_dir):
+    """Converts parameter file path input which might be a relative path to an absolute path.
+
+    Args:
+        path_in: raw input string from a parameter file
+        working_dir: working directory of simulation, presumably provided from SystemSolver.working_dir
+
+    Returns:
+        path_in if it was already an absolute path, or absolute path from working_dir if it wasn't
+    """
+
+    if os.path.isabs(path_in):
+        return path_in
+    else:
+        return os.path.join(working_dir, path_in)

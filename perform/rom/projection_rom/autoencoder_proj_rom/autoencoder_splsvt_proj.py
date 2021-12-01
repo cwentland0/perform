@@ -1,5 +1,3 @@
-import numpy as np
-
 from perform.rom.projection_rom.autoencoder_proj_rom.autoencoder_proj_rom import AutoencoderProjROM
 
 

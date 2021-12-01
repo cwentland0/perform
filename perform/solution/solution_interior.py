@@ -31,7 +31,8 @@ class SolutionInterior(SolutionPhys):
         wf:
             NumPy array of the rate-of-progress profiles for the num_reactions reactions,
             if modeling reactions by a finite-rate reaction model.
-        reaction_source: NumPy array of the reaction source term profiles for the num_species species transport equations.
+        reaction_source:
+            NumPy array of the reaction source term profiles for the num_species species transport equations.
         heat_release: NumPy array of the unsteady heat release profile.
         rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
         sol_hist_cons: List of NumPy arrays of the prior time_int.time_order conservative state profiles.
@@ -94,7 +95,7 @@ class SolutionInterior(SolutionPhys):
 
         # These don't include the profile associated with the final solution
         if solver.source_out:
-            self.reaction_source_snap = np.zeros((gas.num_species, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+            self.reaction_source_snap = np.zeros((gas.num_species_full, num_cells, solver.num_snaps), dtype=REAL_TYPE)
         if solver.hr_out:
             self.heat_release_snap = np.zeros((num_cells, solver.num_snaps), dtype=REAL_TYPE)
         if solver.rhs_out:
@@ -448,9 +449,9 @@ class SolutionInterior(SolutionPhys):
             failed: Boolean flag indicating whether a simulation has failed before completion.
         """
 
-        assert not (intermediate and failed), (
-            "Something went wrong, tried to write intermediate and failed snapshots at same time"
-        )
+        assert not (
+            intermediate and failed
+        ), "Something went wrong, tried to write intermediate and failed snapshots at same time"
 
         unsteady_output_dir = solver.unsteady_output_dir
 
@@ -493,7 +494,7 @@ class SolutionInterior(SolutionPhys):
 
     def delete_itmdt_snapshots(self, solver):
         """Delete intermediate snapshot data
-        
+
         Args:
             solver: SystemSolver containing global simulation parameters.
         """
@@ -637,7 +638,8 @@ class SolutionInterior(SolutionPhys):
         norm_out_l2 = np.log10(norm_l2)
         norm_out_l1 = np.log10(norm_l1)
         out_string = ("%8i:   L2: %18.14f,   L1: %18.14f") % (solver.time_iter, norm_out_l2, norm_out_l1)
-        print(out_string)
+        if solver.stdout:
+            print(out_string)
 
         self.d_sol_norm_l2 = norm_l2
         self.d_sol_norm_l1 = norm_l1
@@ -663,7 +665,8 @@ class SolutionInterior(SolutionPhys):
             norm_out_l2 = np.log10(norm_l2)
             norm_out_l1 = np.log10(norm_l1)
             out_string = (str(subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1)
-            print(out_string)
+            if solver.stdout:
+                print(out_string)
 
         self.res_norm_l2 = norm_l2
         self.res_norm_l1 = norm_l1

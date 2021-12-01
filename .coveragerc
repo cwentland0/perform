@@ -1,0 +1,11 @@
+[report]
+exclude_lines =
+    pragma: no cover
+    pass
+    assert
+    raise ValueError
+    if __name__ == "__main__"
+    def main()
+
+omit =
+    */perform/driver.py

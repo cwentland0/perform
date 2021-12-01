@@ -64,9 +64,8 @@ class SolutionBoundary(SolutionPhys):
         sol_dummy[0, 0] = 1e6
         sol_dummy[1, 0] = 1.0
         sol_dummy[2, 0] = 300.0
-        sol_dummy[3, 0] = 1.0
+        sol_dummy[3:, 0] = self.mass_fracs[gas.mass_frac_slice]
         super().__init__(gas, 1, sol_prim_in=sol_dummy)
-        self.sol_prim[3:, 0] = self.mass_fracs[gas.mass_frac_slice]
 
     def calc_pert(self, sol_time):
         """Compute sinusoidal perturbation factor.

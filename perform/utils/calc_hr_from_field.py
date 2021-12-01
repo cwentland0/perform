@@ -46,7 +46,7 @@ def calc_hr_from_field(chem_file, gas_model_str, reac_model_str, dt, prim_file=N
     hr_data = np.zeros((num_cells, num_snaps), dtype=dtype)
 
     # loop over data, calculate heat release at each step
-    print_iter = ceil(num_snaps/num_prints)
+    print_iter = ceil(num_snaps / num_prints)
     for idx in range(num_snaps):
 
         if (idx % print_iter) == 0:

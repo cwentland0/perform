@@ -104,11 +104,11 @@ class RomDomain:
             if len(self.latent_dims) == self.num_models:
                 pass
             elif len(self.latent_dims) == 1:
-                print("Only one value provided in latent_dims," + " applying to all models")
+                print("Only one value provided in latent_dims, applying to all models")
                 sleep(1.0)
                 self.latent_dims = [self.latent_dims[0]] * self.num_models
             else:
-                raise ValueError("Must provide either num_models" + "or 1 entry in latent_dims")
+                raise ValueError("Must provide either num_models or 1 entry in latent_dims")
 
         # Load and check model_var_idxs
         self.model_var_idxs = catch_list(rom_dict, "model_var_idxs", [[-1]], len_highest=self.num_models)
@@ -247,7 +247,11 @@ class RomDomain:
 
                 # Indices of cells for which gradients need to be calculated, within sol_prim/cons_full
                 sol_domain.grad_idxs = np.concatenate(
-                    (sol_domain.direct_samp_idxs + 1, sol_domain.direct_samp_idxs, sol_domain.direct_samp_idxs + 2,)
+                    (
+                        sol_domain.direct_samp_idxs + 1,
+                        sol_domain.direct_samp_idxs,
+                        sol_domain.direct_samp_idxs + 2,
+                    )
                 )
                 sol_domain.grad_idxs = np.unique(sol_domain.grad_idxs)
 
@@ -273,21 +277,27 @@ class RomDomain:
 
                 # Indices within gradient neighbor indices to extract gradient cells, excluding boundaries
                 _, _, sol_domain.grad_neigh_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.grad_neigh_idxs, return_indices=True,
+                    sol_domain.grad_idxs,
+                    sol_domain.grad_neigh_idxs,
+                    return_indices=True,
                 )
 
                 # Indices of grad_idxs in flux_samp_left_idxs and flux_samp_right_idxs and vice versa
                 _, sol_domain.grad_left_extract, sol_domain.flux_left_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.flux_samp_left_idxs, return_indices=True,
+                    sol_domain.grad_idxs,
+                    sol_domain.flux_samp_left_idxs,
+                    return_indices=True,
                 )
 
                 # Indices of grad_idxs in flux_samp_right_idxs and flux_samp_right_idxs and vice versa
                 _, sol_domain.grad_right_extract, sol_domain.flux_right_extract = np.intersect1d(
-                    sol_domain.grad_idxs, sol_domain.flux_samp_right_idxs, return_indices=True,
+                    sol_domain.grad_idxs,
+                    sol_domain.flux_samp_right_idxs,
+                    return_indices=True,
                 )
 
             else:
-                raise ValueError("Sampling for higher-order schemes" + " not implemented yet")
+                raise ValueError("Sampling for higher-order schemes not implemented yet")
 
         # for Jacobian calculations
         if sol_domain.direct_samp_idxs[0] == 0:
@@ -404,13 +414,19 @@ class RomDomain:
                 sol_domain.gamma_idxs = sol_domain.gamma_idxs[:-1]
 
         _, sol_domain.gamma_idxs_center, _ = np.intersect1d(
-            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs, return_indices=True,
+            sol_domain.gamma_idxs,
+            sol_domain.direct_samp_idxs,
+            return_indices=True,
         )
 
         _, sol_domain.gamma_idxs_left, _ = np.intersect1d(
-            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs - 1, return_indices=True,
+            sol_domain.gamma_idxs,
+            sol_domain.direct_samp_idxs - 1,
+            return_indices=True,
         )
 
         _, sol_domain.gamma_idxs_right, _ = np.intersect1d(
-            sol_domain.gamma_idxs, sol_domain.direct_samp_idxs + 1, return_indices=True,
+            sol_domain.gamma_idxs,
+            sol_domain.direct_samp_idxs + 1,
+            return_indices=True,
         )

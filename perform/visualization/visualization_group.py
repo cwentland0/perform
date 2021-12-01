@@ -2,14 +2,14 @@ import os
 from time import sleep
 
 import matplotlib as mpl
+
 try:
     if os.environ["PLT_USE_AGG"] == "1":
-        mpl.use('Agg')
+        mpl.use("Agg")
 except KeyError:
     pass
 import matplotlib.pyplot as plt
 
-from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
 from perform.visualization.field_plot import FieldPlot
 from perform.visualization.probe_plot import ProbePlot
 from perform.input_funcs import catch_input, catch_list
@@ -120,12 +120,6 @@ class VisualizationGroup:
 
             else:
                 raise ValueError("Invalid visualization type: " + vis_type)
-
-        # Set plot positions/dimensions
-        for vis in self.vis_list:
-            vis.fig, vis.ax = plt.subplots(
-                nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT)
-            )
 
         if self.vis_show:
             plt.show(block=False)

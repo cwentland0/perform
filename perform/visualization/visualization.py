@@ -1,11 +1,15 @@
 import os
 
 import matplotlib as mpl
+
 try:
     if os.environ["PLT_USE_AGG"] == "1":
-        mpl.use('Agg')
+        mpl.use("Agg")
 except KeyError:
     pass
+import matplotlib.pyplot as plt
+
+from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
 
 mpl.rc("font", family="serif", size="10")
 mpl.rc("axes", labelsize="x-large")
@@ -74,9 +78,9 @@ class Visualization:
                         elif vis_var[:6] == "source":
                             species_idx = int(vis_var[7:])
 
-                        assert (species_idx >= 0) and (species_idx < num_species_full), (
-                            "Species number must be a non-negative (>= 0) integer " + "< the number of chemical species"
-                        )
+                        assert (species_idx >= 0) and (
+                            species_idx < num_species_full
+                        ), "Species number must be a non-negative (>= 0) integer < the number of chemical species"
                     except ValueError:
                         raise ValueError(
                             "vis_var entry "
@@ -117,7 +121,7 @@ class Visualization:
             self.num_rows = 3
             self.num_cols = 3
         else:
-            raise ValueError("Cannot plot more than nine" + " subplots in the same image")
+            raise ValueError("Cannot plot more than nine subplots in the same image")
 
         # Axis labels
         # TODO: could change this to a dictionary reference
@@ -151,3 +155,7 @@ class Visualization:
                     self.ax_labels[ax_idx] = r"Heat Release $\left( \frac{W}{m^3} \right)$"
                 else:
                     raise ValueError("Invalid field visualization variable: " + str(var_str))
+
+        self.fig, self.ax = plt.subplots(
+            nrows=self.num_rows, ncols=self.num_cols, num=self.vis_id, figsize=(FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT)
+        )

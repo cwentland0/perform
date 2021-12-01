@@ -14,9 +14,7 @@ class AutoencoderRom(NonIntrusiveRom):
         super().__init__(model_idx, rom_domain, sol_domain)
 
     def decode_sol():
-        """
-        """
+        """ """
 
     def init_from_sol():
-        """
-        """
+        """ """
