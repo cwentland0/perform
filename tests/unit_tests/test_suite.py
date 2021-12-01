@@ -50,8 +50,10 @@ def time_int_test_suite():
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ExplicitTimeIntInitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4InitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3InitTestCase))
+    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.JamesonLowStoreInitTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4MethodsTestCase))
     suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3MethodsTestCase))
+    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.JamesonLowStoreMethodsTestCase))
 
     suite.addTests(loader.loadTestsFromTestCase(test_implicit_integrator.ImplicitTimeIntInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_implicit_integrator.BDFTestCase))

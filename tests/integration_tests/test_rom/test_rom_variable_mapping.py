@@ -3,7 +3,15 @@ import os
 
 import numpy as np
 
-from constants import SOL_PRIM_IN_REACT, TEST_DIR, del_test_dir, gen_test_dir, solution_domain_setup, rom_domain_setup, get_output_mode
+from constants import (
+    SOL_PRIM_IN_REACT,
+    TEST_DIR,
+    del_test_dir,
+    gen_test_dir,
+    solution_domain_setup,
+    rom_domain_setup,
+    get_output_mode,
+)
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
 from perform.rom.rom_domain import RomDomain
@@ -62,11 +70,16 @@ class RomPrimVarMappingMethodsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(self.sol_domain.sol_int.sol_prim, sol_prim_new))
 
         if self.output_mode:
-            np.save(os.path.join(self.output_dir, "prim_var_map_update_full_sol_cons.npy"), self.sol_domain.sol_int.sol_cons)
+            np.save(
+                os.path.join(self.output_dir, "prim_var_map_update_full_sol_cons.npy"), self.sol_domain.sol_int.sol_cons
+            )
 
         else:
             self.assertTrue(
-                np.allclose(self.sol_domain.sol_int.sol_cons, np.load(os.path.join(self.output_dir, "prim_var_map_update_full_sol_cons.npy")))
+                np.allclose(
+                    self.sol_domain.sol_int.sol_cons,
+                    np.load(os.path.join(self.output_dir, "prim_var_map_update_full_sol_cons.npy")),
+                )
             )
 
         # check update_state_hist
@@ -111,7 +124,9 @@ class RomConsVarMappingMethodsTestCase(unittest.TestCase):
 
         # check get_variable_hist_from_state_hist
         sol_cons_hist = self.var_mapping.get_variable_hist_from_state_hist(self.sol_domain)
-        self.assertTrue(all([np.allclose(sol_cons_arr, self.sol_domain.sol_int.sol_cons) for sol_cons_arr in sol_cons_hist]))
+        self.assertTrue(
+            all([np.allclose(sol_cons_arr, self.sol_domain.sol_int.sol_cons) for sol_cons_arr in sol_cons_hist])
+        )
 
     def test_cons_var_map_update_state(self):
 
@@ -134,11 +149,16 @@ class RomConsVarMappingMethodsTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(self.sol_domain.sol_int.sol_cons, sol_cons_new))
 
         if self.output_mode:
-            np.save(os.path.join(self.output_dir, "cons_var_map_update_full_sol_prim.npy"), self.sol_domain.sol_int.sol_prim)
+            np.save(
+                os.path.join(self.output_dir, "cons_var_map_update_full_sol_prim.npy"), self.sol_domain.sol_int.sol_prim
+            )
 
         else:
             self.assertTrue(
-                np.allclose(self.sol_domain.sol_int.sol_prim, np.load(os.path.join(self.output_dir, "cons_var_map_update_full_sol_prim.npy")))
+                np.allclose(
+                    self.sol_domain.sol_int.sol_prim,
+                    np.load(os.path.join(self.output_dir, "cons_var_map_update_full_sol_prim.npy")),
+                )
             )
 
         # check update_state_hist

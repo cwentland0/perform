@@ -115,9 +115,6 @@ class VisualizationGroup:
                     sol_domain.gas_model.species_names,
                 )
 
-            elif vis_type == "residual":
-                raise ValueError("Residual plot not implemented yet")
-
             else:
                 raise ValueError("Invalid visualization type: " + vis_type)
 

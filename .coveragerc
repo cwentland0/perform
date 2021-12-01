@@ -2,6 +2,9 @@
 exclude_lines =
     pragma: no cover
     pass
+	print
+	sleep
+	return
     assert
     raise ValueError
     if __name__ == "__main__"
