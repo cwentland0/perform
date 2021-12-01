@@ -31,11 +31,9 @@ class SolutionDomainInitTestCase(unittest.TestCase):
         sol = SolutionDomain(self.solver)
 
         if self.output_mode:
-
             np.save(os.path.join(self.output_dir, "sol_domain_int_init_sol_cons.npy"), sol.sol_int.sol_cons)
 
         else:
-
             self.assertTrue(np.array_equal(sol.sol_int.sol_prim, SOL_PRIM_IN_REACT))
             self.assertTrue(
                 np.allclose(
@@ -70,11 +68,9 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
         self.sol_domain.calc_rhs(self.solver)
 
         if self.output_mode:
-
             np.save(os.path.join(self.output_dir, "sol_domain_rhs.npy"), self.sol_domain.sol_int.rhs)
 
         else:
-
             self.assertTrue(
                 np.allclose(self.sol_domain.sol_int.rhs, np.load(os.path.join(self.output_dir, "sol_domain_rhs.npy")))
             )
@@ -85,13 +81,11 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
         rhs_jacob_center, rhs_jacob_left, rhs_jacob_right = self.sol_domain.calc_rhs_jacob(self.solver)
 
         if self.output_mode:
-
             np.save(os.path.join(self.output_dir, "sol_domain_rhs_jacob_center.npy"), rhs_jacob_center)
             np.save(os.path.join(self.output_dir, "sol_domain_rhs_jacob_left.npy"), rhs_jacob_left)
             np.save(os.path.join(self.output_dir, "sol_domain_rhs_jacob_right.npy"), rhs_jacob_right)
 
         else:
-
             self.assertTrue(
                 np.allclose(rhs_jacob_center, np.load(os.path.join(self.output_dir, "sol_domain_rhs_jacob_center.npy")))
             )
@@ -102,18 +96,32 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
                 np.allclose(rhs_jacob_right, np.load(os.path.join(self.output_dir, "sol_domain_rhs_jacob_right.npy")))
             )
 
-    def test_calc_res_jacob(self):
+    def test_calc_res_jacob_dual_time(self):
 
         self.sol_domain.calc_rhs(self.solver)
         res_jacob = self.sol_domain.calc_res_jacob(self.solver).todense()
 
         if self.output_mode:
-
             np.save(os.path.join(self.output_dir, "sol_domain_res_jacob.npy"), res_jacob)
 
         else:
-
             self.assertTrue(np.allclose(res_jacob, np.load(os.path.join(self.output_dir, "sol_domain_res_jacob.npy"))))
+
+    def test_calc_res_jacob_phys_time(self):
+
+        # overwrite to use physical time
+        self.solver = SystemSolver(TEST_DIR)
+        self.solver.param_dict["dual_time"] = False
+        self.sol_domain = SolutionDomain(self.solver)
+
+        self.sol_domain.calc_rhs(self.solver)
+        res_jacob = self.sol_domain.calc_res_jacob(self.solver).todense()
+
+        if self.output_mode:
+            np.save(os.path.join(self.output_dir, "sol_domain_res_jacob_phys_time.npy"), res_jacob)
+
+        else:
+            self.assertTrue(np.allclose(res_jacob, np.load(os.path.join(self.output_dir, "sol_domain_res_jacob_phys_time.npy"))))
 
     def test_advance_subiter(self):
 
@@ -121,13 +129,11 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
         self.sol_domain.advance_subiter(self.solver)
 
         if self.output_mode:
-
             np.save(os.path.join(self.output_dir, "sol_domain_subiter_sol_prim.npy"), self.sol_domain.sol_int.sol_prim)
             np.save(os.path.join(self.output_dir, "sol_domain_subiter_sol_cons.npy"), self.sol_domain.sol_int.sol_cons)
             np.save(os.path.join(self.output_dir, "sol_domain_subiter_res.npy"), self.sol_domain.sol_int.res)
 
         else:
-
             self.assertTrue(
                 np.allclose(
                     self.sol_domain.sol_int.sol_prim,
@@ -153,13 +159,11 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
         self.sol_domain.advance_iter(self.solver)
 
         if self.output_mode:
-
             np.save(os.path.join(self.output_dir, "sol_domain_iter_sol_prim.npy"), self.sol_domain.sol_int.sol_prim)
             np.save(os.path.join(self.output_dir, "sol_domain_iter_sol_cons.npy"), self.sol_domain.sol_int.sol_cons)
             np.save(os.path.join(self.output_dir, "sol_domain_iter_res.npy"), self.sol_domain.sol_int.res)
 
         else:
-
             # NOTE: Some discrepancy causes this to fail on GHA, removing for now
             pass
             # self.assertTrue(
