@@ -91,58 +91,41 @@ class DriverTestCase(unittest.TestCase):
         else:
 
             # unsteady outputs
-            self.assertTrue(np.array_equal(
-                sol_prim,
-                np.load(os.path.join(self.output_dir, "driver_sol_prim.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                sol_cons,
-                np.load(os.path.join(self.output_dir, "driver_sol_cons.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                source,
-                np.load(os.path.join(self.output_dir, "driver_source.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                heat_release,
-                np.load(os.path.join(self.output_dir, "driver_heat_release.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                rhs,
-                np.load(os.path.join(self.output_dir, "driver_rhs.npy"))
-            ))
+            self.assertTrue(np.array_equal(sol_prim, np.load(os.path.join(self.output_dir, "driver_sol_prim.npy"))))
+            self.assertTrue(np.array_equal(sol_cons, np.load(os.path.join(self.output_dir, "driver_sol_cons.npy"))))
+            self.assertTrue(np.array_equal(source, np.load(os.path.join(self.output_dir, "driver_source.npy"))))
+            self.assertTrue(
+                np.array_equal(heat_release, np.load(os.path.join(self.output_dir, "driver_heat_release.npy")))
+            )
+            self.assertTrue(np.array_equal(rhs, np.load(os.path.join(self.output_dir, "driver_rhs.npy"))))
 
             # probe data
-            self.assertTrue(np.array_equal(
-                probe_1,
-                np.load(os.path.join(self.output_dir, "driver_probe_1.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                probe_2,
-                np.load(os.path.join(self.output_dir, "driver_probe_2.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                probe_3,
-                np.load(os.path.join(self.output_dir, "driver_probe_3.npy"))
-            ))
+            self.assertTrue(np.array_equal(probe_1, np.load(os.path.join(self.output_dir, "driver_probe_1.npy"))))
+            self.assertTrue(np.array_equal(probe_2, np.load(os.path.join(self.output_dir, "driver_probe_2.npy"))))
+            self.assertTrue(np.array_equal(probe_3, np.load(os.path.join(self.output_dir, "driver_probe_3.npy"))))
 
             # restart files
-            self.assertTrue(np.array_equal(
-                restart_1["sol_prim"],
-                np.load(os.path.join(self.output_dir, "driver_restart_1_prim.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                restart_1["sol_cons"],
-                np.load(os.path.join(self.output_dir, "driver_restart_1_cons.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                restart_2["sol_prim"],
-                np.load(os.path.join(self.output_dir, "driver_restart_2_prim.npy"))
-            ))
-            self.assertTrue(np.array_equal(
-                restart_2["sol_cons"],
-                np.load(os.path.join(self.output_dir, "driver_restart_2_cons.npy"))
-            ))
+            self.assertTrue(
+                np.array_equal(
+                    restart_1["sol_prim"], np.load(os.path.join(self.output_dir, "driver_restart_1_prim.npy"))
+                )
+            )
+            self.assertTrue(
+                np.array_equal(
+                    restart_1["sol_cons"], np.load(os.path.join(self.output_dir, "driver_restart_1_cons.npy"))
+                )
+            )
+            self.assertTrue(
+                np.array_equal(
+                    restart_2["sol_prim"], np.load(os.path.join(self.output_dir, "driver_restart_2_prim.npy"))
+                )
+            )
+            self.assertTrue(
+                np.array_equal(
+                    restart_2["sol_cons"], np.load(os.path.join(self.output_dir, "driver_restart_2_cons.npy"))
+                )
+            )
+
 
 if __name__ == "__main__":
 

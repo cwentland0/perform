@@ -3,9 +3,10 @@ import numpy as np
 from perform.constants import REAL_TYPE
 from perform.rom.rom_method.projection_method.projection_method import ProjectionMethod
 
+
 class GalerkinProjection(ProjectionMethod):
     """Intrusive Galerkin projection.
-    
+
     Galerkin projection is intrusive w/ numerical time integration, and targets the conservative variables
     """
 

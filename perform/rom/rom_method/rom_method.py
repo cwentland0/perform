@@ -1,10 +1,8 @@
-
-
-class RomMethod():
+class RomMethod:
     """Base class for ROM methods."""
 
     def __init__(self, sol_domain, rom_domain):
-        
+
         rom_dict = rom_domain.rom_dict
 
         # Should have as many centering and normalization profiles as there are models
@@ -14,4 +12,3 @@ class RomMethod():
             assert len(rom_dict["norm_sub_profs"]) == rom_domain.num_models
         except AssertionError:
             raise AssertionError("Feature scaling profiles must have as many files as there are models")
-    

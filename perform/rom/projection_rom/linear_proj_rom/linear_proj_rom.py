@@ -1,7 +1,3 @@
-from scipy.sparse.csr import csr_matrix
-from perform.constants import REAL_TYPE
-import numpy as np
-
 from perform.rom.projection_rom.projection_rom import ProjectionROM
 
 
@@ -36,7 +32,3 @@ class LinearProjROM(ProjectionROM):
     def __init__(self, model_idx, rom_domain, sol_domain):
 
         super().__init__(model_idx, rom_domain, sol_domain)
-
-        
-
-        

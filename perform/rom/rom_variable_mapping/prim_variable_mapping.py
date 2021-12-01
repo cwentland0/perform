@@ -1,9 +1,9 @@
-
 from perform.rom.rom_variable_mapping.rom_variable_mapping import RomVariableMapping
+
 
 class PrimVariableMapping(RomVariableMapping):
     """Trivial mapping to primitive state.
-    
+
     RomDomains with this mapping are assumed to map to the primitive state,
     given by [pressure, velocity, temperature, species mass fraction].
     """
@@ -14,12 +14,12 @@ class PrimVariableMapping(RomVariableMapping):
         self.is_complete = True
 
         super().__init__(rom_domain)
-        
+
     def get_variables_from_state(self, sol_domain):
         """Retrieves mapped state from current SolutionDomain state."""
 
         return sol_domain.sol_int.sol_prim.copy()
-         
+
     def get_variable_hist_from_state_hist(self, sol_domain):
         """Retrieves mapped state from SolutionDomain state history."""
 
@@ -27,7 +27,7 @@ class PrimVariableMapping(RomVariableMapping):
 
     def update_full_state(self, sol_domain, rom_domain):
         """Collects model internal states and updates full SolutionDomain state, including thermo/transport.
-        
+
         PrimVariableMapping trivially collects and updates the solution from the primitive state.
         No additional transformations are required.
         """

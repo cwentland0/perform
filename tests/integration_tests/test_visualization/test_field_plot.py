@@ -146,7 +146,7 @@ class FieldPlotMethodsTestCase(unittest.TestCase):
             [-1, 1],
         ]
         vis_x_bounds = [[None, None]] * len(vis_vars)
-        
+
         start_idx = 0
         for var_idx in range(len(vis_vars)):
 
@@ -159,9 +159,9 @@ class FieldPlotMethodsTestCase(unittest.TestCase):
                 1,
                 self.solver.num_steps,
                 self.solver.sim_type,
-                vis_vars[start_idx:var_idx + 1],
-                vis_x_bounds[start_idx:var_idx + 1],
-                vis_y_bounds[start_idx:var_idx + 1],
+                vis_vars[start_idx : var_idx + 1],
+                vis_x_bounds[start_idx : var_idx + 1],
+                vis_y_bounds[start_idx : var_idx + 1],
                 self.sol_domain.gas_model.species_names,
             )
 
@@ -178,5 +178,3 @@ class FieldPlotMethodsTestCase(unittest.TestCase):
                     self.assertTrue(np.array_equal(vis_vals[ax_idx + start_idx], ax.lines[0].get_xydata()[:, 1]))
 
             plot.fig.clf()
-
-

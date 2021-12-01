@@ -1,13 +1,11 @@
-
-
 import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.input_funcs import catch_input
 from perform.rom.rom_time_stepper.rom_time_stepper import RomTimeStepper
 
-class NumericalStepper(RomTimeStepper):
 
+class NumericalStepper(RomTimeStepper):
     def __init__(self, sol_domain, rom_domain):
 
         # use definition of time integrator in solver_params.inp
@@ -56,7 +54,6 @@ class NumericalStepper(RomTimeStepper):
         if rom_domain.rom_method.is_intrusive:
             rom_domain.var_mapping.update_full_state(sol_domain, rom_domain)
             rom_domain.var_mapping.update_state_hist(sol_domain, rom_domain)
-
 
     def advance_iter(self, sol_domain, solver, rom_domain):
 
@@ -174,7 +171,10 @@ class NumericalStepper(RomTimeStepper):
             norm_out_l1 = np.log10(norm_l1)
 
         # Print to terminal
-        out_string = (str(self.time_integrator.subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1,)
+        out_string = (str(self.time_integrator.subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (
+            norm_out_l2,
+            norm_out_l1,
+        )
         print(out_string)
 
         sol_domain.sol_int.res_norm_l2 = norm_l2

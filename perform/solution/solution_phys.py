@@ -178,7 +178,7 @@ class SolutionPhys:
 
     def calc_prim_from_cons(self, sol_cons):
         """Calculate and return primitive solution from given conservative solution.
-        
+
         Computes all required thermodynamic quantities internally, and does not modify the calling SolutionPhys.
         """
 
@@ -187,7 +187,7 @@ class SolutionPhys:
         # species mass fraction and velocity
         sol_prim[3:, :] = sol_cons[3:, :] / sol_cons[[0], :]
         sol_prim[1, :] = sol_cons[1, :] / sol_cons[0, :]
-        
+
         # thermodynamic quantities
         enth_ref_mix = self.gas_model.calc_mix_enth_ref(sol_prim[3:, :])
         r_mix = self.gas_model.calc_mix_gas_constant(sol_prim[3:, :])
@@ -218,7 +218,7 @@ class SolutionPhys:
 
     def calc_cons_from_prim(self, sol_prim):
         """Calculate and return conservative solution from given primitive solution.
-        
+
         Computes all required thermodynamic quantities internally, and does not modify the calling SolutionPhys.
         """
 

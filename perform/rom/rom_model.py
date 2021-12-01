@@ -1,12 +1,10 @@
-import os
-import time
-
 import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.rom.rom_space_mapping.linear_space_mapping import LinearSpaceMapping
 
-class RomModel():
+
+class RomModel:
     """Base class for all ROM models.
 
     The RomModel class provides basic functionality that every ROM model should be equipped with,
@@ -65,7 +63,6 @@ class RomModel():
         self.sol = np.zeros(self.sol_shape, dtype=REAL_TYPE)
         self.code = np.zeros(self.latent_dim, dtype=REAL_TYPE)
         self.d_code = np.zeros(self.latent_dim, dtype=REAL_TYPE)  # TODO: is this used?
-
 
     def update_sol(self, sol_domain):
         """Update solution after low-dimensional code has been updated.

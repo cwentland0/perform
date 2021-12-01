@@ -14,6 +14,7 @@ from test_visualization import test_field_plot, test_probe_plot, test_visualizat
 
 loader = unittest.TestLoader()
 
+
 def integration_test_suite():
 
     suite = unittest.TestSuite()

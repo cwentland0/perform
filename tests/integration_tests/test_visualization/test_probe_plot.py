@@ -74,6 +74,7 @@ class ProbePlotInitTestCase(unittest.TestCase):
             self.assertTrue(np.array_equal(bound, plot.vis_x_bounds[bound_idx]))
             self.assertTrue(np.array_equal(self.vis_y_bounds[bound_idx], plot.vis_y_bounds[bound_idx]))
 
+
 class ProbePlotMethodsTestCase(unittest.TestCase):
     def setUp(self):
 
@@ -132,7 +133,7 @@ class ProbePlotMethodsTestCase(unittest.TestCase):
             [0.5, 1.75],
         ]
         vis_x_bounds = [[None, None]] * len(vis_vars)
-        
+
         # overwrite SolutionDomain probe info
         sol_domain.probe_vars = vis_vars
         sol_domain.num_probe_vars = len(vis_vars)
@@ -146,7 +147,9 @@ class ProbePlotMethodsTestCase(unittest.TestCase):
             for var_idx in range(len(vis_vars)):
 
                 # reset probe values
-                sol_domain.probe_vals = np.zeros((sol_domain.num_probes, sol_domain.num_probe_vars, self.solver.num_steps), dtype=REAL_TYPE)
+                sol_domain.probe_vals = np.zeros(
+                    (sol_domain.num_probes, sol_domain.num_probe_vars, self.solver.num_steps), dtype=REAL_TYPE
+                )
 
                 if var_idx >= 9:
                     start_idx += 1
@@ -156,11 +159,11 @@ class ProbePlotMethodsTestCase(unittest.TestCase):
                     0,
                     self.solver.sim_type,
                     sol_domain.probe_vars,
-                    vis_vars[start_idx:var_idx + 1],
+                    vis_vars[start_idx : var_idx + 1],
                     probe_idx,
                     self.solver.num_probes,
-                    vis_x_bounds[start_idx:var_idx + 1],
-                    vis_y_bounds[start_idx:var_idx + 1],
+                    vis_x_bounds[start_idx : var_idx + 1],
+                    vis_y_bounds[start_idx : var_idx + 1],
                     sol_domain.gas_model.species_names,
                 )
 
@@ -174,17 +177,17 @@ class ProbePlotMethodsTestCase(unittest.TestCase):
                 # check that bounds and values were set correctly
                 if var_idx == 0:
                     self.assertTrue(np.array_equal(vis_y_bounds[0], plot.ax.get_ylim()))
-                    self.assertTrue(np.array_equal(
-                        sol_domain.probe_vals[probe_idx, 0, :],
-                        plot.ax.lines[0].get_xydata()[:, 1])
+                    self.assertTrue(
+                        np.array_equal(sol_domain.probe_vals[probe_idx, 0, :], plot.ax.lines[0].get_xydata()[:, 1])
                     )
                 else:
                     for ax_idx in range(var_idx - start_idx):
                         ax = plot.ax.ravel()[ax_idx]
                         self.assertTrue(np.array_equal(vis_y_bounds[ax_idx + start_idx], ax.get_ylim()))
-                        self.assertTrue(np.array_equal(
-                            sol_domain.probe_vals[probe_idx, ax_idx + start_idx, :],
-                            ax.lines[0].get_xydata()[:, 1])
+                        self.assertTrue(
+                            np.array_equal(
+                                sol_domain.probe_vals[probe_idx, ax_idx + start_idx, :], ax.lines[0].get_xydata()[:, 1]
+                            )
                         )
 
                 plot.fig.clf()

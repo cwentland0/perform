@@ -4,6 +4,7 @@ import numpy as np
 
 from perform.rom.rom_space_mapping.rom_space_mapping import RomSpaceMapping
 
+
 class LinearSpaceMapping(RomSpaceMapping):
     """Linear basis mapping to/from the state/latent spaces"""
 
@@ -72,7 +73,7 @@ class LinearSpaceMapping(RomSpaceMapping):
 
         sol = sol.ravel(order="C")
         code = self.trial_basis.T @ sol
-        return code 
+        return code
 
     def apply_decoder(self, code):
         """Compute raw decoding of code.

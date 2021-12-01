@@ -5,9 +5,10 @@ from perform.constants import REAL_TYPE
 from perform.input_funcs import catch_input
 from perform.rom.rom_method.rom_method import RomMethod
 
+
 class ProjectionMethod(RomMethod):
     """Base class for projection-based intrusive ROM methods.
-    
+
     Projection-based ROMs may be constructed from linear or autoencoder space mappings.
     """
 
@@ -16,7 +17,7 @@ class ProjectionMethod(RomMethod):
         rom_dict = rom_domain.rom_dict
         assert rom_dict["space_mapping"] in ["linear", "autoencoder"]
 
-        if (rom_dict["space_mapping"] == "autoencoder"):
+        if rom_dict["space_mapping"] == "autoencoder":
             raise ValueError("code has not been fixed to accommodate autoencoder models")
 
         self.is_intrusive = True
@@ -76,7 +77,7 @@ class ProjectionMethod(RomMethod):
 
     def init_method(self, sol_domain, rom_domain):
         """Utility function for generating concatenated trial bases for implicit solve.
-        
+
         Operates over all models in rom_domain.
         """
 

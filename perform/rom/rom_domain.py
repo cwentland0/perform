@@ -11,6 +11,7 @@ from perform.rom.rom_model import RomModel
 
 # TODO: initializing latent code from files (removed from previous version)
 
+
 class RomDomain:
     """Container class for all ROM models to be applied within a given SolutionDomain.
 
@@ -144,7 +145,6 @@ class RomDomain:
         self.time_stepper.init_state(sol_domain, self)
         self.rom_method.init_method(sol_domain, self)
 
-
     def advance_iter(self, sol_domain, solver):
         """Advance low-dimensional state and full solution forward one physical time iteration.
 
@@ -159,7 +159,7 @@ class RomDomain:
         """
 
         print("Iteration " + str(solver.iter))
-        self.time_stepper.advance_iter(sol_domain, solver, self)    
+        self.time_stepper.advance_iter(sol_domain, solver, self)
 
         sol_domain.sol_int.update_sol_hist()
         self.update_code_hist()

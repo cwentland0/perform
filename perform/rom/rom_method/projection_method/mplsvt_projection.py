@@ -5,9 +5,10 @@ import numpy as np
 from perform.constants import REAL_TYPE
 from perform.rom.rom_method.projection_method.projection_method import ProjectionMethod
 
+
 class MPLSVTProjection(ProjectionMethod):
     """Intrusive MP-LSVT projection.
-    
+
     MP-LSVT projection is intrusive w/ numerical time integration, and targets the primitive variables
     """
 
@@ -41,21 +42,21 @@ class MPLSVTProjection(ProjectionMethod):
         # MP-LSVT can use explicit time integration, hasn't been implemented
         if sol_domain.time_integrator.time_type == "explicit":
             raise ValueError("Explicit MP-LSVT not implemented yet")
-        
+
         # check that time stepper is using dual time-stepping
         if not sol_domain.time_integrator.dual_time:
-            raise ValueError("MP-LSVT is intended for non-conservative variable evolution, please set dual_time = False")
+            raise ValueError(
+                "MP-LSVT is intended for non-conservative variable evolution, please set dual_time = False"
+            )
 
         super().__init__(sol_domain, rom_domain)
 
     def init_method(self, sol_domain, rom_domain):
 
-        rom_dict = rom_domain.rom_dict
-
         # load conservative scaling
         for model_idx, rom_model in enumerate(rom_domain.model_list):
-            rom_model.space_mapping.norm_fac_prof_cons = (
-                rom_model.space_mapping.load_feature_scaling(os.path.join(rom_domain.model_dir, self.norm_fac_profs_cons[model_idx]), default="ones")
+            rom_model.space_mapping.norm_fac_prof_cons = rom_model.space_mapping.load_feature_scaling(
+                os.path.join(rom_domain.model_dir, self.norm_fac_profs_cons[model_idx]), default="ones"
             )
 
         super().init_method(sol_domain, rom_domain)

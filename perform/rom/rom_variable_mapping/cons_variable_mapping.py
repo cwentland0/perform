@@ -1,9 +1,9 @@
-
 from perform.rom.rom_variable_mapping.rom_variable_mapping import RomVariableMapping
+
 
 class ConsVariableMapping(RomVariableMapping):
     """Trivial mapping to conservative state.
-    
+
     RomDomains with this mapping are assumed to map to the conservative state,
     given by [density, momentum, energy, density-weighted species mass fraction].
     """
@@ -19,7 +19,7 @@ class ConsVariableMapping(RomVariableMapping):
         """Retrieves mapped state from current SolutionDomain state."""
 
         return sol_domain.sol_int.sol_cons.copy()
-         
+
     def get_variable_hist_from_state_hist(self, sol_domain):
         """Retrieves mapped state from SolutionDomain state history."""
 
@@ -27,7 +27,7 @@ class ConsVariableMapping(RomVariableMapping):
 
     def update_full_state(self, sol_domain, rom_domain):
         """Collects model internal states and updates full SolutionDomain state, including thermo/transport.
-        
+
         ConsVariableMapping trivially collects and updates the solution from the conservative state.
         No additional transformations are required.
         """

@@ -1,6 +1,5 @@
 import numpy as np
 
-from perform.constants import REAL_TYPE
 from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearProjROM
 
 

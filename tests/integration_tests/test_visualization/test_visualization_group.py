@@ -5,7 +5,6 @@ import shutil
 import numpy as np
 
 from constants import solution_domain_setup
-from perform.input_funcs import catch_list
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
 from perform.visualization.visualization_group import VisualizationGroup
@@ -91,7 +90,7 @@ class VisGroupMethodsTestCase(unittest.TestCase):
         # set SystemSolver and SolutionDomain
         self.solver = SystemSolver(self.test_dir)
         self.sol_domain = SolutionDomain(self.solver)
-        
+
         self.vis_group = VisualizationGroup(self.sol_domain, self.solver)
 
     def tearDown(self):
@@ -110,7 +109,7 @@ class VisGroupMethodsTestCase(unittest.TestCase):
 
         # loop outer iterations
         for self.solver.iter in range(1, self.solver.num_steps + 1):
-            
+
             self.sol_domain.update_probes(self.solver)
             self.vis_group.draw_plots(self.sol_domain, self.solver)
 
@@ -135,8 +134,9 @@ class VisGroupMethodsTestCase(unittest.TestCase):
                     var_idx = 0
                 elif ax_idx == 3:
                     var_idx = 2
-                    
-                self.assertTrue(np.array_equal(
-                    self.sol_domain.probe_vals[1, var_idx, :self.solver.iter],
-                    ax.lines[0].get_xydata()[:, 1])
+
+                self.assertTrue(
+                    np.array_equal(
+                        self.sol_domain.probe_vals[1, var_idx, : self.solver.iter], ax.lines[0].get_xydata()[:, 1]
+                    )
                 )

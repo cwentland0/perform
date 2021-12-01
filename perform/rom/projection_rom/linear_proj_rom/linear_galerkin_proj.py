@@ -1,6 +1,3 @@
-from perform.constants import REAL_TYPE
-import numpy as np
-
 from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearProjROM
 
 
@@ -28,10 +25,6 @@ class LinearGalerkinProj(LinearProjROM):
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
-        
-
-        
-
     def calc_projector(self, sol_domain):
         """Compute RHS projection operator.
 
@@ -46,5 +39,3 @@ class LinearGalerkinProj(LinearProjROM):
             self.projector = self.hyper_reduc_operator
         else:
             self.projector = self.trial_basis.T
-
-    

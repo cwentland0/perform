@@ -1,6 +1,3 @@
-from packaging import version
-from time import sleep
-
 # # linear models
 # from perform.rom.projection_rom.linear_proj_rom.linear_galerkin_proj import LinearGalerkinProj
 # from perform.rom.projection_rom.linear_proj_rom.linear_lspg_proj import LinearLSPGProj
@@ -53,6 +50,7 @@ from perform.rom.rom_time_stepper.numerical_stepper import NumericalStepper
 
 # space mappings
 from perform.rom.rom_space_mapping.linear_space_mapping import LinearSpaceMapping
+
 
 def get_rom_method(rom_method, sol_domain, rom_domain):
 

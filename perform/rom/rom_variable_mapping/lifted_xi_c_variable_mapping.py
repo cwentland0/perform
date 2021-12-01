@@ -1,9 +1,9 @@
-
 from perform.rom.rom_variable_mapping.rom_variable_mapping import RomVariableMapping
+
 
 class LiftedXiCVariableMapping(RomVariableMapping):
     """Mapping to lifted primitive state with specific volume and molar concentrations.
-    
+
     RomDomains with this mapping are assumed to map to a lifted state
     given by [pressure, velocity, temperature, specific volume, species molar concentrations].
     """
