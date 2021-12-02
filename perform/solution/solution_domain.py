@@ -795,7 +795,7 @@ class SolutionDomain:
                     probe.append(mass_fracs_full[spec_idx])
                 elif var_str[:15] == "density-species":
                     spec_idx = int(var_str[16:])
-                    if spec_idx == self.gas_model.num_species_full:
+                    if spec_idx == (self.gas_model.num_species_full - 1):
                         probe.append(mass_fracs_full[-1] * sol_cons_probe[0])
                     else:
                         probe.append(sol_cons_probe[3 + spec_idx])
