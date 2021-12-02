@@ -216,37 +216,7 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
 
     def test_probe_output(self):
 
-        sol_inlet = self.sol_domain.sol_inlet
-        sol_outlet = self.sol_domain.sol_outlet
-        sol_int = self.sol_domain.sol_int
-        probe_1_arr = np.array([
-            sol_inlet.sol_prim[0, 0],
-            sol_inlet.sol_prim[2, 0],
-            sol_inlet.sol_prim[3, 0],
-            sol_inlet.sol_cons[0, 0],
-        ])
-        probe_2_arr = np.array([
-            sol_int.sol_prim[0, 0],
-            sol_int.sol_prim[2, 0],
-            sol_int.sol_prim[3, 0],
-            sol_int.sol_cons[0, 0],
-        ])
-        probe_3_arr = np.array([
-            sol_outlet.sol_prim[0, 0],
-            sol_outlet.sol_prim[2, 0],
-            sol_outlet.sol_prim[3, 0],
-            sol_outlet.sol_cons[0, 0],
-        ])
-
-        probe_base = np.zeros((5, self.solver.num_steps), dtype=REAL_TYPE)
-        probe_base[0, :] = np.arange(1, self.solver.num_steps + 1) * self.solver.dt
-        probe_1_comp = probe_base.copy()
-        probe_2_comp = probe_base.copy()
-        probe_3_comp = probe_base.copy()
-        probe_1_comp[1:, :] = np.repeat(probe_1_arr[:, None], self.solver.num_steps, axis=-1)
-        probe_2_comp[1:, :] = np.repeat(probe_2_arr[:, None], self.solver.num_steps, axis=-1)
-        probe_3_comp[1:, :] = np.repeat(probe_3_arr[:, None], self.solver.num_steps, axis=-1)
-
+        probe_1_comp, probe_2_comp, probe_3_comp = gen_probe_comparisons(self.sol_domain, self.solver)
 
         for self.solver.iter in range(1, self.solver.num_steps + 1):
 
@@ -307,3 +277,167 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
         self.assertTrue(np.array_equal(probe_1, probe_1_comp))
         self.assertTrue(np.array_equal(probe_2, probe_2_comp))
         self.assertTrue(np.array_equal(probe_3, probe_3_comp))
+
+    def test_write_outputs(self):
+
+        sol_cons = self.sol_domain.sol_int.sol_cons
+        probe_1_comp, probe_2_comp, probe_3_comp = gen_probe_comparisons(self.sol_domain, self.solver)
+
+        self.solver.save_restarts = True
+        sol_int = self.sol_domain.sol_int
+
+        # testing write_iter_outputs()
+        for self.solver.iter in range(1, self.solver.num_steps + 1):
+            self.solver.time_iter += 1
+            self.solver.sol_time += self.solver.dt
+
+            self.sol_domain.write_iter_outputs(self.solver)
+
+            # check restart files
+            if ((self.solver.iter % self.solver.restart_interval) == 0):
+                restart_data = np.load(os.path.join(self.solver.restart_output_dir, "restart_file_" + str(self.solver.restart_iter - 1) + ".npz"))
+                self.assertTrue(np.array_equal(
+                    restart_data["sol_prim"],
+                    np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),    
+                ))
+                self.assertTrue(np.array_equal(
+                    restart_data["sol_cons"],
+                    np.repeat(sol_cons[:, :, None], 2, axis=-1),    
+                ))
+                self.assertEqual(float(restart_data["sol_time"]), self.solver.dt * self.solver.iter)
+
+            # check probes
+            self.assertTrue(np.array_equal(
+                self.sol_domain.probe_vals[0, :, :self.solver.iter],
+                probe_1_comp[1:, :self.solver.iter]
+            ))
+            self.assertTrue(np.array_equal(
+                self.sol_domain.probe_vals[1, :, :self.solver.iter],
+                probe_2_comp[1:, :self.solver.iter]
+            ))
+            self.assertTrue(np.array_equal(
+                self.sol_domain.probe_vals[2, :, :self.solver.iter],
+                probe_3_comp[1:, :self.solver.iter]
+            ))
+
+            # check snapshots
+            if (self.solver.iter % self.solver.out_interval) == 0:
+                num_snaps = int(self.solver.iter / self.solver.out_interval) + 1
+                self.assertTrue(np.array_equal(sol_int.prim_snap[:, :, :num_snaps], np.repeat(sol_int.sol_prim[:, :, None], num_snaps, axis=2)))
+                self.assertTrue(np.array_equal(sol_int.cons_snap[:, :, :num_snaps], np.repeat(sol_int.sol_cons[:, :, None], num_snaps, axis=2)))
+                self.assertTrue(
+                    np.array_equal(sol_int.reaction_source_snap[:, :, :(num_snaps - 1)], np.repeat(sol_int.reaction_source[:, :, None], num_snaps - 1, axis=2))
+                )
+                self.assertTrue(
+                    np.array_equal(sol_int.heat_release_snap[:, :(num_snaps - 1)], np.repeat(sol_int.heat_release[:, None], num_snaps - 1, axis=1))
+                )
+                self.assertTrue(np.array_equal(sol_int.rhs_snap[:, :, :(num_snaps - 1)], np.repeat(sol_int.rhs[:, :, None], num_snaps - 1, axis=2)))
+
+            # check intermediate results
+            if ((self.solver.iter % self.solver.out_itmdt_interval) == 0) and (self.solver.iter != self.solver.num_steps):
+                
+                probe_1_itmdt = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_1_" + self.solver.sim_type + "_ITMDT.npy"))
+                probe_2_itmdt = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_2_" + self.solver.sim_type + "_ITMDT.npy"))
+                probe_3_itmdt = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_3_" + self.solver.sim_type + "_ITMDT.npy"))
+                self.assertTrue(np.array_equal(probe_1_itmdt, probe_1_comp[:, :self.solver.iter]))
+                self.assertTrue(np.array_equal(probe_2_itmdt, probe_2_comp[:, :self.solver.iter]))
+                self.assertTrue(np.array_equal(probe_3_itmdt, probe_3_comp[:, :self.solver.iter]))
+
+                num_snaps = int(self.solver.iter / self.solver.out_interval) + 1
+                sol_prim_itmdt = np.load(
+                    os.path.join(self.solver.unsteady_output_dir, "sol_prim_" + self.solver.sim_type + "_ITMDT.npy")
+                )
+                sol_cons_itmdt = np.load(
+                    os.path.join(self.solver.unsteady_output_dir, "sol_cons_" + self.solver.sim_type + "_ITMDT.npy")
+                )
+                source_itmdt = np.load(
+                    os.path.join(self.solver.unsteady_output_dir, "source_" + self.solver.sim_type + "_ITMDT.npy")
+                )
+                heat_release_itmdt = np.load(
+                    os.path.join(self.solver.unsteady_output_dir, "heat_release_" + self.solver.sim_type + "_ITMDT.npy")
+                )
+                rhs_itmdt = np.load(
+                    os.path.join(self.solver.unsteady_output_dir, "rhs_" + self.solver.sim_type + "_ITMDT.npy")
+                )
+
+                self.assertTrue(np.array_equal(sol_prim_itmdt, np.repeat(sol_int.sol_prim[:, :, None], num_snaps, axis=2)))
+                self.assertTrue(np.array_equal(sol_cons_itmdt, np.repeat(sol_int.sol_cons[:, :, None], num_snaps, axis=2)))
+                self.assertTrue(
+                    np.array_equal(source_itmdt, np.repeat(sol_int.reaction_source[:, :, None], num_snaps - 1, axis=2))
+                )
+                self.assertTrue(
+                    np.array_equal(heat_release_itmdt, np.repeat(sol_int.heat_release[:, None], num_snaps - 1, axis=1))
+                )
+                self.assertTrue(np.array_equal(rhs_itmdt, np.repeat(sol_int.rhs[:, :, None], num_snaps - 1, axis=2)))
+
+        # testing write_final_outputs()
+        self.sol_domain.write_final_outputs(self.solver)
+
+        probe_1 = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_1_" + self.solver.sim_type + ".npy"))
+        probe_2 = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_2_" + self.solver.sim_type + ".npy"))
+        probe_3 = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_3_" + self.solver.sim_type + ".npy"))
+        self.assertTrue(np.array_equal(probe_1, probe_1_comp))
+        self.assertTrue(np.array_equal(probe_2, probe_2_comp))
+        self.assertTrue(np.array_equal(probe_3, probe_3_comp))
+
+        num_snaps = int(self.solver.num_steps / self.solver.out_interval) + 1
+        sol_prim = np.load(
+            os.path.join(self.solver.unsteady_output_dir, "sol_prim_" + self.solver.sim_type + ".npy")
+        )
+        sol_cons = np.load(
+            os.path.join(self.solver.unsteady_output_dir, "sol_cons_" + self.solver.sim_type + ".npy")
+        )
+        source = np.load(
+            os.path.join(self.solver.unsteady_output_dir, "source_" + self.solver.sim_type + ".npy")
+        )
+        heat_release = np.load(
+            os.path.join(self.solver.unsteady_output_dir, "heat_release_" + self.solver.sim_type + ".npy")
+        )
+        rhs = np.load(
+            os.path.join(self.solver.unsteady_output_dir, "rhs_" + self.solver.sim_type + ".npy")
+        )
+        self.assertTrue(np.array_equal(sol_prim, np.repeat(sol_int.sol_prim[:, :, None], num_snaps, axis=2)))
+        self.assertTrue(np.array_equal(sol_cons, np.repeat(sol_int.sol_cons[:, :, None], num_snaps, axis=2)))
+        self.assertTrue(
+            np.array_equal(source, np.repeat(sol_int.reaction_source[:, :, None], num_snaps - 1, axis=2))
+        )
+        self.assertTrue(
+            np.array_equal(heat_release, np.repeat(sol_int.heat_release[:, None], num_snaps - 1, axis=1))
+        )
+        self.assertTrue(np.array_equal(rhs, np.repeat(sol_int.rhs[:, :, None], num_snaps - 1, axis=2)))
+
+
+def gen_probe_comparisons(sol_domain, solver):
+    
+    sol_inlet = sol_domain.sol_inlet
+    sol_outlet = sol_domain.sol_outlet
+    sol_int = sol_domain.sol_int
+    probe_1_arr = np.array([
+        sol_inlet.sol_prim[0, 0],
+        sol_inlet.sol_prim[2, 0],
+        sol_inlet.sol_prim[3, 0],
+        sol_inlet.sol_cons[0, 0],
+    ])
+    probe_2_arr = np.array([
+        sol_int.sol_prim[0, 0],
+        sol_int.sol_prim[2, 0],
+        sol_int.sol_prim[3, 0],
+        sol_int.sol_cons[0, 0],
+    ])
+    probe_3_arr = np.array([
+        sol_outlet.sol_prim[0, 0],
+        sol_outlet.sol_prim[2, 0],
+        sol_outlet.sol_prim[3, 0],
+        sol_outlet.sol_cons[0, 0],
+    ])
+
+    probe_base = np.zeros((5, solver.num_steps), dtype=REAL_TYPE)
+    probe_base[0, :] = np.arange(1, solver.num_steps + 1) * solver.dt
+    probe_1_comp = probe_base.copy()
+    probe_2_comp = probe_base.copy()
+    probe_3_comp = probe_base.copy()
+    probe_1_comp[1:, :] = np.repeat(probe_1_arr[:, None], solver.num_steps, axis=-1)
+    probe_2_comp[1:, :] = np.repeat(probe_2_arr[:, None], solver.num_steps, axis=-1)
+    probe_3_comp[1:, :] = np.repeat(probe_3_arr[:, None], solver.num_steps, axis=-1)
+
+    return probe_1_comp, probe_2_comp, probe_3_comp

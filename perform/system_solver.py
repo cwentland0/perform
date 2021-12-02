@@ -127,6 +127,7 @@ class SystemSolver:
         self.num_snaps = int(self.num_steps / self.out_interval)
 
         # handle intermediate output finagling
+        # TODO: out_itmdt_match should be handled at the iteration level, to handle common multiples
         if self.out_itmdt_interval is not None:
             assert self.out_itmdt_interval > 0, "out_itmdt_interval must be a positive integer"
             self.out_itmdt_match = False

@@ -260,7 +260,6 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
     def test_write_restart_file(self):
 
         sol_cons = self.sol.sol_cons
-        restart_dir = os.path.join(TEST_DIR, RESTART_OUTPUT_DIR_NAME)
 
         self.solver.sol_time = 1e-4
         self.solver.iter = 2
@@ -270,7 +269,7 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         self.assertEqual(self.solver.restart_iter, 5)
 
         # check restart files
-        restart_data = np.load(os.path.join(restart_dir, "restart_file_4.npz"))
+        restart_data = np.load(os.path.join(self.solver.restart_output_dir, "restart_file_4.npz"))
 
         self.assertTrue(np.array_equal(
             restart_data["sol_prim"],
@@ -283,7 +282,7 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         self.assertEqual(float(restart_data["sol_time"]), 1e-4)
 
         # check iteration files
-        restart_iter = int(np.loadtxt(os.path.join(restart_dir, "restart_iter.dat")))
+        restart_iter = int(np.loadtxt(os.path.join(self.solver.restart_output_dir, "restart_iter.dat")))
         self.assertEqual(restart_iter, 4)
 
     def test_read_restart_file(self):
