@@ -38,6 +38,13 @@ class PrimVariableMapping(RomVariableMapping):
 
         sol_domain.sol_int.update_state(from_prim=True)
 
+        # map back to account for any mass fraction thresholding
+        for rom_model in rom_domain.model_list:
+            var_idxs = rom_model.var_idxs
+            rom_model.sol[:, :] = sol_domain.sol_int.sol_prim[var_idxs, :].copy()
+
+        pass
+
     def update_state_hist(self, sol_domain, rom_domain):
         """Collects model internal state history and updates relevant state history"""
 
@@ -51,5 +58,15 @@ class PrimVariableMapping(RomVariableMapping):
                 var_idxs = rom_model.var_idxs
                 sol_int.sol_hist_prim[sol_idx][var_idxs, :] = rom_model.sol_hist[sol_idx].copy()
 
+            # threshold mass fractions
+            mass_fracs = sol_int.gas_model.get_mass_frac_array(sol_prim_in=sol_int.sol_hist_prim[sol_idx])
+            mass_fracs = sol_int.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
+            sol_int.sol_hist_prim[sol_idx][3:, :] = mass_fracs[:-1, :]
+
             # update conservative state history
             sol_int.sol_hist_cons[sol_idx] = sol_int.calc_cons_from_prim(sol_int.sol_hist_prim[sol_idx])
+
+            # map back to account for any mass fraction thresholding
+            for rom_model in rom_domain.model_list:
+                var_idxs = rom_model.var_idxs
+                rom_model.sol_hist[sol_idx][:, :] = sol_int.sol_hist_prim[sol_idx][var_idxs, :].copy()

@@ -175,7 +175,8 @@ class NumericalStepper(RomTimeStepper):
             norm_out_l2,
             norm_out_l1,
         )
-        print(out_string)
+        if solver.stdout:
+            print(out_string)
 
         sol_domain.sol_int.res_norm_l2 = norm_l2
         sol_domain.sol_int.resNormL1 = norm_l1
