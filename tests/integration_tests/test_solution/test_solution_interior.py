@@ -2,7 +2,6 @@ import unittest
 import os
 
 import numpy as np
-from perform.constants import RESTART_OUTPUT_DIR_NAME
 
 from constants import (
     del_test_dir,
@@ -13,8 +12,9 @@ from constants import (
     SOL_PRIM_IN_REACT,
     TEST_DIR,
 )
+from perform.constants import RESTART_OUTPUT_DIR_NAME, REAL_TYPE
 from perform.system_solver import SystemSolver
-from perform.input_funcs import read_input_file, read_restart_file
+from perform.input_funcs import read_restart_file
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 from perform.time_integrator.implicit_integrator import BDF
 from perform.solution.solution_interior import SolutionInterior
@@ -300,3 +300,24 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
             sol_prim,
             np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),    
         ))
+
+    def test_calc_d_sol_norms(self):
+
+        self.solver.iter = 3
+        self.sol.d_sol_norm_hist = np.zeros((self.solver.num_steps, 2), dtype=REAL_TYPE)
+        self.sol.sol_hist_prim[0] = self.sol.sol_prim * 2.0
+
+        self.sol.calc_d_sol_norms(self.solver, "implicit")
+
+        self.assertAlmostEqual(self.sol.d_sol_norm_hist[2, 0], 3.46573790883)
+        self.assertAlmostEqual(self.sol.d_sol_norm_hist[2, 1], 3.45416666667)
+
+    def test_calc_res_norms(self):
+
+        self.solver.iter = 3
+        self.sol.res = self.sol.sol_prim.copy()
+
+        self.sol.calc_res_norms(self.solver, 0)
+
+        self.assertAlmostEqual(self.sol.res_norm_hist[2, 0], 3.46573790883)
+        self.assertAlmostEqual(self.sol.res_norm_hist[2, 1], 3.45416666667)
