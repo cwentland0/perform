@@ -4,6 +4,7 @@ import os
 import numpy as np
 
 from constants import SOL_PRIM_IN_REACT, TEST_DIR, del_test_dir, gen_test_dir, get_output_mode, solution_domain_setup
+from perform.constants import REAL_TYPE
 from perform.input_funcs import get_initial_conditions, get_absolute_path
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
@@ -212,3 +213,97 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
             sol_prim_init[:, :, 0],
             np.array([[1e4, 2e4], [0.5, 10.0], [5000.0, 400.0], [0.6, 0.2]])
         ))
+
+    def test_probe_output(self):
+
+        sol_inlet = self.sol_domain.sol_inlet
+        sol_outlet = self.sol_domain.sol_outlet
+        sol_int = self.sol_domain.sol_int
+        probe_1_arr = np.array([
+            sol_inlet.sol_prim[0, 0],
+            sol_inlet.sol_prim[2, 0],
+            sol_inlet.sol_prim[3, 0],
+            sol_inlet.sol_cons[0, 0],
+        ])
+        probe_2_arr = np.array([
+            sol_int.sol_prim[0, 0],
+            sol_int.sol_prim[2, 0],
+            sol_int.sol_prim[3, 0],
+            sol_int.sol_cons[0, 0],
+        ])
+        probe_3_arr = np.array([
+            sol_outlet.sol_prim[0, 0],
+            sol_outlet.sol_prim[2, 0],
+            sol_outlet.sol_prim[3, 0],
+            sol_outlet.sol_cons[0, 0],
+        ])
+
+        probe_base = np.zeros((5, self.solver.num_steps), dtype=REAL_TYPE)
+        probe_base[0, :] = np.arange(1, self.solver.num_steps + 1) * self.solver.dt
+        probe_1_comp = probe_base.copy()
+        probe_2_comp = probe_base.copy()
+        probe_3_comp = probe_base.copy()
+        probe_1_comp[1:, :] = np.repeat(probe_1_arr[:, None], self.solver.num_steps, axis=-1)
+        probe_2_comp[1:, :] = np.repeat(probe_2_arr[:, None], self.solver.num_steps, axis=-1)
+        probe_3_comp[1:, :] = np.repeat(probe_3_arr[:, None], self.solver.num_steps, axis=-1)
+
+
+        for self.solver.iter in range(1, self.solver.num_steps + 1):
+
+            # update the probe matrix
+            self.sol_domain.update_probes(self.solver)
+
+            # write and check intermediate results
+            if ((self.solver.iter % self.solver.out_itmdt_interval) == 0) and (
+                self.solver.iter != self.solver.num_steps
+            ):
+                self.sol_domain.write_probes(self.solver, intermediate=True, failed=False)
+                
+                probe_1_itmdt = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_1_" + self.solver.sim_type + "_ITMDT.npy"))
+                probe_2_itmdt = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_2_" + self.solver.sim_type + "_ITMDT.npy"))
+                probe_3_itmdt = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_3_" + self.solver.sim_type + "_ITMDT.npy"))
+                
+                self.assertTrue(np.array_equal(probe_1_itmdt, probe_1_comp[:, :self.solver.iter]))
+                self.assertTrue(np.array_equal(probe_2_itmdt, probe_2_comp[:, :self.solver.iter]))
+                self.assertTrue(np.array_equal(probe_3_itmdt, probe_3_comp[:, :self.solver.iter]))
+                
+            # write and check "failed" snapshots
+            if self.solver.iter == 7:
+                self.sol_domain.write_probes(self.solver, intermediate=False, failed=True)
+
+                probe_1_failed = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_1_" + self.solver.sim_type + "_FAILED.npy"))
+                probe_2_failed = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_2_" + self.solver.sim_type + "_FAILED.npy"))
+                probe_3_failed = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_3_" + self.solver.sim_type + "_FAILED.npy"))
+                
+                self.assertTrue(np.array_equal(probe_1_failed, probe_1_comp[:, :self.solver.iter]))
+                self.assertTrue(np.array_equal(probe_2_failed, probe_2_comp[:, :self.solver.iter]))
+                self.assertTrue(np.array_equal(probe_3_failed, probe_3_comp[:, :self.solver.iter]))
+                                
+        # delete intermediate results and check that they deleted properly
+        self.sol_domain.delete_itmdt_probes(self.solver)
+        self.assertFalse(
+            os.path.isfile(
+                os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_1_" + self.solver.sim_type + "_ITMDT.npy")
+            )
+        )
+        self.assertFalse(
+            os.path.isfile(
+                os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_2_" + self.solver.sim_type + "_ITMDT.npy")
+            )
+        )
+        self.assertFalse(
+            os.path.isfile(
+                os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_3_" + self.solver.sim_type + "_ITMDT.npy")
+            )
+        )
+
+        # write final probes
+        self.sol_domain.write_probes(self.solver, intermediate=False, failed=False)
+
+        probe_1 = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_1_" + self.solver.sim_type + ".npy"))
+        probe_2 = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_2_" + self.solver.sim_type + ".npy"))
+        probe_3 = np.load(os.path.join(self.solver.probe_output_dir, "probe_pressure_temperature_species-0_density_3_" + self.solver.sim_type + ".npy"))
+        
+        self.assertTrue(np.array_equal(probe_1, probe_1_comp))
+        self.assertTrue(np.array_equal(probe_2, probe_2_comp))
+        self.assertTrue(np.array_equal(probe_3, probe_3_comp))

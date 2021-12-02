@@ -33,7 +33,7 @@ class ProbePlotInitTestCase(unittest.TestCase):
 
         del_test_dir()
 
-    def test_field_plot_init(self):
+    def test_probe_plot_init(self):
 
         plot = ProbePlot(
             self.solver.image_output_dir,

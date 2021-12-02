@@ -792,16 +792,16 @@ class SolutionDomain:
                     probe.append(sol_prim_probe[3])
                 elif var_str[:7] == "species":
                     spec_idx = int(var_str[8:])
-                    probe.append(mass_fracs_full[spec_idx - 1])
+                    probe.append(mass_fracs_full[spec_idx])
                 elif var_str[:15] == "density-species":
                     spec_idx = int(var_str[16:])
                     if spec_idx == self.gas_model.num_species_full:
                         probe.append(mass_fracs_full[-1] * sol_cons_probe[0])
                     else:
-                        probe.append(sol_cons_probe[3 + spec_idx - 1])
+                        probe.append(sol_cons_probe[3 + spec_idx])
                 elif var_str[:6] == "source":
                     spec_idx = int(var_str[7:])
-                    probe.append(sol_source_probe[spec_idx - 1])
+                    probe.append(sol_source_probe[spec_idx])
                 elif var_str == "heat-release":
                     probe.append(sol_hr_probe)
                 else:
