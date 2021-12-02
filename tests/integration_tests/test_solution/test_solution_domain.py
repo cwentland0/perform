@@ -3,7 +3,8 @@ import os
 
 import numpy as np
 
-from constants import TEST_DIR, del_test_dir, gen_test_dir, get_output_mode, solution_domain_setup, SOL_PRIM_IN_REACT
+from constants import SOL_PRIM_IN_REACT, TEST_DIR, del_test_dir, gen_test_dir, get_output_mode, solution_domain_setup
+from perform.input_funcs import get_initial_conditions, get_absolute_path
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
 
@@ -183,3 +184,31 @@ class SolutionDomainMethodsTestCase(unittest.TestCase):
             #         self.sol_domain.sol_int.res, np.load(os.path.join(self.output_dir, "sol_domain_iter_res.npy"))
             #     )
             # )
+
+    def test_gen_piecewise_uniform_ic(self):
+        # Done here because it depends on SolutionDomain
+
+        # overwrite SystemSolver
+        self.solver.init_file = None
+
+        # write uniform IC file
+        ic_file = "uniform_ic.inp"
+        self.solver.ic_params_file = get_absolute_path(ic_file, self.solver.working_dir)
+        with open(os.path.join(TEST_DIR, ic_file), "w") as f:
+            f.write("x_split = 1e-5 \n")
+            f.write("press_left = 1e4 \n")
+            f.write("vel_left = 0.5 \n")
+            f.write("temp_left = 5000.0 \n")
+            f.write("mass_fracs_left = [0.6, 0.4] \n")
+            f.write("press_right = 2e4 \n")
+            f.write("vel_right = 10.0 \n")
+            f.write("temp_right = 400 \n")
+            f.write("mass_fracs_right = [0.2, 0.8] \n")
+
+        # go through get_initial_conditions to catch some more lines
+        sol_prim_init = get_initial_conditions(self.sol_domain, self.solver)
+
+        self.assertTrue(np.array_equal(
+            sol_prim_init[:, :, 0],
+            np.array([[1e4, 2e4], [0.5, 10.0], [5000.0, 400.0], [0.6, 0.2]])
+        ))
