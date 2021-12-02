@@ -2,6 +2,7 @@ import unittest
 import os
 
 import numpy as np
+from perform.constants import RESTART_OUTPUT_DIR_NAME
 
 from constants import (
     del_test_dir,
@@ -13,6 +14,7 @@ from constants import (
     TEST_DIR,
 )
 from perform.system_solver import SystemSolver
+from perform.input_funcs import read_input_file, read_restart_file
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
 from perform.time_integrator.implicit_integrator import BDF
 from perform.solution.solution_interior import SolutionInterior
@@ -254,3 +256,47 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         self.assertTrue(np.array_equal(source_final, np.repeat(self.sol.reaction_source[:, :, None], 5, axis=2)))
         self.assertTrue(np.array_equal(heat_release_final, np.repeat(self.sol.heat_release[:, None], 5, axis=1)))
         self.assertTrue(np.array_equal(rhs_final, np.repeat(self.sol.rhs[:, :, None], 5, axis=2)))
+
+    def test_write_restart_file(self):
+
+        sol_cons = self.sol.sol_cons
+        restart_dir = os.path.join(TEST_DIR, RESTART_OUTPUT_DIR_NAME)
+
+        self.solver.sol_time = 1e-4
+        self.solver.iter = 2
+        self.solver.restart_iter = 4
+        self.sol.write_restart_file(self.solver)
+
+        self.assertEqual(self.solver.restart_iter, 5)
+
+        # check restart files
+        restart_data = np.load(os.path.join(restart_dir, "restart_file_4.npz"))
+
+        self.assertTrue(np.array_equal(
+            restart_data["sol_prim"],
+            np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),    
+        ))
+        self.assertTrue(np.array_equal(
+            restart_data["sol_cons"],
+            np.repeat(sol_cons[:, :, None], 2, axis=-1),    
+        ))
+        self.assertEqual(float(restart_data["sol_time"]), 1e-4)
+
+        # check iteration files
+        restart_iter = int(np.loadtxt(os.path.join(restart_dir, "restart_iter.dat")))
+        self.assertEqual(restart_iter, 4)
+
+    def test_read_restart_file(self):
+
+        self.solver.sol_time = 1e-4
+        self.solver.iter = 2
+        self.solver.restart_iter = 4
+        self.sol.write_restart_file(self.solver)
+
+        sol_time, sol_prim, restart_iter = read_restart_file(self.solver)
+        self.assertEqual(sol_time, 1e-4)
+        self.assertEqual(restart_iter, 5)  # 1 is added to avoid overwriting
+        self.assertTrue(np.array_equal(
+            sol_prim,
+            np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),    
+        ))

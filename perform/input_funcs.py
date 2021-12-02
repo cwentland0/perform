@@ -255,7 +255,7 @@ def get_initial_conditions(sol_domain, solver):
 
     # Initialize from restart file
     if solver.init_from_restart:
-        (solver.sol_time, sol_prim_init, solver.restart_iter) = read_restart_file(solver)
+        solver.sol_time, sol_prim_init, solver.restart_iter = read_restart_file(solver)
 
     # Otherwise init from scratch IC or custom IC file
     else:
