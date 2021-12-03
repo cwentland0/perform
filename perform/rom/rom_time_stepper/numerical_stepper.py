@@ -113,24 +113,25 @@ class NumericalStepper(RomTimeStepper):
 
                 latent_dim_idx += model.latent_dim
 
-            # Update SolutionDomain state
-            rom_domain.var_mapping.update_full_state(sol_domain, rom_domain)
-
-            # If intrusive method, update primitive and conservative history
-            if rom_domain.rom_method.is_intrusive:
-                sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
-                sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
-
         else:
 
             for model in rom_domain.model_list:
 
-                model.calc_rhs_low_dim(self, sol_domain)
+                model.calc_rhs_low_dim(rom_domain, sol_domain)
                 d_code = self.time_integrator.solve_sol_change(model.rhs_low_dim)
                 model.code = model.code_hist[0] + d_code
-                model.update_sol(sol_domain)
 
-            sol_int.update_state(from_prim=False)
+                # Full-dimensional quantities
+                model.sol = model.space_mapping.decode_sol(model.code)
+                model.sol_hist[0] = model.sol.copy()
+
+        # Update SolutionDomain state
+        rom_domain.var_mapping.update_full_state(sol_domain, rom_domain)
+
+        # If intrusive method, update primitive and conservative history
+        if rom_domain.rom_method.is_intrusive:
+            sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
+            sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
 
     def calc_code_res_norms(self, sol_domain, solver, rom_domain):
         """Calculate and print low-dimensional linear solve residual norms.

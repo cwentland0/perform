@@ -35,6 +35,24 @@ class GalerkinProjection(ProjectionMethod):
 
         super().__init__(sol_domain, rom_domain)
 
+    def calc_projector(self, sol_domain, rom_model):
+        """Compute RHS projection operator.
+
+        Called by RomModel.calc_rhs_low_dim() to compute projection operator which is applied to RHS function
+        for explicit time integration.
+
+        Args:
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+        """
+
+        if self.hyper_reduc:
+            raise ValueError("Hyper-reduction not implemented yet")
+            # projector = self.hyper_reduc_operator
+        else:
+            projector = rom_model.space_mapping.calc_decoder_jacob_pinv()
+
+        return projector
+
     def calc_d_code(self, res_jacob, res, sol_domain, rom_domain):
         """Compute change in low-dimensional state for implicit scheme Newton iteration.
 

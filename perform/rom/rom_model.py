@@ -2,6 +2,7 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.rom.rom_space_mapping.linear_space_mapping import LinearSpaceMapping
+from perform.rom.rom_variable_mapping.cons_variable_mapping import ConsVariableMapping
 
 
 class RomModel:
@@ -79,3 +80,37 @@ class RomModel:
             sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
         else:
             sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
+
+    def calc_rhs_low_dim(self, rom_domain, sol_domain):
+        """Project RHS onto low-dimensional space for explicit time integrators.
+
+        This is a helper function called from RomDomain.advance_subiter() for explicit time integration.
+        Child classes which enable explicit time integration must implement a calc_projector() member function
+        to compute the projector attribute.
+
+        Args:
+            rom_domain: RomDomain within which this RomModel is contained.
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+        """
+
+        # scale RHS
+        norm_sub_prof = np.zeros(self.space_mapping.norm_sub_prof.shape, dtype=REAL_TYPE)
+
+        # if variable mapping is not conservative, need to supply conservative variable scaling
+        if isinstance(rom_domain.var_mapping, ConsVariableMapping):
+            norm_fac_prof = self.space_mapping.norm_fac_prof
+        else:
+            norm_fac_prof = self.space_mapping.norm_fac_prof_cons
+
+        rhs_scaled = self.space_mapping.scale_profile(
+            sol_domain.sol_int.rhs[self.var_idxs[:, None], sol_domain.direct_samp_idxs[None, :]],
+            normalize=True,
+            norm_fac_prof=norm_fac_prof[:, sol_domain.direct_samp_idxs],
+            norm_sub_prof=norm_sub_prof[:, sol_domain.direct_samp_idxs],
+            center=False,
+            inverse=False,
+        )
+
+        # calc projection operator and project
+        projector = rom_domain.rom_method.calc_projector(sol_domain, self)
+        self.rhs_low_dim = rom_domain.rom_method.project_to_low_dim(projector, rhs_scaled, transpose=False)

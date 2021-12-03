@@ -87,3 +87,12 @@ class LinearSpaceMapping(RomSpaceMapping):
         sol = self.trial_basis @ code
         sol = np.reshape(sol, self.sol_shape, order="C")
         return sol
+
+    def calc_decoder_jacob_pinv(self):
+        """Returns pseudo-inverse of decoder Jacobian
+
+        For linear, orthonormal trial basis, this is just the transpose of the trial basis
+        # TODO: mapping may not always be orthonormal basis
+        """
+
+        return self.trial_basis.T

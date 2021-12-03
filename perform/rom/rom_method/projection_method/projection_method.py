@@ -7,10 +7,7 @@ from perform.rom.rom_method.rom_method import RomMethod
 
 
 class ProjectionMethod(RomMethod):
-    """Base class for projection-based intrusive ROM methods.
-
-    Projection-based ROMs may be constructed from linear or autoencoder space mappings.
-    """
+    """Base class for projection-based intrusive ROM methods."""
 
     def __init__(self, sol_domain, rom_domain):
 
@@ -81,7 +78,9 @@ class ProjectionMethod(RomMethod):
         Operates over all models in rom_domain.
         """
 
-        if rom_domain.rom_dict["space_mapping"] == "linear":
+        if (rom_domain.rom_dict["space_mapping"] == "linear") and (
+            rom_domain.time_stepper.time_integrator.time_type == "implicit"
+        ):
             if rom_domain.num_models == 1:
                 self.trial_basis_concat = rom_domain.model_list[0].space_mapping.trial_basis.copy()
                 self.trial_basis_scaled_concat = rom_domain.model_list[0].space_mapping.trial_basis_scaled.copy()
@@ -104,3 +103,32 @@ class ProjectionMethod(RomMethod):
                     latent_dim_idx += model.latent_dim
                 self.trial_basis_concat = np.array(trial_basis_concat)
                 self.trial_basis_scaled_concat = csr_matrix(trial_basis_scaled_concat)
+
+    def project_to_low_dim(self, projector, full_dim_arr, transpose=False):
+        """Project given full-dimensional vector onto low-dimensional space via given projector.
+
+        Assumes that full_dim_arr is either 1D array or is in [num_vars, num_cells] order.
+        Further assumes that projector is already in [latent_dim, num_vars x num_cells] order.
+
+        Args:
+            projector: 2D NumPy array containing linear projector.
+            full_dim_arr: NumPy array of full-dimensional vector to be projected.
+            transpose: If True, transposes projector before projecting full_dim_arr.
+
+        Returns:
+            NumPy array of low-dimensional projection of full_dim_arr.
+        """
+
+        if full_dim_arr.ndim == 2:
+            full_dim_vec = full_dim_arr.flatten(order="C")
+        elif full_dim_arr.ndim == 1:
+            full_dim_vec = full_dim_arr.copy()
+        else:
+            raise ValueError("full_dim_arr must be one- or two-dimensional")
+
+        if transpose:
+            low_dim_vec = projector.T @ full_dim_vec
+        else:
+            low_dim_vec = projector @ full_dim_vec
+
+        return low_dim_vec
