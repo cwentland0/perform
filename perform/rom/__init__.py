@@ -24,6 +24,7 @@ try:
 
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # don't print all the TensorFlow warnings
     import tensorflow as tf
+
     MLVER = tf.__version__
     from perform.rom.ml_library.tfkeras_library import TFKerasLibrary
 
@@ -34,6 +35,7 @@ except ImportError:
 TORCH_IMPORT_SUCCESS = True
 try:
     import torch
+
     MLVER = torch.__version__
     from perform.rom.ml_library.pytorch_library import PyTorchLibrary
 
