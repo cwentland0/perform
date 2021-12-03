@@ -49,7 +49,7 @@ class GalerkinProjection(ProjectionMethod):
             raise ValueError("Hyper-reduction not implemented yet")
             # projector = self.hyper_reduc_operator
         else:
-            projector = rom_model.space_mapping.calc_decoder_jacob_pinv()
+            projector = rom_model.space_mapping.calc_decoder_jacob_pinv(rom_model.code)
 
         return projector
 

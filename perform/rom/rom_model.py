@@ -2,6 +2,7 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.rom.rom_space_mapping.linear_space_mapping import LinearSpaceMapping
+from perform.rom.rom_space_mapping.autoencoder_space_mapping import AutoencoderSpaceMapping
 from perform.rom.rom_variable_mapping.cons_variable_mapping import ConsVariableMapping
 
 
@@ -57,6 +58,8 @@ class RomModel:
         space_mapping = rom_domain.rom_dict["space_mapping"]
         if space_mapping == "linear":
             self.space_mapping = LinearSpaceMapping(sol_domain, rom_domain, self)
+        elif space_mapping == "autoencoder":
+            self.space_mapping = AutoencoderSpaceMapping(sol_domain, rom_domain, self)
         else:
             raise ValueError("Invalid space_mapping: " + str(space_mapping))
 
@@ -64,22 +67,6 @@ class RomModel:
         self.sol = np.zeros(self.sol_shape, dtype=REAL_TYPE)
         self.code = np.zeros(self.latent_dim, dtype=REAL_TYPE)
         self.d_code = np.zeros(self.latent_dim, dtype=REAL_TYPE)  # TODO: is this used?
-
-    def update_sol(self, sol_domain):
-        """Update solution after low-dimensional code has been updated.
-
-        Helper function that updates full-dimensional state within the given SolutionDomain.
-        This function is called within RomDomain.advance_subiter() for those ROM methods with a time integrator,
-        and within RomDomain.advance_iter() for non-intrusive methods without a time integrator.
-
-        Args:
-            sol_domain: SolutionDomain with which this RomModel's containing RomDomain is associated.
-        """
-
-        if self.target_cons:
-            sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
-        else:
-            sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
 
     def calc_rhs_low_dim(self, rom_domain, sol_domain):
         """Project RHS onto low-dimensional space for explicit time integrators.

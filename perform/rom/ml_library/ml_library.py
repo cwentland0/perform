@@ -1,7 +1,4 @@
-import numpy as np
-
 from perform.input_funcs import catch_input
-from perform.constants import FD_STEP_DEFAULT, REAL_TYPE
 
 
 class MLLibrary:
@@ -91,51 +88,3 @@ class MLLibrary:
             raise TypeError("Invalid shape input of type " + str(type(shape_var)))
 
         return shape_var
-
-    def calc_numerical_model_jacobian(self, model, inputs, output_shape, fd_step=FD_STEP_DEFAULT):
-        """Compute numerical Jacobian of model using finite-difference.
-
-        Calculates the numerical Jacobian of a model with respect to the given inputs.
-        A finite-difference approximation of the gradient with respect to each element of the inputs is calculated.
-        The fd_step attribute determines the finite difference step size.
-
-        This method is agnostic to the number of input/output dimensions and their shapes, but assumes that
-        output_shape is correct.
-
-        Args:
-            model: model object for which the numerical Jacobian is to be computed.
-            inputs: NumPy array containing inputs about which the model Jacobian should be computed.
-            output_shape: tuple shape of model output.
-            fd_step: float size of finite difference step.
-
-        Returns:
-            NumPy array containing the numerical Jacobian.
-        """
-
-        # prep Jacobian and indices into Jacobian
-        jacob = np.zeros(output_shape + inputs.shape, dtype=REAL_TYPE)
-        output_slice = (np.s_[:],) * len(output_shape)
-
-        # get initial prediction
-        pred_base = self.infer_model(model, inputs)
-
-        # get nd array indeces from linear indices
-        num_indices_input = np.product(inputs.shape)
-        pert_indices = list(
-            map(tuple, np.stack(np.unravel_index(np.arange(num_indices_input), inputs.shape, order="C"), axis=1))
-        )
-
-        for elem_idx in range(num_indices_input):
-
-            # perturb
-            inputs_pert = inputs.copy()
-            inputs_pert[pert_indices[elem_idx]] = inputs_pert[pert_indices[elem_idx]] + fd_step
-
-            # make prediction at perturbed state
-            pred = self.infer_model(model, inputs_pert)
-
-            # compute finite difference approximation
-            jacob_slice = output_slice + pert_indices[elem_idx]
-            jacob[jacob_slice] = (pred - pred_base) / fd_step
-
-        return jacob

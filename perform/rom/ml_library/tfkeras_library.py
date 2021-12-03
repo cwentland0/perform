@@ -6,7 +6,6 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 from perform.rom.ml_library.ml_library import MLLibrary
-from perform.constants import FD_STEP_DEFAULT
 
 
 class TFKerasLibrary(MLLibrary):
@@ -179,31 +178,24 @@ class TFKerasLibrary(MLLibrary):
 
         return jacob
 
-    def calc_model_jacobian(
-        self, model, input, output_shape, numerical=False, fd_step=FD_STEP_DEFAULT, persistent_input=None
-    ):
-        """Helper function for calculating an analytical or numerical ML model Jacobian.
+    def calc_model_jacobian(self, model, input, output_shape, persistent_input=None):
+        """Helper function for calculating an analytical ML model Jacobian.
 
         Args:
             model: tf.keras.Model instance.
             input: NumPy array of inputs to model about which the Jacobian should be computed.
             output_shape: tuple shape of model output, assumed to be correct.
-            numerical: Boolean flag indicating whether to calculate numerical Jacobian
-            fd_step: float, numerical Jacobian finite difference step size.
             presistent_input: persistent tf.Variable for analytical Jacobian calculation.
 
         Returns:
             NumPy array of model Jacobian.
         """
 
-        if numerical:
-            jacob = self.calc_numerical_model_jacobian(model, input, output_shape, fd_step)
-        else:
-            assert (
-                persistent_input is not None
-            ), "Must supply persistent tf.Variable to persistent_input for analytical Jacobian calculation."
-            persistent_input.assign(np.expand_dims(input, axis=0))
-            jacob_tf = self.calc_analytical_model_jacobian(model, persistent_input)
-            jacob = tf.squeeze(jacob_tf, axis=[0, len(output_shape) + 1]).numpy()
+        assert (
+            persistent_input is not None
+        ), "Must supply persistent tf.Variable to persistent_input for analytical Jacobian calculation."
+        persistent_input.assign(np.expand_dims(input, axis=0))
+        jacob_tf = self.calc_analytical_model_jacobian(model, persistent_input)
+        jacob = tf.squeeze(jacob_tf, axis=[0, len(output_shape) + 1]).numpy()
 
         return jacob

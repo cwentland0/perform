@@ -14,9 +14,6 @@ class ProjectionMethod(RomMethod):
         rom_dict = rom_domain.rom_dict
         assert rom_dict["space_mapping"] in ["linear", "autoencoder"]
 
-        if rom_dict["space_mapping"] == "autoencoder":
-            raise ValueError("code has not been fixed to accommodate autoencoder models")
-
         self.is_intrusive = True
 
         # all projection-based ROMs use numerical time integration

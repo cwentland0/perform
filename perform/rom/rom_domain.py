@@ -6,7 +6,7 @@ import numpy as np
 from perform.constants import REAL_TYPE
 from perform.input_funcs import catch_list, catch_input
 from perform.solution.solution_phys import SolutionPhys
-from perform.rom import get_rom_method, get_variable_mapping, get_time_stepper
+from perform.rom import get_ml_library, get_rom_method, get_variable_mapping, get_time_stepper
 from perform.rom.rom_model import RomModel
 
 # TODO: initializing latent code from files (removed from previous version)
@@ -121,6 +121,11 @@ class RomDomain:
         self.rom_method = get_rom_method(rom_dict["rom_method"], sol_domain, self)
         self.var_mapping = get_variable_mapping(rom_dict["var_mapping"], sol_domain, self)
         self.time_stepper = get_time_stepper(rom_dict["time_stepper"], sol_domain, self)
+
+        # get ML library, if requested
+        self.ml_library = catch_input(rom_dict, "ml_library", "none")
+        if self.ml_library != "none":
+            self.mllib = get_ml_library(self.ml_library, self)
 
         # Check model base directory
         self.model_dir = str(rom_dict["model_dir"])
