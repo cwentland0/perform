@@ -98,8 +98,8 @@ class GalerkinProjection(ProjectionMethod):
                 lhs[row_slice, :] /= space_mapping.norm_fac_prof[iter_idx, self.direct_samp_idxs_flat, None]
 
         # compute pseudoinverse of decoder jacobian
-        # decoder_jacob_pinv = self.calc_concat_jacob_pinv(rom_domain, decoder_jacob_concat)
-        decoder_jacob_pinv = self.calc_concat_jacob_pinv(rom_domain, scaled_decoder_jacob_concat)
+        decoder_jacob_pinv = self.calc_concat_jacob_pinv(rom_domain, decoder_jacob_concat)
+        # decoder_jacob_pinv = self.calc_concat_jacob_pinv(rom_domain, scaled_decoder_jacob_concat)
 
         # Project LHS and RHS onto low-dimensional space via
         if self.hyper_reduc:

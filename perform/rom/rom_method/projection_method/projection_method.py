@@ -103,7 +103,9 @@ class ProjectionMethod(RomMethod):
             #     self.trial_basis_scaled_concat = csr_matrix(trial_basis_scaled_concat)
 
             self.trial_basis_concat = self.concat_mapping(sol_domain, rom_domain, "trial_basis")
-            self.trial_basis_scaled_concat = self.concat_mapping(sol_domain, rom_domain, "trial_basis_scaled", to_sparse=True)
+            self.trial_basis_scaled_concat = self.concat_mapping(
+                sol_domain, rom_domain, "trial_basis_scaled", to_sparse=True
+            )
 
     def concat_mapping(self, sol_domain, rom_domain, map_attr_str, to_sparse=False):
 
@@ -133,28 +135,32 @@ class ProjectionMethod(RomMethod):
 
     def assemble_concat_decoder_jacobs(self, sol_domain, rom_domain):
         """Utility function for computing concatenated and (un)scaled decoder Jacobian
-        
+
         Required for implicit solve, due to coupled natured of system.
         For linear bases, this has already been precomputed.
-        TODO: for adaptive bases, this will change 
+        TODO: for adaptive bases, this will change
         """
 
         # if the space mapping is fixed linear, this has already been precomputed
         if rom_domain.rom_dict["space_mapping"] == "linear":
             decoder_jacob_concat = self.trial_basis_concat
             scaled_decoder_jacob_concat = self.trial_basis_scaled_concat
-        
+
         else:
 
             # calculate all decoder Jacobians
             for model in rom_domain.model_list:
                 space_mapping = model.space_mapping
                 space_mapping.decoder_jacob = space_mapping.calc_decoder_jacob(model.code)
-                space_mapping.scaled_decoder_jacob = space_mapping.decoder_jacob * space_mapping.norm_fac_prof.ravel(order="C")[:, None]
+                space_mapping.scaled_decoder_jacob = (
+                    space_mapping.decoder_jacob * space_mapping.norm_fac_prof.ravel(order="C")[:, None]
+                )
 
             # concatenate decoder Jacobians
             decoder_jacob_concat = self.concat_mapping(sol_domain, rom_domain, "decoder_jacob", to_sparse=False)
-            scaled_decoder_jacob_concat = self.concat_mapping(sol_domain, rom_domain, "scaled_decoder_jacob", to_sparse=True)
+            scaled_decoder_jacob_concat = self.concat_mapping(
+                sol_domain, rom_domain, "scaled_decoder_jacob", to_sparse=True
+            )
 
         return decoder_jacob_concat, scaled_decoder_jacob_concat
 

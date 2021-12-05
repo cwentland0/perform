@@ -1,3 +1,4 @@
+from perform.solution.solution_phys import SolutionPhys
 from perform.rom.rom_variable_mapping.rom_variable_mapping import RomVariableMapping
 
 
@@ -48,6 +49,9 @@ class ConsVariableMapping(RomVariableMapping):
 
         sol_int = sol_domain.sol_int
 
+        # temporary SolutionPhys to access update_state()
+        sol_temp = SolutionPhys(sol_int.gas_model, sol_int.num_cells, sol_prim_in=sol_int.sol_prim, time_order=1)
+
         # loop over history
         for sol_idx in range(len(sol_domain.sol_int.sol_hist_cons)):
 
@@ -56,18 +60,13 @@ class ConsVariableMapping(RomVariableMapping):
                 var_idxs = rom_model.var_idxs
                 sol_int.sol_hist_cons[sol_idx][var_idxs, :] = rom_model.sol_hist[sol_idx].copy()
 
-            # update primitive state history
-            sol_int.sol_hist_prim[sol_idx] = sol_int.calc_prim_from_cons(sol_int.sol_hist_cons[sol_idx])
+            # update state
+            sol_temp.sol_cons = sol_int.sol_hist_cons[sol_idx].copy()
+            sol_temp.update_state(from_prim=False)
+            sol_int.sol_hist_cons[sol_idx][:, :] = sol_temp.sol_cons.copy()
+            sol_int.sol_hist_prim[sol_idx][:, :] = sol_temp.sol_prim.copy()
 
-            # threshold mass fractions
-            mass_fracs = sol_int.gas_model.get_mass_frac_array(sol_prim_in=sol_int.sol_hist_prim[sol_idx])
-            mass_fracs = sol_int.gas_model.calc_all_mass_fracs(mass_fracs, threshold=True)
-            sol_int.sol_hist_prim[sol_idx][3:, :] = mass_fracs[:-1, :]
-
-            # update conservative state history (again)
-            sol_int.sol_hist_cons[sol_idx] = sol_int.calc_cons_from_prim(sol_int.sol_hist_prim[sol_idx])
-
-            # map back to account for any mass fraction thresholding
+            # map back to account for any changes in state update
             for rom_model in rom_domain.model_list:
                 var_idxs = rom_model.var_idxs
                 rom_model.sol_hist[sol_idx][:, :] = sol_int.sol_hist_cons[sol_idx][var_idxs, :].copy()
