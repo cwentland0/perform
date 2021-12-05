@@ -62,7 +62,7 @@ class GalerkinProjection(ProjectionMethod):
         This function computes the iterative change in the low-dimensional state for a given Newton iteration
         of an implicit time integration scheme. For Galerkin projection, this is given by
 
-        V^T * P^-1 * res_jacob * P * V * d_code = V^T * P^-1 * res
+        pinv(dg/d(code)) * P^-1 * res_jacob * P * dg/d(code) * d_code = pinv(dg/d(code)) * P^-1 * res
 
         Args:
             res_jacob:
@@ -77,12 +77,16 @@ class GalerkinProjection(ProjectionMethod):
             rhs: Right-hand side of low-dimensional linear solve.
         """
 
-        if rom_domain.num_models == 1:
-            lhs = np.array(res_jacob @ self.trial_basis_scaled_concat)
-        else:
-            lhs = (res_jacob @ self.trial_basis_scaled_concat).toarray()
+        # compute (scaled) concatenated decoder Jacobians
+        decoder_jacob_concat, scaled_decoder_jacob_concat = self.assemble_concat_decoder_jacobs(sol_domain, rom_domain)
 
-        # scaling
+        # multiply residual Jacobian by scaled decoder Jacobian
+        if rom_domain.num_models == 1:
+            lhs = np.array(res_jacob @ scaled_decoder_jacob_concat)
+        else:
+            lhs = (res_jacob @ scaled_decoder_jacob_concat).toarray()
+
+        # inverse scaling
         res_scaled = np.zeros(lhs.shape[0], dtype=REAL_TYPE)
         for model in rom_domain.model_list:
             space_mapping = model.space_mapping
@@ -93,12 +97,17 @@ class GalerkinProjection(ProjectionMethod):
                 )
                 lhs[row_slice, :] /= space_mapping.norm_fac_prof[iter_idx, self.direct_samp_idxs_flat, None]
 
-        # Project LHS and RHS onto low-dimensional space
+        # compute pseudoinverse of decoder jacobian
+        # decoder_jacob_pinv = self.calc_concat_jacob_pinv(rom_domain, decoder_jacob_concat)
+        decoder_jacob_pinv = self.calc_concat_jacob_pinv(rom_domain, scaled_decoder_jacob_concat)
+
+        # Project LHS and RHS onto low-dimensional space via
         if self.hyper_reduc:
-            lhs = self.hyper_reduc_operator @ lhs
-            rhs = self.hyper_reduc_operator @ res_scaled
+            raise ValueError("Hyper-reduction not fixed yet")
+            # lhs = self.hyper_reduc_operator @ lhs
+            # rhs = self.hyper_reduc_operator @ res_scaled
         else:
-            lhs = self.trial_basis_concat.T @ lhs
-            rhs = self.trial_basis_concat.T @ res_scaled
+            lhs = decoder_jacob_pinv @ lhs
+            rhs = decoder_jacob_pinv @ res_scaled
 
         return lhs, rhs

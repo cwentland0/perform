@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.sparse import csr_matrix
+from scipy.linalg import pinv
 
 from perform.constants import REAL_TYPE
 from perform.input_funcs import catch_input
@@ -78,28 +79,93 @@ class ProjectionMethod(RomMethod):
         if (rom_domain.rom_dict["space_mapping"] == "linear") and (
             rom_domain.time_stepper.time_integrator.time_type == "implicit"
         ):
-            if rom_domain.num_models == 1:
-                self.trial_basis_concat = rom_domain.model_list[0].space_mapping.trial_basis.copy()
-                self.trial_basis_scaled_concat = rom_domain.model_list[0].space_mapping.trial_basis_scaled.copy()
+            # if rom_domain.num_models == 1:
+            #     self.trial_basis_concat = rom_domain.model_list[0].space_mapping.trial_basis.copy()
+            #     self.trial_basis_scaled_concat = rom_domain.model_list[0].space_mapping.trial_basis_scaled.copy()
+            # else:
+            #     num_cells = sol_domain.mesh.num_cells
+            #     trial_basis_concat = np.zeros(
+            #         (num_cells * sol_domain.gas_model.num_eqs, rom_domain.latent_dim_total), dtype=REAL_TYPE
+            #     )
+            #     trial_basis_scaled_concat = trial_basis_concat.copy()
+            #     latent_dim_idx = 0
+            #     for model in rom_domain.model_list:
+            #         col_slice = np.s_[latent_dim_idx : latent_dim_idx + model.latent_dim]
+            #         for iter_idx, var_idx in enumerate(model.var_idxs):
+            #             row_slice_basis = np.s_[iter_idx * num_cells : (iter_idx + 1) * num_cells]
+            #             row_slice_concat = np.s_[var_idx * num_cells : (var_idx + 1) * num_cells]
+            #             trial_basis_concat[row_slice_concat, col_slice] = model.trial_basis[row_slice_basis, :]
+            #             trial_basis_scaled_concat[row_slice_concat, col_slice] = model.trial_basis_scaled[
+            #                 row_slice_basis, :
+            #             ]
+            #         latent_dim_idx += model.latent_dim
+            #     self.trial_basis_concat = np.array(trial_basis_concat)
+            #     self.trial_basis_scaled_concat = csr_matrix(trial_basis_scaled_concat)
+
+            self.trial_basis_concat = self.concat_mapping(sol_domain, rom_domain, "trial_basis")
+            self.trial_basis_scaled_concat = self.concat_mapping(sol_domain, rom_domain, "trial_basis_scaled", to_sparse=True)
+
+    def concat_mapping(self, sol_domain, rom_domain, map_attr_str, to_sparse=False):
+
+        if rom_domain.num_models == 1:
+            mapping_concat = getattr(rom_domain.model_list[0].space_mapping, map_attr_str).copy()
+        else:
+            num_cells = sol_domain.mesh.num_cells
+            mapping_concat = np.zeros(
+                (num_cells * sol_domain.gas_model.num_eqs, rom_domain.latent_dim_total), dtype=REAL_TYPE
+            )
+            latent_dim_idx = 0
+            for model in rom_domain.model_list:
+                col_slice = np.s_[latent_dim_idx : latent_dim_idx + model.latent_dim]
+                mapping = getattr(model, map_attr_str)
+                for iter_idx, var_idx in enumerate(model.var_idxs):
+                    row_slice_basis = np.s_[iter_idx * num_cells : (iter_idx + 1) * num_cells]
+                    row_slice_concat = np.s_[var_idx * num_cells : (var_idx + 1) * num_cells]
+                    mapping_concat[row_slice_concat, col_slice] = mapping[row_slice_basis, :]
+                latent_dim_idx += model.latent_dim
+
+            if to_sparse:
+                mapping_concat = csr_matrix(mapping)
             else:
-                num_cells = sol_domain.mesh.num_cells
-                trial_basis_concat = np.zeros(
-                    (num_cells * sol_domain.gas_model.num_eqs, rom_domain.latent_dim_total), dtype=REAL_TYPE
-                )
-                trial_basis_scaled_concat = trial_basis_concat.copy()
-                latent_dim_idx = 0
-                for model in rom_domain.model_list:
-                    col_slice = np.s_[latent_dim_idx : latent_dim_idx + model.latent_dim]
-                    for iter_idx, var_idx in enumerate(model.var_idxs):
-                        row_slice_basis = np.s_[iter_idx * num_cells : (iter_idx + 1) * num_cells]
-                        row_slice_concat = np.s_[var_idx * num_cells : (var_idx + 1) * num_cells]
-                        trial_basis_concat[row_slice_concat, col_slice] = model.trial_basis[row_slice_basis, :]
-                        trial_basis_scaled_concat[row_slice_concat, col_slice] = model.trial_basis_scaled[
-                            row_slice_basis, :
-                        ]
-                    latent_dim_idx += model.latent_dim
-                self.trial_basis_concat = np.array(trial_basis_concat)
-                self.trial_basis_scaled_concat = csr_matrix(trial_basis_scaled_concat)
+                mapping_concat = mapping
+
+        return mapping_concat
+
+    def assemble_concat_decoder_jacobs(self, sol_domain, rom_domain):
+        """Utility function for computing concatenated and (un)scaled decoder Jacobian
+        
+        Required for implicit solve, due to coupled natured of system.
+        For linear bases, this has already been precomputed.
+        TODO: for adaptive bases, this will change 
+        """
+
+        # if the space mapping is fixed linear, this has already been precomputed
+        if rom_domain.rom_dict["space_mapping"] == "linear":
+            decoder_jacob_concat = self.trial_basis_concat
+            scaled_decoder_jacob_concat = self.trial_basis_scaled_concat
+        
+        else:
+
+            # calculate all decoder Jacobians
+            for model in rom_domain.model_list:
+                space_mapping = model.space_mapping
+                space_mapping.decoder_jacob = space_mapping.calc_decoder_jacob(model.code)
+                space_mapping.scaled_decoder_jacob = space_mapping.decoder_jacob * space_mapping.norm_fac_prof.ravel(order="C")[:, None]
+
+            # concatenate decoder Jacobians
+            decoder_jacob_concat = self.concat_mapping(sol_domain, rom_domain, "decoder_jacob", to_sparse=False)
+            scaled_decoder_jacob_concat = self.concat_mapping(sol_domain, rom_domain, "scaled_decoder_jacob", to_sparse=True)
+
+        return decoder_jacob_concat, scaled_decoder_jacob_concat
+
+    def calc_concat_jacob_pinv(self, rom_domain, jacob):
+
+        # TODO: may not always be orthonormal
+        if rom_domain.rom_dict["space_mapping"] == "linear":
+            jacob_pinv = jacob.T
+        else:
+            jacob_pinv = pinv(jacob)
+        return jacob_pinv
 
     def project_to_low_dim(self, projector, full_dim_arr, transpose=False):
         """Project given full-dimensional vector onto low-dimensional space via given projector.

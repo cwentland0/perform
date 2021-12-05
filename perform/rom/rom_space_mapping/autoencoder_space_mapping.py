@@ -113,14 +113,15 @@ class AutoencoderSpaceMapping(RomSpaceMapping):
 
         return sol
 
-    def calc_decoder_jacob_pinv(self, code):
+    def calc_decoder_jacob_pinv(self, code, jacob=None):
 
-        jacob = self.calc_jacobian(code)
+        if jacob is None:
+            jacob = self.calc_decoder_jacob(code)
         projector = pinv(jacob)
 
         return projector
 
-    def calc_jacobian(self, code):
+    def calc_decoder_jacob(self, code):
         """Calculate decoder Jacobian.
 
         Computes numerical or analytical Jacobian of decoder with respect to current low-dimensional state

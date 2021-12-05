@@ -33,6 +33,8 @@ class RomSpaceMapping:
         # specific mapping loading functions implemented by child classes
         self.load_mapping()
 
+        # TODO: initialize decoder Jacobian memory once
+
     def load_feature_scaling(self, scaling_input, default="zeros"):
         """Load a normalization or centering profile from NumPy binary.
 

@@ -43,8 +43,6 @@ class PrimVariableMapping(RomVariableMapping):
             var_idxs = rom_model.var_idxs
             rom_model.sol[:, :] = sol_domain.sol_int.sol_prim[var_idxs, :].copy()
 
-        pass
-
     def update_state_hist(self, sol_domain, rom_domain):
         """Collects model internal state history and updates relevant state history"""
 
