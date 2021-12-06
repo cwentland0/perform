@@ -49,7 +49,7 @@ You can test your installation of **PERFORM** by running the included unit, inte
 chmod +x tests/run_tests.sh
 tests/run_tests.sh
 ```
-Note that you will be prompted to choose whether to run the regression tests after the unit and integration tests have completed, as the regression tests can take a while to complete. 
+You will be prompted to choose whether to run the regression tests after the unit and integration tests have completed, as the regression tests can take a while to complete. **NOTE**: The ROM regression tests will fail if you have not installed TensorFlow 2.X; you can install TensorFlow and its dependencies with `pip install tensorflow`.
 
 ## Utilities
 

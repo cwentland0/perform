@@ -7,9 +7,6 @@ logging.getLogger("tensorflow_hub").setLevel(logging.CRITICAL)
 import shutil
 
 import numpy as np
-from tensorflow.keras import Model, Input
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.initializers import Identity
 
 from perform.constants import REAL_TYPE, PARAM_INPUTS, ROM_INPUTS
 
@@ -169,6 +166,10 @@ def solution_domain_setup(run_dir=TEST_DIR):
 
 
 def rom_domain_setup(run_dir=TEST_DIR, method="galerkin", space_mapping="linear", var_mapping="conservative"):
+
+    from tensorflow.keras import Model, Input
+    from tensorflow.keras.layers import Dense
+    from tensorflow.keras.initializers import Identity
 
     assert method in ["galerkin", "lspg", "mplsvt"]
     assert space_mapping in ["linear", "autoencoder"]
