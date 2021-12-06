@@ -70,11 +70,14 @@ class LSPGProjection(ProjectionMethod):
             rhs: Right-hand side of low-dimensional linear solve.
         """
 
+        # compute (scaled) concatenated decoder Jacobians
+        decoder_jacob_concat, scaled_decoder_jacob_concat = self.assemble_concat_decoder_jacobs(sol_domain, rom_domain)
+
         # compute test basis
         if rom_domain.num_models == 1:
-            test_basis = np.array(res_jacob @ self.trial_basis_scaled_concat)
+            test_basis = np.array(res_jacob @ scaled_decoder_jacob_concat)
         else:
-            test_basis = (res_jacob @ self.trial_basis_scaled_concat).toarray()
+            test_basis = (res_jacob @ scaled_decoder_jacob_concat).toarray()
 
         # scaling
         res_scaled = np.zeros(test_basis.shape[0], dtype=REAL_TYPE)
@@ -88,6 +91,7 @@ class LSPGProjection(ProjectionMethod):
                 test_basis[row_slice, :] /= space_mapping.norm_fac_prof[iter_idx, self.direct_samp_idxs_flat, None]
 
         if self.hyper_reduc:
+            raise ValueError("Hyper-reduction not fixed yet")
             res_scaled = self.hyper_reduc_operator @ res_scaled
             test_basis = self.hyper_reduc_operator @ test_basis
 

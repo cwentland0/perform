@@ -42,7 +42,7 @@ class NumericalStepper(RomTimeStepper):
                 sol_in = sol[rom_model.var_idxs, :]
                 code, sol_encoded = rom_model.space_mapping.encode_decode_series(sol_in)
                 rom_model.code[:] = code[0].copy()
-                rom_model.code_hist = [code[0].copy()] * (self.time_integrator.time_order + 1)
+                rom_model.code_hist = [code[0].copy() for _ in range(self.time_integrator.time_order + 1)]
                 rom_model.sol[:, :] = sol_encoded[0].copy()
                 rom_model.sol_hist = [sol_encoded[0].copy() for _ in range(self.time_integrator.time_order + 1)]
 
