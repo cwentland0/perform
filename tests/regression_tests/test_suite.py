@@ -1,4 +1,5 @@
 import unittest
+import sys
 
 from examples_fom import test_examples_fom
 
@@ -16,4 +17,5 @@ def regression_test_suite():
 
 if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=3)
-    runner.run(regression_test_suite())
+    ret = not runner.run(regression_test_suite()).wasSuccessful()
+    sys.exit(ret)  # this is NOT the recommended usage, need to figure out how to use unittest.main()

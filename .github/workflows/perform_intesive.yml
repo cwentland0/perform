@@ -4,6 +4,7 @@ name: Time-intensive PERFORM actions
 # Executed on pull request to main, and at 5:00 UTC
 
 on:
+  push:
   pull_request:
     branches:
       - main
