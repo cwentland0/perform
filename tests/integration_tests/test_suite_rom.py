@@ -5,6 +5,7 @@ import subprocess
 from argparse import ArgumentParser
 import sys
 
+from test_rom.test_ml_library import test_tfkeras_library
 from test_rom import test_rom_domain, test_rom_variable_mapping
 from test_rom.test_rom_space_mapping import test_linear_space_mapping
 
@@ -17,7 +18,10 @@ def integration_test_suite():
 
     # RomDomain initialization
     # NOTE: basically all ROM classes require RomDomain, so this has to come first
-    suite.addTests(loader.loadTestsFromTestCase(test_rom_domain.RomDomainInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_rom_domain.RomDomainInitTestCase))
+
+    # MLLibrary tests
+    suite.addTest(loader.loadTestsFromTestCase(test_tfkeras_library.TFKerasLibraryMethodsTestCase))
 
     # RomVariableMapping tests
     suite.addTest(loader.loadTestsFromTestCase(test_rom_variable_mapping.RomPrimVarMappingMethodsTestCase))

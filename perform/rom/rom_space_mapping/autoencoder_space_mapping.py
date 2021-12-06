@@ -22,7 +22,7 @@ class AutoencoderSpaceMapping(RomSpaceMapping):
         in_file = os.path.join(rom_domain.model_dir, decoder_files[rom_model.model_idx])
         assert os.path.isfile(in_file), "Could not find decoder file at " + in_file
         self.decoder_file = in_file
-        self.decoder_isconv = catch_input(rom_dict, "model_isconv", False)
+        self.decoder_isconv = catch_input(rom_dict, "decoder_isconv", False)
         self.decoder_io_format = catch_input(rom_dict, "model_io_format", None)
 
         # If required, encoder input checking
@@ -97,10 +97,14 @@ class AutoencoderSpaceMapping(RomSpaceMapping):
 
     def apply_encoder(self, sol):
 
-        if self.encoder_io_format == "channels_last":
-            sol_in = (sol.copy()).T
+        if self.encoder_isconv:
+            if self.encoder_io_format == "channels_last":
+                sol_in = (sol.copy()).T
+            else:
+                sol_in = sol.copy()
         else:
-            sol_in = sol.copy()
+            sol_in = sol.ravel(order="C")
+
         code = self.mllib.infer_model(self.encoder, sol_in)
 
         return code
@@ -108,8 +112,12 @@ class AutoencoderSpaceMapping(RomSpaceMapping):
     def apply_decoder(self, code):
 
         sol = self.mllib.infer_model(self.decoder, code)
-        if self.decoder_io_format == "channels_last":
-            sol = sol.T
+
+        if self.decoder_isconv:
+            if self.decoder_io_format == "channels_last":
+                sol = sol.T
+        else:
+            sol = np.reshape(sol, self.sol_shape)
 
         return sol
 

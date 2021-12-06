@@ -21,7 +21,7 @@ def integration_test_suite():
     suite = unittest.TestSuite()
 
     # basic initializations
-    suite.addTests(loader.loadTestsFromTestCase(test_solution_phys.SolutionPhysInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_solution_phys.SolutionPhysInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_interior.SolutionIntInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_finite_rate_irrev_reaction.FiniteRateIrrevReactionInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_solution_boundary.SolutionBoundaryInitTestCase))

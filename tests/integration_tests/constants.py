@@ -1,7 +1,15 @@
 import os
+import logging
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+logging.getLogger("tensorflow").setLevel(logging.CRITICAL)
+logging.getLogger("tensorflow_hub").setLevel(logging.CRITICAL)
 import shutil
 
 import numpy as np
+from tensorflow.keras import Model, Input
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.initializers import Identity
 
 from perform.constants import REAL_TYPE, PARAM_INPUTS, ROM_INPUTS
 
@@ -163,7 +171,7 @@ def solution_domain_setup(run_dir=TEST_DIR):
 def rom_domain_setup(run_dir=TEST_DIR, method="galerkin", space_mapping="linear", var_mapping="conservative"):
 
     assert method in ["galerkin", "lspg", "mplsvt"]
-    assert space_mapping in ["linear", "nonlinear"]
+    assert space_mapping in ["linear", "autoencoder"]
     assert var_mapping in ["conservative", "primitive"]
 
     # presumably this has already been generated
@@ -184,18 +192,29 @@ def rom_domain_setup(run_dir=TEST_DIR, method="galerkin", space_mapping="linear"
         f.write("model_var_idxs = [[0, 1, 2, 3]] \n")
         f.write('model_dir = "' + model_dir + '" \n')
         f.write('basis_files = ["spatial_modes.npy"] \n')
+        f.write('decoder_files = ["decoder.h5", ] \n')
+        f.write('encoder_files = ["encoder.h5", ] \n')
         f.write('cent_prim = ["cent_prof_prim.npy"] \n')
         f.write('cent_cons = ["cent_prof_cons.npy"] \n')
         f.write('norm_sub_prim = ["norm_sub_prof_prim.npy"] \n')
         f.write('norm_fac_prim = ["norm_fac_prof_prim.npy"] \n')
         f.write('norm_sub_cons = ["norm_sub_prof_cons.npy"] \n')
         f.write('norm_fac_cons = ["norm_fac_prof_cons.npy"] \n')
+        f.write("run_gpu = False \n")
+        f.write('ml_library = "tfkeras" \n')
+        f.write("decoder_isconv = False \n")
+        f.write("encoder_isconv = False \n")
 
     # generate model files, standardization profiles
     modes = np.reshape(np.eye(8), (4, 2, 8))
     cent_prof = np.zeros((4, 2), dtype=REAL_TYPE)
     norm_sub_prof = np.zeros((4, 2), dtype=REAL_TYPE)
     norm_fac_prof = np.ones((4, 2), dtype=REAL_TYPE)
+
+    # TensorFlow model setup
+    input_layer = Input(shape=(8,), batch_size=None)
+    output_layer = Dense(8, activation="linear", use_bias=False, kernel_initializer=Identity)(input_layer)
+    tf_model = Model(input_layer, output_layer)
 
     np.save(os.path.join(model_dir, "spatial_modes.npy"), modes)
     np.save(os.path.join(model_dir, "cent_prof_prim.npy"), cent_prof)
@@ -204,3 +223,5 @@ def rom_domain_setup(run_dir=TEST_DIR, method="galerkin", space_mapping="linear"
     np.save(os.path.join(model_dir, "norm_fac_prof_prim.npy"), norm_fac_prof)
     np.save(os.path.join(model_dir, "norm_sub_prof_cons.npy"), norm_sub_prof)
     np.save(os.path.join(model_dir, "norm_fac_prof_cons.npy"), norm_fac_prof)
+    tf_model.save(os.path.join(model_dir, "decoder.h5"), save_format="h5")
+    tf_model.save(os.path.join(model_dir, "encoder.h5"), save_format="h5")

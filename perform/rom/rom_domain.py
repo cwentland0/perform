@@ -119,6 +119,7 @@ class RomDomain:
         self.time_stepper = get_time_stepper(rom_dict["time_stepper"], sol_domain, self)
 
         # get ML library, if requested
+        # TODO: only get mllib if method requires it
         self.ml_library = catch_input(rom_dict, "ml_library", "none")
         if self.ml_library != "none":
             self.mllib = get_ml_library(self.ml_library, self)

@@ -45,17 +45,17 @@ def time_int_test_suite():
 
     suite = unittest.TestSuite()
 
-    suite.addTests(loader.loadTestsFromTestCase(test_time_integrator.TimeIntegratorTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_time_integrator.TimeIntegratorTestCase))
 
-    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ExplicitTimeIntInitTestCase))
-    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4InitTestCase))
-    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3InitTestCase))
-    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.JamesonLowStoreInitTestCase))
-    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4MethodsTestCase))
-    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3MethodsTestCase))
-    suite.addTests(loader.loadTestsFromTestCase(test_explicit_integrator.JamesonLowStoreMethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_explicit_integrator.ExplicitTimeIntInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4InitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3InitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_explicit_integrator.JamesonLowStoreInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_explicit_integrator.ClassicRK4MethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_explicit_integrator.SSPRK3MethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_explicit_integrator.JamesonLowStoreMethodsTestCase))
 
-    suite.addTests(loader.loadTestsFromTestCase(test_implicit_integrator.ImplicitTimeIntInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_implicit_integrator.ImplicitTimeIntInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_implicit_integrator.BDFTestCase))
 
     return suite
