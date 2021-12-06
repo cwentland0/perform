@@ -8,6 +8,7 @@ import sys
 from test_rom.test_ml_library import test_tfkeras_library
 from test_rom import test_rom_domain, test_rom_variable_mapping
 from test_rom.test_rom_space_mapping import test_linear_space_mapping, test_autoencoder_space_mapping
+from test_rom.test_rom_method.test_projection_method import test_galerkin_projection
 
 loader = unittest.TestLoader()
 
@@ -32,6 +33,10 @@ def integration_test_suite():
     suite.addTest(loader.loadTestsFromTestCase(test_linear_space_mapping.LinearSpaceMappingMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_autoencoder_space_mapping.AutoencoderSpaceMappingInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_autoencoder_space_mapping.AutoencoderSpaceMappingMethodsTestCase))
+
+    # RomMethod tests
+    suite.addTest(loader.loadTestsFromTestCase(test_galerkin_projection.GalerkinProjectionLinearMethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_galerkin_projection.GalerkinProjectionAutoencoderMethodsTestCase))
 
     return suite
 

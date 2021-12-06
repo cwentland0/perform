@@ -29,7 +29,7 @@ class ProjectionMethod(RomMethod):
 
         # load and check gappy POD basis
         if self.hyper_reduc:
-            raise ValueError("This is broken")
+            raise ValueError("Hyper-reduction has not been fixed")
             hyper_reduc_basis = np.load(rom_domain.hyper_reduc_files[self.model_idx])
 
             assert hyper_reduc_basis.ndim == 3, "Hyper-reduction basis must have three axes"
