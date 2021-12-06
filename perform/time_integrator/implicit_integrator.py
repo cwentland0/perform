@@ -41,6 +41,9 @@ class ImplicitIntegrator(TimeIntegrator):
         self.subiter_max = catch_input(param_dict, "subiter_max", const.SUBITER_MAX_IMP_DEFAULT)
         self.res_tol = catch_input(param_dict, "res_tol", const.L2_RES_TOL_DEFAULT)
 
+        # lets implicit solve know whether it should fall back to lower-order integrator for cold start
+        self.cold_start_iter = 1
+
         # Dual time-stepping, robustness controls
         self.dual_time = catch_input(param_dict, "dual_time", True)
         self.dtau = catch_input(param_dict, "dtau", const.DTAU_DEFAULT)
@@ -94,7 +97,9 @@ class BDF(ImplicitIntegrator):
         """
 
         # Account for cold start
-        time_order = min(solver.iter, self.time_order)
+        if (solver.iter > 1) and (self.subiter == 0):
+            self.cold_start_iter += 1
+        time_order = min(self.cold_start_iter, self.time_order)
 
         coeffs = self.coeffs[time_order - 1]
 

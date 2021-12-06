@@ -1,7 +1,7 @@
 import os
 
 import perform.constants as const
-from perform.input_funcs import read_input_file, catch_input
+from perform.input_funcs import read_input_file, catch_input, get_absolute_path
 from perform.misc_funcs import mkdir_shallow
 
 
@@ -49,6 +49,7 @@ class SystemSolver:
         prim_out: Boolean flag indicating whether to store and save primitive solution profile snapshots.
         cons_out: Boolean flag indicating whether to store and save conservative solution profile snapshots.
         source_out: Boolean flag indicating whether to store and save source term profile snapshots.
+        hr_out: Boolean flag indicating whether to store and save unsteady heat release profile snapshots.
         rhs_out:
             Boolean flag indicating whether to store and save semi-discrete right-hand side function profile snapshots.
         num_snaps: Total number of snapshots to be stored and saved, assuming the simulation runs to completion.
@@ -66,6 +67,7 @@ class SystemSolver:
     """
 
     # TODO: time_scheme should not be associated with SystemSolver
+    # TODO: iters should really be zero indexed
 
     def __init__(self, working_dir):
 
@@ -84,6 +86,7 @@ class SystemSolver:
         # initial condition file
         try:
             self.init_file = str(param_dict["init_file"])
+            self.init_file = get_absolute_path(self.init_file, self.working_dir)
         except KeyError:
             self.init_file = None
 
@@ -109,19 +112,34 @@ class SystemSolver:
         self.init_from_restart = catch_input(param_dict, "init_from_restart", False)
 
         if (self.init_file is None) and (not self.init_from_restart):
-            self.ic_params_file = str(param_dict["ic_params_file"])
+            self.ic_params_file = get_absolute_path(str(param_dict["ic_params_file"]), self.working_dir)
 
         # unsteady output
         self.out_interval = catch_input(param_dict, "out_interval", 1)
+        self.out_itmdt_interval = catch_input(param_dict, "out_itmdt_interval", None)
         self.prim_out = catch_input(param_dict, "prim_out", True)
         self.cons_out = catch_input(param_dict, "cons_out", False)
         self.source_out = catch_input(param_dict, "source_out", False)
+        self.hr_out = catch_input(param_dict, "hr_out", False)
         self.rhs_out = catch_input(param_dict, "rhs_out", False)
 
         assert self.out_interval > 0, "out_interval must be a positive integer"
         self.num_snaps = int(self.num_steps / self.out_interval)
 
+        # handle intermediate output finagling
+        # TODO: out_itmdt_match should be handled at the iteration level, to handle common multiples
+        if self.out_itmdt_interval is not None:
+            assert self.out_itmdt_interval > 0, "out_itmdt_interval must be a positive integer"
+            self.out_itmdt_match = False
+            if self.out_itmdt_interval >= self.out_interval:
+                if (self.out_itmdt_interval % self.out_interval) == 0:
+                    self.out_itmdt_match = True
+            else:
+                if (self.out_interval % self.out_itmdt_interval) == 0:
+                    self.out_itmdt_match = True
+
         # misc
+        self.stdout = catch_input(param_dict, "stdout", True)
         self.vel_add = catch_input(param_dict, "vel_add", 0.0)
         self.res_norm_prim = catch_input(param_dict, "res_norm_prim", [None])
         self.source_off = catch_input(param_dict, "source_off", False)
@@ -138,3 +156,4 @@ class SystemSolver:
         else:
             self.sim_type = "ROM"
             self.rom_inputs = os.path.join(self.working_dir, const.ROM_INPUTS)
+            self.rom_dict = read_input_file(self.rom_inputs)

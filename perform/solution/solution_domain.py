@@ -4,7 +4,7 @@ import numpy as np
 from scipy.sparse.linalg import spsolve
 
 from perform.constants import REAL_TYPE
-from perform.input_funcs import get_initial_conditions, catch_list, catch_input, read_input_file
+from perform.input_funcs import get_initial_conditions, catch_list, catch_input, read_input_file, get_absolute_path
 from perform.mesh import Mesh
 from perform.solution.solution_phys import SolutionPhys
 from perform.solution.solution_interior import SolutionInterior
@@ -19,7 +19,7 @@ from perform.flux.visc_flux.standard_visc_flux import StandardViscFlux
 
 # gradient limiters
 # TODO: make an __init__.py with get_limiter()
-from perform.limiter.barth_jesp_limiter import BarthJespLimiter
+from perform.limiter.barth_jesp_limiter import BarthJespCellLimiter, BarthJespFaceLimiter
 from perform.limiter.venkat_limiter import VenkatLimiter
 
 # gas models
@@ -37,7 +37,7 @@ class SolutionDomain:
     This class provides a broad container to hold just about everything related to the unsteady solution of
     the governing PDE. This includes the SolutionPhys objects of the interior cells and boundary cells,
     the Mesh, GasModel, Flux's, ReactionModel, TimeIntegrator, and Limiters needed to compute the unsteady solution,
-    and any parameters which govern the solver behavior its the spatial domain.
+    and any parameters which govern the solver behavior and the spatial domain.
 
     This class also provides broad member functions for stepping the solution forward in time, computing the non-linear
     right-hand side, the residual and residual Jacobian for implicit time integration, and other utility functions.
@@ -96,12 +96,12 @@ class SolutionDomain:
         param_dict = solver.param_dict
 
         # Spatial domain
-        mesh_file = str(param_dict["mesh_file"])
+        mesh_file = get_absolute_path(str(param_dict["mesh_file"]), solver.working_dir)
         mesh_dict = read_input_file(mesh_file)
         self.mesh = Mesh(mesh_dict)
 
         # Gas model
-        chem_file = str(param_dict["chem_file"])
+        chem_file = get_absolute_path(str(param_dict["chem_file"]), solver.working_dir)
         chem_dict = read_input_file(chem_file)
         gas_model_name = catch_input(chem_dict, "gas_model", "cpg")
         if gas_model_name == "cpg":
@@ -164,7 +164,9 @@ class SolutionDomain:
             if self.grad_limiter_name == "none":
                 pass
             elif self.grad_limiter_name == "barth":
-                self.grad_limiter = BarthJespLimiter()
+                self.grad_limiter = BarthJespCellLimiter()
+            elif self.grad_limiter_name == "barth_face":
+                self.grad_limiter = BarthJespFaceLimiter()
             elif self.grad_limiter_name == "venkat":
                 self.grad_limiter = VenkatLimiter()
             else:
@@ -216,7 +218,7 @@ class SolutionDomain:
 
         # TODO: include initial conditions in probe_vals, time_vals
         self.time_vals = np.linspace(
-            solver.dt * (solver.time_iter),
+            solver.sol_time + solver.dt * (solver.time_iter),
             solver.dt * (solver.time_iter - 1 + solver.num_steps),
             solver.num_steps,
             dtype=REAL_TYPE,
@@ -246,28 +248,6 @@ class SolutionDomain:
         self.gamma_idxs_left = np.s_[:-1]
         self.gamma_idxs_right = np.s_[1:]
 
-    def fill_sol_full(self):
-        """Fill sol_prim_full and sol_cons_full from interior and ghost cells"""
-
-        # TODO: hyper-reduction indices
-
-        sol_int = self.sol_int
-        sol_inlet = self.sol_inlet
-        sol_outlet = self.sol_outlet
-
-        idx_in = sol_inlet.num_cells
-        idx_int = idx_in + sol_int.num_cells
-
-        # sol_prim_full
-        self.sol_prim_full[:, :idx_in] = sol_inlet.sol_prim.copy()
-        self.sol_prim_full[:, idx_in:idx_int] = sol_int.sol_prim.copy()
-        self.sol_prim_full[:, idx_int:] = sol_outlet.sol_prim.copy()
-
-        # sol_cons_full
-        self.sol_cons_full[:, :idx_in] = sol_inlet.sol_cons.copy()
-        self.sol_cons_full[:, idx_in:idx_int] = sol_int.sol_cons.copy()
-        self.sol_cons_full[:, idx_int:] = sol_outlet.sol_cons.copy()
-
     def advance_iter(self, solver):
         """Advance physical solution forward one physical time iteration.
 
@@ -277,7 +257,7 @@ class SolutionDomain:
             solver: SystemSolver containing global simulation parameters.
         """
 
-        if not solver.run_steady:
+        if (not solver.run_steady) and solver.stdout:
             print("Iteration " + str(solver.iter))
 
         for self.time_integrator.subiter in range(self.time_integrator.subiter_max):
@@ -328,7 +308,7 @@ class SolutionDomain:
             else:
                 sol_int.sol_cons += d_sol.reshape((gas_model.num_eqs, mesh.num_cells), order="C")
 
-            sol_int.update_state(from_cons=(not self.time_integrator.dual_time))
+            sol_int.update_state(from_prim=self.time_integrator.dual_time)
             sol_int.sol_hist_cons[0] = sol_int.sol_cons.copy()
             sol_int.sol_hist_prim[0] = sol_int.sol_prim.copy()
 
@@ -341,7 +321,7 @@ class SolutionDomain:
 
             d_sol = self.time_integrator.solve_sol_change(sol_int.rhs)
             sol_int.sol_cons = sol_int.sol_hist_cons[0] + d_sol
-            sol_int.update_state(from_cons=True)
+            sol_int.update_state(from_prim=False)
 
     def calc_rhs(self, solver):
         """Compute non-linear right-hand side function of spatially-discrete governing ODE.
@@ -354,52 +334,29 @@ class SolutionDomain:
         """
 
         sol_int = self.sol_int
-        sol_inlet = self.sol_inlet
-        sol_outlet = self.sol_outlet
-        sol_prim_full = self.sol_prim_full
-        sol_cons_full = self.sol_cons_full
         samp_idxs = self.direct_samp_idxs
-        gas = self.gas_model
 
-        # Compute ghost cell state (if adjacent cell is sampled)
-        # TODO: update this after higher-order contribution?
-        # TODO: adapt pass to calc_boundary_state() depending on space scheme
-        if samp_idxs[0] == 0:
-            sol_inlet.calc_boundary_state(
-                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, :2], sol_cons=sol_int.sol_cons[:, :2]
-            )
-        if samp_idxs[-1] == (self.mesh.num_cells - 1):
-            sol_outlet.calc_boundary_state(
-                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, -2:], sol_cons=sol_int.sol_cons[:, -2:]
-            )
+        # Compute ghost cell state
+        self.calc_ghost_cells(solver)
 
-        self.fill_sol_full()  # Fill sol_prim_full and sol_cons_full
+        # For gradient and viscous flux calculations
+        self.fill_sol_full()
 
-        # First-order approx at faces
-        sol_left = self.sol_left
-        sol_right = self.sol_right
-        sol_left.sol_prim[:, :] = sol_prim_full[:, self.flux_samp_left_idxs]
-        sol_left.sol_cons[:, :] = sol_cons_full[:, self.flux_samp_left_idxs]
-        sol_right.sol_prim[:, :] = sol_prim_full[:, self.flux_samp_right_idxs]
-        sol_right.sol_cons[:, :] = sol_cons_full[:, self.flux_samp_right_idxs]
+        # Compute face reconstructions
+        self.calc_face_recon()
 
-        # Add higher-order contribution
-        # TODO: If not dual_time, reconstruct conservative variables instead of primitive
-        if self.space_order > 1:
-            sol_prim_grad = self.calc_cell_gradients()
-            sol_left.sol_prim[:, self.flux_left_extract] += (self.mesh.dx / 2.0) * sol_prim_grad[
-                :, self.grad_left_extract
-            ]
-            sol_right.sol_prim[:, self.flux_right_extract] -= (self.mesh.dx / 2.0) * sol_prim_grad[
-                :, self.grad_right_extract
-            ]
-            sol_left.calc_state_from_prim()
-            sol_right.calc_state_from_prim()
+        # Compute average state at face
+        self.invisc_flux_scheme.calc_avg_state(self.sol_left, self.sol_right, self.sol_ave)
 
         # Compute fluxes
         flux = self.invisc_flux_scheme.calc_flux(self)
         if self.visc_flux_name != "invisc":
             flux -= self.visc_flux_scheme.calc_flux(self)
+
+        # Compute maximum wave speeds
+        if self.time_integrator.adapt_dtau:
+            srf = np.maximum(self.sol_ave.sol_prim[1, :] + self.sol_ave.c, self.sol_ave.sol_prim[1, :] - self.sol_ave.c)
+            self.sol_int.srf[samp_idxs] = np.maximum(srf[self.flux_rhs_idxs], srf[self.flux_rhs_idxs + 1])
 
         # Compute RHS
         self.sol_int.rhs[:, samp_idxs] = flux[:, self.flux_rhs_idxs] - flux[:, self.flux_rhs_idxs + 1]
@@ -407,40 +364,151 @@ class SolutionDomain:
 
         # Compute source term
         if not solver.source_off:
-            source, wf = self.reaction_model.calc_source(self.sol_int, solver.dt, samp_idxs=samp_idxs)
+            reaction_source, wf, heat_release = self.reaction_model.calc_reaction(
+                self.sol_int, solver.dt, samp_idxs=samp_idxs
+            )
 
-            sol_int.source[gas.mass_frac_slice[:, None], samp_idxs[None, :]] = source
+            sol_int.reaction_source[:, samp_idxs] = reaction_source
             sol_int.wf[:, samp_idxs] = wf
+            sol_int.heat_release[samp_idxs] = heat_release
 
-            sol_int.rhs[3:, samp_idxs] += sol_int.source[:, samp_idxs]
+            sol_int.rhs[3:, samp_idxs] += sol_int.reaction_source[:-1, samp_idxs]
 
-    def calc_cell_gradients(self):
+    def calc_ghost_cells(self, solver):
+        """Calculate state in inlet and outlet boundary ghost cells.
+
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+        """
+
+        sol_int = self.sol_int
+
+        if self.direct_samp_idxs[0] == 0:
+            self.sol_inlet.calc_boundary_state(
+                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, :2], sol_cons=sol_int.sol_cons[:, :2]
+            )
+
+        if self.direct_samp_idxs[-1] == (self.mesh.num_cells - 1):
+            self.sol_outlet.calc_boundary_state(
+                solver.sol_time, self.space_order, sol_prim=sol_int.sol_prim[:, -2:], sol_cons=sol_int.sol_cons[:, -2:]
+            )
+
+    def fill_sol_full(self):
+        """Fill sol_prim_full and sol_cons_full from interior and ghost cells"""
+
+        # TODO: hyper-reduction indices
+
+        idx_in = self.sol_inlet.num_cells
+        idx_int = idx_in + self.sol_int.num_cells
+
+        self.sol_prim_full[:, :idx_in] = self.sol_inlet.sol_prim.copy()
+        self.sol_prim_full[:, idx_in:idx_int] = self.sol_int.sol_prim.copy()
+        self.sol_prim_full[:, idx_int:] = self.sol_outlet.sol_prim.copy()
+
+        self.sol_cons_full[:, :idx_in] = self.sol_inlet.sol_cons.copy()
+        self.sol_cons_full[:, idx_in:idx_int] = self.sol_int.sol_cons.copy()
+        self.sol_cons_full[:, idx_int:] = self.sol_outlet.sol_cons.copy()
+
+    def calc_face_recon(self):
+        """Calculate reconstruction of state at finite volume faces.
+
+        For first-order scheme, simply use cell-centered values.
+        For higher-order, use gradient to compute reconstruction.
+        """
+
+        # First order
+        self.sol_left.sol_prim[:, :] = self.sol_prim_full[:, self.flux_samp_left_idxs]
+        self.sol_left.sol_cons[:, :] = self.sol_cons_full[:, self.flux_samp_left_idxs]
+        self.sol_right.sol_prim[:, :] = self.sol_prim_full[:, self.flux_samp_right_idxs]
+        self.sol_right.sol_cons[:, :] = self.sol_cons_full[:, self.flux_samp_right_idxs]
+
+        # Higher order
+        if self.space_order > 1:
+
+            grad = self.calc_cell_gradients(self.sol_prim_full)
+            sol_left = self.sol_left.sol_prim
+            sol_right = self.sol_right.sol_prim
+
+            self.add_high_order_contrib(sol_left, grad, self.grad_left_extract, self.flux_left_extract, side="left")
+
+            self.add_high_order_contrib(
+                sol_right,
+                grad,
+                self.grad_right_extract,
+                self.flux_right_extract,
+                side="right",
+            )
+
+            # TODO: the following fails miserably for dual_time = False and grad_limiter = "barth" need to check this
+
+            # if self.time_integrator.dual_time:
+            #     grad = self.calc_cell_gradients(self.sol_prim_full)
+            #     sol_left = self.sol_left.sol_prim
+            #     sol_right = self.sol_right.sol_prim
+            # else:
+            #     grad = self.calc_cell_gradients(self.sol_cons_full)
+            #     sol_left = self.sol_left.sol_cons
+            #     sol_right = self.sol_right.sol_cons
+
+            # self.add_high_order_contrib(
+            #     sol_left, grad, self.grad_left_extract, self.flux_left_extract, side="left"
+            # )
+
+            # self.add_high_order_contrib(
+            #     sol_right, grad, self.grad_right_extract, self.flux_right_extract, side="right",
+            # )
+
+        # update state and thermo properties
+        self.sol_left.update_state(from_prim=True)
+        self.sol_right.update_state(from_prim=True)
+
+        # TODO: switch above to below when you figure out the issue with dual_time=False and Barth limiter
+        # self.sol_left.update_state(from_prim=self.time_integrator.dual_time)
+        # self.sol_right.update_state(from_prim=self.time_integrator.dual_time)
+
+    def add_high_order_contrib(self, sol, grad, grad_samp_idxs, face_grad_idxs, side):
+        """Adds contribution of higher-order gradient calculations to face reconstruction.
+
+        Args:
+            sol: NumPy array of first-order solutions at left or right side of cell faces.
+            grad: NumPy array of cell-centered gradients.
+            grad_samp_idxs: NumPy array of cell indices at which to subsample grad for hyper-reduction.
+            face_grad_idxs: NumPy array of face indices at which to subsample sol for hyper-reduciton.
+            side: string; if "left", compute for face's left side. If "right", compute for face's right side.
+        """
+
+        sol_change = (self.mesh.dx / 2.0) * grad[:, grad_samp_idxs]
+        if side == "left":
+            sol[:, face_grad_idxs] += sol_change
+        elif side == "right":
+            sol[:, face_grad_idxs] -= sol_change
+
+    def calc_cell_gradients(self, sol_full):
         """Compute cell-centered gradients and gradient limiters for higher-order face reconstructions.
 
         Calculates cell-centered gradients via a finite-difference stencil. If a gradient limiter is requested,
         the multiplicative limiter factor is computed and the gradient is multiplied by this factor.
 
+        Args:
+            sol_full: NumPy array of cell-centered states, including ghost cells.
+
         Returns:
-            NumPy array of cell-centered gradients of primitive state profile at all interior cells.
+            NumPy array of cell-centered gradients of state profile at all interior cells.
         """
 
-        # TODO: for dual_time = False, should be calculating conservative variable gradients
-
         # Compute gradients via finite difference stencil
-        sol_prim_grad = np.zeros((self.gas_model.num_eqs, self.num_grad_cells), dtype=REAL_TYPE)
+        grad = np.zeros((self.gas_model.num_eqs, self.num_grad_cells), dtype=REAL_TYPE)
         if self.space_order == 2:
-            sol_prim_grad = (0.5 / self.mesh.dx) * (
-                self.sol_prim_full[:, self.grad_idxs + 1] - self.sol_prim_full[:, self.grad_idxs - 1]
-            )
+            grad = (0.5 / self.mesh.dx) * (sol_full[:, self.grad_idxs + 1] - sol_full[:, self.grad_idxs - 1])
         else:
             raise ValueError("Order " + str(self.space_order) + " gradient calculations not implemented")
 
         # Compute gradient limiter and limit gradient, if requested
         if self.grad_limiter_name != "none":
-            phi = self.grad_limiter.calc_limiter(self, sol_prim_grad)
-            sol_prim_grad = sol_prim_grad * phi
+            phi = self.grad_limiter.calc_limiter(self, sol_full, grad)
+            grad *= phi
 
-        return sol_prim_grad
+        return grad
 
     def calc_res_jacob(self, solver):
         """Compute Jacobian of full-discrete residual.
@@ -461,122 +529,140 @@ class SolutionDomain:
         Returns:
             2D scipy.sparse.csr_matrix of the residual Jacobian, ordered in such a way as to correspond with a
             row-major flattening of the residual vector (i.e. first by cells, then by variables).
-
         """
 
         sol_int = self.sol_int
         gas = self.gas_model
         samp_idxs = self.gamma_idxs
 
-        # Enthalpies
-        sol_int.hi[:, samp_idxs] = gas.calc_spec_enth(sol_int.sol_prim[2, samp_idxs])
-        sol_int.h0[samp_idxs] = gas.calc_stag_enth(
-            sol_int.sol_prim[1, samp_idxs], sol_int.mass_fracs_full[:, samp_idxs], spec_enth=sol_int.hi[:, samp_idxs],
-        )
-
-        # Density derivatives
-        (
-            sol_int.d_rho_d_press[samp_idxs],
-            sol_int.d_rho_d_temp[samp_idxs],
-            sol_int.d_rho_d_mass_frac[:, samp_idxs],
-        ) = gas.calc_dens_derivs(
-            sol_int.sol_cons[0, samp_idxs],
-            wrt_press=True,
-            pressure=sol_int.sol_prim[0, samp_idxs],
-            wrt_temp=True,
-            temperature=sol_int.sol_prim[2, samp_idxs],
-            wrt_spec=True,
-            mix_mol_weight=sol_int.mw_mix[samp_idxs],
-        )
-
-        # Stagnation enthalpy derivatives
-        (
-            sol_int.d_enth_d_press[samp_idxs],
-            sol_int.d_enth_d_temp[samp_idxs],
-            sol_int.d_enth_d_mass_frac[:, samp_idxs],
-        ) = gas.calc_stag_enth_derivs(
-            wrt_press=True,
-            wrt_temp=True,
-            mass_fracs=sol_int.sol_prim[3:, samp_idxs],
-            wrt_spec=True,
-            spec_enth=sol_int.hi[:, samp_idxs],
-        )
-
-        # Flux jacobians
-        (d_flux_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right) = self.invisc_flux_scheme.calc_jacob_prim(
-            self
-        )
-
-        if self.visc_flux_name != "invisc":
-            (
-                d_visc_flux_d_sol_prim,
-                d_visc_flux_d_sol_prim_left,
-                d_visc_flux_d_sol_prim_right,
-            ) = self.visc_flux_scheme.calc_jacob_prim(self)
-
-            d_flux_d_sol_prim += d_visc_flux_d_sol_prim
-            d_flux_d_sol_prim_left += d_visc_flux_d_sol_prim_left
-            d_flux_d_sol_prim_right += d_visc_flux_d_sol_prim_right
-
-        d_flux_d_sol_prim /= self.mesh.dx
-        d_flux_d_sol_prim_left /= self.mesh.dx
-        d_flux_d_sol_prim_right /= self.mesh.dx
-
-        d_rhs_d_sol_prim = d_flux_d_sol_prim.copy()
-
-        # Contribution to main block diagonal from source term Jacobian
-        if not solver.source_off:
-            d_source_d_sol_prim = self.reaction_model.calc_jacob_prim(sol_int, samp_idxs=self.direct_samp_idxs)
-            d_rhs_d_sol_prim -= d_source_d_sol_prim
+        # Calculate RHS and solution Jacobians
+        sol_jacob = sol_int.calc_sol_jacob(not self.time_integrator.dual_time, samp_idxs=samp_idxs)
+        rhs_jacob_center, flux_jacob_left, flux_jacob_right = self.calc_rhs_jacob(solver)
 
         # TODO: make this specific for each ImplicitIntegrator
-        dt_coeff_idx = min(solver.iter, self.time_integrator.time_order) - 1
+        dt_coeff_idx = min(self.time_integrator.cold_start_iter, self.time_integrator.time_order) - 1
+        # dt_coeff_idx = min(solver.iter, self.time_integrator.time_order) - 1
         dt_inv = self.time_integrator.coeffs[dt_coeff_idx][0] / self.time_integrator.dt
 
         # Modifications depending on whether dual-time integration is being used
         if self.time_integrator.dual_time:
 
-            # Contribution to main block diagonal from solution Jacobian
-            # TODO: move these conditionals into calc_adaptive_dtau(), change to calc_dtau()
-            gamma_matrix = sol_int.calc_d_sol_cons_d_sol_prim(samp_idxs=self.direct_samp_idxs)
-            if self.time_integrator.adapt_dtau:
-                dtau_inv = sol_int.calc_adaptive_dtau(self.mesh)
-            else:
-                dtau_inv = 1.0 / self.time_integrator.dtau * np.ones(self.num_samp_cells, dtype=REAL_TYPE)
-
-            d_rhs_d_sol_prim += gamma_matrix * (dtau_inv[None, None, :] + dt_inv)
+            dtau = self.calc_dtau()
+            rhs_jacob_center += sol_jacob * (1.0 / dtau[None, None, :] + dt_inv)
 
             # Assemble sparse Jacobian from main, upper, and lower block diagonals
-            res_jacob = sol_int.res_jacob_assemble(d_rhs_d_sol_prim, d_flux_d_sol_prim_left, d_flux_d_sol_prim_right)
+            res_jacob = sol_int.res_jacob_assemble(rhs_jacob_center, flux_jacob_left, flux_jacob_right)
 
         else:
             # TODO: this is hilariously inefficient, need to make Jacobian functions w/r/t conservative state
             # 	Convergence is also noticeably worse, since this is approximate
             # 	Transposes are due to matmul assuming stacks are in first index, maybe a better way to do this?
 
-            gamma_matrix_inv = np.transpose(
-                sol_int.calc_d_sol_prim_d_sol_cons(samp_idxs=self.gamma_idxs), axes=(2, 0, 1)
-            )
+            sol_jacob = np.transpose(sol_jacob, axes=(2, 0, 1))
 
-            d_rhs_d_sol_cons = np.transpose(
-                np.transpose(d_rhs_d_sol_prim, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_center, :, :],
-                axes=(1, 2, 0),
+            rhs_jacob_center = np.transpose(
+                np.transpose(rhs_jacob_center, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_center, :, :], axes=(1, 2, 0)
             )
-            d_flux_d_sol_cons_left = np.transpose(
-                np.transpose(d_flux_d_sol_prim_left, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_left, :, :],
-                axes=(1, 2, 0),
+            flux_jacob_left = np.transpose(
+                np.transpose(flux_jacob_left, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_left, :, :], axes=(1, 2, 0)
             )
-            d_flux_d_sol_cons_right = np.transpose(
-                np.transpose(d_flux_d_sol_prim_right, axes=(2, 0, 1)) @ gamma_matrix_inv[self.gamma_idxs_right, :, :],
-                axes=(1, 2, 0),
+            flux_jacob_right = np.transpose(
+                np.transpose(flux_jacob_right, axes=(2, 0, 1)) @ sol_jacob[self.gamma_idxs_right, :, :], axes=(1, 2, 0)
             )
 
             dt_arr = np.repeat(dt_inv * np.eye(gas.num_eqs)[:, :, None], self.num_samp_cells, axis=2)
-            d_rhs_d_sol_cons += dt_arr
+            rhs_jacob_center += dt_arr
 
-            res_jacob = sol_int.res_jacob_assemble(d_rhs_d_sol_cons, d_flux_d_sol_cons_left, d_flux_d_sol_cons_right)
+            res_jacob = sol_int.res_jacob_assemble(rhs_jacob_center, flux_jacob_left, flux_jacob_right)
 
         return res_jacob
+
+    def calc_rhs_jacob(self, solver):
+        """Compute Jacobian of the right-hand side of the semi-discrete governing ODE.
+
+        Calculates and collects contributions from the inviscid flux, viscous flux, and reaction source term.
+        If dual_time is True, computes the Jacobians with respect to the primitive variables.
+        Otherwise computes the Jacobians with respect to the conservative variables.
+
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+
+        Returns:
+            rhs_jacob_center: center block diagonal of flux and source contributions to the Jacobian, representing
+            the gradient of a given cell's contribution with respect to its own state.
+            flux_jacob_left: lower block diagonal of flux Jacobian, representing the gradient of a given cell's
+            flux contribution with respect to its left neighbor's state.
+            flux_jacob_right: upper block diagonal of flux Jacobian, representing the gradient of a given cell's
+            flux contribution with respect to its right neighbor's state.
+        """
+
+        sol_int = self.sol_int
+
+        # Flux jacobians
+        flux_jacob_center, flux_jacob_left, flux_jacob_right = self.invisc_flux_scheme.calc_jacob(
+            self, wrt_prim=self.time_integrator.dual_time
+        )
+
+        if self.visc_flux_name != "invisc":
+            visc_flux_jacob_center, visc_flux_jacob_left, visc_flux_jacob_right = self.visc_flux_scheme.calc_jacob(
+                self, wrt_prim=self.time_integrator.dual_time
+            )
+
+            flux_jacob_center += visc_flux_jacob_center
+            flux_jacob_left += visc_flux_jacob_left
+            flux_jacob_right += visc_flux_jacob_right
+
+        flux_jacob_center /= self.mesh.dx
+        flux_jacob_left /= self.mesh.dx
+        flux_jacob_right /= self.mesh.dx
+
+        rhs_jacob_center = flux_jacob_center.copy()
+
+        # Contribution to main block diagonal from source term Jacobian
+        if not solver.source_off:
+            source_jacob = self.reaction_model.calc_jacob(
+                sol_int, wrt_prim=self.time_integrator.dual_time, samp_idxs=self.direct_samp_idxs
+            )
+            rhs_jacob_center -= source_jacob
+
+        return rhs_jacob_center, flux_jacob_left, flux_jacob_right
+
+    def calc_dtau(self):
+        """Calculate dtau for each cell.
+
+        If adapt_dtau is True, will adapt dtau based on user input constraints and local wave speed.
+        Otherwise, will simply return the fixed value of dtau.
+
+        Adaptation is intended to improve dual time-stepping robustness, but mostly acts to slow convergence.
+        For now, I recommend not setting adapt_dtau to False until this is completed.
+
+        Returns:
+            NumPy array of the dtau profile.
+        """
+
+        # If not adapting, just return fixed dtau
+        if not self.time_integrator.adapt_dtau:
+            dtau = self.time_integrator.dtau * np.ones(self.num_samp_cells, dtype=REAL_TYPE)
+            return dtau
+
+        sol_int = self.sol_int
+        samp_idxs = self.direct_samp_idxs
+
+        # Compute initial dtau from input cfl and srf
+        dtaum = 1.0 * self.mesh.dx / self.sol_int.srf[samp_idxs]
+        dtau = self.time_integrator.cfl * dtaum
+
+        # Limit by von Neumann number
+        if self.visc_flux_name != "invisc":
+            # TODO: calculating this is stupidly expensive
+            kin_visc_mix = sol_int.dyn_visc_mix / sol_int.sol_cons[0, samp_idxs]
+            dtau = np.minimum(dtau, self.time_integrator.vnn * np.square(self.mesh.dx) / kin_visc_mix)
+            dtaum = np.minimum(dtaum, 3.0 / kin_visc_mix)
+
+        # Limit dtau
+        # TODO: finish implementation
+
+        return dtau
 
     def write_iter_outputs(self, solver):
         """Store and save data at time step intervals.
@@ -601,6 +687,16 @@ class SolutionDomain:
         if not solver.run_steady:
             if (solver.iter % solver.out_interval) == 0:
                 self.sol_int.update_snapshots(solver)
+
+            # write intermediate snapshots, if requested
+            if solver.out_itmdt_interval is not None:
+                if (solver.iter % solver.out_itmdt_interval) == 0:
+                    self.sol_int.write_snapshots(solver, intermediate=True, failed=False)
+
+        # write intermediate probes, if requested
+        if solver.out_itmdt_interval is not None:
+            if ((solver.iter % solver.out_itmdt_interval) == 0) and (self.num_probes > 0):
+                self.write_probes(solver, intermediate=True, failed=False)
 
     def write_steady_outputs(self, solver):
         """Saves "steady" solver outputs and check "convergence" criterion.
@@ -639,14 +735,17 @@ class SolutionDomain:
             solver: SystemSolver containing global simulation parameters.
         """
 
-        if solver.solve_failed:
-            solver.sim_type += "_FAILED"
-
         if not solver.run_steady:
-            self.sol_int.write_snapshots(solver, solver.solve_failed)
+            self.sol_int.write_snapshots(solver, intermediate=False, failed=solver.solve_failed)
 
         if self.num_probes > 0:
-            self.write_probes(solver)
+            self.write_probes(solver, intermediate=False, failed=solver.solve_failed)
+
+        # clean up intermediate results, if any
+        if solver.out_itmdt_interval is not None:
+            if (solver.iter / solver.out_itmdt_interval) > 1:
+                self.delete_itmdt_probes(solver)
+                self.sol_int.delete_itmdt_snapshots(solver)
 
     def update_probes(self, solver):
         """Update probe monitor array from current solution.
@@ -655,15 +754,6 @@ class SolutionDomain:
             solver: SystemSolver containing global simulation parameters.
         """
 
-        # TODO: throw error for source probe in ghost cells
-
-        if "inlet" in self.probe_secs:
-            mass_fracs_full_inlet = self.gas_model.calc_all_mass_fracs(self.sol_inlet.sol_prim[3:, :], threshold=False)
-        if "outlet" in self.probe_secs:
-            mass_fracs_full_outlet = self.gas_model.calc_all_mass_fracs(
-                self.sol_outlet.sol_prim[3:, :], threshold=False
-            )
-
         for probe_iter, probe_idx in enumerate(self.probe_idxs):
 
             # Determine where the probe monitor is
@@ -671,15 +761,16 @@ class SolutionDomain:
             if probe_sec == "inlet":
                 sol_prim_probe = self.sol_inlet.sol_prim[:, 0]
                 sol_cons_probe = self.sol_inlet.sol_cons[:, 0]
-                mass_fracs_full = mass_fracs_full_inlet[:, 0]
+                mass_fracs_full = self.sol_inlet.mass_fracs_full[:, 0]
             elif probe_sec == "outlet":
                 sol_prim_probe = self.sol_outlet.sol_prim[:, 0]
                 sol_cons_probe = self.sol_outlet.sol_cons[:, 0]
-                mass_fracs_full = mass_fracs_full_outlet[:, 0]
+                mass_fracs_full = self.sol_outlet.mass_fracs_full[:, 0]
             else:
                 sol_prim_probe = self.sol_int.sol_prim[:, probe_idx]
                 sol_cons_probe = self.sol_int.sol_cons[:, probe_idx]
-                sol_source_probe = self.sol_int.source[:, probe_idx]
+                sol_source_probe = self.sol_int.reaction_source[:, probe_idx]
+                sol_hr_probe = self.sol_int.heat_release[probe_idx]
                 mass_fracs_full = self.sol_int.mass_fracs_full[:, probe_idx]
 
             # Gather probe monitor data
@@ -691,8 +782,6 @@ class SolutionDomain:
                     probe.append(sol_prim_probe[1])
                 elif var_str == "temperature":
                     probe.append(sol_prim_probe[2])
-                elif var_str == "source":
-                    probe.append(sol_source_probe[0])
                 elif var_str == "density":
                     probe.append(sol_cons_probe[0])
                 elif var_str == "momentum":
@@ -703,21 +792,60 @@ class SolutionDomain:
                     probe.append(sol_prim_probe[3])
                 elif var_str[:7] == "species":
                     spec_idx = int(var_str[8:])
-                    probe.append(mass_fracs_full[spec_idx - 1])
+                    probe.append(mass_fracs_full[spec_idx])
                 elif var_str[:15] == "density-species":
                     spec_idx = int(var_str[16:])
-                    if spec_idx == self.gas_model.num_species_full:
+                    if spec_idx == (self.gas_model.num_species_full - 1):
                         probe.append(mass_fracs_full[-1] * sol_cons_probe[0])
                     else:
-                        probe.append(sol_cons_probe[3 + spec_idx - 1])
+                        probe.append(sol_cons_probe[3 + spec_idx])
+                elif var_str[:6] == "source":
+                    spec_idx = int(var_str[7:])
+                    probe.append(sol_source_probe[spec_idx])
+                elif var_str == "heat-release":
+                    probe.append(sol_hr_probe)
                 else:
                     raise ValueError("Invalid probe variable " + str(var_str))
 
             # Insert into probe data array
             self.probe_vals[probe_iter, :, solver.iter - 1] = probe
 
-    def write_probes(self, solver):
+    def write_probes(self, solver, intermediate=False, failed=False):
         """Save probe data to disk at end/failure of simulation.
+
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+        """
+
+        assert not (
+            intermediate and failed
+        ), "Something went wrong, tried to write intermediate and failed snapshots at same time"
+
+        # Get output file name
+        probe_file_base_name = "probe"
+        for vis_var in self.probe_vars:
+            probe_file_base_name += "_" + vis_var
+
+        suffix = solver.sim_type
+        if intermediate:
+            suffix += "_ITMDT"
+        elif failed:
+            suffix += "_FAILED"
+
+        for probe_num in range(self.num_probes):
+
+            # Account for failed simulations
+            time_out = self.time_vals[: solver.iter]
+            probe_out = self.probe_vals[probe_num, :, : solver.iter]
+
+            probe_file_name = probe_file_base_name + "_" + str(probe_num + 1) + "_" + suffix + ".npy"
+            probe_file = os.path.join(solver.probe_output_dir, probe_file_name)
+
+            probe_save = np.concatenate((time_out[None, :], probe_out), axis=0)
+            np.save(probe_file, probe_save)
+
+    def delete_itmdt_probes(self, solver):
+        """Delete intermediate probe data
 
         Args:
             solver: SystemSolver containing global simulation parameters.
@@ -728,14 +856,8 @@ class SolutionDomain:
         for vis_var in self.probe_vars:
             probe_file_base_name += "_" + vis_var
 
+        suffix = solver.sim_type + "_ITMDT"
         for probe_num in range(self.num_probes):
-
-            # Account for failed simulations
-            time_out = self.time_vals[: solver.iter]
-            probe_out = self.probe_vals[probe_num, :, : solver.iter]
-
-            probe_file_name = probe_file_base_name + "_" + str(probe_num + 1) + "_" + solver.sim_type + ".npy"
+            probe_file_name = probe_file_base_name + "_" + str(probe_num + 1) + "_" + suffix + ".npy"
             probe_file = os.path.join(solver.probe_output_dir, probe_file_name)
-
-            probe_save = np.concatenate((time_out[None, :], probe_out), axis=0)
-            np.save(probe_file, probe_save)
+            os.remove(probe_file)

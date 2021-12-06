@@ -1,4 +1,15 @@
+import os
+
 import matplotlib as mpl
+
+try:
+    if os.environ["PLT_USE_AGG"] == "1":
+        mpl.use("Agg")
+except KeyError:
+    pass
+import matplotlib.pyplot as plt
+
+from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
 
 mpl.rc("font", family="serif", size="10")
 mpl.rc("axes", labelsize="x-large")
@@ -56,27 +67,29 @@ class Visualization:
             # Check requested variables
             self.vis_vars = vis_vars
             for vis_var in self.vis_vars:
-                if vis_var in ["pressure", "velocity", "temperature", "source", "density", "momentum", "energy"]:
+                if vis_var in ["pressure", "velocity", "temperature", "density", "momentum", "energy", "heat-release"]:
                     pass
-                elif (vis_var[:7] == "species") or (vis_var[:15] == "density-species"):
+                elif (vis_var[:7] == "species") or (vis_var[:15] == "density-species") or (vis_var[:6] == "source"):
                     try:
                         if vis_var[:7] == "species":
                             species_idx = int(vis_var[8:])
                         elif vis_var[:15] == "density-species":
                             species_idx = int(vis_var[16:])
+                        elif vis_var[:6] == "source":
+                            species_idx = int(vis_var[7:])
 
-                        assert (species_idx > 0) and (species_idx <= num_species_full), (
-                            "Species number must be a positive integer " + "<= the number of chemical species"
-                        )
+                        assert (species_idx >= 0) and (
+                            species_idx < num_species_full
+                        ), "Species number must be a non-negative (>= 0) integer < the number of chemical species"
                     except ValueError:
                         raise ValueError(
                             "vis_var entry "
                             + vis_var
-                            + " must be formated as species_X "
+                            + " must be formated as species_X, source_X, "
                             + "or density-species_X, where X is an integer"
                         )
                 else:
-                    raise ValueError("Invalid entry in vis_var" + str(vis_id))
+                    raise ValueError("Invalid entry in vis_var_" + str(vis_id))
 
             self.num_subplots = len(self.vis_vars)
 
@@ -108,7 +121,7 @@ class Visualization:
             self.num_rows = 3
             self.num_cols = 3
         else:
-            raise ValueError("Cannot plot more than nine" + " subplots in the same image")
+            raise ValueError("Cannot plot more than nine subplots in the same image")
 
         # Axis labels
         # TODO: could change this to a dictionary reference
@@ -124,8 +137,6 @@ class Visualization:
                     self.ax_labels[ax_idx] = r"Velocity $\left( \frac{m}{s} \right)$"
                 elif var_str == "temperature":
                     self.ax_labels[ax_idx] = r"Temperature $\left( K \right)$"
-                elif var_str == "source":
-                    self.ax_labels[ax_idx] = r"Source Term $\left( \frac{kg}{m^3 \; s} \right)$"
                 elif var_str == "density":
                     self.ax_labels[ax_idx] = r"Density $\left( \frac{kg}{m^3} \right)$"
                 elif var_str == "momentum":
@@ -133,8 +144,18 @@ class Visualization:
                 elif var_str == "energy":
                     self.ax_labels[ax_idx] = r"Energy $\left( \frac{J}{m^3} \right)$"
                 elif var_str[:7] == "species":
-                    self.ax_labels[ax_idx] = r"$Y_{%s}$" % (self.species_names[int(var_str[8:]) - 1])
+                    self.ax_labels[ax_idx] = r"$Y_{%s}$" % (self.species_names[int(var_str[8:])])
                 elif var_str[:15] == "density-species":
-                    self.ax_labels[ax_idx] = r"$\rho Y_{%s}$" % (self.species_names[int(var_str[16:]) - 1])
+                    self.ax_labels[ax_idx] = r"$\rho Y_{%s}$" % (self.species_names[int(var_str[16:])])
+                elif var_str[:6] == "source":
+                    self.ax_labels[ax_idx] = r"$\dot{\omega}_{%s} \left( \frac{kg}{m^3 \; s} \right)$" % (
+                        self.species_names[int(var_str[7:])]
+                    )
+                elif var_str == "heat-release":
+                    self.ax_labels[ax_idx] = r"Heat Release $\left( \frac{W}{m^3} \right)$"
                 else:
-                    raise ValueError("Invalid field visualization variable:" + str(var_str))
+                    raise ValueError("Invalid field visualization variable: " + str(var_str))
+
+        self.fig, self.ax = plt.subplots(
+            nrows=self.num_rows, ncols=self.num_cols, num=self.vis_id, figsize=(FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT)
+        )

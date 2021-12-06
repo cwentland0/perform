@@ -31,14 +31,16 @@ class SolutionInterior(SolutionPhys):
         wf:
             NumPy array of the rate-of-progress profiles for the num_reactions reactions,
             if modeling reactions by a finite-rate reaction model.
-        source: NumPy array of the reaction source term profiles for the num_species species transport equations.
+        reaction_source:
+            NumPy array of the reaction source term profiles for the num_species species transport equations.
+        heat_release: NumPy array of the unsteady heat release profile.
         rhs: NumPy array of the evaluation of the right-hand side function of the semi-discrete governing ODE.
         sol_hist_cons: List of NumPy arrays of the prior time_int.time_order conservative state profiles.
         sol_hist_prim: List of NumPy arrays of the prior time_int.time_order primitive state profiles.
         rhs_hist: List of NumPy arrays of the prior time_int.time_order RHS function profiles.
         prim_snap: NumPy array of the primitive state snapshot array to be written to disk.
         cons_snap: NumPy array of the conservative state snapshot array to be written to disk.
-        source_snap: NumPy array of the source term snapshot array to be written to disk.
+        reaction_source_snap: NumPy array of the source term snapshot array to be written to disk.
         rhs_snap: NumPy array of the RHS function snapshot array to be written to disk.
         res: NumPy array of the full-discrete residual function profile.
         res_norm_l2: L2 norm of the Newton iteration linear solve residual, normalized.
@@ -59,23 +61,26 @@ class SolutionInterior(SolutionPhys):
 
     def __init__(self, gas, sol_prim_in, solver, num_cells, num_reactions, time_int):
 
-        super().__init__(gas, num_cells, sol_prim_in=sol_prim_in)
+        super().__init__(gas, num_cells, sol_prim_in=sol_prim_in, time_order=time_int.time_order)
 
         gas = self.gas_model
 
         if num_reactions > 0:
             self.wf = np.zeros((num_reactions, num_cells), dtype=REAL_TYPE)
-        self.source = np.zeros((gas.num_species, num_cells), dtype=REAL_TYPE)
+        self.reaction_source = np.zeros((gas.num_species_full, num_cells), dtype=REAL_TYPE)
+        self.heat_release = np.zeros(num_cells, dtype=REAL_TYPE)
         self.rhs = np.zeros((gas.num_eqs, num_cells), dtype=REAL_TYPE)
 
         # Add bulk velocity and update state if requested
         if solver.vel_add != 0.0:
             self.sol_prim[1, :] += solver.vel_add
-            self.update_state(from_cons=False)
+            self.update_state(from_prim=True)
 
-        # Initializing time history
-        self.sol_hist_cons = [self.sol_cons.copy()] * (time_int.time_order + 1)
-        self.sol_hist_prim = [self.sol_prim.copy()] * (time_int.time_order + 1)
+        # indicate whether time integrator needs a cold or hot start
+        if sol_prim_in.ndim == 2:
+            time_int.cold_start_iter = 1
+        else:
+            time_int.cold_start_iter = sol_prim_in.shape[-1]
 
         # RHS storage for multi-stage schemes
         self.rhs_hist = [self.rhs.copy()] * (time_int.time_order + 1)
@@ -88,9 +93,11 @@ class SolutionInterior(SolutionPhys):
             self.cons_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps + 1), dtype=REAL_TYPE)
             self.cons_snap[:, :, 0] = self.sol_cons.copy()
 
-        # These don't include the source/RHS associated with the final solution
+        # These don't include the profile associated with the final solution
         if solver.source_out:
-            self.source_snap = np.zeros((gas.num_species, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+            self.reaction_source_snap = np.zeros((gas.num_species_full, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+        if solver.hr_out:
+            self.heat_release_snap = np.zeros((num_cells, solver.num_snaps), dtype=REAL_TYPE)
         if solver.rhs_out:
             self.rhs_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps), dtype=REAL_TYPE)
 
@@ -158,6 +165,30 @@ class SolutionInterior(SolutionPhys):
                 self.d_sol_norm_l2 = 0.0
                 self.d_sol_norm_l1 = 0.0
                 self.d_sol_norm_hist = np.zeros((solver.num_steps, 2), dtype=REAL_TYPE)
+
+    def calc_sol_jacob(self, inverse, samp_idxs=np.s_[:]):
+        """Compute Jacobian of conservative solution w/r/t primitive solution, or vice versa.
+
+        Utility function for computing Gamma or Gamma^-1 for residual Jacobian calculations.
+        Updates density and enthalpy derivatives, as this is required for Gamma or Gamma^-1
+
+        Args:
+            inverse: Boolean flag. If True, calculate Gamma^-1. If False, calculate Gamma.
+            calc_enthalpies: Boolean flag indicating whether to calculate species and stagnation enthalpy.
+            calc_derivs: Boolean flag indicating whether to calculate density and stagnation enthalpy derivatives.
+
+        Returns:
+            3D NumPy array of the solution Jacobian.
+        """
+
+        self.update_density_enthalpy_derivs()
+
+        if inverse:
+            sol_jacob = self.calc_d_sol_prim_d_sol_cons(samp_idxs=samp_idxs)
+        else:
+            sol_jacob = self.calc_d_sol_cons_d_sol_prim(samp_idxs=samp_idxs)
+
+        return sol_jacob
 
     def calc_d_sol_prim_d_sol_cons(self, samp_idxs=np.s_[:]):
         """Compute the Jacobian of the primitive state w/r/t/ the conservative state
@@ -367,40 +398,6 @@ class SolutionInterior(SolutionPhys):
 
         return res_jacob
 
-    def calc_adaptive_dtau(self, mesh):
-        """Adapt dtau for each cell based on user input constraints and local wave speed.
-
-        This function is intended to improve dual time-stepping robustness, but mostly acts to slow convergence.
-        For now, I recommend not setting adapt_dtau until this is completed.
-
-        Args:
-            mesh: Mesh associated with SolutionDomain with which this SolutionPhys is associated.
-
-        Returns:
-            Reciprocal of adapted dtau profile.
-        """
-
-        gas_model = self.gas_model
-
-        # Compute initial dtau from input cfl and srf
-        dtaum = 1.0 * mesh.dx / self.srf
-        dtau = self.time_integrator.cfl * dtaum
-
-        # Limit by von Neumann number
-        if self.visc_flux_name != "invisc":
-            # TODO: calculating this is stupidly expensive
-            self.dyn_visc_mix = gas_model.calc_mix_dynamic_visc(
-                temperature=self.sol_prim[2, :], mass_fracs=self.sol_prim[3:, :]
-            )
-            nu = self.dyn_visc_mix / self.sol_cons[0, :]
-            dtau = np.minimum(dtau, self.time_integrator.vnn * np.square(mesh.dx) / nu)
-            dtaum = np.minimum(dtaum, 3.0 / nu)
-
-        # Limit dtau
-        # TODO: finish implementation
-
-        return 1.0 / dtau
-
     def update_sol_hist(self):
         """Update time history of solution and RHS function for multi-stage time integrators.
 
@@ -434,18 +431,27 @@ class SolutionInterior(SolutionPhys):
             self.prim_snap[:, :, store_idx] = self.sol_prim
         if solver.cons_out:
             self.cons_snap[:, :, store_idx] = self.sol_cons
+
+        # TODO: need to subsample these profiles
         if solver.source_out:
-            self.source_snap[:, :, store_idx - 1] = self.source
+            self.reaction_source_snap[:, :, store_idx - 1] = self.reaction_source
+        if solver.hr_out:
+            self.heat_release_snap[:, store_idx - 1] = self.heat_release
         if solver.rhs_out:
             self.rhs_snap[:, :, store_idx - 1] = self.rhs
 
-    def write_snapshots(self, solver, failed):
+    def write_snapshots(self, solver, intermediate=False, failed=False):
         """Save snapshot matrices to disk after completed/failed simulation.
 
         Args:
             solver: SystemSolver containing global simulation parameters.
+            intermediate: Boolean flag indicating whether these results are intermediate results
             failed: Boolean flag indicating whether a simulation has failed before completion.
         """
+
+        assert not (
+            intermediate and failed
+        ), "Something went wrong, tried to write intermediate and failed snapshots at same time"
 
         unsteady_output_dir = solver.unsteady_output_dir
 
@@ -455,23 +461,67 @@ class SolutionInterior(SolutionPhys):
             offset = 1
         else:
             offset = 2
+
+        suffix = solver.sim_type
+        if intermediate:
+            suffix += "_ITMDT"
+            if not solver.out_itmdt_match:
+                offset -= 1
+        elif failed:
+            suffix += "_FAILED"
+
         final_idx = int((solver.iter - 1) / solver.out_interval) + offset
 
         if solver.prim_out:
-            sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_" + solver.sim_type + ".npy")
+            sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_" + suffix + ".npy")
             np.save(sol_prim_file, self.prim_snap[:, :, :final_idx])
 
         if solver.cons_out:
-            sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_" + solver.sim_type + ".npy")
+            sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_" + suffix + ".npy")
             np.save(sol_cons_file, self.cons_snap[:, :, :final_idx])
 
         if solver.source_out:
-            source_file = os.path.join(unsteady_output_dir, "source_" + solver.sim_type + ".npy")
-            np.save(source_file, self.source_snap[:, :, : final_idx - 1])
+            source_file = os.path.join(unsteady_output_dir, "source_" + suffix + ".npy")
+            np.save(source_file, self.reaction_source_snap[:, :, : final_idx - 1])
+
+        if solver.hr_out:
+            hr_file = os.path.join(unsteady_output_dir, "heat_release_" + suffix + ".npy")
+            np.save(hr_file, self.heat_release_snap[:, : final_idx - 1])
 
         if solver.rhs_out:
-            sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + solver.sim_type + ".npy")
+            sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + suffix + ".npy")
             np.save(sol_rhs_file, self.rhs_snap[:, :, : final_idx - 1])
+
+    def delete_itmdt_snapshots(self, solver):
+        """Delete intermediate snapshot data
+
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+        """
+
+        unsteady_output_dir = solver.unsteady_output_dir
+
+        suffix = solver.sim_type + "_ITMDT"
+
+        if solver.prim_out:
+            sol_prim_file = os.path.join(unsteady_output_dir, "sol_prim_" + suffix + ".npy")
+            os.remove(sol_prim_file)
+
+        if solver.cons_out:
+            sol_cons_file = os.path.join(unsteady_output_dir, "sol_cons_" + suffix + ".npy")
+            os.remove(sol_cons_file)
+
+        if solver.source_out:
+            source_file = os.path.join(unsteady_output_dir, "source_" + suffix + ".npy")
+            os.remove(source_file)
+
+        if solver.hr_out:
+            hr_file = os.path.join(unsteady_output_dir, "heat_release_" + suffix + ".npy")
+            os.remove(hr_file)
+
+        if solver.rhs_out:
+            sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + suffix + ".npy")
+            os.remove(sol_rhs_file)
 
     def write_restart_file(self, solver):
         """Write restart files to disk.
@@ -484,7 +534,9 @@ class SolutionInterior(SolutionPhys):
 
         # Write restart file to zipped file
         restart_file = os.path.join(solver.restart_output_dir, "restart_file_" + str(solver.restart_iter) + ".npz")
-        np.savez(restart_file, sol_time=solver.sol_time, sol_prim=self.sol_prim, sol_cons=self.sol_cons)
+        sol_prim_out = np.stack(self.sol_hist_prim[-1:0:-1], axis=-1)
+        sol_cons_out = np.stack(self.sol_hist_cons[-1:0:-1], axis=-1)
+        np.savez(restart_file, sol_time=solver.sol_time, sol_prim=sol_prim_out, sol_cons=sol_cons_out)
 
         # Write iteration number files
         restartIterFile = os.path.join(solver.restart_output_dir, "restart_iter.dat")
@@ -586,7 +638,8 @@ class SolutionInterior(SolutionPhys):
         norm_out_l2 = np.log10(norm_l2)
         norm_out_l1 = np.log10(norm_l1)
         out_string = ("%8i:   L2: %18.14f,   L1: %18.14f") % (solver.time_iter, norm_out_l2, norm_out_l1)
-        print(out_string)
+        if solver.stdout:
+            print(out_string)
 
         self.d_sol_norm_l2 = norm_l2
         self.d_sol_norm_l1 = norm_l1
@@ -612,7 +665,8 @@ class SolutionInterior(SolutionPhys):
             norm_out_l2 = np.log10(norm_l2)
             norm_out_l1 = np.log10(norm_l1)
             out_string = (str(subiter + 1) + ":\tL2: %18.14f, \tL1: %18.14f") % (norm_out_l2, norm_out_l1)
-            print(out_string)
+            if solver.stdout:
+                print(out_string)
 
         self.res_norm_l2 = norm_l2
         self.res_norm_l1 = norm_l1

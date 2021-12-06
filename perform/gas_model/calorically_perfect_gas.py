@@ -82,16 +82,27 @@ class CaloricallyPerfectGas(GasModel):
 
         return r_mix
 
-    def calc_mix_gamma(self, r_mix, cp_mix):
+    def calc_mix_gamma(self, mass_fracs=None, r_mix=None, cp_mix=None):
         """Compute mixture ratio of specific heats.
 
         Args:
+            mass_fracs: NumPy array of mass fraction profiles. Accepts num_species or num_species_full profiles.
             r_mix: NumPy array of the mixture specific gas constant profile.
             cp_mix: NumPy array of the mixture specific heat capacity at constant pressure profile.
 
         Returns:
             NumPy array of the mixture ratio of specific heats profile.
         """
+
+        if mass_fracs is None:
+            assert (r_mix is not None) and (
+                cp_mix is not None
+            ), "Must provide mass fractions if not providing mixture gas constant and specific heat"
+        else:
+            if r_mix is None:
+                r_mix = self.calc_mix_gas_constant(mass_fracs)
+            if cp_mix is None:
+                cp_mix = self.calc_mix_cp(mass_fracs)
 
         gamma_mix = cp_mix / (cp_mix - r_mix)
 
@@ -426,7 +437,7 @@ class CaloricallyPerfectGas(GasModel):
             else:
                 cp_mix = np.squeeze(cp_mix)
 
-            gamma_mix = self.calc_mix_gamma(r_mix, cp_mix)
+            gamma_mix = self.calc_mix_gamma(r_mix=r_mix, cp_mix=cp_mix)
         else:
             gamma_mix = np.squeeze(gamma_mix)
 
@@ -488,7 +499,7 @@ class CaloricallyPerfectGas(GasModel):
         if wrt_spec:
             # calculate mixture molecular weight
             if mix_mol_weight is None:
-                assert mass_fracs is not None, "Must provide mass fractions to" + " calculate mixture mol weight"
+                assert mass_fracs is not None, "Must provide mass fractions to calculate mixture mol weight"
                 mix_mol_weight = self.calc_mix_mol_weight(mass_fracs)
 
             d_dens_d_mass_frac = np.zeros((self.num_species, density.shape[0]), dtype=REAL_TYPE)
@@ -576,3 +587,76 @@ class CaloricallyPerfectGas(GasModel):
             derivs = derivs + (d_stag_enth_d_mass_frac,)
 
         return derivs
+
+    def calc_press_temp_from_cons(
+        self,
+        density,
+        total_energy,
+        velocity=None,
+        momentum=None,
+        cp_mix=None,
+        r_mix=None,
+        enth_ref_mix=None,
+        mass_fracs_in=None,
+    ):
+        """Compute temperature and pressure from a fixed total energy.
+
+        For calorically perfect gas, this is an analytical relationship which doesn't require iteration.
+
+        Args:
+            density: NumPy array of density profile.
+            total_energy: NumPy array of total energy (rhoE) profile.
+            velocity: NumPy array of velocity profile. If not provided, is calculated from momentum and density.
+            momentum: NumPy array of momentum profile. Required if velocity is not provided.
+            cp_mix:
+                NumPy array of mixture specific heat capacity at constant pressure profile.
+                If not provided, is calculated from mass_fracs_in.
+            r_mix:
+                NumPy array of mixture specific gas constant profile.
+                If not provided, is calculated from mass_fracs_in.
+            enth_ref_mix:
+                NumPy array of mixture reference enthalpy profile.
+                If not provided, is calculated from mass_fracs_in.
+            mass_fracs_in:
+                NumPy array of mass fractions profile. Accepts either num_species or num_species_full profiles
+                Required if cp_mix, r_mix, or enth_ref_mix are not provided.
+
+        Returns:
+            NumPy arrays of the calculated pressure and temperature profiles.
+        """
+
+        # Calculate chemical composition properties, if not provided
+        mass_fracs_set = False
+        if r_mix is None:
+            assert mass_fracs_in is not None, "Must provide mass fractions to calculate mixture gas constant"
+            mass_fracs = self.get_mass_frac_array(mass_fracs_in=mass_fracs_in)
+            mass_fracs_set = True
+            r_mix = self.calc_mix_gas_constant(mass_fracs)
+        else:
+            r_mix = np.squeeze(r_mix)
+
+        if cp_mix is None:
+            assert mass_fracs_in is not None, "Must provide mass fractions to calculate mixture cp"
+            if not mass_fracs_set:
+                mass_fracs = self.get_mass_frac_array(mass_fracs_in=mass_fracs_in)
+            cp_mix = self.calc_mix_cp(mass_fracs)
+        else:
+            cp_mix = np.squeeze(cp_mix)
+
+        if enth_ref_mix is None:
+            assert mass_fracs_in is not None, "Must provide mass fractions to calculate mixture href"
+            if not mass_fracs_set:
+                mass_fracs = self.get_mass_frac_array(mass_fracs_in=mass_fracs_in)
+            enth_ref_mix = self.calc_mix_enth_ref(mass_fracs)
+        else:
+            enth_ref_mix = np.squeeze(enth_ref_mix)
+
+        # Calculate velocity, if not provided
+        if velocity is None:
+            assert momentum is not None, "Mst provide momentum to calculate velocity"
+            velocity = momentum / density
+
+        temp = ((total_energy / density) - np.square(velocity) / 2.0 - enth_ref_mix) / (cp_mix - r_mix)
+        press = density * r_mix * temp
+
+        return press, temp

@@ -1,5 +1,3 @@
-import numpy as np
-
 from perform.rom.projection_rom.linear_proj_rom.linear_proj_rom import LinearProjROM
 
 
@@ -27,18 +25,6 @@ class LinearGalerkinProj(LinearProjROM):
 
         super().__init__(model_idx, rom_domain, sol_domain)
 
-        if not rom_domain.time_integrator.time_type == "explicit":
-            # precompute scaled trial basis
-            self.trial_basis_scaled = self.trial_basis * self.norm_fac_prof_cons.ravel(order="C")[:, None]
-
-        if self.hyper_reduc:
-            # procompute hyper-reduction projector, V^T * U * [S^T * U]^+
-            self.hyper_reduc_operator = (
-                self.trial_basis.T
-                @ self.hyper_reduc_basis
-                @ np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
-            )
-
     def calc_projector(self, sol_domain):
         """Compute RHS projection operator.
 
@@ -53,43 +39,3 @@ class LinearGalerkinProj(LinearProjROM):
             self.projector = self.hyper_reduc_operator
         else:
             self.projector = self.trial_basis.T
-
-    def calc_d_code(self, res_jacob, res, sol_domain):
-        """Compute change in low-dimensional state for implicit scheme Newton iteration.
-
-        This function computes the iterative change in the low-dimensional state for a given Newton iteration
-        of an implicit time integration scheme. For Galerkin projection, this is given by
-
-        V^T * P^-1 * res_jacob * P * V * d_code = V^T * P^-1 * res
-
-        Args:
-            res_jacob:
-                scipy.sparse.csr_matrix containing full-dimensional residual Jacobian with respect to
-                the conservative variables.
-            res: NumPy array of fully-discrete residual, already negated for Newton iteration.
-            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
-
-        Returns:
-            d_code:
-                Solution of low-dimensional linear solve, representing the iterative change in
-                the low-dimensional state.
-            lhs: Left-hand side of low-dimensional linear solve.
-            rhs: Right-hand side of low-dimensional linear solve.
-        """
-
-        lhs = (res_jacob @ self.trial_basis_scaled) / self.norm_fac_prof_cons.ravel(order="C")[
-            self.direct_samp_idxs_flat, None
-        ]
-        res_scaled = (res / self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
-
-        # Project LHS and RHS onto low-dimensional space, solve linear system
-        if self.hyper_reduc:
-            lhs = self.hyper_reduc_operator @ lhs
-            rhs = self.hyper_reduc_operator @ res_scaled
-        else:
-            lhs = self.trial_basis.T @ lhs
-            rhs = self.trial_basis.T @ res_scaled
-
-        d_code = np.linalg.solve(lhs, rhs)
-
-        return d_code, lhs, rhs
