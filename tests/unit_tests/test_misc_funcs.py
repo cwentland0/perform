@@ -1,6 +1,5 @@
 import unittest
 import os
-import shutil
 
 from constants import TEST_DIR, del_test_dir
 import perform.misc_funcs as misc_funcs

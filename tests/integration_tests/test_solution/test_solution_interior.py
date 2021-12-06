@@ -12,7 +12,7 @@ from constants import (
     SOL_PRIM_IN_REACT,
     TEST_DIR,
 )
-from perform.constants import RESTART_OUTPUT_DIR_NAME, REAL_TYPE
+from perform.constants import REAL_TYPE
 from perform.system_solver import SystemSolver
 from perform.input_funcs import read_restart_file
 from perform.gas_model.calorically_perfect_gas import CaloricallyPerfectGas
@@ -271,14 +271,18 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         # check restart files
         restart_data = np.load(os.path.join(self.solver.restart_output_dir, "restart_file_4.npz"))
 
-        self.assertTrue(np.array_equal(
-            restart_data["sol_prim"],
-            np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),    
-        ))
-        self.assertTrue(np.array_equal(
-            restart_data["sol_cons"],
-            np.repeat(sol_cons[:, :, None], 2, axis=-1),    
-        ))
+        self.assertTrue(
+            np.array_equal(
+                restart_data["sol_prim"],
+                np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),
+            )
+        )
+        self.assertTrue(
+            np.array_equal(
+                restart_data["sol_cons"],
+                np.repeat(sol_cons[:, :, None], 2, axis=-1),
+            )
+        )
         self.assertEqual(float(restart_data["sol_time"]), 1e-4)
 
         # check iteration files
@@ -295,10 +299,12 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         sol_time, sol_prim, restart_iter = read_restart_file(self.solver)
         self.assertEqual(sol_time, 1e-4)
         self.assertEqual(restart_iter, 5)  # 1 is added to avoid overwriting
-        self.assertTrue(np.array_equal(
-            sol_prim,
-            np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),    
-        ))
+        self.assertTrue(
+            np.array_equal(
+                sol_prim,
+                np.repeat(SOL_PRIM_IN_REACT[:, :, None], 2, axis=-1),
+            )
+        )
 
     def test_calc_d_sol_norms(self):
 

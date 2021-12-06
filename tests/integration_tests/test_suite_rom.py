@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 import sys
 
 from test_rom import test_rom_domain, test_rom_variable_mapping
-
+from test_rom.test_rom_space_mapping import test_linear_space_mapping
 
 loader = unittest.TestLoader()
 
@@ -22,6 +22,10 @@ def integration_test_suite():
     # RomVariableMapping tests
     suite.addTest(loader.loadTestsFromTestCase(test_rom_variable_mapping.RomPrimVarMappingMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_rom_variable_mapping.RomConsVarMappingMethodsTestCase))
+
+    # RomSpaceMapping tests
+    suite.addTest(loader.loadTestsFromTestCase(test_linear_space_mapping.LinearSpaceMappingInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_linear_space_mapping.LinearSpaceMappingMethodsTestCase))
 
     return suite
 
