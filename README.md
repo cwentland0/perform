@@ -1,4 +1,8 @@
 [![Documentation Status](https://readthedocs.org/projects/perform/badge/?version=latest)](https://perform.readthedocs.io/en/latest/?badge=latest)
+[![Coverage Status](https://coveralls.io/repos/github/cwentland0/perform/badge.svg?branch=main)](https://coveralls.io/github/cwentland0/perform?branch=main)
+[![DOI](https://zenodo.org/badge/281845135.svg)](https://zenodo.org/badge/latestdoi/281845135)
+
+
 
 # **Prototyping Environment for Reacting Flow Order Reduction Methods (PERFORM)**
 
