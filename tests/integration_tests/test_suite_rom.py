@@ -13,6 +13,7 @@ from test_rom.test_rom_method.test_projection_method import (
     test_lspg_projection,
     test_mplsvt_projection,
 )
+from test_rom.test_rom_time_stepper import test_numerical_stepper
 
 loader = unittest.TestLoader()
 
@@ -45,6 +46,9 @@ def integration_test_suite():
     suite.addTest(loader.loadTestsFromTestCase(test_lspg_projection.LSPGProjectionAutoencoderMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_mplsvt_projection.MPLSVTProjectionLinearMethodsTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_mplsvt_projection.MPLSVTProjectionAutoencoderMethodsTestCase))
+
+    # RomTimeStepper tests
+    suite.addTest(loader.loadTestsFromTestCase(test_numerical_stepper.NumericalTimeStepperMethodsTestCase))
 
     return suite
 

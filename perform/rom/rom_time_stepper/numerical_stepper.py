@@ -180,7 +180,7 @@ class NumericalStepper(RomTimeStepper):
             print(out_string)
 
         sol_domain.sol_int.res_norm_l2 = norm_l2
-        sol_domain.sol_int.resNormL1 = norm_l1
+        sol_domain.sol_int.res_norm_l1 = norm_l1
         sol_domain.sol_int.res_norm_hist[solver.iter - 1, :] = [norm_l2, norm_l1]
 
     def calc_code_norms(self, rom_model):
