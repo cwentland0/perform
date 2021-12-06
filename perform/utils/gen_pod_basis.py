@@ -48,7 +48,6 @@ def main():
 
     num_cells = snap_arr_list[0].shape[1]
 
-
     # loop through groups
     for group_idx, var_idx_list in enumerate(var_idxs):
 
