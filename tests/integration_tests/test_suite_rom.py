@@ -7,7 +7,7 @@ import sys
 
 from test_rom.test_ml_library import test_tfkeras_library
 from test_rom import test_rom_domain, test_rom_variable_mapping
-from test_rom.test_rom_space_mapping import test_linear_space_mapping
+from test_rom.test_rom_space_mapping import test_linear_space_mapping, test_autoencoder_space_mapping
 
 loader = unittest.TestLoader()
 
@@ -30,6 +30,8 @@ def integration_test_suite():
     # RomSpaceMapping tests
     suite.addTest(loader.loadTestsFromTestCase(test_linear_space_mapping.LinearSpaceMappingInitTestCase))
     suite.addTest(loader.loadTestsFromTestCase(test_linear_space_mapping.LinearSpaceMappingMethodsTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_autoencoder_space_mapping.AutoencoderSpaceMappingInitTestCase))
+    suite.addTest(loader.loadTestsFromTestCase(test_autoencoder_space_mapping.AutoencoderSpaceMappingMethodsTestCase))
 
     return suite
 
