@@ -7,11 +7,12 @@ from numpy.linalg import svd
 # ----- BEGIN USER INPUT -----
 
 data_dir = "~/path/to/data/dir"
-data_file = "sol_prim_FOM.npy"
+data_file_list = ["sol_prim_FOM.npy"]
 
-iter_start = 0  # zero-indexed starting index for snapshot array
-iter_end = 4000  # zero-indexed ending index for snapshot array
-iter_skip = 1
+# zero-indexed starting/ending index for snapshot array
+iter_start_list = [0]
+iter_end_list = [4000]
+iter_skip_list = [1]
 
 # centering method, accepts "init_cond" and "mean"
 cent_type = "init_cond"
@@ -36,10 +37,16 @@ if not os.path.isdir(out_dir):
 def main():
 
     # load data, subsample
-    in_file = os.path.join(data_dir, data_file)
-    snap_arr = np.load(in_file)
-    snap_arr = snap_arr[:, :, iter_start : iter_end + 1 : iter_skip]
-    _, num_cells, num_snaps = snap_arr.shape
+    snap_arr_list = []
+    num_snaps = 0
+    for idx, data_file in enumerate(data_file_list):
+        in_file = os.path.join(data_dir, data_file)
+        snap_arr_in = np.load(in_file)
+        snap_arr_in = snap_arr_in[:, :, iter_start_list[idx] : iter_end_list[idx] + 1 : iter_skip_list[idx]]
+        snap_arr_list.append(snap_arr_in.copy())
+        num_snaps += snap_arr_in.shape[-1]
+
+    num_cells = snap_arr_list[0].shape[1]
 
     # loop through groups
     for group_idx, var_idx_list in enumerate(var_idxs):
@@ -47,11 +54,13 @@ def main():
         print("Processing variable group " + str(group_idx + 1))
 
         # break data array into different variable groups
-        group_arr = snap_arr[var_idx_list, :, :]
-        num_vars = group_arr.shape[0]
+        group_arr_list = []
+        for idx, snap_arr in enumerate(snap_arr_list):
+            group_arr_list.append(snap_arr[var_idx_list, :, :])
+        num_vars = len(var_idx_list)
 
         # center and normalize data
-        group_arr, cent_prof = center_data(group_arr)
+        group_arr, cent_prof = center_data(group_arr_list)
         group_arr, norm_sub_prof, norm_fac_prof = normalize_data(group_arr)
 
         min_dim = min(num_cells * num_vars, num_snaps)
@@ -78,7 +87,12 @@ def main():
         spatial_mode_file = os.path.join(out_dir, "spatial_modes")
         sing_vals_file = os.path.join(out_dir, "singular_values")
 
-        np.save(cent_file + suffix, cent_prof)
+        # if centering by initial condition, individual profiles for each dataset
+        if cent_type == "init_cond":
+            for idx, prof in enumerate(cent_prof):
+                np.save(cent_file + "_dataset" + str(idx) + suffix, prof)
+        else:
+            np.save(cent_file + suffix, cent_prof)
         np.save(norm_sub_file + suffix, norm_sub_prof)
         np.save(norm_fac_file + suffix, norm_fac_prof)
         np.save(spatial_mode_file + suffix, basis)
@@ -88,22 +102,29 @@ def main():
 
 
 # center training data
-def center_data(data_arr):
+# ingests list of data arrays, returns concatenated array of all centered snapshots
+def center_data(data_list):
 
     # center around the initial condition
     if cent_type == "init_cond":
-        cent_prof = data_arr[:, :, [0]]
+        cent_prof = []
+        for idx, data_arr in enumerate(data_list):
+            cent_prof.append(data_arr[:, :, [0]])
+            data_arr -= cent_prof[idx]
+            cent_prof[idx] = np.squeeze(cent_prof[idx], axis=-1)
+        data_concat = np.concatenate(data_list, axis=2)
 
     # center around the sample mean
     elif cent_type == "mean":
-        cent_prof = np.mean(data_arr, axis=2, keepdims=True)
+        data_concat = np.concatenate(data_list, axis=2)
+        cent_prof = np.mean(data_concat, axis=2, keepdims=True)
+        data_concat -= cent_prof
+        cent_prof = np.squeeze(cent_prof, axis=-1)
 
     else:
         raise ValueError("Invalid cent_type input: " + str(cent_type))
 
-    data_arr -= cent_prof
-
-    return data_arr, np.squeeze(cent_prof, axis=-1)
+    return data_concat, cent_prof
 
 
 # normalize training data
