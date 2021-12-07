@@ -2,8 +2,9 @@
 *.txt
 *.pyc
 *.lprof
-*.tex
-*.bib
+*.fdb_latexmk
+*.fls
+*.pdf
 *.aux
 *.bbl
 *.blg

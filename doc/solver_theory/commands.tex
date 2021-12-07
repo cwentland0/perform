@@ -1,0 +1,141 @@
+\newcommand{\MC}{\mathcal}
+\newcommand{\identMat}{\ensuremath{\mathbf{I}}}
+
+% equations structures
+\newcommand{\ode}[2]{\ensuremath{\frac{\text{d} #1}{{\text{d} #2}}}}
+\newcommand{\pde}[2]{\ensuremath{\frac{\partial #1}{\partial #2}}}
+\newcommand{\ROne}[1]{\ensuremath{\mathbb{R}^{#1}}}
+\newcommand{\inROne}[1]{\ensuremath{\in \ROne{#1}}}
+\newcommand{\RTwo}[2]{\ensuremath{\mathbb{R}^{#1 \times #2}}}
+\newcommand{\inRTwo}[2]{\ensuremath{\in \RTwo{#1}{#2}}}
+\newcommand{\nonnegReals}{\ensuremath{\mathbb{R}_{\ge 0}}}
+\newcommand{\funcMap}[3]{\ensuremath{#1: #2 \rightarrow #3}}
+\DeclareMathOperator*{\argmin}{argmin}
+\newcommand{\be}{\begin{equation}}
+\newcommand{\ee}{\end{equation}}
+
+% chemistry
+\newcommand{\water}{\ensuremath{\text{H}_2\text{O}}}
+\newcommand{\carbDiox}{\ensuremath{\text{CO}_2}}
+\newcommand{\methane}{\ensuremath{\text{CH}_4}}
+\newcommand{\oxygen}{\ensuremath{\text{O}_2}}
+
+% FOM state variables
+\newcommand{\consVar}{q}
+\newcommand{\consVec}{\ensuremath{\mathbf{\consVar}}}
+\newcommand{\consFunc}[1]{\ensuremath{\consVec \left(#1\right)}}
+\newcommand{\consFuncUns}[1]{\ensuremath{\consVec' \left(#1\right)}}
+\newcommand{\primVec}{\ensuremath{\consVec_p}}
+\newcommand{\primVecVar}{\ensuremath{\consVec_{p,\varIdx}}}
+\newcommand{\primFunc}[1]{\ensuremath{\primVec \left(#1\right)}}
+\newcommand{\primFuncUns}[1]{\ensuremath{\primVec' \left(#1\right)}}
+\newcommand{\dataMatCons}{\ensuremath{\mathbf{\MakeUppercase{\consVar}}}}
+\newcommand{\dataMatConsUns}{\ensuremath{\mathbf{\MakeUppercase{\consVar}}'}}
+\newcommand{\dataMatPrim}{\ensuremath{\mathbf{\MakeUppercase{\consVar}}_p}}
+\newcommand{\dataMatPrimUns}{\ensuremath{\mathbf{\MakeUppercase{\consVar}}'_p}}
+\newcommand{\fluxVar}{f}
+\newcommand{\fluxVec}{\ensuremath{\mathbf{\fluxVar}}}
+\newcommand{\sourceVar}{s}
+\newcommand{\sourceVec}{\ensuremath{\mathbf{\sourceVar}}}
+
+% ROM state variables
+\newcommand{\consVecROM}{\ensuremath{\mathbf{\widetilde{\consVar}}}}
+\newcommand{\consFuncROM}[1]{\ensuremath{\consVecROM \left(#1\right)}}
+\newcommand{\primVecROM}{\ensuremath{\mathbf{\widetilde{\consVar}}_p}}
+\newcommand{\primVecROMVar}{\ensuremath{\mathbf{\widetilde{\consVar}}_{p,\varIdx}}}
+\newcommand{\primFuncROM}[1]{\ensuremath{\primVecROM \left(#1\right)}}
+\newcommand{\romVar}{\ensuremath{\hat{q}}}
+\newcommand{\consVecCoeff}{\ensuremath{\mathbf{{\romVar}}}}
+\newcommand{\consFuncCoeff}[1]{\ensuremath{\consVecCoeff \left(#1\right)}}
+\newcommand{\primVecCoeff}{\ensuremath{\mathbf{{\romVar}}_p}}
+\newcommand{\primFuncCoeff}[1]{\ensuremath{\primVecCoeff \left(#1\right)}}
+\newcommand{\consVecCent}{\ensuremath{\mathbf{\overline{\consVar}}}}
+\newcommand{\consVecUns}{\ensuremath{\mathbf{\consVar}'}}
+\newcommand{\primVecCent}{\ensuremath{\mathbf{\overline{\consVar}}_p}}
+\newcommand{\primVecUns}{\ensuremath{\mathbf{\consVar}'_p}}
+\newcommand{\consScaleVar}{p}
+\newcommand{\consScaleMat}{\ensuremath{\mathbf{\MakeUppercase{\consScaleVar}}}}
+\newcommand{\consScaleMatInv}{\ensuremath{\consScaleMat^{-1}}}
+\newcommand{\primScaleVar}{h}
+\newcommand{\primScaleMat}{\ensuremath{\mathbf{\MakeUppercase{\primScaleVar}}}}
+\newcommand{\primScaleMatInv}{\ensuremath{\primScaleMat^{-1}}}
+\newcommand{\scaleVarDummy}{\ensuremath{\phi}}
+
+% RHS, residual, Jacobians
+\newcommand{\rhsVar}{g}
+\newcommand{\rhsVec}{\ensuremath{\mathbf{\rhsVar}}}
+\newcommand{\rhsFunc}[1]{\ensuremath{\rhsVec\left(#1\right)}}
+\newcommand{\rhsVecDEIM}{\ensuremath{\mathbf{\widetilde{\rhsVar}}}}
+\newcommand{\rhsFuncDEIM}[1]{\ensuremath{\rhsVecDEIM\left(#1\right)}}
+\newcommand{\resVar}{r}
+\newcommand{\resVec}{\ensuremath{\mathbf{\resVar}}}
+\newcommand{\resVecDEIM}{\ensuremath{\mathbf{\widetilde{\resVar}}}}
+\newcommand{\resFunc}[1]{\ensuremath{\resVec\left(#1\right)}}
+\newcommand{\resFuncDEIM}[1]{\ensuremath{\resVecDEIM\left(#1\right)}}
+\newcommand{\jacobVar}{J}
+\newcommand{\jacobMat}{\ensuremath{\mathbf{\jacobVar}}}
+\newcommand{\jacobMatCons}{\ensuremath{\mathbf{\widetilde{\jacobVar}}}}
+\newcommand{\rkVec}{\ensuremath{\mathbf{h}}}
+\newcommand{\gm}{\ensuremath{\boldsymbol{\Gamma}}}
+\newcommand{\gmInv}{\gm^{-1}}
+\newcommand{\roeDiss}{\ensuremath{\mathbf{A}}}
+
+% miscellaneous
+\newcommand{\dummyState}{\boldsymbol{\xi}}
+\newcommand{\dummyVar}{a}
+\newcommand{\dummyVec}{\ensuremath{\mathbf{\dummyVar}}}
+\newcommand{\dummySpace}{\ensuremath{\MC{\MakeUppercase{\dummyVar}}}}
+\newcommand{\dummyMat}{\ensuremath{\mathbf{\MakeUppercase{\dummyVar}}}}
+\newcommand{\canonVec}{\ensuremath{\mathbf{e}}}
+\newcommand{\errVec}{\ensuremath{\mathbf{\epsilon}}}
+\newcommand{\zeroVec}{\ensuremath{\mathbf{0}}}
+
+% time
+\newcommand{\timeVar}{\text{t}}
+\newcommand{\finalTime}{\text{T}}
+\newcommand{\initTime}{\ensuremath{\timeVar^0}}
+\newcommand{\dt}{\text{dt}}
+\newcommand{\dtau}{\ensuremath{\text{d}\tau}}
+\newcommand{\timestep}{\ensuremath{\Delta \text{t}}}
+
+% dimensions
+\newcommand{\numDOF}{\ensuremath{N}}
+\newcommand{\numVars}{\ensuremath{N_v}}
+\newcommand{\numCells}{\ensuremath{N_c}}
+\newcommand{\numSamps}{\ensuremath{N_s}}
+\newcommand{\numReacs}{\ensuremath{N_r}}
+\newcommand{\trialModes}{\ensuremath{k}}
+\newcommand{\deimModes}{\ensuremath{d}}
+\newcommand{\numSnaps}{\ensuremath{n_\finalTime}}
+\newcommand{\numSpecies}{\ensuremath{{N_Y}}}
+
+% iterators
+\newcommand{\speciesIdx}{\ensuremath{l}}
+\newcommand{\speciesIdxTwo}{\ensuremath{m}}
+\newcommand{\reacIdx}{\ensuremath{r}}
+\newcommand{\coordIdx}{\ensuremath{i}}
+\newcommand{\dummyIdx}{\ensuremath{i}}
+\newcommand{\dummyIdxTwo}{\ensuremath{j}}
+\newcommand{\dummyIdxThree}{\ensuremath{l}}
+\newcommand{\timeIdx}{\ensuremath{n}}
+\newcommand{\newtonIdx}{\ensuremath{k}}
+\newcommand{\varIdx}{\ensuremath{v}}
+\newcommand{\rkIdx}{\ensuremath{s}}
+\newcommand{\gappyPODIdx}{\ensuremath{m}}
+
+% spatial discretization
+\newcommand{\spaceVar}{\ensuremath{x}}
+\newcommand{\cellCentX}{\ensuremath{\spaceVar_{\coordIdx}}}
+\newcommand{\faceXLeft}{\ensuremath{\spaceVar_{\coordIdx-1/2}}}
+\newcommand{\faceXRight}{\ensuremath{\spaceVar_{\coordIdx+1/2}}}
+\newcommand{\dx}{\text{d}\spaceVar}
+\newcommand{\Dx}{\ensuremath{\Delta \spaceVar}}
+% \newcommand{\volume}{{\ooalign{\hfil$V$\hfil\cr\kern0.08em--\hfil\cr}}}
+\newcommand{\volume}{\text{V}}
+\newcommand{\dVol}{\text{d}\volume}
+
+\newcommand{\bkt}[1]{\Big[#1\Big]}
+\newcommand{\vbkt}[1]{\big[#1\big]}
+
+% physical properties
+\newcommand{\thermCond}{\ensuremath{K}}

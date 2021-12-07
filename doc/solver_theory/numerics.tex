@@ -1,0 +1,520 @@
+\newpage
+\section{Numerics}
+
+In this section, we describe the various methods used to discretize the governing PDE in both time and space. Details of new methods will be added when they are implemented in \verb|PERFORM|.
+
+\subsection{Spatial Discretization}
+
+A cell-centered finite volume formulation is used to discretize the one-dimensional spatial domain into \numCells\ discrete control volumes (or ``cells''). The spatial coordinate of the center of the \coordIdx th cell is denoted by \cellCentX, and the coordinate of the cell's left ``face'' and right ``face'' are given by \faceXLeft\ and \faceXRight, respectively. The general form of the finite volume formulation is given by 
+\be
+    \ode{}{\timeVar} \int_{\Omega} \consVec \; \dVol + \int_{\partial \Omega} \nabla \cdot (\fluxVec - \fluxVec_v) \cdot \vec{n} \; \text{ds} = \int_{\Omega} \sourceVec \; \dVol
+\ee
+where $\Omega$ is the interior domain of the finite volume cell, and $\partial \Omega$ is the surface of the cell. Simplifying this formulation to one spatial dimension results in
+\be
+ \ode{}{\timeVar} \int_{\faceXLeft}^{\faceXRight} \consVec \; \dx + \left( (\fluxVec - \fluxVec_v)_{\faceXRight} - (\fluxVec - \fluxVec_v)_{\faceXLeft} \right) = \int_{\faceXLeft}^{\faceXRight} \sourceVec \; \dx
+\ee
+where, for example, the term $\fluxVec_{\faceXLeft}$ is the inviscid flux through the \coordIdx th cell's left face. The calculation of these fluxes is discussed in Section~\ref{sec:fluxSchemes}. 
+
+Evaluating the volume integrals,
+\be
+    \Dx_\coordIdx \ode{\consVec_\coordIdx}{\timeVar} + \left( (\fluxVec - \fluxVec_v)_{\faceXRight} - (\fluxVec - \fluxVec_v)_{\faceXLeft} \right) = \Dx_\coordIdx \; \sourceVec_\coordIdx
+\ee
+where the cell length is $\Dx_\coordIdx = \faceXRight - \faceXLeft$. We can rearrange terms to arrive at
+\be
+    \ode{\consVec_\coordIdx}{\timeVar} = \frac{1}{\Dx_\coordIdx} \left( (\fluxVec - \fluxVec_v)_{\faceXLeft} - (\fluxVec - \fluxVec_v)_{\faceXRight} \right) + \sourceVec_\coordIdx
+\ee
+With this definition, we can extend the definition of the conservative solution, flux, and source vectors to include those at every cell in the spatial domain. For example, the conservative state would be defined as
+\be
+    \consVec := [\rho_1, \hdots, \rho_{\numCells}, (\rho u)_1, \hdots, (\rho u)_{\numCells}, (\rho h^0 - p)_1, \hdots, (\rho h^0 - p)_{\numCells}, (\rho Y_\speciesIdx)_1, \hdots, (\rho Y_\speciesIdx)_{\numCells}]^\top
+\ee
+and the flux/source terms are defined accordingly. Thus, the ODE governing the entire discrete system state is given by
+\be
+    \ode{\consVec}{\timeVar} = \frac{1}{\Delta\text{\textbf{x}}} \left( (\fluxVec - \fluxVec_v)_{L} - (\fluxVec - \fluxVec_v)_{R} \right) + \sourceVec
+\ee
+where we have denoted the left and right face flux vectors with the subscripts $L$ and $R$, respectively. The vector of cell lengths is denoted by $\Delta \text{\textbf{x}}$. We can lump the terms on the right-hand side as the ``right-hand side'' (RHS) term
+\be\label{eq:fomODE}
+    \rhsFunc{\consVec} := \frac{1}{\Delta\text{\textbf{x}}} \left( (\fluxVec - \fluxVec_v)_{L} - (\fluxVec - \fluxVec_v)_{R} \right) + \sourceVec
+\ee
+This definition will be useful for describing ROM formulations compactly in Section~\ref{sec:roms}.
+
+\newpage
+\subsection{Time Discretization}
+
+Here we describe various methods for discretizing the time derivative in Eq.~\ref{eq:fomODE}, i.e. solving for the solution state at a discrete time instance $t^\timeIdx$, given by $\consFunc{t^\timeIdx} = \consVec^\timeIdx$. Here, \timeIdx\ indicates the number of the next time step to be solved for. All schemes use a fixed time step size \timestep; adaptive time steps (for robustness controls) have not been implemented, and are unlikely to be implemented.
+
+All time discretizations can be described by a residual function for which we seek the solution to
+\be
+    \resFunc{\consVec^\timeIdx} := \resVec^\timeIdx = \mathbf{0}
+\ee
+As additional time integration methods are implemented in \verb|PERFORM|, they will be detailed here.
+
+\subsubsection{Runge-Kutta Schemes}
+
+The residual function for a general \rkIdx -stage Runge-Kutta scheme is given by
+\be\label{eq:RKResFOM}
+    \resVec^\timeIdx = \consVec^\timeIdx - \consVec^{\timeIdx-1} - \Delta \timeVar \sum_{\dummyIdx = 1}^{\rkIdx} b_\dummyIdx \rkVec_\dummyIdx,
+\ee
+where
+\begin{align}
+    \rkVec_1 &= \rhsFunc{\consVec^{\timeIdx - 1}, \timeVar^{\timeIdx-1}} \\
+    \rkVec_\dummyIdx &= \rhsFunc{\consVec^{\timeIdx-1} + \Delta \timeVar \sum_{\dummyIdxTwo = 1}^{\dummyIdx-1} a_{\dummyIdx \dummyIdxTwo} \rkVec_\dummyIdxTwo, \timeVar^{\timeIdx-1} + c_\dummyIdx \Delta \timeVar} \quad \text{for} \; 1 < \dummyIdx \le \rkIdx,
+\end{align}
+and the scalar constants $a_{\dummyIdx \dummyIdxTwo}$, $b_\dummyIdx$, and $c_\dummyIdx \in \mathbb{R}$ are specific to each Runge--Kutta scheme. The scheme is explicit (only dependent on the state at past stages) if $a_{\dummyIdx \dummyIdxTwo} = 0 \; \forall \dummyIdxTwo \ge \dummyIdx$, and implicit (dependent on the future state to be solved for) otherwise. These coefficients are generally presented in the form of a ``Butcher tableau,''
+\[
+\renewcommand\arraystretch{1.2}
+\begin{array}
+{c|cccc}
+c_1 & a_{11} & a_{12} & \hdots & a_{1 \rkIdx} \\
+c_2 & a_{11} & a_{22} & \hdots & a_{2 \rkIdx} \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+c_\rkIdx & a_{\rkIdx 1} & a_{\rkIdx 2} & \hdots & a_{\rkIdx \rkIdx} \\
+\hline
+& b_1 & b_2 & \hdots & b_\rkIdx 
+\end{array}
+\]
+
+A Butcher tableau is provided for each Runge-Kutta method included in \verb|PERFORM|.
+\begin{itemize}
+    \item Classic RK4 ($\rkIdx=4$, explicit, fourth-order)
+    \[
+    \renewcommand\arraystretch{1.2}
+    \begin{array}
+    {c|cccc}
+    0 & 0 & 0 & 0 & 0 \\
+    1/2 & 1/2 & 0 & 0 & 0 \\
+    1/2 & 0 & 1/2 & 0 & 0 \\
+    1 & 0 & 0 & 1 & 0 \\
+    \hline
+    & 1/6 & 1/3 & 1/3 & 1/6 
+    \end{array}
+    \]
+    \item Strong stability preserving RK3 ($\rkIdx = 3$, explicit, third-order)
+    \[
+    \renewcommand\arraystretch{1.2}
+    \begin{array}
+    {c|ccc}
+    0 & 0 & 0 & 0 \\
+    1 & 1 & 0 & 0 \\
+    1/2 & 1/4 & 1/4 & 0 \\
+    \hline
+    & 1/6 & 1/6 & 2/3  
+    \end{array}
+    \]
+\end{itemize}
+
+\subsubsection{Linear Multi-step Schemes}
+
+The residual function for a general \rkIdx -stage linear multi-step scheme is given by
+\begin{equation}\label{eq:lmsResFOM}
+    \resVec^\timeIdx = a_0 \consVec^\timeIdx + \sum_{\dummyIdx = 1}^\rkIdx a_\dummyIdx \consVec^{\timeIdx - \dummyIdx} - \Delta \timeVar b_0 \rhsFunc{\consVec^\timeIdx, \; \timeVar^\timeIdx} - \Delta \timeVar \sum_{\dummyIdx = 1}^\rkIdx b_\dummyIdx \rhsFunc{\consVec^{\timeIdx - \dummyIdx}, \; \timeVar^{\timeIdx - \dummyIdx}},
+\end{equation}
+where the scalar constants $a_{\dummyIdx}$ and $b_\dummyIdx$ are specific to each linear multi-step scheme. The scheme is explicit if $b_0 = 0$, and implicit otherwise. Listed below are coefficients for the linear multi-step schemes implemented in \verb|PERFORM|.
+\begin{itemize}
+    \item Backwards differentiation formulae (BDF, implicit): for all schemes, $b_1 = b_2 = \hdots = b_\rkIdx = 0$, and $b_0 = 1$.
+    \begin{itemize}
+        \item BDF1/implicit Euler (first-order): $a_0 = 1$, $a_1 = -1$
+        \item BDF2 (second-order): $a_0 = 3/2$, $a_1 = -2$, $a_2 = 1/2$
+        \item BDF3 (third-order): $a_0 = 11/16$, $a_1 = -3$, $a_2 = 3/2$, $a_3 = -1/3$
+        \item BDF4 (fourth-order): $a_0 = 25/12$, $a_1 = -4$, $a_2 = 3$, $a_3 = -4/3$, $a_4 = 1/4$
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Solving Implicit Schemes via Newton's Method}
+
+Implicit time integration schemes naturally lead to a residual which takes the form of a non-linear system of equations, which requires an iterative solution. In \verb|PERFORM|, we use Newton's method for solving this system. First, Newton's method replaces the solution at the next time step $\consVec^\timeIdx$ with an intermediate solution $\consVec^{\timeIdx}_\newtonIdx$, where $\newtonIdx$ is the Newton iterate number. For example, the BDF1/implicit Euler residual would take the form
+\be
+    \resFunc{\consVec^{\timeIdx}_\newtonIdx} = \consVec^{\timeIdx}_\newtonIdx - \consVec^{\timeIdx-1} - \Delta \timeVar \rhsFunc{\consVec^{\timeIdx}_\newtonIdx}
+\ee
+Then, as a general step for any implicit scheme, the iterative update to the intermediate solution is given by
+\be
+    \pde{\resVec}{\consVec}(\consVec^{\timeIdx}_{\newtonIdx-1}) \left( \consVec^{\timeIdx}_\newtonIdx - \consVec^{\timeIdx}_{\newtonIdx-1} \right) = -\resFunc{\consVec^{\timeIdx}_{\newtonIdx-1}}
+\ee
+with increased iteration, the residual converges to zero and the solution at the next physical time step is set to the last iterative solution, i.e. $\consVec^{\timeIdx} \leftarrow \consVec^{\timeIdx}_{\newtonIdx}$. The initial guess for the initial iterative solution is taken as $\consVec^{\timeIdx}_0 \leftarrow \consVec^{\timeIdx-1}$. 
+
+\subsubsection{Solving Implicit Schemes via Dual Time-stepping}
+
+Dual time-stepping is an alternative method for solving stiff implicit systems. Among other benefits, it allows us to solve directly for the primitive state
+\be
+    \primVec = [p \quad u \quad T \quad Y_\speciesIdx]^\top
+\ee
+This fact is crucial for efficiently calculating thermodynamic and transport properties of TPGs and real gases. Dual time stepping begins by adding a pseudo-time derivative to the governing ODE
+\be
+    \gm \pde{\primVec}{\tau} + \ode{\consVec}{\timeVar} = \rhsFunc{\primVec}
+\ee
+where the Jacobian $\gm := \partial \consVec / \partial \primVec$ can be computed analytically (given in Section~\ref{sec:jacobIndex}). We abuse notation in denoting $\rhsFunc{\primVec} = \rhsFunc{\consVec}$; in reality, a combination of both the primitive and conservative variables are used to compute the RHS terms. Next, the time derivatives are discretized in terms of intermediate iterative conservative and primitive solutions $\consVec^\timeIdx_{p,\newtonIdx}$ and $\consVec^\timeIdx_\newtonIdx$, respectively. For example, discretizing the pseudo-time derivative with a first-order finite difference scheme and the physical time derivative with BDF2 results in
+\be\label{eq:dualTimeExample}
+    \gm^\timeIdx_{\newtonIdx-1} \frac{\consVec^\timeIdx_{p,\newtonIdx} - \consVec^\timeIdx_{p,\newtonIdx-1}}{\Delta \tau} + \frac{3\consVec^\timeIdx_{\newtonIdx} - 4\consVec^{\timeIdx-1} + \consVec^{\timeIdx-2}}{2 \Delta \timeVar} = \rhsFunc{\consVec^\timeIdx_{p,\newtonIdx}}
+\ee
+The terms $\consVec^\timeIdx_{\newtonIdx}$ and $\rhsFunc{\consVec^\timeIdx_{p,\newtonIdx}}$ are linearized about $\consVec^\timeIdx_{p,\newtonIdx-1}$
+\begin{align}
+    \consVec^\timeIdx_{\newtonIdx} &\approx \consVec^{\timeIdx}_{\newtonIdx-1} +  \left(\frac{\partial \consVec }{\partial \primVec}\right)^\timeIdx_{\newtonIdx-1} (\consVec^{\timeIdx}_{p, \newtonIdx} - \consVec^\timeIdx_{p,\newtonIdx-1}) = \consVec^\timeIdx_{\newtonIdx-1} +  \gm^\timeIdx_{\newtonIdx-1} (\consVec^\timeIdx_{p,\newtonIdx} - \consVec^\timeIdx_{p,\newtonIdx-1}), \\
+    \rhsFunc{\consVec^\timeIdx_{p,\newtonIdx}} &\approx \rhsFunc{ \consVec^\timeIdx_{p,\newtonIdx-1}} + \jacobMat^\timeIdx_{p,\newtonIdx-1} \gm^\timeIdx_{\newtonIdx-1} (\consVec^\timeIdx_{p,\newtonIdx} - \consVec^\timeIdx_{p,\newtonIdx-1}),
+\end{align}
+where the Jacobian $\jacobMat^\timeIdx_{p,\newtonIdx} = (\partial \rhsVec / \partial \primVec)^\timeIdx_\newtonIdx$ can be computed (approximately) analytically. The Jacobians of the various flux and source terms are given in Section~\ref{sec:jacobIndex}.
+
+Inserting these approximations into Eq.~\ref{eq:dualTimeExample} and rearranging terms arrives at
+\be
+    \left( \left( \frac{1}{\Delta \tau} + \frac{1}{\Delta \timeVar} \right) \identMat - \frac{3}{2\Delta t} \jacobMat^\timeIdx_{p,\newtonIdx-1} \right) \gm^\timeIdx_{\newtonIdx-1} \left( \consVec^\timeIdx_{p,\newtonIdx} - \consVec^\timeIdx_{p,\newtonIdx-1} \right) = -  \frac{3\consVec^\timeIdx_{\newtonIdx-1} - 4\consVec^{\timeIdx-1} + \consVec^{\timeIdx-2}}{2 \Delta \timeVar} + \rhsFunc{ \consVec^\timeIdx_{p,\newtonIdx-1}}
+\ee
+Similar to Newton's method, this linear system of equations is solved for the change in the \textit{primitive} state. Of course, this method comes with some additional computational costs (particularly the calculation of the Jacobian $\gm$ and the associated matrix-matrix multiplications), but allows us improved access to the primitive state as it evolves. This permits simple applications of filters and limiters to relevant engineering quantities, and eases the subsequent calculation of thermodynamic and transport quantities.
+
+\newpage
+\subsection{Flux Schemes}\label{sec:fluxSchemes}
+
+Numerical inviscid and viscous fluxes available in \verb|PERFORM| are described here; this section will be updated as new schemes are implemented.
+
+\subsubsection{Roe Flux}
+
+The Roe flux differencing scheme solves for the numerical inviscid flux at the $(\coordIdx+1/2)$th face given by
+\be\label{eq:roeFluxBase}
+    \widetilde{\fluxVec}_{\faceXRight} = \frac{1}{2} \left[ \fluxVec_{\coordIdx} + \fluxVec_{\coordIdx+1} \right] - \frac{1}{2} \left[ \left\vert \pde{\fluxVec}{\consVec} \right\vert \delta \consVec \right]_{\faceXRight}
+\ee
+We hereafter denote the Jacobian of the flux with respect to the conservative state as \\$\jacobMat_{\faceXRight} := (\partial \fluxVec / \partial \consVec)_{\faceXRight}$. The last term in Eq.~\ref{eq:roeFluxBase} can be rewritten in terms of the primitive state
+\begin{align}
+    \left[ \left\vert \jacobMat \right\vert \delta \consVec \right]_{\faceXRight} &= \left[ \left\vert \pde{\fluxVec}{\primVec} \pde{\primVec}{\consVec} \right\vert \pde{\consVec}{\primVec} \delta \primVec \right]_{\faceXRight} \\
+    &= \left[ \left\vert \jacobMat_p \gm^{-1} \right\vert \gm \delta \primVec \right]_{\faceXRight} \\
+    &= \left[ \gm \left\vert \gm^{-1} \jacobMat_p \right\vert \delta \primVec \right]_{\faceXRight}
+\end{align}
+This term is evaluated with respect to the ``Roe average'' state, defined based on the density, velocity, and stagnation enthalpy
+\begin{align}
+    \rho_{\faceXRight} &= \sqrt{\rho_{R,\coordIdx} \rho_{L,\coordIdx+1}} \\
+    u_{\faceXRight} &= \frac{u_{R,\coordIdx} \sqrt{\rho_{R,\coordIdx}} + u_{L,\coordIdx+1} \sqrt{\rho_{L,\coordIdx+1}}}{\sqrt{\rho_{R,\coordIdx}} + \sqrt{\rho_{L,\coordIdx+1}}}\\
+    h^0_{\faceXRight} &= \frac{h^0_{R,\coordIdx} \sqrt{\rho_{R,\coordIdx}} + h^0_{L,\coordIdx+1} \sqrt{\rho_{L,\coordIdx+1}}}{\sqrt{\rho_{R,\coordIdx}} + \sqrt{\rho_{L,\coordIdx+1}}}
+\end{align}
+Here, the subscripts $L$ and $R$ for the \coordIdx th cell denote the reconstruction of the state at the \coordIdx th cell's left and right faces, respectively. The topic of face reconstructions is discussed in Section~\ref{sec:faceRecon}.
+
+As the equivalent Roe average procedure applied to static pressure and temperature results in a state which does not match the Roe average density and enthalpy, \verb|PERFORM| utilizes an iterative procedure which incrementally adjusts the pressure and temperature using the derivatives of density and stagnation enthalpy with respect to temperature and pressure. Upon convergence, a complete primitive state is achieved which agrees with the fixed Roe average density and stagnation enthalpy. This Roe average state at the face is also used later for computing the viscous fluxes in Section~\ref{sec:viscFluxes}.
+
+The analytical form of the matrix $\gm \vert \gm^{-1} \jacobMat_p \vert$ is given in Section~\ref{sec:jacobIndex}. With this term computed, the inviscid flux vectors $\fluxVec_{\coordIdx}$ and $\fluxVec_{\coordIdx+1}$ can be easily computed from the conservative and primitive state at each cell, and the numerical flux $\widetilde{\fluxVec}_{\faceXRight}$ computed from Eq.~\ref{eq:roeFluxBase}. 
+
+\subsubsection{Viscous Fluxes}\label{sec:viscFluxes}
+
+The viscous fluxes are fairly simple, only requiring a means of computing gradients at the cell faces. For the uniform meshes used in \verb|PERFORM|, this is accomplished by a simple second-order finite difference scheme (which is just the slope between adjacent cell-centered values). For a given quantity $\alpha$, this is given by
+
+\be
+    \nabla \alpha_{\faceXRight} = \frac{\alpha_{\coordIdx+1} - \alpha_\coordIdx}{\spaceVar_{\coordIdx+1} - \spaceVar_\coordIdx} 
+\ee
+The gradients of velocity, temperature, and species can thus be computed to calculate the stress tensor, heat flux, and diffusion velocity. Some measure of the average state at the face must also be used to complete the calculation of the viscous flux tensor $\fluxVec_v$; for example, the arithmetic mean of the left/right face reconstructions discussed in Section~\ref{sec:faceRecon}, or the Roe average when using the Roe scheme to compute the inviscid fluxes.
+
+\newpage
+\subsection{Face Reconstruction}\label{sec:faceRecon}
+
+For a first-order accurate flux scheme, the state at the left and right face of a cell is equal to the cell-centered state, i.e. the state is assumed to be uniform throughout the cell volume. In order to achieve higher-order accuracy in computing face fluxes, gradients must be computed at the cell centers and used to calculate a more accurate reconstruction of the state at the left and right cell faces.
+
+Again, thanks to the uniform meshes used in \verb|PERFORM|, these gradients are just computed from central finite difference schemes. For example, the fourth-order gradient of the quantity $\alpha$ at the \coordIdx th cell is computed by
+\be\label{eq:faceReconBase}
+    \nabla \alpha_\coordIdx = \frac{\alpha_{\coordIdx-2} - 8\alpha_{\coordIdx-1} + 8\alpha_{\coordIdx+1} - \alpha_{\coordIdx+2}}{12 \Delta \spaceVar}
+\ee
+The reconstructed primitive state at the \coordIdx th cell's left and right face thus takes the form
+\begin{align}
+    \consVec_{p, L, \coordIdx} &= \consVec_{p, \coordIdx} - \mathbf{\Phi}_\coordIdx \nabla \consVec_{p, \coordIdx} \left( \frac{\Delta \spaceVar}{2} \right) \\
+    \consVec_{p, R, \coordIdx} &= \consVec_{p, \coordIdx} + \mathbf{\Phi}_\coordIdx \nabla \consVec_{p, \coordIdx} \left( \frac{\Delta \spaceVar}{2} \right)
+\end{align}
+where the matrix $\mathbf{\Phi}_\coordIdx = diag(\phi_p, \phi_u, \phi_T, \phi_{Y_\speciesIdx})_\coordIdx$ is the \textit{gradient limiter term}, which is discussed in Section~\ref{sec:gradLimiters}. The numerical flux at each face may thus be computed using these face reconstructions.
+
+\newpage
+\subsection{Gradient Limiters}\label{sec:gradLimiters}
+
+Although higher-order schemes can help improve the resolution of strong gradients, they often produce non-monotonic face reconstructions which can lead to highly oscillatory or unstable solutions. As such, the gradient limiting term $\mathbf{\Phi}_\coordIdx$ introduced in Eq.~\ref{eq:faceReconBase} is crucial for improving the behavior of these reconstructions. Those methods implemented in \verb|PERFORM| are detailed below, and will be updated as new methods are implemented.
+
+\subsubsection{Barth and Jespersen's Limiter}
+
+The limiter by Barth and Jespersen aims to limit the face reconstruction such that no new minima or maxima are created, preserving the monotonicity of the solution between two cell-centered averages. In order to do that, the method first determines the maximuma and minimum cell averages between each cell and its neighbors,
+\begin{align}
+    \consVec^{min}_{p,\coordIdx} &= \text{min}\left( \text{min}\left( \consVec_{p,\coordIdx}, \consVec_{p,\coordIdx-1} \right), \consVec_{p,\coordIdx+1} \right) \\
+    \consVec^{max}_{p,\coordIdx} &= \text{max}\left( \text{max}\left( \consVec_{p,\coordIdx}, \consVec_{p,\coordIdx-1} \right), \consVec_{p,\coordIdx+1} \right)
+\end{align}
+Next, the unconstrained face reconstructions are computed
+\begin{align}
+    \consVec_{p,L,\coordIdx}' &= \consVec_{p, \coordIdx} - \nabla \consVec_{p, \coordIdx} \left( \frac{\Delta \spaceVar}{2} \right) \\
+    \consVec_{p,R,\coordIdx}' &= \consVec_{p, \coordIdx} + \nabla \consVec_{p, \coordIdx} \left( \frac{\Delta \spaceVar}{2} \right)
+\end{align}
+With these quantities, the limiter for both faces is computed, for example at the cell's left face
+\be
+    \mathbf{\Phi}_{L,\coordIdx} = 
+    \begin{cases}
+        \text{min} \left(1, \frac{\consVec^{max}_{p,\coordIdx} - \consVec_{p,\coordIdx}}{\consVec_{p,L,\coordIdx}' - \consVec_{p,\coordIdx}} \right) & \consVec_{p,L,\coordIdx}' - \consVec_{p,\coordIdx} > 0 \\
+        \text{min} \left(1, \frac{\consVec^{min}_{p,\coordIdx} - \consVec_{p,\coordIdx}}{\consVec_{p,L,\coordIdx}' - \consVec_{p,\coordIdx}} \right) & \consVec_{p,L,\coordIdx}' - \consVec_{p,\coordIdx} < 0, \\
+        1 & \consVec_{p,L,\coordIdx}' - \consVec_{p,\coordIdx} = 0,
+    \end{cases}
+\ee
+The same calculations may be computed at the right face, replacing each $L$ with an $R$ in the above formulation. The gradient limiter for the entire cell is thus chosen to be the most restrictive between those computed at the left and right face,
+\be
+    \mathbf{\Phi}_\coordIdx = min(\mathbf{\Phi}_{L,\coordIdx}, \mathbf{\Phi}_{R,\coordIdx}),
+\ee
+Most notably, the $\text{min}(1, y)$ function in the Barth and Jespersen limiter results in a non-differentiable limiting function. This can degrade the convergence of iterative solvers.
+
+\subsubsection{Venkatakrishnan's Limiter}
+
+Venkatakrishnan's limiter attempts to eliminate the convergence issues in Barth and Jespersen's limiter by replacing the $\text{min}(1, y)$ with a differentiable function, namely
+\be
+    \psi(x) = \frac{x^2 + 2x}{x^2 + x + 2}
+\ee
+Other than this replacement, the limiter calculations are identical to those in Barth and Jespersen's limiter. The limiting function is thus differentiable, and exhibits improved convergence. The main drawback of this limiter is the fact that it may apply limiting (i.e. $\phi_{\alpha,\coordIdx} < 1.0$) in uniform regions of the field. Some modifications have been developed to counteract this issue, but they have not yet been implemented in \verb|PERFORM|.
+
+% \newpage
+% \subsection{Linearized Equations}
+
+% Linearization of the flux in equation~(\ref{EPlus}) yields:
+% \be
+% \begin{aligned}
+% \mathbf{E}_{i+1/2} = & \frac{1}{2}\bkt{\mathbf{\bar{E}}_{i}+\overline{\pde{\mathbf{E}_{i}}{\mathbf{Q}_{i}}}\mathbf{Q}'_{i}+\mathbf{\bar{E}}_{i+1}+\overline{\pde{\mathbf{E}_{i+1}}{\mathbf{Q}_{i+1}}}\mathbf{Q}'_{i+1}} -\\
+% & \frac{1}{2}\left(\bkt{|A_p\Gamma_p^{-1}|\Gamma_p}\right)_{i+1/2}  (\mathbf{\bar{Q}}_{i+1} + \mathbf{Q}'_{i+1} - \mathbf{\bar{Q}}_{i} - \mathbf{Q}'_{i}).
+% \end{aligned}
+% \ee
+% Similarly,
+% \be
+% \begin{aligned}
+% \mathbf{E}_{i-1/2} = & \frac{1}{2}\bkt{\mathbf{\bar{E}}_{i-1}+\overline{\pde{\mathbf{E}_{i-1}}{\mathbf{Q}_{i-1}}}\mathbf{Q}'_{i-1}+\mathbf{\bar{E}}_{i}+\overline{\pde{\mathbf{E}_{i}}{\mathbf{Q}_{i}}}\mathbf{Q}'_{i}} -\\
+% & \frac{1}{2}\left(\bkt{|A_p\Gamma_p^{-1}|\Gamma_p}\right)_{i-1/2} (\mathbf{\bar{Q}}_{i} + \mathbf{Q}'_{i} - \mathbf{\bar{Q}}_{i-1} - \mathbf{Q}'_{i-1}), 
+% \end{aligned},
+% \ee
+% and the linearized source term is:
+% \be
+% \begin{aligned}
+% \mathbf{H}_{i} = \mathbf{\bar{H}}_i + \overline{\pde{\mathbf{H}_i}{\mathbf{Q}_{i}}}\mathbf{Q}'_{i}.
+% \end{aligned}
+% \ee
+% where $\pde{\mathbf{E}}{\mathbf{Q}} = \pde{\mathbf{E}}{\mathbf{Q}_p} \pde{\mathbf{Q}_p}{\mathbf{Q}} = A_p \Gamma_p^{-1}$, and $\pde{\mathbf{H}}{\mathbf{Q}} = \pde{\mathbf{H}}{\mathbf{Q}_p} \pde{\mathbf{Q}_p}{\mathbf{Q}} = D_p \Gamma_p^{-1}$. The viscous flux is linearized in a similar manner. Substituting the linearized fluxes and source term in the semi-discretized form of equation~(\ref{GE}), and denoting $\mathbf{F} = \mathbf{E} - \mathbf{E}_v$, we get the following ODE for the state perturbation:
+% \be
+% \begin{aligned}
+% \frac{d\mathbf{Q}'_{i}}{dt} =  - & \frac{1}{2\Delta x}\bkt{\overline{\pde{\mathbf{F}_{i}}{\mathbf{Q}_{i}}}\mathbf{Q}'_{i}+\overline{\pde{\mathbf{F}_{i+1}}{\mathbf{Q}_{i+1}}}\mathbf{Q}'_{i+1}} + \frac{1}{2\Delta x}\left(\bkt{\overline{|A_p\Gamma_p^{-1}|\Gamma_p}}\right)_{i+1/2} ( \mathbf{Q}'_{i+1} - \mathbf{Q}'_{i})  \\
+% + & \frac{1}{2\Delta x}\bkt{\overline{\pde{\mathbf{F}_{i-1}}{\mathbf{Q}_{i-1}}}\mathbf{Q}'_{i-1}+\overline{\pde{\mathbf{F}_{i}}{\mathbf{Q}_{i}}}\mathbf{Q}'_{i}} - \frac{1}{2\Delta x}\left(\bkt{\overline{|A_p\Gamma_p^{-1}|\Gamma_p}}\right)_{i-1/2} (\mathbf{Q}'_{i} - \mathbf{Q}'_{i-1}) \\
+% + & \overline{\pde{\mathbf{H}_i}{\mathbf{Q}_{i}}}\mathbf{Q}'_{i}.
+% \end{aligned}
+% \ee
+% where, $\Delta x = x_{i+1/2}-x_{i-1/2}$, and the equation is further simplified as below:
+% \be
+% \begin{aligned}
+% \frac{d\mathbf{Q}'_{i}}{dt} =  - & \frac{1}{2\Delta x}\bkt{\overline{\pde{\mathbf{F}_{i+1}}{\mathbf{Q}_{i+1}}}\mathbf{Q}'_{i+1} - \left(\bkt{\overline{|A_p\Gamma_p^{-1}|\Gamma_p}}\right)_{i+1/2} ( \mathbf{Q}'_{i+1} - \mathbf{Q}'_{i})}  \\
+% + & \frac{1}{2\Delta x}\bkt{\overline{\pde{\mathbf{F}_{i-1}}{\mathbf{Q}_{i-1}}}\mathbf{Q}'_{i-1} - \left(\bkt{\overline{|A_p\Gamma_p^{-1}|\Gamma_p}}\right)_{i-1/2} (\mathbf{Q}'_{i} - \mathbf{Q}'_{i-1})} 
+% + \overline{\pde{\mathbf{H}_i}{\mathbf{Q}_{i}}}\mathbf{Q}'_{i}.
+% \label{ODELin}
+% \end{aligned}
+% \ee
+
+% \subsection{Linearized Boundary Conditions}
+% Boundary conditions are implemented at the ghost points. In the linearized equations, only the perturbation variables are calculated at the boundaries. Thus, for the mean flow non-reflective boundary conditions at the inlet we have:
+% \be
+% P'_0 = -\frac{w'_3 (\overline{\rho c})}{2},
+% \ee
+% \be
+% u'_0 = -\frac{P'_0}{\overline{\rho c}},
+% \ee
+% \be
+% T'_0 = \frac{P'_0}{\overline{\rho C_p}},
+% \ee
+% \be
+% Y'_{k,0} = 0,
+% \ee
+% where the zero index corresponds to the ghost cell, $c$ is the speed of sound, and variables with over-line are evaluated by the mean flow. $w'_3$ is the characteristic variable corresponding to the outgoing characteristic line:
+% \be
+% w'_3 = u' - \frac{P'}{\overline{\rho c}},
+% \ee
+% which is extrapolated from the first interior cell.
+
+% Similarly, for the mean flow non-reflective boundary conditions at the outlet we have:
+% \be
+% P'_{N+1} = \frac{w'_2 \overline{\rho c} + P_b}{2},
+% \ee
+% \be
+% u'_{N+1} = \frac{P'_{N+1} - P_b}{\overline{\rho c}},
+% \ee
+% \be
+% T'_{N+1} = w'_1 + \frac{P'_{N+1}}{\overline{\rho C_p}},
+% \ee
+% \be
+% Y'_{N+1} = w'_4,
+% \ee
+% where $N+1$ is the index of the ghost cell, and $P_b$ is pressure perturbation. $w'_1$, $w'_2$, and $w'_4$ are the characteristic variables corresponding to the outgoing characteristic lines:
+% \be
+% w'_1 = T' - \frac{P'}{\overline{\rho C_p}},
+% \ee
+% \be
+% w'_2 = u' + \frac{P'}{\overline{\rho c}},
+% \ee
+% \be
+% w'_4 = Y'_k,
+% \ee
+% that are extrapolated from the last interior cell. 
+
+\newpage
+\subsection{Boundary Conditions}
+
+Boundary conditions are enforced by an explicit ghost cell formulation. Below, we detail the available boundary conditions in \verb|PERFORM|. Throughout this section, we denote the quantities at the inlet ghost cell with the zero subscript (e.g. $\alpha_0$), and at the outlet ghost cell with the $\numCells+1$ subscript (e.g. $\alpha_{\numCells+1}$). 
+
+As incoming/outgoing characteristics and their associated Riemann invariants are important for several boundary conditions, we state their definitions here. To begin, the 1D Euler equations provide the following relations for the characteristic variables
+\begin{align}
+	d\rho - \frac{d p}{c^2} &= 0 \quad for \quad \frac{dx}{dt} = u \\
+	du + \frac{d p}{\rho c} &= 0 \quad for \quad \frac{dx}{dt} = u + c \\
+	du - \frac{d p}{\rho c} &= 0 \quad for \quad \frac{dx}{dt} = u - c \\ 
+	dY_i &= 0 \quad for \quad \frac{dx}{dt} = u
+\end{align} 
+An alternative formulation for the first characteristic (the entropy wave), which is useful when working with temperature as a primitive variable, is given by $dT - dp/ (\rho c_p) = 0$.
+
+Under the assumption of isentropic flow, these relations can be integrated to provide the associated Riemann invariants
+\be
+	\begin{bmatrix}
+		J \\ J^+ \\ J^- \\ J^{Y_i} 
+	\end{bmatrix} = 
+	\begin{bmatrix}
+		\frac{p}{\rho^{\gamma}} \\ u + \frac{2 c}{\gamma - 1} \\ u - \frac{2c}{\gamma - 1} \\ Y_i
+	\end{bmatrix}
+\ee
+which are constant along their associated characteristics. 
+
+For non-reflective boundaries, the linearization of the characteristic equations assuming small local perturbations at the boundaries allows us to compute the characteristic variables,
+\be\label{eq:charVars}
+	\mathbf{w} =
+	\begin{bmatrix}
+		w_1 \\ w_2 \\ w_3 \\ w_4
+	\end{bmatrix} = 
+	\begin{bmatrix}
+		T - \frac{p}{\overline{\rho c_p}} \\ u + \frac{p}{\overline{\rho c}} \\ u - \frac{p}{\overline{\rho c}} \\ Y_i
+	\end{bmatrix}
+\ee
+Here, the quantities $\overline{\rho c}$ and $\overline{\rho c_p}$ represent mean quantities from which it is assumed the state only experiences small perturbations. 
+
+\subsubsection{Inlet Boundary Conditions}
+
+\paragraph{Specified Inlet Stagnation Pressure and Stagnation Temperature}
+
+This boundary condition specifies the stagnation pressure and stagnation temperature at the inlet.
+\be\label{eq:stagTemp}
+	\frac{T^0}{T} = 1 + \frac{\gamma - 1}{2} M^2
+\ee
+\begin{align}\label{eq:stagPress}
+	\frac{p^0}{p} &= \left( 1 + \frac{\gamma - 1}{2} M^2 \right)^{\frac{\gamma}{\gamma - 1}} \\
+	&= \left( \frac{T^0}{T} \right)^{\frac{\gamma}{\gamma - 1}}
+\end{align}
+The local sound speed $c$, given a specific gas constant $R$ for the mixture, can be written in terms of the stagnation temperature and Mach number,
+\begin{align}\label{eq:c2}
+	c^2 &= \gamma R T \\
+	&= \frac{\gamma R T^0}{1 + \frac{\gamma - 1}{2} M^2}
+\end{align}
+The Riemann invariant $J^-$ of the outgoing $u-c$ characteristic is given by,
+\begin{align}
+	J^- &= u - \frac{2 c}{\gamma - 1} \\
+	&= M c - \frac{2 c}{\gamma - 1}
+\end{align}
+Squaring both sides of this relationship results in,
+\begin{align}
+	(J^-)^2 = c^2 M^2 - \frac{4 c^2}{\gamma - 1} M + \frac{4 c^2}{(\gamma - 1)^2}
+\end{align}
+Substituting in Eq.~\ref{eq:c2} and rearranging, 
+\begin{align}\label{eq:machQuad}
+	(J^-)^2 \left(1 + \frac{\gamma - 1}{2} M^2 \right) &= \gamma R T^0 M^2 - \frac{4 \gamma R T^0}{\gamma - 1} M + \frac{4 \gamma R T^0}{(\gamma - 1)^2} \\ 
+	0 &= \left(\gamma R T^0 - \frac{\gamma - 1}{2}(J^-)^2 \right) M^2 - \frac{4\gamma R T^0}{\gamma - 1} M + \frac{4\gamma R T^0}{(\gamma - 1)^2} - (J^-)^2
+\end{align}
+This quadratic equation can be solved for the Mach number using the following relationships,
+\begin{align}
+	a &= \gamma R T^0 - \frac{\gamma - 1}{2}(J^-)^2 \\
+	b &= -\frac{4\gamma R T^0}{\gamma - 1} \\
+	c &= \frac{4\gamma R T^0}{(\gamma - 1)^2} - (J^-)^2 \\
+	M &= \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+\end{align}
+producing two solutions. Obviously, if there is one positive solution then that is the physically-relevant solution. If there are two positive solutions, the smaller one is chosen. The static pressure $p$ and static temperature $T$ can be solved for from Eqs.~\ref{eq:stagTemp} and~\ref{eq:stagPress}.
+
+For computing these quantities at an inlet, only the stagnation temperature and stagnation pressure are known, leaving the Riemann invariant $J^-$ of the outgoing characteristic as an unknown. Assuming a uniform grid, this can be extrapolated from the interior points 1 and 2 to the ghost cell by linear extrapolation,
+\be
+	J^-_0 = 2 J^-_1 - J^-_2
+\ee
+Substituting this into Eq.~\ref{eq:machQuad}, solving for the Mach number at the inlet exterior, and computing the primitive and conservative state at the boundary then allows for the calculation of boundary fluxes.
+
+This inlet boundary condition results in reflections of acoustic waves and should not be used with unsteady calculations with significant system acoustics.
+
+
+\paragraph{Specified Inlet Full State}
+
+This boundary condition specifies the full primitive state (static pressure, velocity, temperature, and species mass fractions) at the inlet ghost cell. Of course, this method is only truly appropriate at a supersonic inlet, but can be useful for testing the response of outlet boundary conditions to upstream perturbations originating from the inlet.
+
+\paragraph{Non-reflective Inlet}
+
+The non-reflective inlet operates on the assumption of a fixed ``mean'' upstream state, about which the instantaneous inlet state is simply a perturbation. This can be thought of as the state infinitely far upstream from the inlet. Keeping this upstream state fixed essentially fixes the incoming characteristics and allows the outgoing characteristic to exit the domain without reflections. As such, in the absence of any acoustic sources or outlet perturbations the flow at the inlet will always return to the mean upstream state. 
+
+As there are three incoming characteristics at the inlet, we specify three exterior flow variables. In this case, we specify the upstream static pressure $p_{up}$, the upstream chemical composition $Y_{\speciesIdx,up}$, and the upstream temperature $T_{up}$. These upstream quantities are \textit{not} the quantities at the inlet ghost cell, but can be thought of as the quantities at negative infinity. We determine the mean quantities $(\overline{\rho c})_{up}$ and $(\overline{\rho c_p})_{up}$ from the mean solution at the inlet. 
+
+There is only one outgoing characteristic at a subsonic inlet ($w_3$), which is extrapolated from the interior. We apply a mean flow approximation for the incoming $u+c$ characteristic in terms of the inlet ghost cell velocity $u_0$ and pressure $p_0$,
+\begin{align}\label{eq:w2Approx}
+	u_0 &+ \frac{p}{(\overline{\rho c})_{up}} = \frac{p_{up}}{(\overline{\rho c})_{up}} \\
+	u_0 &= \frac{p_{up} - p_0}{(\overline{\rho c})_{up}}
+\end{align}
+This relation can be substituted into the formulation for the extrapolated $u-c$ characteristic variable,
+\begin{align}\label{eq:w3Char}
+	w_3 &= \frac{p_{up} - 2 p_0}{(\overline{\rho c})_{up}} \\
+	p_0 &= \frac{p_{up} - w_3 (\overline{\rho c})_{up}}{2} 
+\end{align}
+We also provide a mean flow approximation for the incoming entropy wave,
+\begin{align}\label{eq:w1Approx}
+	T_0 &- \frac{p_0}{(\overline{\rho c_p})_{up}} = T_{up} - \frac{p_{up}}{(\overline{\rho c_p})_{up}} \\
+	T_0 &= T_{up} + \frac{p_0 - p_{up}}{(\overline{\rho c_p})_{up}}
+\end{align}
+After calculating the inlet pressure from Eq.~\ref{eq:w3Char}, the inlet temperature can be computed from Eq.~\ref{eq:w1Approx}, and the inlet velocity can be computed from Eq.~\ref{eq:w2Approx}. The inlet species mass fraction is completely specified, so this completes the inlet primitive state.
+
+For computing the user inputs, the density, sound speed, and mixture specific heat capacity at constant pressure can all be ripped directly from the last interior cell of the mean solution. We compute the upstream pressure by,
+\be
+	p_{up} = p_0 + u_0 (\overline{\rho c})_{up}
+\ee
+and then compute the upstream temperature by,
+\be
+	T_{up} = T_0 + \frac{p_{up} - p_0}{(\overline{\rho c_p})_{up}}
+\ee
+where the pressure $p_0$, velocity $u_0$, and temperature $T_0$ are taken from the first cell of the mean solution.
+
+\subsubsection{Outlet Boundary Conditions}
+
+\paragraph{Specified Outlet Static Pressure}
+
+In the case of a subsonic outflow, one may specify a fixed outlet ghost cell pressure $p_{\numCells+1}$ and compute the remainder of the exterior state from the outgoing entropy wave (associated with the $u$ characteristic) and the Riemann invariant associated with the $u+c$ characteristic. Recall that the outgoing entropy wave is calculated as,
+\be
+	J = \frac{p}{\rho^{\gamma}}
+\ee
+and the Riemann invariant $J^+$ of the outgoing $u+c$ characteristic is calculated as,
+\be
+	J^+ = u + \frac{2 c}{\gamma - 1}
+\ee
+These can be extrapolated from the interior to the exterior using the first-order linear extrapolation
+\begin{align}
+    J_{\numCells+1} &= 2 J_{\numCells} - J_{\numCells-1} \\
+    J^+_{\numCells+1} &= 2 J^+_{\numCells} - J^+_{\numCells-1}, 
+\end{align}
+From the entropy wave, and knowing the fixed back pressure, the outlet ghost cell density can be calculated,
+\be
+	\rho_{\numCells+1} = \left( \frac{p_{\numCells+1}}{J_{\numCells}} \right)^{1/\gamma}
+\ee
+With this, the outlet ghost cell sound speed can be calculated as 
+\be
+c_{\numCells+1} = \sqrt{\frac{\gamma p_{\numCells+1}}{\rho_{\numCells+1}}}
+\ee
+and the outlet ghost cell velocity can be computed from the extrapolated Riemann invariant of the $u+c$ characteristic,
+\be
+	u_{\numCells+1} = J^+_{\numCells+1} - \frac{2 c_{\numCells+1}}{\gamma - 1}
+\ee
+
+The remaining primitive and conservative variables can be computed from gas relations, completing the outlet ghost cell state. 
+
+This outlet boundary condition results in reflections of acoustic waves and should not be used with unsteady calculations with significant system acoustics.
+
+\paragraph{Non-reflective Outlet}
+
+The non-reflective outlet follows a similar framework to that of the non-reflective inlet, modified with respect to the incoming and outgoing characteristics at the outlet. In this case, as there is only one incoming characteristic for subsonic flow, only a back pressure $p_{back}$ is specified along with the mean quantities $(\overline{\rho c_p})_{back}$ and $(\overline{\rho c})_{back}$. Again, recall that this back pressure is \textit{not} the static pressure at the outlet ghost cell, but can be thought of as the static pressure at infinity.
+
+The outgoing characteristics ($w_1$, $w_2$, and $w_4$) are directly extrapolated from the interior cells to the outlet ghost cell. The final necessary equation is supplied by the mean flow relation
+\be\label{eq:outChar}
+	u_{\numCells+1} - \frac{p_{\numCells+1}}{(\overline{\rho c})_{back}} = -\frac{p_{back}}{(\overline{\rho c)_{back}}}
+\ee
+With these relationships, we can solve for the primitive state, beginning with
+\be\label{eq:vel}
+	u_{\numCells+1} = \frac{p_{\numCells+1} - p_{back}}{(\overline{\rho c})_{back}}
+\ee
+and substituting this into $w_2$,
+\begin{align}
+	w_2 &= \frac{2 p_{\numCells+1} - p_{back}}{(\overline{\rho c})_{back}} \\
+	p_{\numCells+1} &= \frac{w_2 (\overline{\rho c})_{back} + p_{back}}{2}
+\end{align}
+This can be then substituted into Eq.~\ref{eq:vel} to compute the outlet ghost cell velocity, and into the equation for $w_1$ to compute the outlet ghost cell temperature. This completes the outlet state.
+
+For determining the user inputs, the density, sound speed, and mixture specific heat capacity at constant pressure can all be taken directly from the last interior cell of the mean solution. The back pressure should be calculated from Eq.~\ref{eq:outChar}, where the velocity $u$ and static pressure $p$ are taken from the last interior cell. Thus, we calculate the back pressure as,
+\be
+	p_{back} = p_{\numCells+1} - u_{\numCells+1} (\overline{\rho c})_{back}
+\ee

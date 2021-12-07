@@ -1,0 +1,241 @@
+\newpage
+
+\section{Physics}\label{sec:physics}
+
+\subsection{Governing Equations}\label{sec:govEqs}
+The governing equations for the 1D Navier-Stokes equations with species transport and reactions are
+\be\label{eq:govEqs}
+    \pde{\consVec}{t} + \pde{\fluxVec}{x} - \pde{\fluxVec_v}{x} = \sourceVec.
+\ee
+The conservative state \consVec, the inviscid flux vector \fluxVec, the viscous flux vector $\fluxVec_v$, and the source term \sourceVec\ are given by
+\begin{equation}\label{eq:govEqsTerms}
+    \consVec = 
+    \begin{bmatrix}
+        \rho \\ \rho u \\ \rho h^0 - p \\ \rho Y_\speciesIdx
+    \end{bmatrix}, \quad
+    \fluxVec = 
+    \begin{bmatrix}
+        \rho u \\  \rho u^2 + p \\ \rho h^0 u \\ \rho Y_\speciesIdx 
+    \end{bmatrix}, \quad
+    \fluxVec_v = 
+    \begin{bmatrix}
+        0 \\ \tau \\ u \tau - q \\ -\rho V_\speciesIdx Y_\speciesIdx
+    \end{bmatrix}, \quad
+    \mathbf{s} = 
+    \begin{bmatrix}
+        0 \\ 0 \\ 0 \\ \dot{\omega}_\speciesIdx
+    \end{bmatrix}
+\end{equation}
+where $\rho$ is density, $u$ is velocity, $h^0$ is stagnation enthalpy, $p$ is static pressure, and $Y_\speciesIdx$ is the mass fraction of the \speciesIdx th chemical species. For a system with \numSpecies\ chemical species, only $\numSpecies - 1$ species transport equations are solved, as the final species mass fraction $Y_\numSpecies$ can be computed from the fact that all mass fractions must sum to unity,
+\be\label{eq:massFracSumOne}
+    Y_\numSpecies = 1 - \sum_{\speciesIdx=1}^{\numSpecies-1} Y_\speciesIdx
+\ee
+The stagnation enthalpy $h^0$ is given by
+\begin{equation}
+    h^0 = \sum_{\speciesIdx = 1}^{\numSpecies} h_\speciesIdx Y_\speciesIdx + \frac{1}{2} u^2,
+\end{equation}
+where $h_\speciesIdx$ is the enthalpy of the \speciesIdx th species. The shear stress $\tau$ is given by
+\be
+   \tau = \frac{4}{3} \mu \pde{u}{x},
+\ee
+where $\mu$ is the mixture dynamic viscosity. The heat flux $q$ is given by
+\be
+    q = -\thermCond \pde{T}{x} + \rho \sum_{\speciesIdx}^{\numSpecies} V_\speciesIdx Y_\speciesIdx h_\speciesIdx,
+\ee
+where $\thermCond$ is the mixture thermal conductivity. The diffusion velocity term $V_\speciesIdx Y_\speciesIdx$, which also appears in the species transport viscous flux, is approximated as
+\be
+    V_\speciesIdx Y_\speciesIdx = -D_{\speciesIdx, M} \pde{Y_\speciesIdx}{x}
+\ee
+where $D_{\speciesIdx, M}$ is the mass diffusion coefficient for the \speciesIdx th species diffusing into the mixture. 
+
+The calculation of the species enthalpy $h_\speciesIdx$, the mixture dynamic viscosity $\mu$, the mixture thermal conductivity $\thermCond$, and the mass diffusion coefficient $D_{\speciesIdx,M}$ depends on the gas model being used, and will be discussed in Section~\ref{sec:gasModels}. Additionally, the species production rate $\dot{\omega}_\speciesIdx$ depends on the reaction model being used, and will be discussed in Section~\ref{sec:reacModels}.
+
+\newpage
+\subsection{Gas Models}\label{sec:gasModels}
+
+Several gas models are available in \verb|PERFORM| to model the thermodynamic and transport properties of gases, each with varying levels of accuracy in certain circumstances. We begin by defining several variables whose calculations are universal across all models.
+
+The mixture molecular weight $W$ is given by
+\be
+    W = \frac{1}{\sum_{\speciesIdx=1}^{\numSpecies} Y_\speciesIdx W_\speciesIdx}
+\ee
+where $W_\speciesIdx$ is the molecular weight of the \speciesIdx th species, given in units (g/mol). The mole fraction of the \speciesIdx th species is given by
+\be
+    X_\speciesIdx = W \frac{Y_\speciesIdx}{W_\speciesIdx}
+\ee
+The molar concentration, denoted by $[X_\speciesIdx]$, can be computed similarly from 
+\be
+    [X_\speciesIdx] = \rho \frac{Y_\speciesIdx}{W_\speciesIdx}.
+\ee
+The specific gas constant $R_\speciesIdx$ of the the \speciesIdx th species is given by
+\be
+    R_{\speciesIdx} = \frac{R_u}{W_i}
+\ee
+where $R_u = 8314.4621$ J/K-kmol is the universal gas constant. For a mixture with molecular weight $W$, the mixture specific gas constant is similarly given by
+\be
+    R = \frac{R_u}{W}
+\ee
+The ratio of specific heats $\gamma$ can be calculated as 
+\be
+    \gamma = \frac{c_p(T)}{c_v(T)},
+\ee    
+where $c_p$ is the mixture specific heat capacity at constant pressure, and $c_v$ is the mixture specific heat capacity at constant volume, both which may be a function of temperature depending on the gas model being used. The mixture specific heat capacity at constant pressure may be simply calculated from
+\be
+    c_p(T) = \sum_{\speciesIdx=1}^{\numSpecies} Y_\speciesIdx c_{p,\speciesIdx}(T)
+\ee
+
+Throughout this section, derivatives of certain quantities with respect to species mass fractions will leverage the fact that the species mass fractions must sum to unity (Eq.~\ref{eq:massFracSumOne}). Several mixture quantities, using the dummy variable $\xi$ as an example, can be represented as 
+\begin{align}
+    \xi &= \sum_{\speciesIdx=1}^{\numSpecies} Y_\speciesIdx \xi_\speciesIdx \\
+    &= \sum_{\speciesIdx=1}^{\numSpecies-1} Y_\speciesIdx \xi_\speciesIdx + Y_\numSpecies \xi_\numSpecies \\
+    &= \sum_{\speciesIdx=1}^{\numSpecies-1} Y_\speciesIdx \xi_\speciesIdx + \xi_\numSpecies \left( 1 - \sum_{\speciesIdx=1}^{\numSpecies-1} Y_\speciesIdx \right) \\ 
+    &= \xi_\numSpecies + \sum_{\speciesIdx=1}^{\numSpecies-1} Y_\speciesIdx (\xi_\speciesIdx - \xi_\numSpecies)
+\end{align}
+The derivatives of some quantity $\xi$ with respect to the first $\numSpecies-1$ species mass fractions can often be simplified by using this format.
+
+\subsubsection{Calorically-perfect Gas (CPG)}
+
+The CPG model is the simplest gas model. As a perfect gas, no inter-molecular forces are accounted for (which may not be valid at extremely high pressures). The CPG model distinguishing itself by the assumption that the heat capacity at constant pressure of each species, $c_{p,\speciesIdx}$, is constant, i.e. $c_{p,\speciesIdx}(T) = c_{p,\speciesIdx}$.
+
+Under this model, the governing equations (Eq.~\ref{eq:govEqs}) are closed by the ideal gas law, where density is calculated as
+\be
+    \rho = \frac{p}{RT}.
+\ee
+From the ideal gas law, it follows that the individual species densities can be computed as
+\be
+    \rho_\speciesIdx = \rho \frac{W_\speciesIdx}{W}.
+\ee
+The absolute species enthalpy for the \speciesIdx th species is computed as
+\be
+    h_\speciesIdx = h_{ref,\speciesIdx} + c_{p,\speciesIdx} T
+\ee
+where $h_{ref,\speciesIdx}$ is the enthalpy of formation of the \speciesIdx th species at a reference temperature of 0 K. The species entropy for the \speciesIdx th species is given by
+\be
+    s_\speciesIdx = c_{p,\speciesIdx} \text{ln}(T) - R_\speciesIdx \text{ln}(p)
+\ee
+The mixture density, enthalpy, entropy can be computed very simply from
+
+\be
+    \rho = \left( \sum_{\speciesIdx=1}^{\numSpecies} \frac{Y_\speciesIdx}{\rho_\speciesIdx} \right)^{-1}, \quad h = \sum_{\speciesIdx=1}^{\numSpecies} Y_\speciesIdx h_\speciesIdx, \quad s = \sum_{\speciesIdx=1}^{\numSpecies} Y_\speciesIdx s_\speciesIdx.
+\ee
+
+For various calculations (particularly for the Jacobians of the flux and source terms), calculating derivatives of density, stagnation enthalpy, and entropy with respect to the primitive state are useful. The derivatives of density are given by
+\begin{alignat}{3}
+    &\rho_p &&= \pde{\rho}{p} &&= \frac{1}{RT} = \frac{\rho}{p}, \\
+    &\rho_u &&= \pde{\rho}{u} &&= 0, \\
+    &\rho_T &&= \pde{\rho}{T} &&= -\frac{p}{RT^2} = -\frac{\rho}{T}, \\
+    &\rho_{Y_\speciesIdx} &&= \pde{\rho}{Y_\speciesIdx} &&= \rho W \left( \frac{1}{W_\numSpecies} - \frac{1}{W_\speciesIdx} \right).
+\end{alignat}
+The derivatives of stagnation enthalpy are given by
+\begin{alignat}{3}
+    &h^0_p &&= \pde{h^0}{p} &&= 0, \\
+    &h^0_u &&= \pde{h^0}{u} &&= u, \\ 
+    &h^0_T &&= \pde{h^0}{T} &&= c_p, \\
+    &h^0_{Y_\speciesIdx} &&= \pde{h^0}{Y_\speciesIdx } &&= h_\speciesIdx - h_\numSpecies. 
+\end{alignat}
+The derivatives of entropy are given by
+\begin{alignat}{3}
+    &s_p &&= \pde{s}{p} &&= -\frac{R}{p} = -\frac{1}{\rho T}, \\
+    &s_u &&= \pde{s}{u} &&= 0, \\
+    &s_T &&= \pde{s}{T} &&= \frac{c_p}{T}, \\
+    &s_{Y_\speciesIdx} &&= \pde{s}{Y_\speciesIdx} &&= s_\speciesIdx - s_\numSpecies. 
+\end{alignat}
+Here, the derivatives with respect to species mass fraction are valid for the first $\numSpecies-1$ species.
+
+The sound speed in the mixture may be calculated from these derivative quantities or the familiar simplified form, respectively given by
+\begin{align}
+    c &= \sqrt{\frac{1}{\rho_p + \rho_T \frac{1 - \rho h_p}{\rho h_T}}} \\
+    & = \sqrt{\gamma R T}
+\end{align}
+
+Under the ideal gas assumption, the specific heat capacity at constant volume can be computed from
+\be
+    c_v = c_p - R,
+\ee
+leading to the simplification of the ratio of specific heats,
+\be
+    \gamma = \frac{c_p}{c_p - R}.
+\ee
+
+For the CPG model, the species dynamic viscosities are computed as a function of temperature from Sutherland's law, given by
+\be
+    \mu_\speciesIdx(T) = \mu_{ref, \speciesIdx} \left( \frac{T}{T_{ref,\speciesIdx}} \right)^{3/2} \left( \frac{T_{ref,\speciesIdx} + S_\speciesIdx}{T + S_\speciesIdx} \right)
+\ee
+where $\mu_{ref,\speciesIdx}$, $T_{ref,\speciesIdx}$, and $S_\speciesIdx$ are the reference dynamic viscosity, reference temperature, and Sutherland temperature (constant, tabulated quantities), respectively, for the \speciesIdx th species. If $T_{ref,\speciesIdx} = 0$ K, then it is assumed $\mu_\speciesIdx = \mu_{ref,\speciesIdx}$. The mixture dynamic viscosity is computed from Wilke's mixing law,
+\be
+    \mu = 2 \sqrt{2} \sum_{\speciesIdx=1}^{\numSpecies} \frac{X_\speciesIdx \mu_\speciesIdx}{\phi_\speciesIdx},
+\ee
+where the denominator term is given by
+\be
+    \phi_\speciesIdx = \sum_{\speciesIdxTwo=1}^{\numSpecies} X_\speciesIdxTwo \left( 1 + \left( \frac{\mu_\speciesIdx}{\mu_\speciesIdxTwo} \right)^{1/2} \left( \frac{W_\speciesIdxTwo}{W_\speciesIdx} \right)^{1/4} \right)^2 \left( 1 + \frac{W_\speciesIdx}{W_\speciesIdxTwo} \right)^{-1/2}
+\ee
+
+Species thermal conductivity values are computed from
+\be
+    \thermCond_\speciesIdx = \frac{\mu_\speciesIdx c_{p,\speciesIdx}}{\text{Pr}_\speciesIdx}
+\ee
+where $\text{Pr}_\speciesIdx$ is the Prandtl number of the \speciesIdx th species. The mixture thermal conductivity is computed from the mixing law of Mathur, Tondon, and Saxena,
+\be
+    \thermCond = \frac{1}{2} \left( \sum_{\speciesIdx=1}^\numSpecies X_\speciesIdx \thermCond_\speciesIdx + \left(\sum_{\speciesIdx=1}^\numSpecies \frac{X_\speciesIdx}{\thermCond_\speciesIdx} \right)^{-1} \right),
+\ee
+
+Species mass diffusion coefficients for the \speciesIdx th species diffusing into the mixture are computed from
+\be
+    D_{\speciesIdx,M} = \frac{\mu_\speciesIdx}{\rho \text{Sc}_\speciesIdx}
+\ee
+where $\text{Sc}_\speciesIdx$ is the Schmidt number of the \speciesIdx th species. 
+
+
+\newpage
+\subsection{Reaction Models}\label{sec:reacModels}
+
+Various models exist for computing the species production rate $\dot{\omega}_\speciesIdx$. Of course, the most accurate method would be elementary reaction mechanisms, but these often involve thousands of species and reactions, pressure corrections and are thus infeasible even for 1D problems. Reduced mechanisms and global reactions offer two comparatively inexpensive alternatives. We describe both in turn.
+
+\subsubsection{Reduced Mechanisms}
+
+This section describes the modeling of reaction source terms by reduced mechanisms. The same methodology may be applied to elementary reaction mechanisms, but we assume that some empirical, reduced mechanism is used to grossly reduce the number of modeled species and reactions to $\MC{O}(10-100)$.
+
+We begin by supposing that a reaction mechanism is made up of \numReacs\ reactions governing the production and consumption of \numSpecies\ chemical species. The \reacIdx th reaction of this mechanism can be described by the formula
+\be
+   \sum_{\speciesIdx=1}^{\numSpecies} \nu_{\speciesIdx,\reacIdx}' \chi_\speciesIdx \xrightleftharpoons[k_{f,\reacIdx}]{k_{r,\reacIdx}} \sum_{\speciesIdx=1}^{\numSpecies} \nu_{\speciesIdx,\reacIdx}'' \chi_\speciesIdx
+\ee
+where $\chi_\speciesIdx$ is the chemical formula for the \speciesIdx th chemical species, and $\nu_{\speciesIdx,\reacIdx}'$ and $\nu_{\speciesIdx,\reacIdx}''$ are the stoichiometric coefficients of the reactants and products, respectively, for the \speciesIdx th species in the \reacIdx th reaction. The coefficients $k_{f,\reacIdx}$ and $k_{r,\reacIdx}$ forward and reverse reaction rates for the \reacIdx th reaction. For example, the single-step combustion of methane can be described by
+\be\label{eq:methCombReversible}
+    \methane + 2 \oxygen \xrightleftharpoons[k_f]{k_r} 2 \water + \carbDiox
+\ee
+In this case, $\nu_{\methane}' = 1$, $\nu_{\methane}'' = 0$, $\nu_{\water}' = 0$, $\nu_{\water}'' = 2$, and so on. The species production rates can be written in terms of these stoichiometric coefficients and reaction rates,
+\be\label{eq:specProdRate}
+    \dot{\omega}_\speciesIdx = W_\speciesIdx \sum_{\reacIdx=1}^{\numReacs} (\nu_{\speciesIdx,\reacIdx}'' - \nu_{\speciesIdx,\reacIdx}') w_\reacIdx
+\ee
+where the rate-of-progress $w_\reacIdx$ is given by
+\be
+    w_\reacIdx = k_{f,\reacIdx} \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\nu_{\speciesIdx,\reacIdx}'} - k_{r,\reacIdx} \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\nu_{\speciesIdx,\reacIdx}''}
+\ee
+where we recall that $[X_\speciesIdx]$ is the molar concentration of the \speciesIdx th species. The forward reaction rate is modeled by the Arrhenius rate equation
+\be\label{eq:arrheniusRate}
+    k_{f,\reacIdx} = A_\reacIdx T^{b_\reacIdx} \text{exp} \left( \frac{-E_{a,\reacIdx}}{R_u T} \right)
+\ee
+where the coefficients $A_\reacIdx$, $b_\reacIdx$, and $E_{a,\reacIdx}$ are tabulated constants given by the reaction mechanism. The reverse reaction rate is computed from
+\be
+    k_{b,\reacIdx} = \frac{k_{f,\reacIdx}}{k_{c,\reacIdx}}
+\ee
+where the equilibrium constant $k_{c,\reacIdx}$ is formulated in terms of the change in Gibbs free energy. When reversible reactions are added to \verb|PERFORM|, this section will be updated to include this calculation.
+
+With all of these components in hand, the species production rate can be computed from Eq.~\ref{eq:specProdRate}. We emphasize that the constant coefficients $\nu_{\speciesIdx, \reacIdx}'$, $\nu_{\speciesIdx, \reacIdx}''$, $A_\reacIdx$, $b_\reacIdx$, and $E_{a,\reacIdx}$ are all provided by a given reaction mechanism. On the other hand, only the temperature $T$, mixture gas constant $R$, and molar concentrations $[X_\speciesIdx]$ will change throughout the simulation.
+
+
+\subsubsection{Global Mechanism}
+
+Global reaction mechanisms vastly simplify the above reversible reaction model by assuming that all reactions only proceed in the forwards direction, i.e. $k_{r,\reacIdx} = 0$ for all \numReacs\ reactions. As an example, the single-step combustion of methane (Eq.~\ref{eq:methCombReversible}) would thus be written as 
+\be\label{eq:methCombGlobal}
+    \methane + 2 \oxygen \xrightarrow{k} 2 \water + \carbDiox
+\ee
+These global reaction mechanisms must be fitted to empirical data to best model the reaction without including reversible reactions. As such, the rate-of-progress is modified to have the form
+\be
+    w_\reacIdx = k_\reacIdx \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\alpha_{\speciesIdx,\reacIdx}}
+\ee
+where the coefficients $\alpha_{\speciesIdx, \reacIdx}$ can be any real-valued number. The reaction rate $k_\reacIdx$ is still computed from the Arrhenius rate defined in Eq.~\ref{eq:arrheniusRate}. Usually this rate-of-progress is only defined for a single species involved in the reaction, and production rates for other species in the reaction are determined from stoichiometric ratios. For example, the single-step Westbrook-Dryer methane combustion global reaction mechanism (defined by Eq.~\ref{eq:methCombGlobal}) provides
+\be
+    w = 2.12 \times 10^{12} \text{exp}\left(\frac{-24,358}{T}\right)[X_{\methane}]^{0.2} [X_{\oxygen}]^{1.3}
+\ee
+Note that here, the Arrhenius temperature exponent coefficient $b = 0$, and the factor $E_a/R_u$ have been combined. 

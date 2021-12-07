@@ -1,0 +1,47 @@
+\documentclass[12pt]{article}
+\usepackage[compact]{titlesec}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{mathtools}
+
+\input{commands}
+
+\hypersetup{
+	colorlinks,
+	citecolor=black,
+	filecolor=black,
+	linkcolor=black,
+	urlcolor=black
+}
+
+\titlespacing*{\section}{0pt}{0\baselineskip}{1\baselineskip}
+\titlespacing*{\subsection}{0pt}{2\baselineskip}{1\baselineskip}
+\titlespacing*{\subsubsection}{0pt}{2\baselineskip}{1\baselineskip}
+\titlespacing*{\paragraph}{0pt}{2\baselineskip}{1\baselineskip}
+
+\setcounter{tocdepth}{4}
+\setcounter{secnumdepth}{4}
+
+\title{\textbf{\texttt{PERFORM} \\ Prototyping Environment for Reacting Flow \\ Order Reduction Methods} \\ \vspace{0.5cm} Solver Documentation}
+\author{Christopher R. Wentland\footnote{Email: chriswen [at] umich [dot] edu}, Ashish S. Nair, Elnaz Rezaian, \\ Cheng Huang, Karthik Duraisamy}
+
+\begin{document}
+\maketitle 
+
+\newpage
+\tableofcontents
+
+\input{introduction}
+\input{physics}
+\input{numerics}
+\input{roms}
+\input{jacobians}
+
+\newpage
+\bibliography{citations}{}
+\bibliographystyle{aiaa}
+
+
+\end{document}

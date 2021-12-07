@@ -1,0 +1,11 @@
+\newpage
+\section{Introduction}
+
+This code was originally written to be a sort of low-fidelity 1D Python port of the General Mesh and Equations Solver (GEMS), originally written by Guoping Xia at Purdue University and expanded on over the decades by researchers from Purdue University, the University of Michigan, Ann Arbor, and the Air Force Research Laboratory. However, it became apparent that this could be a useful tool for members of the reduced-order model (ROM) community to implement and test new ROM methods for challenging (yet computationally-manageable) reacting flow problems. Hopefully, this code may help lower the barrier to entry for folks who are not familiar with multi-species flows or combustion, or don't want to invest in licensing and learning an enormous research combustion code. Ideally, this code enables users to rapidly prototype new ROM algorithms in an extremely accessible Python environment.
+
+Although this port is still ``low-fidelity'' in the sense that the code lacks much of the functionality of the original GEMS solver (e.g. some robustness controls, a wide variety of flow physics and reaction models, parallel processing), the problems it is designed to model are still extremely challenging for modern ROM methods. We hope that open access and contribution to this code can help tackle some of the many problems in the field of ROMs for reacting flows.
+
+This document specifically serves as a reference for the theory behind the unsteady reacting flow solver and ROM methods. A separate user guide is supplied in the documentation directory of the code repository. If you notice any errors in either document (or the code), please create a new issue on the GitHub repository. If you would like to contribute to the code, please fork the repository and submit a pull request when you're finished.
+
+The mathematical notation in this paper is as follows: scalars and scalar-valued functions are denoted by italicized, lowercase letters/symbols (e.g., $\dummyVar$), vectors and vector-valued functions are denoted by boldface, lowercase letters/symbols (e.g., \dummyVec), matrices and matrix-valued functions are denoted by boldface, uppercase letters/symbols (e.g., \dummyMat), and vector spaces are denoted by calligraphic, uppercase letters/symbols (e.g., \dummySpace).
+
