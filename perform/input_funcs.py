@@ -1,3 +1,5 @@
+"""Functions for handling ingestion of input files"""
+
 import os
 import re
 
@@ -7,42 +9,64 @@ from perform.constants import REAL_TYPE
 
 
 def catch_input(in_dict, in_key, default_val):
-    """
-    Assign default values if user does not provide a certain input
+    """Handle non-list dictionary entries from parameter input files.
+
+    Casts input value as same type as default_val.
+    Assign default values if user does not provide a given input parameter.
+    Use catch_list() if attempting to retrieve lists or lists of lists.
+
+    Args:
+        in_dict: Dictionary in input parameters, within which in_key is a key.
+        in_key: Key of parameter to retrieve from in_dict.
+        default:
+            Default value to assign at output if in_key does not exist in in_dict.
+            The type of default implicitly defines the type which the parameter
+            is cast to, if it exists in in_dict.
+    Returns:
+        Input parameter retrieved from in_dict, or default if not provided.
     """
 
     # TODO: correct error handling if default type is not recognized
-    # TODO: check against lowercase'd strings
-    # 		so that inputs are not case sensitive.
-    # 		Do this for True/False too
-    # TODO: instead of trusting user for None,
-    # 		could also use NaN/Inf to indicate int/float defaults
-    # 		without passing a numerical default
-    # 		Or could just pass the actual default type lol, that'd be easier
+    # TODO: check against lowercase'd strings so that inputs are not case sensitive.
+    # Do this for True/False too
+    # TODO: instead of trusting user for None, could also use NaN/Inf to indicate int/float defaults
+    # without passing a numerical default
+    # Or could just pass the actual default type lol, that'd be easier
 
     try:
         # If None passed as default, trust user
         if default_val is None:
-            outVal = in_dict[in_key]
+            out_val = in_dict[in_key]
         else:
             default_type = type(default_val)
-            outVal = default_type(in_dict[in_key])
+            out_val = default_type(in_dict[in_key])
     except KeyError:
-        outVal = default_val
+        out_val = default_val
 
-    return outVal
+    return out_val
 
 
 def catch_list(in_dict, in_key, default, len_highest=1):
-    """
-    Input processor for reading lists or lists of lists
-    Default defines length of lists at lowest level
+    """Handle list and list of list dictionary entries from parameter input files.
+
+    Casts list entries of input as same type as default_val.
+    Assign default values if user does not provide a given input parameter.
+
+    Args:
+        in_dict: Dictionary in input parameters, within which in_key is a key.
+        in_key: Key of parameter to retrieve from in_dict.
+        default:
+            Default list to assign at output if in_key does not exist in in_dict.
+            The type of the list entries in default implicitly defines the type which the parameter
+            is cast to, if it exists in in_dict.
+        len_highest: Expected length of topmost list.
+
+    Returns:
+        Input parameter list retrieved from in_dict, or default if not provided.
     """
 
-    # TODO: needs to throw an error if input list of lists
-    # 	is longer than len_highest
-    # TODO: could make a recursive function probably,
-    # 	just hard to define appropriate list lengths at each level
+    # TODO: needs to throw an error if input list of lists is longer than len_highest
+    # TODO: could make a recursive function probably, just hard to define appropriate list lengths at each level
 
     list_of_lists_flag = type(default[0]) == list
 
@@ -77,7 +101,10 @@ def catch_list(in_dict, in_key, default, len_highest=1):
         if list_of_lists_flag:
             val_list = []
             for list_idx in range(len_highest):
-                val_list.append(default[0])
+                if len(default) == len_highest:
+                    val_list.append(default[list_idx])
+                else:
+                    val_list.append(default[0])
         else:
             val_list = default
 
@@ -85,8 +112,13 @@ def catch_list(in_dict, in_key, default, len_highest=1):
 
 
 def parse_value(expr):
-    """
-    Parse read text value into dict value
+    """Parse text into Python expression.
+
+    Args:
+        expr: String to be converted to Python expression (e.g. a list).
+
+    Returns:
+        Parsed Python expression.
     """
 
     try:
@@ -98,8 +130,18 @@ def parse_value(expr):
 
 
 def parse_line(line):
-    """
-    Parse read text line into dict key and value
+    """Parse line from text file line into dict key and value.
+
+    Breaks a line into the text before and after an equals sign, if present.
+    The text before the equals sign is treated as the parameter name,
+    and the text after the equals sign is the input value of this parameter.
+
+    Args:
+        line: String of a single line from text file.
+
+    Returns:
+        Dictionary key and value for input parameter read from line, if line contains a valid parameter.
+        Otherwise raises an exception (e.g. for empty lines, or lines without an equals sign)
     """
 
     eq = line.find("=")
@@ -111,8 +153,15 @@ def parse_line(line):
 
 
 def read_input_file(input_file):
-    """
-    Read input file
+    """Parse input parameters from PERFORM text input file.
+
+    Refer to the documentation for proper formatting of input files.
+
+    Args:
+        input_file: Path to input file to be read.
+
+    Returns:
+        Dictionary of parameters read from input_file.
     """
 
     # TODO: better exception handling besides just a pass
@@ -135,8 +184,18 @@ def read_input_file(input_file):
 
 
 def parse_bc(bc_name, in_dict):
-    """
-    Parse boundary condition parameters from the input parameter dictionary
+    """Parse boundary condition parameters from input parameter dictionary.
+
+    Retrieves inlet and outlet boundary condition parameters. Refer to the documentation
+    for proper formatting of these input parameters.
+
+    Args:
+        bc_name: "inlet" or "outlet", for inlet and outlet boundary condition, respectively.
+        in_dict: Dictionary if input parameters read from the solver parameters input file.
+
+    Returns:
+        Boundary condition parameters. If a given parameter is not supplied in the solver parameters input file,
+        then None is returned for that parameter.
     """
 
     # TODO: can definitely be made more general
@@ -178,16 +237,25 @@ def parse_bc(bc_name, in_dict):
 
 
 def get_initial_conditions(sol_domain, solver):
-    """
-    Extract initial condition profile from
-    two-zone initParamsFile, init_file .npy file, or restart file
+    """Extract initial condition primitive solution profile.
+
+    This function sets the initial conditions for a simulation. This may come from a piecewise uniform profile
+    file (init_params_file), a user-specified binary profile (init_file), or a restart files.
+
+    Restart files take precedence over an init_file, and an init_file takes precedence over an init_params_file file.
+
+    Args:
+        sol_domain: SolutionDomain for which the initial condition is retrieved.
+        solver: SystemSolver containing global simulation parameters.
+    Returns:
+        NumPy array of the initial condition primitive solution profile.
     """
 
     # TODO: add option to interpolate solution onto given mesh, if different
 
     # Initialize from restart file
     if solver.init_from_restart:
-        (solver.sol_time, sol_prim_init, solver.restart_iter) = read_restart_file(solver)
+        solver.sol_time, sol_prim_init, solver.restart_iter = read_restart_file(solver)
 
     # Otherwise init from scratch IC or custom IC file
     else:
@@ -202,12 +270,30 @@ def get_initial_conditions(sol_domain, solver):
         # Attempt to get solver.sol_time, if given
         solver.sol_time = catch_input(solver.param_dict, "sol_time_init", 0.0)
 
+    # deal with higher-order initialization
+    if sol_prim_init.ndim == 2:
+        # assume it's [num_eqs, num_cells], expand time dimension
+        sol_prim_init = np.expand_dims(sol_prim_init, axis=-1)
+    elif sol_prim_init.ndim == 3:
+        # last dimension is time dimension
+        pass
+    else:
+        raise ValueError("sol_prim_init had an unexpected number of dimensions: " + str(sol_prim_init.ndim))
+
     return sol_prim_init
 
 
 def gen_piecewise_uniform_ic(sol_domain, solver):
-    """
-    Generate "left" and "right" states
+    """Get primitive solution profile initial condition from piecewise uniform parameters.
+
+    Piecewise uniform profiles are characterized by a solution profile broken into constant chunks,
+    like step functions. This can be useful for cases like a shock tube or initializing flame simulations.
+
+    Args:
+        sol_domain:
+        solver: SystemSolver containing global simulation parameters.
+    Returns:
+        NumPy array of the initial condition primitive solution profile.
     """
 
     # TODO: generalize to >2 uniform regions
@@ -250,12 +336,19 @@ def gen_piecewise_uniform_ic(sol_domain, solver):
 
 
 def read_restart_file(solver):
-    """
-    Read solution state from restart file
-    """
+    """Get primitive solution profile initial condition from a restart file.
 
-    # TODO: if higher-order multistep scheme,
-    # 	load previous time steps to preserve time accuracy
+    Also retrieves physical solution time to ensure boundary forcing function is correctly synced.
+
+    Sets solver.restart_iter so that subsequent restart files follow this restart file's iteration number.
+
+    Args:
+        solver: SystemSolver containing global simulation parameters.
+
+    Returns:
+        Solution time (in seconds), NumPy array of the loaded primitive solution profile,
+        and the current restart iteration number.
+    """
 
     # Read text file for restart file iteration number
     iter_file = os.path.join(solver.restart_output_dir, "restart_iter.dat")
@@ -272,3 +365,20 @@ def read_restart_file(solver):
     restart_iter += 1  # so this restart file doesn't get overwritten
 
     return sol_time, sol_prim, restart_iter
+
+
+def get_absolute_path(path_in, working_dir):
+    """Converts parameter file path input which might be a relative path to an absolute path.
+
+    Args:
+        path_in: raw input string from a parameter file
+        working_dir: working directory of simulation, presumably provided from SystemSolver.working_dir
+
+    Returns:
+        path_in if it was already an absolute path, or absolute path from working_dir if it wasn't
+    """
+
+    if os.path.isabs(path_in):
+        return path_in
+    else:
+        return os.path.join(working_dir, path_in)

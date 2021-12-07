@@ -5,86 +5,72 @@ from perform.flux.invisc_flux.invisc_flux import InviscFlux
 
 
 class RoeInviscFlux(InviscFlux):
-    """
-    Roe's flux difference scheme
+    """Class implementing flux methods for Roe's flux difference scheme.
+
+    Inherits from InviscFlux. Provides member functions for computing the numerical flux at each face and
+    its Jacobian with respect to the primitive and conservative state.
+
+    Please refer to Roe (1981) for details on the Roe scheme.
+
+    Args:
+        sol_domain: SolutionDomain with which this Flux is associated.
     """
 
     def __init__(self, sol_domain):
 
         super().__init__()
 
-    def calc_flux(self, sol_domain):
+    def calc_avg_state(self, sol_left, sol_right, sol_ave):
+        """Computes average state at cell faces.
+
+        Computes the special Roe average, first by computing the Roe average density and stagnation enthalpy, then
+        adjusting the primitive state iteratively to be consistent.
+
+        Args:
+            sol_left: SolutionPhys representing the solution on the left side of cell faces.
+            sol_right: SolutionPhys representing the solution on the right side of cell faces.
+            sol_ave: SolutionPhys where the face average state will be stored.
         """
-        Compute flux array
+
+        # Useful factors
+        sqrhol = np.sqrt(sol_left.sol_cons[0, :])
+        sqrhor = np.sqrt(sol_right.sol_cons[0, :])
+        fac = sqrhol / (sqrhol + sqrhor)
+        fac1 = 1.0 - fac
+
+        # Roe average stagnation enthalpy and density
+        sol_ave.h0 = fac * sol_left.h0 + fac1 * sol_right.h0
+        sol_ave.sol_cons[0, :] = sqrhol * sqrhor
+
+        # First guess at Roe average primitive state
+        sol_ave.sol_prim = fac[None, :] * sol_left.sol_prim + fac1[None, :] * sol_right.sol_prim
+        sol_ave.mass_fracs_full = sol_ave.gas_model.calc_all_mass_fracs(sol_ave.sol_prim[3:, :], threshold=True)
+
+        # Adjust primitive state iteratively to conform to Roe average density and enthalpy, update state
+        sol_ave.calc_state_from_rho_h0()
+
+    def calc_flux(self, sol_domain):
+        """Compute numerical inviscid flux vector.
+
+        Args:
+            sol_domain: SolutionDomain with which this Flux is associated.
+
+        Returns:
+            NumPy array of numerical inviscid flux for every governing equation at each finite volume face.
         """
 
         # TODO: entropy fix
 
         sol_left = sol_domain.sol_left
         sol_right = sol_domain.sol_right
-        sol_prim_left = sol_left.sol_prim
-        sol_cons_left = sol_left.sol_cons
-        sol_prim_right = sol_right.sol_prim
-        sol_cons_right = sol_domain.sol_right.sol_cons
-        gas_model = sol_domain.gas_model
-
-        # Inviscid flux vector
-        flux_left = np.zeros(sol_prim_left.shape, dtype=REAL_TYPE)
-        flux_right = np.zeros(sol_prim_right.shape, dtype=REAL_TYPE)
-
-        # Compute sqrhol, sqrhor, fac, and fac1
-        sqrhol = np.sqrt(sol_cons_left[0, :])
-        sqrhor = np.sqrt(sol_cons_right[0, :])
-        fac = sqrhol / (sqrhol + sqrhor)
-        fac1 = 1.0 - fac
-
-        # Roe average stagnation enthalpy and density
-        sol_left.hi = gas_model.calc_spec_enth(sol_prim_left[2, :])
-        sol_left.h0 = gas_model.calc_stag_enth(sol_prim_left[1, :], sol_left.mass_fracs_full, spec_enth=sol_left.hi)
-        sol_right.hi = gas_model.calc_spec_enth(sol_prim_right[2, :])
-        sol_right.h0 = gas_model.calc_stag_enth(sol_prim_right[1, :], sol_right.mass_fracs_full, spec_enth=sol_right.hi)
-
-        sol_ave = sol_domain.sol_ave
-        sol_ave.h0 = fac * sol_left.h0 + fac1 * sol_right.h0
-        sol_ave.sol_cons[0, :] = sqrhol * sqrhor
-
-        # Compute Roe average primitive state
-        sol_ave.sol_prim = fac[None, :] * sol_prim_left + fac1[None, :] * sol_prim_right
-        sol_ave.mass_fracs_full = gas_model.calc_all_mass_fracs(sol_ave.sol_prim[3:, :], threshold=True)
-
-        # Adjust iteratively to conform to Roe average density and enthalpy
-        sol_ave.calc_state_from_rho_h0()
-
-        # Compute Roe average state at faces, associated fluid properties
-        sol_ave.calc_state_from_prim()
-        sol_ave.gamma_mix = gas_model.calc_mix_gamma(sol_ave.r_mix, sol_ave.cp_mix)
-        sol_ave.c = gas_model.calc_sound_speed(
-            sol_ave.sol_prim[2, :],
-            r_mix=sol_ave.r_mix,
-            gamma_mix=sol_ave.gamma_mix,
-            mass_fracs=sol_ave.sol_prim[3:, :],
-            cp_mix=sol_ave.cp_mix,
-        )
 
         # Compute inviscid flux vectors of left and right state
-        flux_left[0, :] = sol_cons_left[1, :]
-        flux_left[1, :] = sol_cons_left[1, :] * sol_prim_left[1, :] + sol_prim_left[0, :]
-        flux_left[2, :] = sol_cons_left[0, :] * sol_left.h0 * sol_prim_left[1, :]
-        flux_left[3:, :] = sol_cons_left[3:, :] * sol_prim_left[[1], :]
-        flux_right[0, :] = sol_cons_right[1, :]
-        flux_right[1, :] = sol_cons_right[1, :] * sol_prim_right[1, :] + sol_prim_right[0, :]
-        flux_right[2, :] = sol_cons_right[0, :] * sol_right.h0 * sol_prim_right[1, :]
-        flux_right[3:, :] = sol_cons_right[3:, :] * sol_prim_right[[1], :]
-
-        # Maximum wave speed for adapting dtau, if needed
-        # TODO: need to adaptively size this for hyper-reduction
-        if sol_domain.time_integrator.adapt_dtau:
-            srf = np.maximum(sol_ave.sol_prim[1, :] + sol_ave.c, sol_ave.sol_prim[1, :] - sol_ave.c)
-            sol_domain.sol_int.srf = np.maximum(srf[:-1], srf[1:])
+        flux_left = self.calc_inv_flux(sol_left.sol_cons, sol_left.sol_prim, sol_left.h0)
+        flux_right = self.calc_inv_flux(sol_right.sol_cons, sol_right.sol_prim, sol_right.h0)
 
         # Dissipation term
-        d_sol_prim = sol_prim_left - sol_prim_right
-        sol_domain.roe_diss = self.calc_roe_diss(sol_ave)
+        d_sol_prim = sol_left.sol_prim - sol_right.sol_prim
+        sol_domain.roe_diss = self.calc_roe_diss(sol_domain.sol_ave)
         diss_term = 0.5 * (sol_domain.roe_diss * np.expand_dims(d_sol_prim, 0)).sum(-2)
 
         # Complete Roe flux
@@ -93,63 +79,52 @@ class RoeInviscFlux(InviscFlux):
         return flux
 
     def calc_roe_diss(self, sol_ave):
-        """
-        Compute dissipation term of Roe flux
+        """Compute dissipation term of Roe flux.
+
+        The derivation of this term is provided in the solver theory documentation.
+
+        Args:
+            sol_ave: SolutionPhys of the Roe average state at each finite volume face.
+
+        Returns:
+            3D NumPy array of the Roe dissipation matrix.
         """
 
-        gas_model = sol_ave.gas_model
+        gas = sol_ave.gas_model
 
-        diss_matrix = np.zeros((gas_model.num_eqs, gas_model.num_eqs, sol_ave.num_cells), dtype=REAL_TYPE)
+        diss_matrix = np.zeros((gas.num_eqs, gas.num_eqs, sol_ave.num_cells), dtype=REAL_TYPE)
 
         # For clarity
         rho = sol_ave.sol_cons[0, :]
-        press = sol_ave.sol_prim[0, :]
         vel = sol_ave.sol_prim[1, :]
-        temp = sol_ave.sol_prim[2, :]
         mass_fracs = sol_ave.sol_prim[3:, :]
+        h0 = sol_ave.h0
+        c = sol_ave.c
 
         # Derivatives of density and enthalpy
-        (d_rho_d_press, d_rho_d_temp, d_rho_d_mass_frac) = gas_model.calc_dens_derivs(
-            sol_ave.sol_cons[0, :],
-            wrt_press=True,
-            pressure=sol_ave.sol_prim[0, :],
-            wrt_temp=True,
-            temperature=sol_ave.sol_prim[2, :],
-            wrt_spec=True,
-            mix_mol_weight=sol_ave.mw_mix,
-        )
-
-        (d_enth_d_press, d_enth_d_temp, d_enth_d_mass_frac) = gas_model.calc_stag_enth_derivs(
-            wrt_press=True,
-            wrt_temp=True,
-            mass_fracs=sol_ave.sol_prim[3:, :],
-            wrt_spec=True,
-            temperature=sol_ave.sol_prim[2, :],
-        )
-
-        # Save for Jacobian calculations
-        sol_ave.d_rho_d_press = d_rho_d_press
-        sol_ave.d_rho_d_temp = d_rho_d_temp
-        sol_ave.d_rho_d_mass_frac = d_rho_d_mass_frac
-        sol_ave.d_enth_d_press = d_enth_d_press
-        sol_ave.d_enth_d_temp = d_enth_d_temp
-        sol_ave.d_enth_d_mass_frac = d_enth_d_mass_frac
+        sol_ave.update_density_enthalpy_derivs()
+        d_rho_d_press = sol_ave.d_rho_d_press
+        d_rho_d_temp = sol_ave.d_rho_d_temp
+        d_rho_d_mass_frac = sol_ave.d_rho_d_mass_frac
+        d_enth_d_press = sol_ave.d_enth_d_press
+        d_enth_d_temp = sol_ave.d_enth_d_temp
+        d_enth_d_mass_frac = sol_ave.d_enth_d_mass_frac
 
         # Gamma terms for energy equation
-        g_press = rho * d_enth_d_press + d_rho_d_press * sol_ave.h0 - 1.0
-        g_temp = rho * d_enth_d_temp + d_rho_d_temp * sol_ave.h0
-        g_mass_frac = rho[None, :] * d_enth_d_mass_frac + sol_ave.h0[None, :] * d_rho_d_mass_frac
+        g_press = rho * d_enth_d_press + d_rho_d_press * h0 - 1.0
+        g_temp = rho * d_enth_d_temp + d_rho_d_temp * h0
+        g_mass_frac = rho[None, :] * d_enth_d_mass_frac + h0[None, :] * d_rho_d_mass_frac
 
         # Characteristic speeds
-        lambda1 = vel + sol_ave.c
-        lambda2 = vel - sol_ave.c
+        lambda1 = vel + c
+        lambda2 = vel - c
         lambda1_abs = np.absolute(lambda1)
         lambda2_abs = np.absolute(lambda2)
 
         r_roe = (lambda2_abs - lambda1_abs) / (lambda2 - lambda1)
-        alpha = sol_ave.c * (lambda1_abs + lambda2_abs) / (lambda1 - lambda2)
-        beta = np.power(sol_ave.c, 2.0) * (lambda1_abs - lambda2_abs) / (lambda1 - lambda2)
-        phi = sol_ave.c * (lambda1_abs + lambda2_abs) / (lambda1 - lambda2)
+        alpha = c * (lambda1_abs + lambda2_abs) / (lambda1 - lambda2)
+        beta = np.power(c, 2.0) * (lambda1_abs - lambda2_abs) / (lambda1 - lambda2)
+        phi = c * (lambda1_abs + lambda2_abs) / (lambda1 - lambda2)
 
         eta = (1.0 - rho * d_enth_d_press) / d_enth_d_temp
         psi = eta * d_rho_d_temp + rho * d_rho_d_press
@@ -186,8 +161,8 @@ class RoeInviscFlux(InviscFlux):
         diss_matrix[3:, 1, :] = mass_fracs * beta_star[None, :]
         diss_matrix[3:, 2, :] = mass_fracs * (vel_abs * d_rho_d_temp)[None, :]
         # TODO: vectorize
-        for mf_idx_out in range(3, sol_ave.gas_model.num_eqs):
-            for mf_idx_in in range(3, sol_ave.gas_model.num_eqs):
+        for mf_idx_out in range(3, gas.num_eqs):
+            for mf_idx_in in range(3, gas.num_eqs):
                 # TODO: check this again against GEMS,
                 # something weird going on
                 if mf_idx_out == mf_idx_in:
@@ -201,25 +176,54 @@ class RoeInviscFlux(InviscFlux):
 
         return diss_matrix
 
-    def calc_jacob_prim(self, sol_domain):
+    def calc_jacob(self, sol_domain, wrt_prim):
+        """Compute numerical inviscid flux Jacobian.
+
+        Calculates flux Jacobian at each face and assembles Jacobian with respect to each
+        finite volume cell's state. Note that the gradient with respect to boundary ghost cell states are
+        excluded, as the Newton iteration linear solve does not need this.
+
+        Args:
+            sol_domain: SolutionDomain with which this Flux is associated.
+            wrt_prim:
+                Boolean flag. If True, calculate Jacobian w/r/t the primitive variables.
+                If False, calculate w/r/t conservative variables.
+
+        Returns:
+            jacob_center_cell: center block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its own state.
+            jacob_left_cell: lower block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its left neighbor's state.
+            jacob_left_cell: upper block diagonal of flux Jacobian, representing the gradient of a given cell's
+            viscous flux contribution with respect to its right neighbor's state.
         """
-        Compute flux Jacobian with respect to the primitive variables
-        """
 
-        roe_diss = sol_domain.roe_diss.copy()
+        roe_diss = sol_domain.roe_diss
+        center_samp = sol_domain.flux_rhs_idxs
+        left_samp = sol_domain.jacob_left_samp
+        right_samp = sol_domain.jacob_right_samp
 
-        jacob_left_face = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
-        jacob_right_face = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
+        # Jacobian of inviscid flux vector at left and right face reconstruction
+        jacob_face_left = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
+        jacob_face_right = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
+        # TODO: when conservative Jacobian is implemented, uncomment this
+        # if wrt_prim:
+        #     jacob_face_left = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_left)
+        #     jacob_face_right = self.calc_d_inv_flux_d_sol_prim(sol_domain.sol_right)
+        # else:
+        #     raise ValueError("Roe disspation issue not addressed yet")
+        #     jacob_face_left = self.calc_d_inv_flux_d_sol_cons(sol_domain.sol_left)
+        #     jacob_face_right = self.calc_d_inv_flux_d_sol_cons(sol_domain.sol_right)
 
-        # Jacobian wrt current cell
-        jacob_center_cell = (jacob_left_face[:, :, 1:] + roe_diss[:, :, 1:]) + (
-            -jacob_right_face[:, :, :-1] + roe_diss[:, :, :-1]
+        # center, lower, and upper block diagonal of full numerical flux Jacobian
+        jacob_center_cell = (jacob_face_left[:, :, center_samp + 1] + roe_diss[:, :, center_samp + 1]) + (
+            -jacob_face_right[:, :, center_samp] + roe_diss[:, :, center_samp]
         )
+        jacob_left_cell = -jacob_face_left[:, :, left_samp] - roe_diss[:, :, left_samp]
+        jacob_right_cell = jacob_face_right[:, :, right_samp] - roe_diss[:, :, right_samp]
 
-        # Jacobian wrt left neighbor
-        jacob_left_cell = -jacob_left_face[:, :, 1:-1] - roe_diss[:, :, :-2]
-
-        # Jacobian wrt right neighbor
-        jacob_right_cell = jacob_right_face[:, :, 1:-1] - roe_diss[:, :, 2:]
+        jacob_center_cell *= 0.5
+        jacob_left_cell *= 0.5
+        jacob_right_cell *= 0.5
 
         return jacob_center_cell, jacob_left_cell, jacob_right_cell

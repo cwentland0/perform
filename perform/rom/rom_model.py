@@ -1,23 +1,51 @@
-import os
-
 import numpy as np
 
 from perform.constants import REAL_TYPE
+from perform.rom.rom_space_mapping.linear_space_mapping import LinearSpaceMapping
+from perform.rom.rom_space_mapping.autoencoder_space_mapping import AutoencoderSpaceMapping
+from perform.rom.rom_variable_mapping.cons_variable_mapping import ConsVariableMapping
 
 
 class RomModel:
+    """Base class for all ROM models.
+
+    The RomModel class provides basic functionality that every ROM model should be equipped with,
+    most importantly feature scaling and mapping from the low-dimensional state to
+    the high-dimensional state ("decoding"). Feature scaling is general, but decoding operations
+    are specific to child classes. Thus, RomModel only provides the high-level utility decode_sol(),
+    which calls child class implementations of apply_decoder().
+
+    Args:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        rom_domain: RomDomain within which this RomModel is contained.
+        sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
+
+    Attributes:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        latent_dim: Dimension of low-dimensional code associated with this model.
+        var_idxs: NumPy array of zero-indexed indices of state variables which this model maps to.
+        num_vars: Number of state variables this model maps to.
+        num_cells: Number of finite volume cells in associated SolutionDomain.
+        sol_shape: Tuple shape (num_vars, num_cells) of full-dimensional state which this model maps to.
+        target_cons: Boolean flag indicating whether this model maps to the conservative variables.
+        code: NumPy array of unsteady low-dimensional state associated with this model.
+        res:
+            NumPy array of low-dimensional linear solve residual when integrating ROM ODE in time
+            with an implicit time integrator.
+        norm_sub_prof_cons:
+            NumPy array of conservative variable subtractive normalization profile,
+            if required by ROM method.
+        norm_fac_prof_cons:
+            NumPy array of conservative variable divisive normalization profile, if required by ROM method.
+        cent_prof_cons: NumPy array of conservative variable centering profile, if required by ROM method.
+        norm_sub_prof_prim:
+            NumPy array of primitive variable subtractive normalization profile, if required by ROM method.
+        norm_fac_prof_prim:
+        NumPy array of primitive variable divisive normalization profile, if required by ROM method.
+        cent_prof_prim: NumPy array of primitive variable centering profile, if required by ROM method.
     """
-    Base class for any ROM model
 
-    Assumed that every model may be equipped with
-    some sort of data standardization requirement
-
-    Also assumed that every model has some means of
-    computing the full-dimensional state from the low
-    dimensional state, i.e. a "decoder"
-    """
-
-    def __init__(self, model_idx, rom_domain, sol_domain):
+    def __init__(self, model_idx, sol_domain, rom_domain):
 
         self.model_idx = model_idx
         self.latent_dim = rom_domain.latent_dims[self.model_idx]
@@ -26,203 +54,50 @@ class RomModel:
         self.num_cells = sol_domain.mesh.num_cells
         self.sol_shape = (self.num_vars, self.num_cells)
 
-        # Just copy some stuff for less clutter
-        self.model_dir = rom_domain.model_dir
-        self.target_cons = rom_domain.target_cons
-        self.hyper_reduc = rom_domain.hyper_reduc
+        # initialize space mapping
+        space_mapping = rom_domain.rom_dict["space_mapping"]
+        if space_mapping == "linear":
+            self.space_mapping = LinearSpaceMapping(sol_domain, rom_domain, self)
+        elif space_mapping == "autoencoder":
+            self.space_mapping = AutoencoderSpaceMapping(sol_domain, rom_domain, self)
+        else:
+            raise ValueError("Invalid space_mapping: " + str(space_mapping))
 
+        # internal state and related quantities
+        self.sol = np.zeros(self.sol_shape, dtype=REAL_TYPE)
         self.code = np.zeros(self.latent_dim, dtype=REAL_TYPE)
-        self.res = np.zeros(self.latent_dim, dtype=REAL_TYPE)
+        self.d_code = np.zeros(self.latent_dim, dtype=REAL_TYPE)  # TODO: is this used?
 
-        # Get normalization profiles, if necessary
-        self.norm_sub_prof_cons = None
-        self.norm_sub_prof_prim = None
-        self.norm_fac_prof_cons = None
-        self.norm_fac_prof_prim = None
-        self.cent_prof_cons = None
-        self.cent_prof_prim = None
-        if rom_domain.has_cons_norm:
-            self.norm_sub_prof_cons = self.load_standardization(
-                os.path.join(self.model_dir, rom_domain.norm_sub_cons_in[self.model_idx]), default="zeros"
-            )
+    def calc_rhs_low_dim(self, rom_domain, sol_domain):
+        """Project RHS onto low-dimensional space for explicit time integrators.
 
-            self.norm_fac_prof_cons = self.load_standardization(
-                os.path.join(self.model_dir, rom_domain.norm_fac_cons_in[self.model_idx]), default="ones"
-            )
+        This is a helper function called from RomDomain.advance_subiter() for explicit time integration.
+        Child classes which enable explicit time integration must implement a calc_projector() member function
+        to compute the projector attribute.
 
-        if rom_domain.has_prim_norm:
-            self.norm_sub_prof_prim = self.load_standardization(
-                os.path.join(self.model_dir, rom_domain.norm_sub_prim_in[self.model_idx]), default="zeros"
-            )
-
-            self.norm_fac_prof_prim = self.load_standardization(
-                os.path.join(self.model_dir, rom_domain.norm_fac_prim_in[self.model_idx]), default="ones"
-            )
-
-        # Get centering profiles, if necessary
-        # If cent_ic, just use given initial conditions
-        if rom_domain.has_cons_cent:
-            if rom_domain.cent_ic:
-                self.cent_prof_cons = sol_domain.sol_int.sol_cons[self.var_idxs, :].copy()
-
-            else:
-                self.cent_prof_cons = self.load_standardization(
-                    os.path.join(self.model_dir, rom_domain.cent_cons_in[self.model_idx]), default="zeros"
-                )
-
-        if rom_domain.has_prim_cent:
-            if rom_domain.cent_ic:
-                self.cent_prof_prim = sol_domain.sol_int.sol_prim[self.var_idxs, :].copy()
-            else:
-                self.cent_prof_prim = self.load_standardization(
-                    os.path.join(self.model_dir, rom_domain.cent_prim_in[self.model_idx]), default="zeros"
-                )
-
-    def load_standardization(self, stand_input, default="zeros"):
-
-        try:
-            # TODO: add ability to accept single scalar value for stand_input
-            # catch_list doesn't handle this when loading norm_sub_in, etc.
-
-            # Load single complete standardization profile from file
-            stand_prof = np.load(stand_input)
-            assert stand_prof.shape == self.sol_shape
-            return stand_prof
-
-        except AssertionError:
-            print("Standardization profile at " + stand_input + " did not match solution shape")
-
-        if default == "zeros":
-            print("WARNING: standardization load failed or not specified," + " defaulting to zeros")
-            stand_prof = np.zeros(self.sol_shape, dtype=REAL_TYPE)
-        elif default == "ones":
-            print("WARNING: standardization load failed or not specified," + " defaulting to ones")
-            stand_prof = np.zeros(self.sol_shape, dtype=REAL_TYPE)
-
-        return stand_prof
-
-    def standardize_data(
-        self, arr, normalize=True, norm_fac_prof=None, norm_sub_prof=None, center=True, cent_prof=None, inverse=False
-    ):
-        """
-        (de)centering and (de)normalization
+        Args:
+            rom_domain: RomDomain within which this RomModel is contained.
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
         """
 
-        if normalize:
-            assert norm_fac_prof is not None, "Must provide normalization division factor to normalize"
-            assert norm_sub_prof is not None, "Must provide normalization subtractive factor to normalize"
-        if center:
-            assert cent_prof is not None, "Must provide centering profile to center"
+        # scale RHS
+        norm_sub_prof = np.zeros(self.space_mapping.norm_sub_prof.shape, dtype=REAL_TYPE)
 
-        if inverse:
-            if normalize:
-                arr = self.normalize(arr, norm_fac_prof, norm_sub_prof, denormalize=True)
-            if center:
-                arr = self.center(arr, cent_prof, decenter=True)
+        # if variable mapping is not conservative, need to supply conservative variable scaling
+        if isinstance(rom_domain.var_mapping, ConsVariableMapping):
+            norm_fac_prof = self.space_mapping.norm_fac_prof
         else:
-            if center:
-                arr = self.center(arr, cent_prof, decenter=False)
-            if normalize:
-                arr = self.normalize(arr, norm_fac_prof, norm_sub_prof, denormalize=False)
+            norm_fac_prof = self.space_mapping.norm_fac_prof_cons
 
-        return arr
+        rhs_scaled = self.space_mapping.scale_profile(
+            sol_domain.sol_int.rhs[self.var_idxs[:, None], sol_domain.direct_samp_idxs[None, :]],
+            normalize=True,
+            norm_fac_prof=norm_fac_prof[:, sol_domain.direct_samp_idxs],
+            norm_sub_prof=norm_sub_prof[:, sol_domain.direct_samp_idxs],
+            center=False,
+            inverse=False,
+        )
 
-    def center(self, arr, cent_prof, decenter=False):
-        """
-        (de)center input vector according to loaded centering profile
-        """
-
-        if decenter:
-            arr += cent_prof
-        else:
-            arr -= cent_prof
-        return arr
-
-    def normalize(self, arr, norm_fac_prof, norm_sub_prof, denormalize=False):
-        """
-        (De)normalize input vector according to
-        subtractive and divisive normalization profiles
-        """
-
-        if denormalize:
-            arr = arr * norm_fac_prof + norm_sub_prof
-        else:
-            arr = (arr - norm_sub_prof) / norm_fac_prof
-        return arr
-
-    def decode_sol(self, code_in):
-        """
-        Compute full decoding of solution,
-        including decentering and denormalization
-        """
-
-        sol = self.apply_decoder(code_in)
-
-        if self.target_cons:
-            sol = self.standardize_data(
-                sol,
-                normalize=True,
-                norm_fac_prof=self.norm_fac_prof_cons,
-                norm_sub_prof=self.norm_sub_prof_cons,
-                center=True,
-                cent_prof=self.cent_prof_cons,
-                inverse=True,
-            )
-
-        else:
-            sol = self.standardize_data(
-                sol,
-                normalize=True,
-                norm_fac_prof=self.norm_fac_prof_prim,
-                norm_sub_prof=self.norm_sub_prof_prim,
-                center=True,
-                cent_prof=self.cent_prof_prim,
-                inverse=True,
-            )
-
-        return sol
-
-    def init_from_code(self, code0, sol_domain):
-        """
-        Initialize full-order solution from input low-dimensional state
-        """
-
-        self.code = code0.copy()
-
-        if self.target_cons:
-            sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
-        else:
-            sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
-
-    def update_sol(self, sol_domain):
-        """
-        Update solution after code has been updated
-        """
-
-        # TODO: could just use this to replace init_from_code?
-
-        if self.target_cons:
-            sol_domain.sol_int.sol_cons[self.var_idxs, :] = self.decode_sol(self.code)
-        else:
-            sol_domain.sol_int.sol_prim[self.var_idxs, :] = self.decode_sol(self.code)
-
-    def calc_code_norms(self):
-        """
-        Compute L1 and L2 norms of low-dimensional state
-        linear solve residuals
-
-        Scaled by number of elements, so "L2 norm" here is really RMS
-        """
-
-        res_abs = np.abs(self.res)
-
-        # L2 norm
-        res_norm_l2 = np.sum(np.square(res_abs))
-        res_norm_l2 /= self.latent_dim
-        res_norm_l2 = np.sqrt(res_norm_l2)
-
-        # L1 norm
-        res_norm_l1 = np.sum(res_abs)
-        res_norm_l1 /= self.latent_dim
-
-        return res_norm_l2, res_norm_l1
+        # calc projection operator and project
+        projector = rom_domain.rom_method.calc_projector(sol_domain, self)
+        self.rhs_low_dim = rom_domain.rom_method.project_to_low_dim(projector, rhs_scaled, transpose=False)

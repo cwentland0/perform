@@ -1,18 +1,42 @@
+import os
 from time import sleep
 
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib as mpl
 
-from perform.constants import FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT
+try:
+    if os.environ["PLT_USE_AGG"] == "1":
+        mpl.use("Agg")
+except KeyError:
+    pass
+import matplotlib.pyplot as plt
+
 from perform.visualization.field_plot import FieldPlot
 from perform.visualization.probe_plot import ProbePlot
 from perform.input_funcs import catch_input, catch_list
 
+# TODO: must adjust these functions for handling multiple SolutionDomains
+
 
 class VisualizationGroup:
     """
-    Container class for all visualizations
+    Container class for visualizations to be generated.
+
+    Reads input parameters and initializes an arbitrary number of Visualization objects for plotting data.
+
+    Provides utility functions for updating, drawing, and saving these visualizations during simulation runtime.
+
+    Child classes must implement plot() and save() member functions.
+
+    Args:
+        sol_domain: SolutionDomain with which this VisualizationGroup is associated.
+        solver: SystemSolver containing global simulation parameters.
+
+    Attributes:
+        vis_show: Boolean flag indicating whether to display visualization plots on the user's screen.
+        vis_save: Boolean flag indicating whether to save visualization plot images to disk.
+        vis_interval: Physical time step interval at which to display/save visualization plots.
+        num_vis_plots: Total number of visualization figures.
+        vis_list: List containing Visualization objects to be plotted.
     """
 
     def __init__(self, sol_domain, solver):
@@ -22,7 +46,6 @@ class VisualizationGroup:
         self.vis_show = catch_input(param_dict, "vis_show", True)
         self.vis_save = catch_input(param_dict, "vis_save", False)
         self.vis_interval = catch_input(param_dict, "vis_interval", 1)
-        self.nice_vis = catch_input(param_dict, "nice_vis", False)
 
         # If not saving or showing, don't even draw the plots
         self.vis_draw = True
@@ -35,7 +58,7 @@ class VisualizationGroup:
         plot_count = True
         while plot_count:
             try:
-                key_name = "vis_type_" + str(self.num_vis_plots + 1)
+                key_name = "vis_type_" + str(self.num_vis_plots)
                 plot_type = str(param_dict[key_name])
                 # TODO: should honestly just fail for incorrect input
                 assert plot_type in ["field", "probe", "residual"], (
@@ -51,9 +74,9 @@ class VisualizationGroup:
         self.vis_list = [None] * self.num_vis_plots
 
         # Initialize each figure object
-        for vis_idx in range(1, self.num_vis_plots + 1):
+        for vis_idx in range(self.num_vis_plots):
 
-            # some parameters all plots have
+            # Some parameters all plots have
             vis_type = str(param_dict["vis_type_" + str(vis_idx)])
             vis_vars = catch_list(param_dict, "vis_var_" + str(vis_idx), [None])
             vis_x_bounds = catch_list(
@@ -64,7 +87,7 @@ class VisualizationGroup:
             )
 
             if vis_type == "field":
-                self.vis_list[vis_idx - 1] = FieldPlot(
+                self.vis_list[vis_idx] = FieldPlot(
                     solver.image_output_dir,
                     vis_idx,
                     self.vis_interval,
@@ -77,9 +100,9 @@ class VisualizationGroup:
                 )
 
             elif vis_type == "probe":
-                probe_num = -1 + catch_input(param_dict, "probe_num_" + str(vis_idx), -2)
+                probe_num = catch_input(param_dict, "probe_num_" + str(vis_idx), -2)
 
-                self.vis_list[vis_idx - 1] = ProbePlot(
+                self.vis_list[vis_idx] = ProbePlot(
                     solver.image_output_dir,
                     vis_idx,
                     solver.sim_type,
@@ -92,25 +115,22 @@ class VisualizationGroup:
                     sol_domain.gas_model.species_names,
                 )
 
-            elif vis_type == "residual":
-                raise ValueError("Residual plot not implemented yet")
-
             else:
                 raise ValueError("Invalid visualization type: " + vis_type)
-
-        # Set plot positions/dimensions
-        for vis in self.vis_list:
-            vis.fig, vis.ax = plt.subplots(
-                nrows=vis.num_rows, ncols=vis.num_cols, num=vis.vis_id, figsize=(FIG_WIDTH_DEFAULT, FIG_HEIGHT_DEFAULT)
-            )
 
         if self.vis_show:
             plt.show(block=False)
             plt.pause(0.001)
 
     def draw_plots(self, sol_domain, solver):
-        """
-        Helper function to draw, display, and save plots
+        """Draw, display, and save plots if requested.
+
+        Loops through Visualization objects and draws, displays, and/or saves visualization plots
+        at the physical time step interval specified by vis_interval.
+
+        Args:
+            sol_domain: SolutionDomain with which this VisualizationGroup is associated.
+            solver: SystemSolver containing global simulation parameters.
         """
 
         if not self.vis_draw:
@@ -128,25 +148,21 @@ class VisualizationGroup:
 
             for vis in self.vis_list:
 
-                # draw and save plots
+                # Draw and save plots
                 if vis.vis_type == "field":
-                    vis.plot(
-                        sol_domain.sol_int.sol_prim,
-                        sol_domain.sol_int.sol_cons,
-                        sol_domain.sol_int.source,
-                        sol_domain.sol_int.rhs,
-                        sol_domain.gas_model,
-                        sol_domain.mesh.x_cell,
-                        "b-",
-                        first_plot,
-                    )
+                    vis.plot(sol_domain, "b-", first_plot)
 
                 elif vis.vis_type == "probe":
                     vis.plot(sol_domain.probe_vals, sol_domain.time_vals, solver.iter, "b-", first_plot)
                 else:
                     raise ValueError("Invalid vis_type:" + str(vis.vis_type))
+
                 if self.vis_save:
                     vis.save(solver.iter)
 
                 if self.vis_show:
                     vis.fig.canvas.flush_events()
+
+            # If this is not included, first plot may be empty black window
+            if self.vis_show and first_plot:
+                plt.pause(0.001)

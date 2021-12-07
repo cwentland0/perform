@@ -5,24 +5,36 @@ from perform.constants import REAL_TYPE
 
 
 class ProjectionROM(RomModel):
-    """
-    Base class for projection-based reduced-order model
+    """Base class for projection-based reduced-order models.
 
-    This model makes no assumption on the form of the decoder,
-    but assumes a linear projection onto the low-dimensional space
+    Inherits from RomModel. This class makes no assumption on the form of the decoder,
+    but assumes a linear projection onto the low-dimensional space.
+
+    Args:
+        model_idx: Zero-indexed ID of a given RomModel instance within a RomDomain's model_list.
+        rom_domain: RomDomain within which this RomModel is contained.
+        sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
     """
 
     def __init__(self, modelIdx, rom_domain, sol_domain):
 
+        self.hyper_reduc = rom_domain.hyper_reduc
+
         super().__init__(modelIdx, rom_domain, sol_domain)
 
     def project_to_low_dim(self, projector, full_dim_arr, transpose=False):
-        """
-        Project given full-dimensional vector onto low-dimensional space via given projector
+        """Project given full-dimensional vector onto low-dimensional space via given projector.
 
-        Assumed that full_dim_arr is either 1D array or is in [numVars, numCells] order
+        Assumes that full_dim_arr is either 1D array or is in [num_vars, num_cells] order.
+        Further assumes that projector is already in [latent_dim, num_vars x num_cells] order.
 
-        Assumed that projector is already in [numModes, numVars x numCells] order
+        Args:
+            projector: 2D NumPy array containing linear projector.
+            full_dim_arr: NumPy array of full-dimensional vector to be projected.
+            transpose: If True, transposes projector before projecting full_dim_arr.
+
+        Returns:
+            NumPy array of low-dimensional projection of full_dim_arr.
         """
 
         if full_dim_arr.ndim == 2:
@@ -40,17 +52,21 @@ class ProjectionROM(RomModel):
         return code_out
 
     def calc_rhs_low_dim(self, rom_domain, sol_domain):
-        """
-        Project RHS onto low-dimensional space for explicit time integrators
+        """Project RHS onto low-dimensional space for explicit time integrators.
 
-        Assumes that RHS term is scaled using an appropriate conservative
-        variable normalization profile
+        This is a helper function called from RomDomain.advance_subiter() for explicit time integration.
+        Child classes which enable explicit time integration must implement a calc_projector() member function
+        to compute the projector attribute.
+
+        Args:
+            rom_domain: RomDomain within which this RomModel is contained.
+            sol_domain: SolutionDomain with which this RomModel's RomDomain is associated.
         """
 
         # scale RHS
         norm_sub_prof = np.zeros(self.norm_fac_prof_cons.shape, dtype=REAL_TYPE)
 
-        rhs_scaled = self.standardize_data(
+        rhs_scaled = self.scale_profile(
             sol_domain.sol_int.rhs[self.var_idxs[:, None], sol_domain.direct_samp_idxs[None, :]],
             normalize=True,
             norm_fac_prof=self.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs],

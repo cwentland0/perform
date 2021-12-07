@@ -1,3 +1,13 @@
+"""Driver for executing PERFORM simulations.
+
+Initializes all necessary constructs for executing a PERFORM simulation,
+namely a SystemSolver, a SolutionDomain, a VisualizationGroup, and a RomDomain (if running a ROM simulation).
+Advances through time steps, calls visualization and output routines, and handles solver blowup if it occurs.
+
+After installing PERFORM, the terminal command "perform" will execute main() and take the first command line
+argument as the working directory
+"""
+
 import os
 from time import time
 import argparse
@@ -12,14 +22,12 @@ from perform.rom.rom_domain import RomDomain
 warnings.filterwarnings("error")
 
 
-def main():
+def driver(working_dir):
+    """Main driver function which initializes all necessary constructs and advances the solution in time"""
 
     # ----- Start setup -----
 
-    # Read working directory input
-    parser = argparse.ArgumentParser(description="Read working directory")
-    parser.add_argument("working_dir", type=str, default="./", help="runtime working directory")
-    working_dir = os.path.expanduser(parser.parse_args().working_dir)
+    working_dir = os.path.expanduser(working_dir)
     assert os.path.isdir(working_dir), "Given working directory does not exist"
 
     # Retrieve global solver parameters
@@ -66,7 +74,8 @@ def main():
             visGroup.draw_plots(sol_domain, solver)
 
         runtime = time() - time_start
-        print("Solve finished in %.8f seconds, writing to disk" % runtime)
+        if solver.stdout:
+            print("Solve finished in %.8f seconds, writing to disk" % runtime)
 
     except RuntimeWarning:
         solver.solve_failed = True
@@ -82,7 +91,18 @@ def main():
     # ----- End post-processing -----
 
 
+def main():
+
+    # Read working directory input
+    parser = argparse.ArgumentParser(description="Read working directory")
+    parser.add_argument("working_dir", type=str, default="./", help="runtime working directory")
+    working_dir = parser.parse_args().working_dir
+
+    driver(working_dir)
+
+
 if __name__ == "__main__":
+
     try:
         main()
     except:
