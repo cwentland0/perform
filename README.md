@@ -10,11 +10,11 @@ PERFORM is a combination 1D compressible reacting flow solver and modular reduce
 
 ## Documentation
 
-Please see the [documentation website](https://perform.readthedocs.io) for a detailed user guide on installing, running, and designing new simulations for **PERFORM**. Brief descriptions of available solver routines and ROM methods are also included; please see the solver theory documentation PDF in `doc/` for more details. A very brief introduction to installing and running the code is included below. 
+Please see the [documentation website](https://perform.readthedocs.io) for a detailed user guide on installing, running, and designing new simulations for **PERFORM**. Brief descriptions of available solver routines and ROM methods are also included. If you would like to read the more detailed theory behind the routines, you can compile the solver theory documentation from `doc/solver_theory/main.tex` using your preferred LaTeX PDF compiler. A very brief introduction to installing and running the code is included below. 
 
 ## Installation
 
-Python 3.6+, `numpy`, `scipy`, and `matplotlib` are required for executing **PERFORM**. To install the package and any missing dependencies, clone this repository, enter the code's root directory `perform/`, and run the following command:
+Python 3.6+, `numpy`, `scipy`, and `matplotlib` are required for executing **PERFORM**. Ubuntu 20.04 is the only OS that is actively tested, but MacOS users should not have many issues. To install the package and any missing dependencies, clone this repository, enter the code's root directory, and run the following command:
 
 ```
 pip install -e .
@@ -49,7 +49,7 @@ You can test your installation of **PERFORM** by running the included unit, inte
 chmod +x tests/run_tests.sh
 tests/run_tests.sh
 ```
-You will be prompted to choose whether to run the regression tests after the unit and integration tests have completed, as the regression tests can take a while to complete. **NOTE**: The ROM regression tests will fail if you have not installed TensorFlow 2.X; you can install TensorFlow and its dependencies with `pip install tensorflow`.
+You will be prompted to choose whether to run the regression tests after the unit and integration tests have completed, as the regression tests can take a while to complete. **NOTE**: The ROM integration tests will fail if you have not installed TensorFlow 2.X; you can install TensorFlow and its dependencies with `pip install tensorflow`.
 
 ## Utilities
 
