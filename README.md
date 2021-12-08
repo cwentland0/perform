@@ -14,7 +14,7 @@ Please see the [documentation website](https://perform.readthedocs.io) for a det
 
 ## Installation
 
-Python 3.6+, `numpy`, `scipy`, and `matplotlib` are required for executing **PERFORM**. Ubuntu 20.04 is the only OS that is actively tested, but MacOS users should not have many issues. To install the package and any missing dependencies, clone this repository, enter the code's root directory, and run the following command:
+Python 3.6+, `numpy`, `scipy`, and `matplotlib` are required for executing **PERFORM**. Ubuntu 20.04 is the only OS that is actively tested, but Windows Subsystem for Linux (WLS) and macOS users should not have many issues. To install the package and any missing dependencies, clone this repository, enter the code's root directory, and run the following command:
 
 ```
 pip install -e .

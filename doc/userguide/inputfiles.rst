@@ -198,6 +198,10 @@ input file from which the gas file, mesh file, and initial condition file are sp
      - ``float``
      - ``0.0``
      - m/s
+   * - ``stdout``
+     - ``bool``
+     - ``True``
+     - \-
    * - ``res_norm_prim``
      - ``list`` of ``float``
      - ``[1e5, 10, 300, 1]``
@@ -243,6 +247,10 @@ input file from which the gas file, mesh file, and initial condition file are sp
      - ``False``
      - \-
    * - ``source_out``
+     - ``bool``
+     - ``False``
+     - \-
+   * - ``hr_out``
      - ``bool``
      - ``False``
      - \-
@@ -434,6 +442,10 @@ The parameters described here are required when using a finite-rate irreversible
      - ``list`` of ``float``
      - \-
      - Unitless
+   * - ``temp_exp``
+     - ``list`` of ``float``
+     - \-
+     - Unitless
 
 
 Initial Condition Inputs
@@ -497,7 +509,9 @@ The piecewise uniform initial condition file is a text file containing input par
 
 NumPy Primitive IC File
 ^^^^^^^^^^^^^^^^^^^^^^^
-Providing a complete primitive state profile is by far the simplest initialization method available. The ``init_file`` parameter in ``solver_params.inp`` provides the arbitrary location of a NumPy binary (``*.npy``) containing a single NumPy array. This NumPy array must be a two-dimensional array, where the first dimension is the number of governing equations in the system (3 + ``num_species`` - 1) and the second dimension is the number of cells in the discretized spatial domain. The order of the first dimension *must* be ordered by pressure, velocity, temperature, and then chemical species mass fraction. The chemical species mass fractions must be ordered as they are in the chemistry file. This file can be generated however you like, such as ripping it manually from the unsteady outputs of a past **PERFORM** run, or generating a more complex series of discontinuous steps than what the ``ic_params_file`` settings handle natively.
+Providing a complete primitive state profile is by far the simplest initialization method available. The ``init_file`` parameter in ``solver_params.inp`` provides the arbitrary location of a NumPy binary (``*.npy``) containing a single NumPy array. This NumPy array must be a two- or three-dimensional array, where the first dimension is the number of governing equations in the system (3 + ``num_species`` - 1) and the second dimension is the number of cells in the discretized spatial domain. The order of the first dimension *must* be ordered by pressure, velocity, temperature, and then chemical species mass fraction. The chemical species mass fractions must be ordered as they are in the chemistry file. The optional third dimension is the time step dimension; if a higher-order time integration method is requested, the initial condition profile may provide prior time steps to preserve this order of accuracy upon initialization. If only one time step or a two-dimensional profile is provided, the time integrator will attempt to "cold start" from a first-order scheme.
+
+This file can be generated however you like, such as ripping it manually from the unsteady outputs of a past **PERFORM** run, or generating a more complex series of discontinuous steps than what the ``ic_params_file`` settings handle natively.
 
 
 
@@ -505,7 +519,7 @@ Providing a complete primitive state profile is by far the simplest initializati
 
 Restart Files
 ^^^^^^^^^^^^^
-Restart files accomplish what the name implies: restarting the simulation from a previous point in the simulation. Restart files are saved to the ``restart_files`` directory in the working directory when ``save_restarts = True`` at an interval specified by ``restart_interval`` in ``solver_params.inp``. Two files are saved to reference a restart solution: a ``restart_iter.dat`` file and a ``restart_file_X.npz`` file, where ``X`` is the *restart iteration number*. The latter file contains both the primitive solution saved at that restart iteration, as well as the physical solution time associated with that solution. The former file is an text file containing the restart iteration number of the most recently-written restart file, and thus points to which ``restart_file_X.npz`` should be read in to initialize the solution. It is overwritten every time a restart file is written. Similarly, the maximum number of ``restart_file_X.npz`` saved to disk is dictated by ``num_restarts``. When this threshold is reached, the restart iteration number will loop back to 1 and begin overwriting old restart files.
+Restart files accomplish what the name implies: restarting the simulation from a previous point in the simulation. Restart files are saved to the ``restart_files`` directory in the working directory when ``save_restarts = True`` at an interval specified by ``restart_interval`` in ``solver_params.inp``. Two files are saved to reference a restart solution: a ``restart_iter.dat`` file and a ``restart_file_X.npz`` file, where ``X`` is the *restart iteration number*. The latter file contains both the conservative and primitive solution saved at that restart iteration, as well as the physical solution time associated with that solution. The former file is an text file containing the restart iteration number of the most recently-written restart file, and thus points to which ``restart_file_X.npz`` should be read in to initialize the solution. It is overwritten every time a restart file is written. Similarly, the maximum number of ``restart_file_X.npz`` saved to disk is dictated by ``num_restarts``. When this threshold is reached, the restart iteration number will loop back to 1 and begin overwriting old restart files.
 
 Setting ``init_from_restart = True`` will initialize the solution from the restart file whose restart iteration number matches the one given in ``restart_iter.dat``. Thus, without modification, the solution will restart from the most recently generated restart file. However, if you want to restart from a different iteration number, you can manually change the iteration number stored in ``restart_iter.dat``.
 

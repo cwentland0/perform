@@ -8,13 +8,13 @@ solver_params.inp
 -----------------
 See :ref:`solverparams-label` for variable types, default values, and units (where applicable).
 
-* ``mesh_file``: Absolute path to mesh file.
+* ``mesh_file``: Path to mesh file. Permits absolute path, or relative path from working directory.
 
-* ``chem_file``: Absolute path to chemistry file.
+* ``chem_file``: Path to chemistry file. Permits absolute path, or relative path from working directory.
 
-* ``init_file``: Absolute path to full initial primitive state profile (stored in a ``*.npy`` NumPy binary file) to initialize the unsteady solution from. If ``init_from_restart = True``, this parameter will be ignored and the unsteady solution will be initialized from a restart file.
+* ``init_file``: Path to full initial primitive state profile (stored in a ``*.npy`` NumPy binary file) to initialize the unsteady solution from. Permits absolute path, or relative path from working directory. If ``ic_params_file`` is set, or ``init_from_restart = True``, this parameter will be ignored.
 
-* ``ic_params_file``: Absolute path to left/right (step function) primitive state parameters file to initialize the unsteady solution from. If ``init_file`` is set or ``init_from_restart = True``, this parameter will be ignored.
+* ``ic_params_file``: Path to left/right (step function) primitive state parameters file to initialize the unsteady solution from. Permits absolute path, or relative path from working directory. If ``init_from_restart = True``, this parameter will be ignored.
 
 * ``dt``: Fixed time step size for numerical time integration.
 
@@ -56,7 +56,7 @@ See :ref:`solverparams-label` for variable types, default values, and units (whe
 
 * ``grad_limiter``: Name of the gradient limiter to use when computing higher-order face reconstructions. Please see the solver documentation for details on each scheme.
 
-  * Valid options: ``barth``, ``venkat``
+  * Valid options: ``barth_cell``, ``barth_face``, ``venkat``
 
 * ``bound_cond_inlet``: Name of the boundary condition to apply at the inlet. For details on each boundary condition, see the solver documentation. For required input parameters for a given boundary condition, see :ref:`inletbcs-label`.
 
@@ -100,6 +100,8 @@ See :ref:`solverparams-label` for variable types, default values, and units (whe
 
 * ``vel_add``: Velocity to be added to the entire initial condition velocity field. Accepts negative values.
 
+* ``stdout``: Boolean flag to specify whether to print iteration counts and residual norms to STDOUT.
+
 * ``res_norm_prim``: List of values by which to normalize each field of the :math:`\ell^2` and :math:`\ell^1` residual norms before averaging across all fields. They are order by pressure, velocity, temperature, and then all species mass fractions except the last. This ensures that the norms of each residual field contribute roughly equally to the average norm used to determine Newton's method convergence.
 
 * ``source_off``: Boolean flag to specify whether to apply the reaction source term. This is ``False`` by default; setting it manually to ``True`` turns off the source term. This can save computational cost for non-reactive cases.
@@ -117,7 +119,7 @@ See :ref:`solverparams-label` for variable types, default values, and units (whe
 * ``probe_vars``: A list of fields to be probed at each specified probe location.
 
   * Valid for all probes: ``"pressure"``, ``"velocity"``, ``"temperature"``, ``"density"``, ``"momentum"``, ``"energy"``, ``"species_X"``, ``"density-species_X"`` (where ``X`` is replaced by the integer number of the desired chemical species to be probed, e.g. ``"species_2"`` for the second species specified in the chemistry file).
-  * Valid options for interior probes only: ``"source"``
+  * Valid options for interior probes only: ``"source"``, ``"heat-release"``
 
 * ``out_interval``: Physical time step interval at which to save unsteady field data.
 
@@ -127,6 +129,8 @@ See :ref:`solverparams-label` for variable types, default values, and units (whe
 
 * ``source_out``: Boolean flag to specify whether the unsteady source term field should be saved.
 
+* ``hr_out``: Boolean flag to specify whether the unsteady heat release rate should be saved.
+
 * ``rhs_out``: Boolean flag to specify whether the unsteady right-hand-side field should be saved.
 
 * ``vis_interval``: Physical time step interval at which to draw any requested field/probe plots. If no plots are requested, this parameter is ignored.
@@ -135,11 +139,11 @@ See :ref:`solverparams-label` for variable types, default values, and units (whe
 
 * ``vis_save``: Boolean flag to specify whether field/probe plots should be saved to disk at the interval specified by ``vis_interval``. If no plots are requested, this parameter is ignored.
 
-* ``vis_type_X``: Type of data to visualize in the ``X``\ th figure. For example, ``vis_type_3`` would specify the type of the third plot to be visualized. Values of ``X`` must start from 1 and progress by one for each subsequent plot. Any gap in these numbers will cause any plots after the break to be ignored (e.g. specifying ``vis_type_1``, ``vis_type_3``, and ``vis_type_4`` without specifying ``vis_type_2`` will automatically ignore the plots for ``vis_type_3`` and ``vis_type_4``).
+* ``vis_type_X``: Type of data to visualize in the ``X``\ th figure. For example, ``vis_type_3`` would specify the type of the third plot to be visualized. Values of ``X`` must start from 0 and progress by one for each subsequent plot. Any gap in these numbers will cause any plots after the break to be ignored (e.g. specifying ``vis_type_0``, ``vis_type_2``, and ``vis_type_3`` without specifying ``vis_type_1`` will automatically ignore the plots for ``vis_type_2`` and ``vis_type_3``).
 
   * Valid options: ``field``, ``probe``
 
-* ``probe_num_X``: 1-indexed number of the point monitor to visualize in the ``X``\ th figure if ``vis_type_X = "probe"``. Must correspond to a valid probe number.
+* ``probe_num_X``: 0-indexed number of the point monitor to visualize in the ``X``\ th figure if ``vis_type_X = "probe"``. Must correspond to a valid probe number.
 
 * ``vis_var_X``: A list of fields to be plotted in the  ``X``\ th figure. Note that for ``vis_type_X = "probe"`` figures, if a specified field is not being monitored at the probe specified by ``probe_num_X``, the solver will terminate with an error.
 
@@ -216,7 +220,7 @@ See :ref:`fr_irrev-label` for variable types, default values, and units (where a
 
 * ``pre_exp_fact``: List of Arrhenius rate pre-exponential factors.
 
-
+* ``temp_exp``: List of Arrhenius rate temperature exponents.
 
 Piecewise Uniform IC File
 -------------------------
@@ -246,7 +250,15 @@ See :ref:`romparams-label` for variable types, default values, and units (where 
 
 * ``rom_method``: Name of the ROM method to use.
 
-  * Valid options: ``linear_galerkin_proj``, ``linear_lspg_proj``, ``linear_splsvt_proj``, ``autoencoder_galerkin_proj_tfkeras``, ``autoencoder_lspg_proj_tfkeras``, ``autoencoder_splsvt_proj_tfkeras``
+  * Valid options: ``galerkin``, ``lspg``, ``mplsvt``
+
+* ``var_mapping``: Name of the state variable mapping which the ROM models employ.
+
+  * Valid options: ``conservative``, ``primitive``
+
+* ``space_mapping``: Name of the mapping type which maps from the latent space to the full-order space.  
+
+  * Valid options: ``linear``, ``autoencoder``
 
 * ``num_models``: Number of distinct models used to make predictions for the full physical state. For example, if there is one model to predict the pressure and velocity fields, and another to predict the temperature and mass fraction fields, then ``num_models = 2``
 
@@ -254,9 +266,7 @@ See :ref:`romparams-label` for variable types, default values, and units (where 
 
 * ``model_var_idxs``: A list of lists where each sublist contains the zero-indexed state variable numbers to which each model maps. The variable numbers are ordered by density/pressure, momentum/velocity, energy/temperature, and density-weighted mass fraction/mass fraction (as ordered in the ``chem_file``). For example, in a ROM with two models, if the first model maps to velocity and mass fraction, and the second model maps to pressure and temperature, then ``model_var_idxs = [[1,3],[0,2]]``.
 
-* ``model_dir``: Absolute path of the base under which the ``model_files`` and feature scaling profiles are stored.
-
-* ``model_files``: List of paths relative to ``model_dir`` to each model's model object file (e.g. a NumPy binary for linear bases, Keras model for TensorFlow-Keras autoencoder files)
+* ``model_dir``: Absolute path of the base under which model files and feature scaling profiles are stored.
 
 * ``cent_ic``: Boolean flag to set ``cent_cons``/``cent_prim`` (depending on the ROM method) to the provided initial condition profile. This is simply a convenience parameter that is useful when performing parametric predictions and don't want to repeatedly change the centering profile address.
 
@@ -272,17 +282,41 @@ See :ref:`romparams-label` for variable types, default values, and units (where 
 
 * ``cent_prim``: List of paths relative to ``model_dir`` to the centering NumPy binary profiles for feature scaling of the primitive state variables with which each model is associated. For example, if a model is associated with pressure and temperature, then the corresponding entry in ``cent_prim`` should be for the centering profile for the pressure and temperature fields.
 
-Autoencoder ROM Inputs
-^^^^^^^^^^^^^^^^^^^^^^
+
+Linear Space Mapping Inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+See :ref:`linearinputs-label` for variable types, default values, and units (where applicable).
+
+* ``basis_files``: List of paths relative to ``model_dir`` to the linear trial basis NumPy binary (``*.npy``) files for each model.
+
+
+Autoencoder Space Mapping Inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 See :ref:`autoencinputs-label` for variable types, default values, and units (where applicable).
+
+* ``decoder_files``: List of paths relative to ``model_dir`` to the decoder model objects for each model.
 
 * ``encoder_files``: List of paths relative to ``model_dir`` to the encoder model objects for each model.
 
-* ``io_format``: The expected array axis ordering of the state profiles on which the autoencoders operate. See :ref:`nninputs-label` for more details.
+* ``decoder_isconv``: Boolean flag indicating whether the output of the decoder is a convolutional layer. If this is ``True``, then ``decoder_io_format`` must be specified.
 
-  * Valid options: ``"nchw"``, ``"nhwc"``
+* ``decoder_io_format``: The expected array axis ordering of the state profiles on which the decoder operates, if ``decoder_isconv = True``. See :ref:`nninputs-label` for more details.
 
-* ``encoder_jacob``: Boolean flag to determine whether to use the :ref:`encoderform-label` for manifold Galerkin ROMs with an explicit time integrator.
+  * Valid options: ``"channels_first"``, ``"channels_last"``
 
-* ``run_gpu``: Boolean flag to determine whether to run decoder/encoder inference on the GPU. Please note that running on the CPU is often faster than running on the GPU for these small 1D problems, as memory movement between the host and device can be extremely slow and all memory movement operations are blocking.
+* ``encoder_isconv``: Boolean flag indicating whether the output of the encoder is a convolutional layer. If this is ``True``, then ``encoder_io_format`` must be specified.
+
+* ``encoder_io_format``: The expected array axis ordering of the state profiles on which the encoder operates, if ``encoder_isconv = True``. See :ref:`nninputs-label` for more details.
+
+  * Valid options: ``"channels_first"``, ``"channels_last"``
+
+Machine Learning Library Inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+See :ref:`mllibinputs-label` for variable types, default values, and units (where applicable).
+
+* ``ml_library``: Name of the machine learning library which was used to train and serialize any machine learning models to be used in the ROM.
+
+  * Valid options: ``tfkeras``
+
+* ``run_gpu``: Boolean flag to determine whether to run machine learning model inference on the GPU. Please note that running on the CPU is often faster than running on the GPU for these small 1D problems, as memory movement between the host and device can be extremely slow and all memory movement operations are blocking.
 

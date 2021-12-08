@@ -26,6 +26,14 @@ The table below provides input parameters which may be required by any ROM metho
      - ``str``
      - \-
      - \-
+   * - ``var_mapping``
+     - ``str``
+     - \-
+     - \-
+   * - ``space_mapping``
+     - ``str``
+     - \-
+     - \-
    * - ``num_models``
      - ``int``
      - \-
@@ -40,10 +48,6 @@ The table below provides input parameters which may be required by any ROM metho
      - \-
    * - ``model_dir``
      - ``str``
-     - \-
-     - \-
-   * - ``model_files``
-     - ``list`` of ``str``
      - \-
      - \-
    * - ``cent_ic``
@@ -75,13 +79,32 @@ The table below provides input parameters which may be required by any ROM metho
      - ``[""]``
      - \-
 
+.. _linearinputs-label:
+
+Linear Space Mapping Inputs
+^^^^^^^^^^^^^^^^^^^^^^
+The parameters described here may be used in ``rom_params.inp`` when applying a linear space mapping.
+
+.. list-table:: Linear space mapping input parameters
+   :widths: 25 25 25 25
+   :header-rows: 1
+   
+   * - Parameter
+     - Type
+     - Default
+     - Units
+   * - ``basis_files``
+     - ``list`` of ``str``
+     - \-
+     - \-
+
 .. _autoencinputs-label:
 
-Autoencoder ROM Inputs
+Autoencoder Space Mapping Inputs
 ^^^^^^^^^^^^^^^^^^^^^^
-The parameters described here may be used in ``rom_params.inp`` when applying a neural network autoencoder ROM.
+The parameters described here may be used in ``rom_params.inp`` when applying an autoencoder space mapping.
 
-.. list-table:: Autoencoder ROM input parameters
+.. list-table:: Autoencoder space mapping input parameters
    :widths: 25 25 25 25
    :header-rows: 1
 
@@ -89,17 +112,48 @@ The parameters described here may be used in ``rom_params.inp`` when applying a 
      - Type
      - Default
      - Units
+   * - ``decoder_files``
+     - ``list`` of ``str``
+     - \-
+     - \-
    * - ``encoder_files``
      - ``list`` of ``str``
      - \-
      - \-
-   * - ``io_format``
-     - ``str``
-     - \-
-     - \-
-   * - ``encoder_jacob``
+   * - ``decoder_isconv``
      - ``bool``
      - ``False``
+     - \-
+   * - ``decoder_io_format``
+     - ``str``
+     - ``None``
+     - \-
+   * - ``encoder_isconv``
+     - ``bool``
+     - ``False``
+     - \-
+   * - ``encoder_io_format``
+     - ``str``
+     - ``None``
+     - \-
+
+.. _mllibinputs-label:
+
+Machine Learning Library Inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The parameters described here may be used in ``rom_params.inp`` when using any ROM method which requires machine learning models.
+
+.. list-table:: Machine learning library input parameters
+   :widths: 25 25 25 25
+   :header-rows: 1
+
+   * - Parameter
+     - Type
+     - Default
+     - Units
+   * - ``ml_library``
+     - ``str``
+     - \-
      - \-
    * - ``run_gpu``
      - ``bool``
@@ -109,7 +163,7 @@ The parameters described here may be used in ``rom_params.inp`` when applying a 
 
 Feature Scaling Profiles
 ------------------------
-Feature scaling is a routine procedure in data science for ensuring that the datasets used to train a model are normalized and no specific feature if given an inordinate amount of weight in the training procedure. This addresses the wide range of magnitudes seeing in flow field data: pressure can be :math:`\mathcal{O}(1\text{e}6)`, temperature can be :math:`\mathcal{O}(1\text{e}3)`, velocity can be :math:`\mathcal{O}(10)`, and species mass fraction is :math:`\mathcal{O}(1)`. When data is ingested by the model or the model makes a prediction during the inference stage (e.g. ROM runtime), the same scaling procedure must be applied.
+Feature scaling is a routine procedure in data science for ensuring that the datasets used to train a model are normalized and no specific feature is given an inordinate amount of weight in the training procedure. This addresses the wide range of magnitudes seeing in flow field data: pressure can be :math:`\mathcal{O}(1\text{e}6)`, temperature can be :math:`\mathcal{O}(1\text{e}3)`, velocity can be :math:`\mathcal{O}(10)`, and species mass fraction is :math:`\mathcal{O}(1)`. When data is ingested by the model or the model makes a prediction during the inference stage (e.g. ROM runtime), the same scaling procedure must be applied.
 
 In **PERFORM**, ROM models are generally trained on and operate on snapshots of the conservative or primitive state profile. Data standardization of a solution profile (given here generally by :math:`\mathbf{u}`) is computed as
 
@@ -125,32 +179,32 @@ We refer to :math:`\mathbf{u}_{cent}` as the "centering" profile, :math:`\mathbf
 
 Conservative and primitive state centering profiles are input via ``cent_cons`` and ``cent_prim`` in ``rom_params.inp``, respectively. Conservative and primitive subtractive normalization profiles are input via ``norm_sub_cons`` and ``norm_sub_prim`` in ``rom_params.inp``, respectively. Finally, the conservative and primitive factor normalization profiles are input via ``norm_fac_cons`` and ``norm_fac_prim`` in ``rom_params.inp``, respectively.
 
-It may seem strange to separate :math:`\mathbf{u}_{cent}` and :math:`\mathbf{u}_{sub}`, as their repeated summation would simply be wasted FLOPS. Indeed, under the hood these profiles are summed and treated as a single profile at runtime. However, during the pre-processing stage it is generally easier for the user to treat these separate. For example, the centering profile may be the time-averaged mean profile or initial condition profile, while the normalization profiles may come from min-max scaling of the centered data. We thus allow the user this flexibility in deciding how to express these profiles.
+It may seem strange to separate :math:`\mathbf{u}_{cent}` and :math:`\mathbf{u}_{sub}`, as their repeated summation would simply be wasted FLOPS. Indeed, under the hood these profiles are summed and treated as a single profile at runtime. However, during the pre-processing stage it is generally easier for the user to treat these separately. For example, the centering profile may be the time-averaged mean profile or initial condition profile, while the normalization profiles may come from min-max scaling of the centered data. We thus allow the user this flexibility in deciding how to express these profiles.
 
 
 Model Objects
 -------------
 We operate under the assumption that every ROM method provides some mapping from a low-dimensional representation of the state to the physical full-dimensional state, sometimes referred to as a "decoder." We generalize this mapping to allow for multiple decoders which may map to a subset of the state variables, each with their own low-dimensional state. For example, a ROM method may provide two decoders, one which predicts the pressure and velocity fields, and another which predicts the temperature and species mass fraction fields. In various contexts this has been referred to as a "scalar" or "separate" ROM. The more traditional method of using a single decoder for the entire full-dimensional state, with only one low-dimensional state vector, is sometimes referred to as a "vector" or "coupled" ROM. 
 
-The total number of models is given by the ``num_models`` parameter in ``rom_params.inp``, and the dimension of each model's low-dimensional state is given by each entry in ``latent_dims``. The zero-indexed state variables to which each model maps is given by each sublist in ``model_var_idxs``. The model object(s) required for this decoding procedure is located via each entry in ``model_files``.
+The total number of models is given by the ``num_models`` parameter in ``rom_params.inp``, and the dimension of each model's low-dimensional state is given by each entry in ``latent_dims``. The zero-indexed state variables to which each model maps is given by each sublist in ``model_var_idxs``. The model object(s) required for this decoding procedure are specified by mapping-specific input parameters (e.g. ``basis_files`` for a linear mapping, and ``decoder_files`` for an autoencoder mapping).
 
 
 Linear Bases
 ^^^^^^^^^^^^
-For ROM models which require a linear basis representation (such as those described in :ref:`linearsubroms-label`), each model object located by ``model_files`` in ``rom_params.inp`` is a three-dimensional NumPy binary (``*.npy``) containing the linear trial basis for that model. The first dimension is the number of state variables that the trial basis represents, the second dimension is the number of cells in the computational domain, and the third dimension is the number of trial modes generated by the basis calculation procedure. This final dimension is the *maximum* number of trial modes which may be requested via the corresponding entry in ``latent_dims``.
+For ROM models which require a linear basis representation (such as those described in :ref:`linearsubroms-label`), each model object located by ``basis_files`` in ``rom_params.inp`` is a three-dimensional NumPy binary (``*.npy``) containing the linear trial basis for that model. The first dimension is the number of state variables that the trial basis represents, the second dimension is the number of cells in the computational domain, and the third dimension is the number of trial modes generated by the basis calculation procedure. This final dimension is the *maximum* number of trial modes which may be requested via the corresponding entry in ``latent_dims``.
 
 .. _nninputs-label:
 
 Neural Networks
 ^^^^^^^^^^^^^^^
-The model objects for neural network-based ROMs are generally specific to each network training framework (e.g. Keras, PyTorch). In general, they are serialized as a single file when saved to disk and can be deserialized at runtime.
+The model objects for neural network-based ROMs are specific to each network training framework (e.g. Keras, PyTorch). In general, they are serialized as a single file when saved to disk and can be deserialized at runtime.
 
-The expected format in which the neural networks interact with field data is given by ``io_format`` in ``rom_params.inp``. As of the writing of this section, the only valid options are ``"nchw"`` and ``"nhwc"``. The former indicates that the neural network operates with field data arrays whose first dimension is the batch size, the second dimension is the number of state variables ("channels"), and the final channel is the spatial dimension. The latter swaps the channel dimension and spatial dimension ordering. 
+The expected format in which an input neural network model interacts with field data is given by ``*_isconv`` and ``*_io_format`` in ``rom_params.inp``. If ``*_isconv = True``, it is assumed that the network layers which input/output state data are convolutional layers, which require that the field data have separated spatial and variable dimensions. The order of these dimensions in the neural network are given by ``*_io_format``. As of the writing of this section, the only valid options are ``"channels_first"`` and ``"channels_last"``. The former indicates that the neural network operates with field data arrays whose first dimension is the batch size, the second dimension is the number of state variables ("channels"), and the final channel is the spatial dimension. The latter swaps the channel dimension and spatial dimension ordering. If ``*_isconv = False``, it is assumed that field data is in "flattened" format when input/output to the neural network model.
 
 .. _tfkeras-inputs:
 
 TensorFlow-Keras Autoencoders
 """""""""""""""""""""""""""""
-TensorFloat-Keras autoencoders must be serialized separately as an encoder and a decoder via the ``model.save()`` function. As of the writing of this section, only the older Keras HDF5 format (``*.h5``) can be loaded by **PERFORM**, but support for the newer TensorFlow SavedModel format should be along shortly. The decoder files are located via ``model_files`` in ``rom_params.inp``, while the encoder files (which are only required when initializing the low-dimensional solution from the full-state solution or when ``encoder_jacob = True``) are located via ``encoder_files``.
+TensorFloat-Keras autoencoders must be serialized separately as an encoder and a decoder via the ``model.save()`` function. As of the writing of this section, only the older Keras HDF5 format (``*.h5``) can be loaded by **PERFORM**. The decoder files are located via ``decoder_files`` in ``rom_params.inp``, while the encoder files (which are only required when initializing the low-dimensional solution from the full-state solution or when ``encoder_jacob = True``) are located via ``encoder_files``.
 
-**NOTE**: if running with ``run_gpu = False`` (making model inferences on the CPU), note that TensorFlow convolutional layers cannot handle a ``channels_first`` format. If your network format conforms to ``io_format = "nchw"``, the code will terminate with an error. This issue could theoretically be fixed by the user by including a permute layer to change the layer input ordering to ``channels_last`` before any convolutional layers, but we err on the side of caution here.
+**NOTE**: if running with ``run_gpu = False`` (making model inferences on the CPU), note that TensorFlow convolutional layers cannot handle a ``channels_first`` format. If your network format conforms to ``*_io_format = "channels_first"``, the code will terminate with an error. This issue could theoretically be fixed by the user by including a permute layer to change the layer input ordering to ``channels_last`` before any convolutional layers, but we err on the side of caution here.

@@ -8,11 +8,11 @@ Dependencies
 
 **PERFORM** is a pure Python code and does not (as of the writing of this section) depend on any non-Python software. As such, everything can be installed directly through ``pip`` and is done so through the ``pip install`` command explained below. 
 
-The minimum required Python version has been (slightly arbitrarily) been set to 3.6. The code is only actively tested using Python 3.7.4. Additionally, it is only actively test in Ubuntu 18.04, but should run without a hitch on other Linux distributions, Windows, and macOS. 
+The minimum required Python version is 3.6, but is only actively tested with Python 3.8. Additionally, it is only actively test in Ubuntu 20.04, but should run without many problems on other Linux distributions, Windows Subsystem for Linux (WSL), and macOS. Some issues have been noted in non-Ubuntu OS's when executing Bash scripts used for downloading data from Google Drive and executing tests. 
 
 The baseline solver only requires three additional packages: ``numpy``, ``scipy``, and ``matplotlib``. These will be installed, or updated if your local installations are older than the minimum required versions, upon installing **PERFORM**.
 
-The TensorFlow-Keras autoencoder ROM models of course depend on ``tensorflow``, though the code will only throw an error if you attempt to run one of those models and so does not require ``tensorflow`` to run the baseline solver or other ROM models. These models are only tested for ``tensorflow==2.4.1``, and we make no guarantees whatsoever that the code will work correctly or optimally for older versions.
+Neural network ROM models using TensorFlow-Keras of course depend on ``tensorflow``, though the code will only throw an error if you attempt to run one of those models and so does not require ``tensorflow`` to run the baseline solver or other ROM models. These models are only tested for the most recent production release of TensorFlow 2, and we make no guarantees that the code will work correctly or optimally for older versions (and will definitely not work with TensorFlow 1).
 
 Installing
 ----------
@@ -46,9 +46,15 @@ You can check that **PERFORM** works by entering any of the example case directo
 
    perform .
 
-If running correctly, your terminal's STDOUT should start filling with output from each time step iteration and live field and probe plots should appear on your screen.
+If running correctly, your terminal's STDOUT should start filling with output from each time step iteration and live field and probe plots should appear on your screen. Alternatively, you can run the test suite described below to check that your installation works as expected.
 
 
 Testing
 -------
-As of the writing of this section, no automated testing has been implemented. However, the vast majority of the code capabilities can be manually tested by running the :ref:`examplecases-label`. After installation, simply enter a given example case directory and execute ``perform .`` to run the example FOM. Additionally, sample ROM files can be downloaded using the ``setup_sample_rom.sh`` scripts provided in the ``standing_flame`` and ``transient_flame`` sample case directories. We advise that new users attempt to run these sample cases after installation to become acquainted with the input file formats and running **PERFORM**.
+A suite of unit, integration, and regression tests are included in ``perform/tests/``. These can be run manually from the **PERFORM** root directory by executing
+
+.. code-block:: bash
+
+   tests/run_tests.sh
+
+This will automatically run unit and integration tests and report whether they succeeded or failed. You will then be prompted as to whether you would like to run the regression tests. These can take a while to complete, and really only needs to be checked before submitting a pull request. Note that the regression tests use the included example cases, so if you altered the input files for those cases then make sure to reset them before executing the regression tests.  

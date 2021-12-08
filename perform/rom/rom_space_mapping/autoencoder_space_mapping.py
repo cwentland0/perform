@@ -23,7 +23,7 @@ class AutoencoderSpaceMapping(RomSpaceMapping):
         assert os.path.isfile(in_file), "Could not find decoder file at " + in_file
         self.decoder_file = in_file
         self.decoder_isconv = catch_input(rom_dict, "decoder_isconv", False)
-        self.decoder_io_format = catch_input(rom_dict, "model_io_format", None)
+        self.decoder_io_format = catch_input(rom_dict, "decoder_io_format", None)
 
         # If required, encoder input checking
         self.encoder_file = None
@@ -56,7 +56,7 @@ class AutoencoderSpaceMapping(RomSpaceMapping):
                 )
             else:
                 raise ValueError(
-                    'Must specify model_io_format as "channels_first" or "channels_last" if model_isconv = True'
+                    'Must specify decoder_io_format as "channels_first" or "channels_last" if decoder_isconv = True'
                 )
         else:
             decoder_output_shape = (self.sol_shape[0] * self.sol_shape[1],)
