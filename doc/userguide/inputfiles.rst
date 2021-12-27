@@ -450,7 +450,7 @@ The parameters described here are required when using a finite-rate irreversible
 
 Initial Condition Inputs
 ------------------------
-Unsteady solutions can be initialized in three different ways in **PERFORM**: piecewise uniform function parameters files (:ref:`pwuniformfile-label`), full primitive state NumPy profiles (:ref:`npyicfile-label`), or restart files (:ref:`restartfile-label`). If multiple restart methods are requested, the following priority hierarchy is followed: restart files first, then piecewise uniform function, and finally primitive state NumPy files.
+Unsteady solutions can be initialized in three different ways in **PERFORM**: piecewise uniform function parameters files (:ref:`pwuniformfile-label`), full primitive state NumPy profiles (:ref:`npyicfile-label`), or restart files (:ref:`restartfile-label`). If multiple restart methods are requested, the following priority hierarchy is followed: restart files first, then primitive state NumPy files, and finally a piecewise uniform function.
 
 
 .. _pwuniformfile-label:

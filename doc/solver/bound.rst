@@ -99,4 +99,4 @@ For example, if the user sets (among other required parameters)
 	pert_perc_outlet  = 0.05
 	pert_freq         = [2000.0, 5000.0]
 
-this will result in two perturbation signals (one of 2 kHz, another of 5 kHz) of the mean downstream static pressure with amplitude 50 kPa. 
+this will result in two perturbation signals (one of 2 kHz, another of 5 kHz) of the mean downstream static pressure with amplitude of 50 kPa. 

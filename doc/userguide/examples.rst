@@ -43,14 +43,14 @@ To introduce additional complexity to the transient contact surface case, the us
 Standing Flame w/ Artificial Forcing
 ------------------------------------
 
-This case is similar to the contact surface in the sense that it features a cold "reactant" species and a hot "product" species. However, the viscosity and reaction are turned **on** for this case, with a single-step irreversible reaction mechanism which simply converts "product" to "species". Additionally, the bulk velocity of the fluid is decreased to the point that the reaction and diffusion is perfectly balanced with the bulk velocity, resulting in an effectively stationary flame. Artificial pressure forcing is applied at the outlet, causing a single-frequency acoustic wave to propagate upstream.
+This case is similar to the contact surface in the sense that it features a cold "reactant" species and a hot "product" species. However, the viscosity and reaction are turned **on** for this case, with a single-step irreversible reaction mechanism which simply converts "reactant" to "product". Additionally, the bulk velocity of the fluid is decreased to the point that the reaction and diffusion is perfectly balanced with the bulk velocity, resulting in an effectively stationary flame. Artificial pressure forcing is applied at the outlet, causing a single-frequency acoustic wave to propagate upstream.
 
 .. image:: ../images/standing_flame.png
   :alt: Standing flame profiles
 
 This is an incredibly simple reacting flow problem, one which linear subspace ROMs should nail with only a few trial basis modes. This is not surprising, as the flow is largely stationary, with all fluctuations exhibiting a fixed frequency and amplitude. However, we've observed that non-linear autoencoder projection ROMs may fail even for this simple case, and users should take care to check whether their methods succeed.
 
-A ``setup_sample_rom.sh`` script is also provided to download input files for a linear SP-LSVT projection ROM. Simply execute the script and the necessary input files will be unpacked, after which the ROM may be executed normally.
+A ``setup_sample_rom.sh`` script is also provided to download input files for a linear MP-LSVT projection ROM. Simply execute the script and the necessary input files will be unpacked, after which the ROM may be executed normally.
 
 Transient Flame
 ---------------
@@ -60,7 +60,7 @@ This case exhibits all of the features of the previous test cases: a cold "react
 .. image:: ../images/transient_flame_without_forcing.png
   :alt: Transient flame w/o forcing profiles
 
-A ``setup_sample_rom.sh`` script is also provided to download input files for a non-linear autoencoder SP-LSVT projection ROM via TensorFlow-Keras. Simply execute the script and the necessary input files will be unpacked, after which the ROM may be executed normally. Note that the execution of this ROM is expected to be much, much slower than that of the FOM, as deep autoencoder ROMs are notoriously computationally expensive.
+A ``setup_sample_rom.sh`` script is also provided to download input files for a non-linear autoencoder MP-LSVT projection ROM via TensorFlow-Keras. Simply execute the script and the necessary input files will be unpacked, after which the ROM may be executed normally. Note that the execution of this ROM is expected to be much, much slower than that of the FOM, as deep autoencoder ROMs are notoriously computationally expensive.
 
 Transient Flame w/ Artificial Forcing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -70,4 +70,4 @@ The complexity of the transient flame problem may be further increased by applyi
 .. image:: ../images/transient_flame_with_forcing.png
   :alt: Transient flame w/ forcing profiles
 
-These highly non-linear interactions lie at the core of the problems the authors are working to tackle, namely the often-disastrous feedback loop between unsteady reaction heat release and system acoustics. 
+These highly non-linear interactions lie at the core of the problems the authors are working to tackle, namely the often-disastrous feedback loop between unsteady reaction heat release and system acoustics in modern combustion devices such as rocket or gas turbine combustors.
