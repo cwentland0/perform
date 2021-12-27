@@ -156,7 +156,7 @@ Inserting these approximations into Eq.~\ref{eq:dualTimeExample} and rearranging
 \be
     \left( \left( \frac{1}{\Delta \tau} + \frac{1}{\Delta \timeVar} \right) \identMat - \frac{3}{2\Delta t} \jacobMat^\timeIdx_{p,\newtonIdx-1} \right) \gm^\timeIdx_{\newtonIdx-1} \left( \consVec^\timeIdx_{p,\newtonIdx} - \consVec^\timeIdx_{p,\newtonIdx-1} \right) = -  \frac{3\consVec^\timeIdx_{\newtonIdx-1} - 4\consVec^{\timeIdx-1} + \consVec^{\timeIdx-2}}{2 \Delta \timeVar} + \rhsFunc{ \consVec^\timeIdx_{p,\newtonIdx-1}}
 \ee
-Similar to Newton's method, this linear system of equations is solved for the change in the \textit{primitive} state. Of course, this method comes with some additional computational costs (particularly the calculation of the Jacobian $\gm$ and the associated matrix-matrix multiplications), but allows us improved access to the primitive state as it evolves. This permits simple applications of filters and limiters to relevant engineering quantities, and eases the subsequent calculation of thermodynamic and transport quantities.
+Unlike Newton's method, this linear system of equations is solved for the change in the \textit{primitive} state. Of course, this method comes with some additional computational costs (particularly the calculation of the Jacobian $\gm$ and the associated matrix-matrix multiplications), but allows us improved access to the primitive state as it evolves. This permits simple applications of filters and limiters to relevant engineering quantities, and eases the subsequent calculation of thermodynamic and transport quantities.
 
 \newpage
 \subsection{Flux Schemes}\label{sec:fluxSchemes}

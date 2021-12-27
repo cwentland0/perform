@@ -189,19 +189,17 @@ where $\text{Sc}_\speciesIdx$ is the Schmidt number of the \speciesIdx th specie
 \newpage
 \subsection{Reaction Models}\label{sec:reacModels}
 
-Various models exist for computing the species production rate $\dot{\omega}_\speciesIdx$. Of course, the most accurate method would be elementary reaction mechanisms, but these often involve thousands of species and reactions, pressure corrections and are thus infeasible even for 1D problems. Reduced mechanisms and global reactions offer two comparatively inexpensive alternatives. We describe both in turn.
+Various models exist for computing the species production rate $\dot{\omega}_\speciesIdx$. We describe available reaction models below.
 
-\subsubsection{Reduced Mechanisms}
+\subsubsection{Finite Rate Mechanisms}
 
-This section describes the modeling of reaction source terms by reduced mechanisms. The same methodology may be applied to elementary reaction mechanisms, but we assume that some empirical, reduced mechanism is used to grossly reduce the number of modeled species and reactions to $\MC{O}(10-100)$.
-
-We begin by supposing that a reaction mechanism is made up of \numReacs\ reactions governing the production and consumption of \numSpecies\ chemical species. The \reacIdx th reaction of this mechanism can be described by the formula
+This section describes the modeling of reaction source terms by finite rate mechanisms. We begin by supposing that a reaction mechanism is made up of \numReacs\ reactions governing the production and consumption of \numSpecies\ chemical species. The \reacIdx th reaction of this mechanism can be described by the formula
 \be
-   \sum_{\speciesIdx=1}^{\numSpecies} \nu_{\speciesIdx,\reacIdx}' \chi_\speciesIdx \xrightleftharpoons[k_{f,\reacIdx}]{k_{r,\reacIdx}} \sum_{\speciesIdx=1}^{\numSpecies} \nu_{\speciesIdx,\reacIdx}'' \chi_\speciesIdx
+   \sum_{\speciesIdx=1}^{\numSpecies} \nu_{\speciesIdx,\reacIdx}' \chi_\speciesIdx \xrightleftharpoons[k_{F,\reacIdx}]{k_{R,\reacIdx}} \sum_{\speciesIdx=1}^{\numSpecies} \nu_{\speciesIdx,\reacIdx}'' \chi_\speciesIdx
 \ee
-where $\chi_\speciesIdx$ is the chemical formula for the \speciesIdx th chemical species, and $\nu_{\speciesIdx,\reacIdx}'$ and $\nu_{\speciesIdx,\reacIdx}''$ are the stoichiometric coefficients of the reactants and products, respectively, for the \speciesIdx th species in the \reacIdx th reaction. The coefficients $k_{f,\reacIdx}$ and $k_{r,\reacIdx}$ forward and reverse reaction rates for the \reacIdx th reaction. For example, the single-step combustion of methane can be described by
+where $\chi_\speciesIdx$ is the chemical formula for the \speciesIdx th chemical species, and $\nu_{\speciesIdx,\reacIdx}'$ and $\nu_{\speciesIdx,\reacIdx}''$ are the stoichiometric coefficients of the reactants and products, respectively, for the \speciesIdx th species in the \reacIdx th reaction. The coefficients $k_{F,\reacIdx}$ and $k_{R,\reacIdx}$ are the forward and reverse reaction rates for the \reacIdx th reaction, respectively. For example, the single-step combustion of methane can be described by
 \be\label{eq:methCombReversible}
-    \methane + 2 \oxygen \xrightleftharpoons[k_f]{k_r} 2 \water + \carbDiox
+    \methane + 2 \oxygen \xrightleftharpoons[k_F]{k_R} 2 \water + \carbDiox
 \ee
 In this case, $\nu_{\methane}' = 1$, $\nu_{\methane}'' = 0$, $\nu_{\water}' = 0$, $\nu_{\water}'' = 2$, and so on. The species production rates can be written in terms of these stoichiometric coefficients and reaction rates,
 \be\label{eq:specProdRate}
@@ -209,33 +207,25 @@ In this case, $\nu_{\methane}' = 1$, $\nu_{\methane}'' = 0$, $\nu_{\water}' = 0$
 \ee
 where the rate-of-progress $w_\reacIdx$ is given by
 \be
-    w_\reacIdx = k_{f,\reacIdx} \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\nu_{\speciesIdx,\reacIdx}'} - k_{r,\reacIdx} \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\nu_{\speciesIdx,\reacIdx}''}
+    w_\reacIdx = k_{F,\reacIdx} \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\nu_{\speciesIdx,\reacIdx}'} - k_{R,\reacIdx} \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\nu_{\speciesIdx,\reacIdx}''}
 \ee
 where we recall that $[X_\speciesIdx]$ is the molar concentration of the \speciesIdx th species. The forward reaction rate is modeled by the Arrhenius rate equation
 \be\label{eq:arrheniusRate}
-    k_{f,\reacIdx} = A_\reacIdx T^{b_\reacIdx} \text{exp} \left( \frac{-E_{a,\reacIdx}}{R_u T} \right)
+    k_{F,\reacIdx} = A_\reacIdx T^{b_\reacIdx} \text{exp} \left( \frac{-E_{a,\reacIdx}}{R_u T} \right)
 \ee
 where the coefficients $A_\reacIdx$, $b_\reacIdx$, and $E_{a,\reacIdx}$ are tabulated constants given by the reaction mechanism. The reverse reaction rate is computed from
 \be
-    k_{b,\reacIdx} = \frac{k_{f,\reacIdx}}{k_{c,\reacIdx}}
+    k_{R,\reacIdx} = \frac{k_{F,\reacIdx}}{k_{C,\reacIdx}}
 \ee
-where the equilibrium constant $k_{c,\reacIdx}$ is formulated in terms of the change in Gibbs free energy. When reversible reactions are added to \verb|PERFORM|, this section will be updated to include this calculation.
+where the equilibrium constant $k_{C,\reacIdx}$ is formulated in terms of the change in Gibbs free energy. When reversible reactions are added to \verb|PERFORM|, this section will be updated to include this calculation.
 
 With all of these components in hand, the species production rate can be computed from Eq.~\ref{eq:specProdRate}. We emphasize that the constant coefficients $\nu_{\speciesIdx, \reacIdx}'$, $\nu_{\speciesIdx, \reacIdx}''$, $A_\reacIdx$, $b_\reacIdx$, and $E_{a,\reacIdx}$ are all provided by a given reaction mechanism. On the other hand, only the temperature $T$, mixture gas constant $R$, and molar concentrations $[X_\speciesIdx]$ will change throughout the simulation.
 
 
-\subsubsection{Global Mechanism}
+\subsubsection{Irreversible Mechanisms}
 
-Global reaction mechanisms vastly simplify the above reversible reaction model by assuming that all reactions only proceed in the forwards direction, i.e. $k_{r,\reacIdx} = 0$ for all \numReacs\ reactions. As an example, the single-step combustion of methane (Eq.~\ref{eq:methCombReversible}) would thus be written as 
-\be\label{eq:methCombGlobal}
-    \methane + 2 \oxygen \xrightarrow{k} 2 \water + \carbDiox
-\ee
-These global reaction mechanisms must be fitted to empirical data to best model the reaction without including reversible reactions. As such, the rate-of-progress is modified to have the form
+Irreversible reaction mechanisms vastly simplify the above reversible reaction model by assuming that all reactions only proceed in the forwards direction, i.e. $k_{R,\reacIdx} = 0$ for all \numReacs\ reactions. These mechanisms are inherently incorrect, but are fitted to empirical data by tuning the molar concentration exponential terms. As such, the rate-of-progress is modified to have the form
 \be
-    w_\reacIdx = k_\reacIdx \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\alpha_{\speciesIdx,\reacIdx}}
+    w_\reacIdx = k_{F,\reacIdx} \prod_{\speciesIdx=1}^{\numSpecies} [X_\speciesIdx]^{\alpha_{\speciesIdx,\reacIdx}}
 \ee
-where the coefficients $\alpha_{\speciesIdx, \reacIdx}$ can be any real-valued number. The reaction rate $k_\reacIdx$ is still computed from the Arrhenius rate defined in Eq.~\ref{eq:arrheniusRate}. Usually this rate-of-progress is only defined for a single species involved in the reaction, and production rates for other species in the reaction are determined from stoichiometric ratios. For example, the single-step Westbrook-Dryer methane combustion global reaction mechanism (defined by Eq.~\ref{eq:methCombGlobal}) provides
-\be
-    w = 2.12 \times 10^{12} \text{exp}\left(\frac{-24,358}{T}\right)[X_{\methane}]^{0.2} [X_{\oxygen}]^{1.3}
-\ee
-Note that here, the Arrhenius temperature exponent coefficient $b = 0$, and the factor $E_a/R_u$ have been combined. 
+where the coefficients $\alpha_{\speciesIdx, \reacIdx}$ can be any real-valued number. The forward reaction rate $k_{F,\reacIdx}$ is still computed from the Arrhenius rate defined in Eq.~\ref{eq:arrheniusRate}. Usually this rate-of-progress is only defined for a single species involved in the reaction, and production rates for other species in the reaction are determined from stoichiometric ratios.
