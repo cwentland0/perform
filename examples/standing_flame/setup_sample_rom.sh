@@ -27,7 +27,7 @@ unzip -q standing_flame_linear_splsvt_proj_rom_sample.zip
 mv sol_prim_init_20mus.npy ./inputs
 
 # set path to model_dir
-sed -i "7s#.*#model_dir      = \"${PWD}/sample_pod_data\"#" rom_params.inp
+sed -i "9s#.*#model_dir      = \"${PWD}/sample_pod_data\"#" rom_params.inp
 
 rm standing_flame_linear_splsvt_proj_rom_sample.zip
 

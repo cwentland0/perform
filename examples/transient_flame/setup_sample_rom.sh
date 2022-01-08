@@ -27,7 +27,7 @@ unzip -q transient_flame_autoencoder_splsvt_proj_tfkeras_rom_sample.zip
 mv sol_prim_init_100mus.npy ./inputs
 
 # set path to model_dir
-sed -i "9s#.*#model_dir      = \"${PWD}/sample_cae_data\"#" rom_params.inp
+sed -i "12s#.*#model_dir      = \"${PWD}/sample_cae_data\"#" rom_params.inp
 
 rm transient_flame_autoencoder_splsvt_proj_tfkeras_rom_sample.zip
 
