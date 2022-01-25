@@ -135,12 +135,12 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         self.assertTrue(np.array_equal(self.sol.prim_snap, np.repeat(self.sol.sol_prim[:, :, None], 6, axis=2)))
         self.assertTrue(np.array_equal(self.sol.cons_snap, np.repeat(self.sol.sol_cons[:, :, None], 6, axis=2)))
         self.assertTrue(
-            np.array_equal(self.sol.reaction_source_snap, np.repeat(self.sol.reaction_source[:, :, None], 5, axis=2))
+            np.array_equal(self.sol.reaction_source_snap, np.repeat(self.sol.reaction_source[:, :, None], 6, axis=2))
         )
         self.assertTrue(
-            np.array_equal(self.sol.heat_release_snap, np.repeat(self.sol.heat_release[:, None], 5, axis=1))
+            np.array_equal(self.sol.heat_release_snap, np.repeat(self.sol.heat_release[:, None], 6, axis=1))
         )
-        self.assertTrue(np.array_equal(self.sol.rhs_snap, np.repeat(self.sol.rhs[:, :, None], 5, axis=2)))
+        self.assertTrue(np.array_equal(self.sol.rhs_snap, np.repeat(self.sol.rhs[:, :, None], 6, axis=2)))
 
     def test_snapshot_output(self):
 
@@ -174,12 +174,12 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
                 self.assertTrue(np.array_equal(sol_prim_itmdt, np.repeat(self.sol.sol_prim[:, :, None], 3, axis=2)))
                 self.assertTrue(np.array_equal(sol_cons_itmdt, np.repeat(self.sol.sol_cons[:, :, None], 3, axis=2)))
                 self.assertTrue(
-                    np.array_equal(source_itmdt, np.repeat(self.sol.reaction_source[:, :, None], 2, axis=2))
+                    np.array_equal(source_itmdt, np.repeat(self.sol.reaction_source[:, :, None], 3, axis=2))
                 )
                 self.assertTrue(
-                    np.array_equal(heat_release_itmdt, np.repeat(self.sol.heat_release[:, None], 2, axis=1))
+                    np.array_equal(heat_release_itmdt, np.repeat(self.sol.heat_release[:, None], 3, axis=1))
                 )
-                self.assertTrue(np.array_equal(rhs_itmdt, np.repeat(self.sol.rhs[:, :, None], 2, axis=2)))
+                self.assertTrue(np.array_equal(rhs_itmdt, np.repeat(self.sol.rhs[:, :, None], 3, axis=2)))
 
             # write and check "failed" snapshots
             if self.solver.iter == 7:
@@ -205,12 +205,12 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
                 self.assertTrue(np.array_equal(sol_prim_failed, np.repeat(self.sol.sol_prim[:, :, None], 4, axis=2)))
                 self.assertTrue(np.array_equal(sol_cons_failed, np.repeat(self.sol.sol_cons[:, :, None], 4, axis=2)))
                 self.assertTrue(
-                    np.array_equal(source_failed, np.repeat(self.sol.reaction_source[:, :, None], 3, axis=2))
+                    np.array_equal(source_failed, np.repeat(self.sol.reaction_source[:, :, None], 4, axis=2))
                 )
                 self.assertTrue(
-                    np.array_equal(heat_release_failed, np.repeat(self.sol.heat_release[:, None], 3, axis=1))
+                    np.array_equal(heat_release_failed, np.repeat(self.sol.heat_release[:, None], 4, axis=1))
                 )
-                self.assertTrue(np.array_equal(rhs_failed, np.repeat(self.sol.rhs[:, :, None], 3, axis=2)))
+                self.assertTrue(np.array_equal(rhs_failed, np.repeat(self.sol.rhs[:, :, None], 4, axis=2)))
 
         # delete intermediate results and check that they deleted properly
         self.sol.delete_itmdt_snapshots(self.solver)
@@ -253,9 +253,9 @@ class SolutionIntMethodsTestCase(unittest.TestCase):
         rhs_final = np.load(os.path.join(self.solver.unsteady_output_dir, "rhs_" + self.solver.sim_type + ".npy"))
         self.assertTrue(np.array_equal(sol_prim_final, np.repeat(self.sol.sol_prim[:, :, None], 6, axis=2)))
         self.assertTrue(np.array_equal(sol_cons_final, np.repeat(self.sol.sol_cons[:, :, None], 6, axis=2)))
-        self.assertTrue(np.array_equal(source_final, np.repeat(self.sol.reaction_source[:, :, None], 5, axis=2)))
-        self.assertTrue(np.array_equal(heat_release_final, np.repeat(self.sol.heat_release[:, None], 5, axis=1)))
-        self.assertTrue(np.array_equal(rhs_final, np.repeat(self.sol.rhs[:, :, None], 5, axis=2)))
+        self.assertTrue(np.array_equal(source_final, np.repeat(self.sol.reaction_source[:, :, None], 6, axis=2)))
+        self.assertTrue(np.array_equal(heat_release_final, np.repeat(self.sol.heat_release[:, None], 6, axis=1)))
+        self.assertTrue(np.array_equal(rhs_final, np.repeat(self.sol.rhs[:, :, None], 6, axis=2)))
 
     def test_write_restart_file(self):
 

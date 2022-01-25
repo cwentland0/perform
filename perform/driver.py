@@ -49,6 +49,12 @@ def driver(working_dir):
     # ----- Start unsteady solution -----
 
     try:
+
+        # run RHS calculation and update solution probes to store IC data correctly
+        solver.iter = 0
+        sol_domain.update_probes(solver, is_sol_data=True)
+        sol_domain.calc_rhs(solver)
+
         # Loop over time iterations
         time_start = time()
         for solver.iter in range(1, solver.num_steps + 1):
@@ -62,7 +68,7 @@ def driver(working_dir):
             solver.sol_time += solver.dt
 
             # Write unsteady solution outputs
-            sol_domain.write_iter_outputs(solver)
+            sol_domain.write_sol_outputs(solver)
 
             # Check "steady" solve
             if solver.run_steady:
@@ -85,6 +91,13 @@ def driver(working_dir):
     # ----- End unsteady solution -----
 
     # ----- Start post-processing -----
+
+    # Run RHS calculations one more time to get non-solution data at final snapshot, if necessary
+    # TODO: jank, could just pass an iteration number to write_nonsol_outputs
+    sol_domain.calc_rhs(solver)
+    solver.iter += 1
+    sol_domain.write_nonsol_outputs(solver)
+    solver.iter -= 1
 
     sol_domain.write_final_outputs(solver)
 

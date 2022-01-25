@@ -65,6 +65,7 @@ class SolutionInterior(SolutionPhys):
 
         gas = self.gas_model
 
+        # non-solution fields
         if num_reactions > 0:
             self.wf = np.zeros((num_reactions, num_cells), dtype=REAL_TYPE)
         self.reaction_source = np.zeros((gas.num_species_full, num_cells), dtype=REAL_TYPE)
@@ -93,13 +94,14 @@ class SolutionInterior(SolutionPhys):
             self.cons_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps + 1), dtype=REAL_TYPE)
             self.cons_snap[:, :, 0] = self.sol_cons.copy()
 
-        # These don't include the profile associated with the final solution
         if solver.source_out:
-            self.reaction_source_snap = np.zeros((gas.num_species_full, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+            self.reaction_source_snap = np.zeros(
+                (gas.num_species_full, num_cells, solver.num_snaps + 1), dtype=REAL_TYPE
+            )
         if solver.hr_out:
-            self.heat_release_snap = np.zeros((num_cells, solver.num_snaps), dtype=REAL_TYPE)
+            self.heat_release_snap = np.zeros((num_cells, solver.num_snaps + 1), dtype=REAL_TYPE)
         if solver.rhs_out:
-            self.rhs_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps), dtype=REAL_TYPE)
+            self.rhs_snap = np.zeros((gas.num_eqs, num_cells, solver.num_snaps + 1), dtype=REAL_TYPE)
 
         if (time_int.time_type == "implicit") or (solver.run_steady):
             # Norm normalization constants
@@ -415,7 +417,7 @@ class SolutionInterior(SolutionPhys):
         self.rhs_hist[1:] = self.rhs_hist[:-1]
         self.rhs_hist[0] = self.rhs.copy()
 
-    def update_snapshots(self, solver):
+    def update_snapshots(self, solver, is_sol_data=True):
         """Update snapshot arrays.
 
         Adds current solution, source, RHS, etc. profiles to snapshots arrays.
@@ -427,18 +429,20 @@ class SolutionInterior(SolutionPhys):
 
         store_idx = int((solver.iter - 1) / solver.out_interval) + 1
 
-        if solver.prim_out:
-            self.prim_snap[:, :, store_idx] = self.sol_prim
-        if solver.cons_out:
-            self.cons_snap[:, :, store_idx] = self.sol_cons
+        if is_sol_data:
+            if solver.prim_out:
+                self.prim_snap[:, :, store_idx] = self.sol_prim
+            if solver.cons_out:
+                self.cons_snap[:, :, store_idx] = self.sol_cons
 
-        # TODO: need to subsample these profiles
-        if solver.source_out:
-            self.reaction_source_snap[:, :, store_idx - 1] = self.reaction_source
-        if solver.hr_out:
-            self.heat_release_snap[:, store_idx - 1] = self.heat_release
-        if solver.rhs_out:
-            self.rhs_snap[:, :, store_idx - 1] = self.rhs
+        else:
+            # TODO: need to subsample these profiles
+            if solver.source_out:
+                self.reaction_source_snap[:, :, store_idx - 1] = self.reaction_source
+            if solver.hr_out:
+                self.heat_release_snap[:, store_idx - 1] = self.heat_release
+            if solver.rhs_out:
+                self.rhs_snap[:, :, store_idx - 1] = self.rhs
 
     def write_snapshots(self, solver, intermediate=False, failed=False):
         """Save snapshot matrices to disk after completed/failed simulation.
@@ -482,15 +486,15 @@ class SolutionInterior(SolutionPhys):
 
         if solver.source_out:
             source_file = os.path.join(unsteady_output_dir, "source_" + suffix + ".npy")
-            np.save(source_file, self.reaction_source_snap[:, :, : final_idx - 1])
+            np.save(source_file, self.reaction_source_snap[:, :, :final_idx])
 
         if solver.hr_out:
             hr_file = os.path.join(unsteady_output_dir, "heat_release_" + suffix + ".npy")
-            np.save(hr_file, self.heat_release_snap[:, : final_idx - 1])
+            np.save(hr_file, self.heat_release_snap[:, :final_idx])
 
         if solver.rhs_out:
             sol_rhs_file = os.path.join(unsteady_output_dir, "rhs_" + suffix + ".npy")
-            np.save(sol_rhs_file, self.rhs_snap[:, :, : final_idx - 1])
+            np.save(sol_rhs_file, self.rhs_snap[:, :, :final_idx])
 
     def delete_itmdt_snapshots(self, solver):
         """Delete intermediate snapshot data
