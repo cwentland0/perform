@@ -46,7 +46,7 @@ out_interval = 1
 prim_out     = True
 cons_out     = True
 source_out   = False
-rhs_outut    = False
+rhs_out      = False
 
 # probe output
 probe_locs = [0.0025, 0.0075]

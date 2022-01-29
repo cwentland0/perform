@@ -190,7 +190,7 @@ class SolutionDomain:
         if (self.probe_locs[0] is not None) and (self.probe_vars[0] is not None):
             self.num_probes = len(self.probe_locs)
             self.num_probe_vars = len(self.probe_vars)
-            self.probe_vals = np.zeros((self.num_probes, self.num_probe_vars, solver.num_steps), dtype=REAL_TYPE)
+            self.probe_vals = np.zeros((self.num_probes, self.num_probe_vars, solver.num_steps + 1), dtype=REAL_TYPE)
 
             # Get probe locations
             self.probe_idxs = [None] * self.num_probes
@@ -218,9 +218,9 @@ class SolutionDomain:
 
         # TODO: include initial conditions in probe_vals, time_vals
         self.time_vals = np.linspace(
-            solver.sol_time + solver.dt * (solver.time_iter),
-            solver.dt * (solver.time_iter - 1 + solver.num_steps),
-            solver.num_steps,
+            solver.sol_time,
+            solver.sol_time + solver.dt * solver.num_steps,
+            solver.num_steps + 1,
             dtype=REAL_TYPE,
         )
 
@@ -261,6 +261,10 @@ class SolutionDomain:
             print("Iteration " + str(solver.iter))
 
         for self.time_integrator.subiter in range(self.time_integrator.subiter_max):
+
+            # write non-solution outputs, which are computed at previous time step
+            if self.time_integrator.subiter == 0:
+                self.write_nonsol_outputs(solver)
 
             self.advance_subiter(solver)
 
@@ -664,8 +668,8 @@ class SolutionDomain:
 
         return dtau
 
-    def write_iter_outputs(self, solver):
-        """Store and save data at time step intervals.
+    def write_sol_outputs(self, solver):
+        """Store and save solution data at time step intervals.
 
         Write restart files at the time step interval given by solver.restart_interval.
         Update probe data arrays at every time step.
@@ -681,21 +685,42 @@ class SolutionDomain:
 
         # Update probe data
         if self.num_probes > 0:
-            self.update_probes(solver)
+            self.update_probes(solver, is_sol_data=True)
 
         # Update snapshot data (not written if running steady)
         if not solver.run_steady:
             if (solver.iter % solver.out_interval) == 0:
-                self.sol_int.update_snapshots(solver)
+                self.sol_int.update_snapshots(solver, is_sol_data=True)
+
+    def write_nonsol_outputs(self, solver):
+        """Store and save non-solution (e.g. RHS, source) data at time step intervals
+
+        Update probe data arrays at every time step.
+        Update snapshot array at interval given by solver.out_interval if not running in "steady" mode.
+        Note that this function is called at the start of the outer iteration, so solver.iter is one
+        greater than what would be expected in write_sol_outputs and must be offset accordingly.
+
+        Args:
+            solver: SystemSolver containing global simulation parameters.
+        """
+
+        # Update probe data
+        if self.num_probes > 0:
+            self.update_probes(solver, is_sol_data=False)
+
+        # Update snapshot data (not written if running steady)
+        if not solver.run_steady:
+            if ((solver.iter - 1) % solver.out_interval) == 0:
+                self.sol_int.update_snapshots(solver, is_sol_data=False)
 
             # write intermediate snapshots, if requested
             if solver.out_itmdt_interval is not None:
-                if (solver.iter % solver.out_itmdt_interval) == 0:
+                if ((solver.iter - 1) % solver.out_itmdt_interval) == 0:
                     self.sol_int.write_snapshots(solver, intermediate=True, failed=False)
 
         # write intermediate probes, if requested
         if solver.out_itmdt_interval is not None:
-            if ((solver.iter % solver.out_itmdt_interval) == 0) and (self.num_probes > 0):
+            if (((solver.iter - 1) % solver.out_itmdt_interval) == 0) and (self.num_probes > 0):
                 self.write_probes(solver, intermediate=True, failed=False)
 
     def write_steady_outputs(self, solver):
@@ -747,8 +772,8 @@ class SolutionDomain:
                 self.delete_itmdt_probes(solver)
                 self.sol_int.delete_itmdt_snapshots(solver)
 
-    def update_probes(self, solver):
-        """Update probe monitor array from current solution.
+    def update_probes(self, solver, is_sol_data=True):
+        """Update probe monitor data from current solution.
 
         Args:
             solver: SystemSolver containing global simulation parameters.
@@ -775,40 +800,69 @@ class SolutionDomain:
 
             # Gather probe monitor data
             probe = []
-            for var_str in self.probe_vars:
+            probe_idxs = []
+            for var_idx, var_str in enumerate(self.probe_vars):
+                # TODO: this is a super jank way to deal with correct nonsol insertion
+                sol_var = False
+                nonsol_var = False
+
+                # solution data
                 if var_str == "pressure":
-                    probe.append(sol_prim_probe[0])
+                    probe_val = sol_prim_probe[0]
+                    sol_var = True
                 elif var_str == "velocity":
-                    probe.append(sol_prim_probe[1])
+                    probe_val = sol_prim_probe[1]
+                    sol_var = True
                 elif var_str == "temperature":
-                    probe.append(sol_prim_probe[2])
+                    probe_val = sol_prim_probe[2]
+                    sol_var = True
                 elif var_str == "density":
-                    probe.append(sol_cons_probe[0])
+                    probe_val = sol_cons_probe[0]
+                    sol_var = True
                 elif var_str == "momentum":
-                    probe.append(sol_cons_probe[1])
+                    probe_val = sol_cons_probe[1]
+                    sol_var = True
                 elif var_str == "energy":
-                    probe.append(sol_cons_probe[2])
+                    probe_val = sol_cons_probe[2]
+                    sol_var = True
                 elif var_str == "species":
-                    probe.append(sol_prim_probe[3])
+                    probe_val = sol_prim_probe[3]
+                    sol_var = True
                 elif var_str[:7] == "species":
                     spec_idx = int(var_str[8:])
-                    probe.append(mass_fracs_full[spec_idx])
+                    probe_val = mass_fracs_full[spec_idx]
+                    sol_var = True
                 elif var_str[:15] == "density-species":
                     spec_idx = int(var_str[16:])
                     if spec_idx == (self.gas_model.num_species_full - 1):
-                        probe.append(mass_fracs_full[-1] * sol_cons_probe[0])
+                        probe_val = mass_fracs_full[-1] * sol_cons_probe[0]
                     else:
-                        probe.append(sol_cons_probe[3 + spec_idx])
+                        probe_val = sol_cons_probe[3 + spec_idx]
+                    sol_var = True
+
+                # non-solution data
                 elif var_str[:6] == "source":
                     spec_idx = int(var_str[7:])
-                    probe.append(sol_source_probe[spec_idx])
+                    probe_val = sol_source_probe[spec_idx]
+                    nonsol_var = True
                 elif var_str == "heat-release":
-                    probe.append(sol_hr_probe)
+                    probe_val = sol_hr_probe
+                    nonsol_var = True
                 else:
                     raise ValueError("Invalid probe variable " + str(var_str))
 
+                # check if new value needs to be appended
+                if (is_sol_data and sol_var) or ((not is_sol_data) and nonsol_var):
+                    probe.append(probe_val)
+                    probe_idxs.append(var_idx)
+
             # Insert into probe data array
-            self.probe_vals[probe_iter, :, solver.iter - 1] = probe
+            if len(probe) > 0:
+                if is_sol_data:
+                    iter_idx = solver.iter
+                else:
+                    iter_idx = solver.iter - 1
+                self.probe_vals[probe_iter, probe_idxs, iter_idx] = probe
 
     def write_probes(self, solver, intermediate=False, failed=False):
         """Save probe data to disk at end/failure of simulation.
@@ -826,17 +880,24 @@ class SolutionDomain:
         for vis_var in self.probe_vars:
             probe_file_base_name += "_" + vis_var
 
+        if failed:
+            offset = 0
+        else:
+            offset = 1
+
         suffix = solver.sim_type
         if intermediate:
             suffix += "_ITMDT"
+            if not solver.out_itmdt_match:
+                offset -= 1
         elif failed:
             suffix += "_FAILED"
 
         for probe_num in range(self.num_probes):
 
             # Account for failed simulations
-            time_out = self.time_vals[: solver.iter]
-            probe_out = self.probe_vals[probe_num, :, : solver.iter]
+            time_out = self.time_vals[: solver.iter + offset]
+            probe_out = self.probe_vals[probe_num, :, : solver.iter + offset]
 
             probe_file_name = probe_file_base_name + "_" + str(probe_num + 1) + "_" + suffix + ".npy"
             probe_file = os.path.join(solver.probe_output_dir, probe_file_name)
