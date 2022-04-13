@@ -73,7 +73,7 @@ jobs:
 
     - name: Check black
       run: |
-        pip install black==21.10b0
+        pip install black
         black perform --check --diff -l 120 --target-version py38
 
   # Check consistency with PEP8 using flake8
