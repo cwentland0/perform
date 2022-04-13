@@ -75,10 +75,10 @@ class SolutionInlet(SolutionBoundary):
         # Quadratic form for exterior Mach number
         c2 = gamma_mix * r_mix * self.temp
 
-        a_val = c2 - J ** 2 * gamma_mix_m1 / 2.0
+        a_val = c2 - J**2 * gamma_mix_m1 / 2.0
         b_val = (4.0 * c2) / gamma_mix_m1
-        c_val = (4.0 * c2) / gamma_mix_m1 ** 2 - J ** 2
-        rad = b_val ** 2 - 4.0 * a_val * c_val
+        c_val = (4.0 * c2) / gamma_mix_m1**2 - J**2
+        rad = b_val**2 - 4.0 * a_val * c_val
 
         # Check for non-physical solution (usually caused by reverse flow)
         if rad < 0.0:
@@ -102,7 +102,7 @@ class SolutionInlet(SolutionBoundary):
             mach_bound = max(mach_1, mach_2)
 
         # Compute exterior state
-        temp_bound = self.temp / (1.0 + gamma_mix_m1 / 2.0 * mach_bound ** 2)
+        temp_bound = self.temp / (1.0 + gamma_mix_m1 / 2.0 * mach_bound**2)
         self.sol_prim[2, 0] = temp_bound
         self.sol_prim[0, 0] = self.press * pow(temp_bound / self.temp, gamma_mix / gamma_mix_m1)
         c_bound = sqrt(gamma_mix * r_mix * temp_bound)

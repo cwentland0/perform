@@ -126,16 +126,16 @@ class SolutionInterior(SolutionPhys):
                     self.srf = np.zeros(num_cells, dtype=REAL_TYPE)
 
                 # CSR matrix indices
-                num_elements = gas.num_eqs ** 2 * num_cells
+                num_elements = gas.num_eqs**2 * num_cells
                 self.jacob_dim_first = gas.num_eqs * num_cells
                 self.jacob_dim_second = self.jacob_dim_first
 
                 row_idxs_center = np.zeros(num_elements, dtype=np.int32)
                 col_idxs_center = np.zeros(num_elements, dtype=np.int32)
-                row_idxs_upper = np.zeros(num_elements - gas.num_eqs ** 2, dtype=np.int32)
-                col_idxs_upper = np.zeros(num_elements - gas.num_eqs ** 2, dtype=np.int32)
-                row_idxs_lower = np.zeros(num_elements - gas.num_eqs ** 2, dtype=np.int32)
-                col_idxs_lower = np.zeros(num_elements - gas.num_eqs ** 2, dtype=np.int32)
+                row_idxs_upper = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
+                col_idxs_upper = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
+                row_idxs_lower = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
+                col_idxs_lower = np.zeros(num_elements - gas.num_eqs**2, dtype=np.int32)
 
                 # TODO: definitely a faster way to do this
                 lin_idx_A = 0
