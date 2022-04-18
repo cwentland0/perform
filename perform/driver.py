@@ -94,7 +94,8 @@ def driver(working_dir):
 
     # Run RHS calculations one more time to get non-solution data at final snapshot, if necessary
     # TODO: jank, could just pass an iteration number to write_nonsol_outputs
-    sol_domain.calc_rhs(solver)
+    if not solver.solve_failed:
+        sol_domain.calc_rhs(solver)
     solver.iter += 1
     sol_domain.write_nonsol_outputs(solver)
     solver.iter -= 1

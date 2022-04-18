@@ -59,8 +59,13 @@ class NumericalStepper(RomTimeStepper):
 
         for self.time_integrator.subiter in range(self.time_integrator.subiter_max):
 
+            # write non-solution outputs, which are computed at previous time step
+            if self.time_integrator.subiter == 0:
+                sol_domain.write_nonsol_outputs(solver)
+
             self.advance_subiter(sol_domain, solver, rom_domain)
 
+            # Check iterative solver convergence
             if self.time_integrator.time_type == "implicit":
                 self.calc_code_res_norms(sol_domain, solver, rom_domain)
 
