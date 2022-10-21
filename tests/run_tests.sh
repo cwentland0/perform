@@ -42,15 +42,19 @@ else
 fi
 
 # Run regression tests, if desired
+echo "*************************************************"
 while : ; do
-    echo "Run regression tests? (y/n) "
+    echo "Run regression tests?"
+    echo "WARNING: regression tests take a long time to run"
+    echo "Do you want to continue? (y/n)"
     read run_reg
-    if [[ ${run_reg} == "y" || ${run_reg} == "n" ]]; then
+    if [[ ${run_reg,,} == "y" || ${run_reg,,} == "n" || ${run_reg,,} == "yes" || ${run_reg,,} == "no" ]]; then
         break
     fi
+    echo "Invalid input, retry"
 done
 
-if [ ${run_reg} == "y" ]; then
+if [[ ${run_reg,,} == "y" || ${run_reg,,} == "yes" ]]; then
     echo "Running regression tests..."
     python3 ${testdir}/regression_tests/test_suite.py
     reg_code=$?
@@ -62,4 +66,3 @@ if [ ${run_reg} == "y" ]; then
 else
     echo "Not running regression tests..."
 fi
-
