@@ -69,11 +69,11 @@ class SystemSolver:
     # TODO: time_scheme should not be associated with SystemSolver
     # TODO: iters should really be zero indexed
 
-    def __init__(self, working_dir):
+    def __init__(self, working_dir, param_inp=const.PARAM_INPUTS, rom_inp=const.ROM_INPUTS):
 
         # input parameters from solverParams.inp
         self.working_dir = working_dir
-        param_file = os.path.join(self.working_dir, const.PARAM_INPUTS)
+        param_file = os.path.join(self.working_dir, param_inp)
         param_dict = read_input_file(param_file)
         self.param_dict = param_dict
 
@@ -155,5 +155,5 @@ class SystemSolver:
             self.sim_type = "FOM"
         else:
             self.sim_type = "ROM"
-            self.rom_inputs = os.path.join(self.working_dir, const.ROM_INPUTS)
+            self.rom_inputs = os.path.join(self.working_dir, rom_inp)
             self.rom_dict = read_input_file(self.rom_inputs)
