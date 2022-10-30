@@ -111,8 +111,10 @@ def main():
     # Read working directory, solver params, rom params input
     parser = argparse.ArgumentParser(description="Read working directory")
     parser.add_argument("-w", "--work", type=str, default="./", help="runtime working directory")
-    parser.add_argument("-p", "--param", type=str, default="./"+PARAM_INPUTS, help="solver parameters input file path")
-    parser.add_argument("-r", "--rom", type=str, default="./"+ROM_INPUTS, help="ROM parameter input file path")
+    parser.add_argument(
+        "-p", "--param", type=str, default="./" + PARAM_INPUTS, help="solver parameters input file path"
+    )
+    parser.add_argument("-r", "--rom", type=str, default="./" + ROM_INPUTS, help="ROM parameter input file path")
     working_dir = parser.parse_args().work
     params_inp = parser.parse_args().param
     rom_inp = parser.parse_args().rom
