@@ -28,3 +28,4 @@ _build/
 __pycache__/
 .coverage_*
 .coverage
+test_dir/

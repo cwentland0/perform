@@ -1,0 +1,51 @@
+[project]
+name = "perform"
+version = "0.1"
+authors = [
+	{name = "Christopher R. Wentland"},
+	{email = "chriswen@umich.edu"}
+]
+description = "One-dimension reacting flow for ROM prototyping"
+readme = "README.md"
+license = {file = "LICENSE"}
+
+requires-python = ">=3.6"
+dependencies = [
+	"numpy>=1.16.6",
+	"scipy>=1.1.0",
+	"matplotlib>=2.1.0",
+	"packaging",
+	"gdown",
+]
+
+[project.urls]
+documentation = "https://perform.readthedocs.io"
+repository = "https://github.com/cwentland0/perform"
+
+[project.scripts]
+perform = "perform.driver:main"
+
+[build-system]
+requires = ["setuptools >= 64.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+check = true
+diff = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "pass",
+	"print",
+	"sleep",
+	"return",
+    "assert",
+    "raise ValueError",
+    "def main()",
+]
+omit = [
+	"*/perform/driver.py",
+]

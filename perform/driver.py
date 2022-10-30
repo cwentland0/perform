@@ -14,6 +14,7 @@ import argparse
 import traceback
 import warnings
 
+from perform.constants import PARAM_INPUTS, ROM_INPUTS
 from perform.system_solver import SystemSolver
 from perform.solution.solution_domain import SolutionDomain
 from perform.visualization.visualization_group import VisualizationGroup
@@ -22,7 +23,7 @@ from perform.rom.rom_domain import RomDomain
 warnings.filterwarnings("error")
 
 
-def driver(working_dir):
+def driver(working_dir, params_inp=PARAM_INPUTS, rom_inp=ROM_INPUTS):
     """Main driver function which initializes all necessary constructs and advances the solution in time"""
 
     # ----- Start setup -----
@@ -32,7 +33,7 @@ def driver(working_dir):
 
     # Retrieve global solver parameters
     # TODO: multi-domain solvers
-    solver = SystemSolver(working_dir)
+    solver = SystemSolver(working_dir, params_inp, rom_inp)
 
     # Initialize physical and ROM solutions
     sol_domain = SolutionDomain(solver)
@@ -107,12 +108,18 @@ def driver(working_dir):
 
 def main():
 
-    # Read working directory input
+    # Read working directory, solver params, rom params input
     parser = argparse.ArgumentParser(description="Read working directory")
-    parser.add_argument("working_dir", type=str, default="./", help="runtime working directory")
-    working_dir = parser.parse_args().working_dir
+    parser.add_argument("-w", "--work", type=str, default="./", help="runtime working directory")
+    parser.add_argument(
+        "-p", "--param", type=str, default="./" + PARAM_INPUTS, help="solver parameters input file path"
+    )
+    parser.add_argument("-r", "--rom", type=str, default="./" + ROM_INPUTS, help="ROM parameter input file path")
+    working_dir = parser.parse_args().work
+    params_inp = parser.parse_args().param
+    rom_inp = parser.parse_args().rom
 
-    driver(working_dir)
+    driver(working_dir, params_inp, rom_inp)
 
 
 if __name__ == "__main__":

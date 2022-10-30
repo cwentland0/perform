@@ -3,7 +3,7 @@ name: Basic PERFORM actions
 # Runs unit and integration tests, and checks code formatting
 # Executed every time code is pushed to any branch, on any pull request, and at 5:00 UTC
 
-on: 
+on:
   push:
   pull_request:
   schedule:
@@ -29,13 +29,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
           pip install tensorflow==2.7.0
-          pip install coverage coveralls
+          pip install coverage[toml] coveralls
 
       - name: Run unit tests
         run: |
           cd tests/
           COVERAGE_FILE=.coverage_unit coverage run --source=../perform ./unit_tests/test_suite.py
-        
+
       - name: Run FOM integration tests
         run: |
           cd tests/
@@ -55,7 +55,7 @@ jobs:
         run: |
           cd tests/
           coverage combine .coverage_unit .coverage_int .coverage_int_rom
-          coveralls --service=github --rcfile=../.coveragerc
+          coveralls --service=github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -74,10 +74,10 @@ jobs:
     - name: Check black
       run: |
         pip install black
-        black perform --check --diff -l 120 --target-version py38
+        black perform
 
   # Check consistency with PEP8 using flake8
-  # .flake8 dictates acceptable formatting exceptions 
+  # .flake8 dictates acceptable formatting exceptions
   flake8:
     runs-on: ubuntu-latest
 

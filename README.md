@@ -10,7 +10,7 @@ PERFORM is a combination 1D compressible reacting flow solver and modular reduce
 
 ## Documentation
 
-Please see the [documentation website](https://perform.readthedocs.io) for a detailed user guide on installing, running, and designing new simulations for **PERFORM**. Brief descriptions of available solver routines and ROM methods are also included; please see the solver theory documentation PDF in `doc/` for more details. A very brief introduction to installing and running the code is included below. 
+Please see the [documentation website](https://perform.readthedocs.io) for a detailed user guide on installing, running, and designing new simulations for **PERFORM**. Brief descriptions of available solver routines and ROM methods are also included; please see the solver theory documentation PDF in `doc/` for more details. A very brief introduction to installing and running the code is included below.
 
 ## Installation
 
@@ -22,13 +22,17 @@ pip install -e .
 
 This will add the script `perform` to your Python scripts directory, which is used to execute the solver.
 
-## Running **PERFORM** 
+## Running **PERFORM**
 
-**PERFORM** is executed using the `perform` command that was added to your Python scripts directory at installation. Execute `perform` followed by the path to the working directory of the case you wish to run. This working directory must contain a `solver_params.inp` file for the case, and a `rom_params.inp` file if you're running a ROM (both described in great detail in the documentation website). For example,
+**PERFORM** is executed using the `perform` command that was added to your Python scripts directory at installation. The options for running the code from the command line are as follows:
 
 ```
-perform ~/path/to/working/directory
+perform [-h] [-w WORK] [-p PARAM] [-r ROM]
+   -w, --work WORK    runtime working directory
+   -p, --param PARAM  solver parameters input file path
+   -r, --rom ROM      ROM parameter input file path
 ```
+Note that all command-line options are optional: `WORK` defaults to the terminal's current working directory, `PARAM` defaults to `./solver_params.inp`, and `ROM` defaults to `./rom_params.inp`. The format and input key values of `PARAM` and `ROM` are described in great detail in the documentation. You can run the examples by navigating to the relevant directory and executing `perform`.
 
 ## Benchmark Cases
 
@@ -43,7 +47,7 @@ Please see the `README.md` file in each sample case directory for additional det
 
 ## Testing
 
-You can test your installation of **PERFORM** by running the included unit, integration, and regression tests. This can be done from the code's root directory by executing. 
+You can test your installation of **PERFORM** by running the included unit, integration, and regression tests. This can be done from the code's root directory by executing.
 
 ```
 chmod +x tests/run_tests.sh

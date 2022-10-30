@@ -6,9 +6,9 @@ Quick Start
 Dependencies
 ------------
 
-**PERFORM** is a pure Python code and does not (as of the writing of this section) depend on any non-Python software. As such, everything can be installed directly through ``pip`` and is done so through the ``pip install`` command explained below. 
+**PERFORM** is a pure Python code and does not (as of the writing of this section) depend on any non-Python software. As such, everything can be installed directly through ``pip`` and is done so through the ``pip install`` command explained below.
 
-The code is only actively tested using Python 3.7.4. I have arbitrarily set the minimum required Python version to be 3.6. I also only actively test it in Ubuntu 18.04, but it should run without a hitch on other Linux distributions, Windows, and macOS. 
+The code is only actively tested using Python 3.7.4. I have arbitrarily set the minimum required Python version to be 3.6. I also only actively test it in Ubuntu 18.04, but it should run without a hitch on other Linux distributions, Windows, and macOS.
 
 The baseline solver only requires three additional packages: ``numpy``, ``scipy``, and ``matplotlib``. I have not set minimum required version for these packages, but will when I make some time to check at what version the code fails.
 
@@ -28,23 +28,25 @@ or use your Git client of choice, along with the above HTTPS address. **PERFORM*
 
     pip install -e .
 
-This will install **PERFORM**, as well as any required package dependencies which you have not yet installed. 
+This will install **PERFORM**, as well as any required package dependencies which you have not yet installed.
 
 Running
 -------
-After installation is complete, a new script, ``perform``, will be added to you Python scripts. This is the command that you will use to execute **PERFORM**, followed by the path to the working directory of the case you would like to run, e.g.
+After installation is complete, a new script, ``perform``, will be added to you Python scripts. This is the command that you will use to execute **PERFORM**. The options for running the code from the command line are as follows:
 
 .. code-block:: bash
+   perform [-h] [-w WORK] [-p PARAM] [-r ROM]
+      -w, --work WORK    runtime working directory
+      -p, --param PARAM  solver parameters input file path
+      -r, --rom ROM      ROM parameter input file path
 
-   perform /path/to/working/directory
-
-**The working directory of a case is dictated by the presence of a** ``solver_params.inp`` **file**, described in detail in :ref:`solverparams-label`. The code will not execute if there is not a properly-formatted ``solver_params.inp`` file in the specified working directory. **If you are running a ROM case, an additional** ``rom_params.inp`` **file must also be placed in the working directory**. This file is described in detail in :ref:`romparams-label`.
+Note that all command-line options are optional: ``WORK`` defaults to the terminal's current working directory, ``PARAM`` defaults to ``./solver_params.inp``, and ``ROM`` defaults to ``./rom_params.inp``. The format and input key values of ``PARAM`` and ``ROM`` are described in :ref:`solverparams-label` and :ref:`romparams-label`, respectively.
 
 You can check that **PERFORM** works by entering any of the example case directories (e.g. ``perform/examples/shock_tube``) and executing
 
 .. code-block:: bash
 
-   perform .
+   perform
 
 If running correctly, your terminal's STDOUT should start filling with output from each time step iteration and live field and probe plots should appear on your screen.
 
