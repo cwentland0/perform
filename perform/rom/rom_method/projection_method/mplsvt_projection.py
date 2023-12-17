@@ -1,9 +1,11 @@
 import os
 
 import numpy as np
+import copy
 
 from perform.constants import REAL_TYPE
 from perform.rom.rom_method.projection_method.projection_method import ProjectionMethod
+from perform.rom.adaptive_basis.adaptive_rom import AdaptROM
 
 
 class MPLSVTProjection(ProjectionMethod):
@@ -15,7 +17,7 @@ class MPLSVTProjection(ProjectionMethod):
     # TODO: MP-LSVT can technically target an arbitrary, complete set of variables
     # Need a way to check that proper residual (Jacobian) routines exist for a given mapping
 
-    def __init__(self, sol_domain, rom_domain):
+    def __init__(self, sol_domain, rom_domain, solver):
 
         # check ROM input
         rom_dict = rom_domain.rom_dict
@@ -49,15 +51,26 @@ class MPLSVTProjection(ProjectionMethod):
                 "MP-LSVT is intended for non-conservative variable evolution, please set dual_time = False"
             )
 
-        super().__init__(sol_domain, rom_domain)
+        super().__init__(sol_domain, rom_domain, solver)
+
+        if rom_domain.adaptive_rom: 
+            self.adapt = AdaptROM(solver, rom_domain, sol_domain)
 
     def init_method(self, sol_domain, rom_domain):
 
         # load conservative scaling
         for model_idx, rom_model in enumerate(rom_domain.model_list):
-            rom_model.space_mapping.norm_fac_prof_cons = rom_model.space_mapping.load_feature_scaling(
-                os.path.join(rom_domain.model_dir, self.norm_fac_profs_cons[model_idx]), default="ones"
-            )
+            if rom_domain.adaptive_rom:
+                if isinstance(rom_domain.norm_fac_cons_in[model_idx], np.ndarray):
+                    rom_model.space_mapping.norm_fac_prof_cons = rom_domain.norm_fac_cons_in[model_idx]
+                else:
+                    rom_model.space_mapping.norm_fac_prof_cons = self.load_feature_scaling(
+                            os.path.join(rom_domain.model_dir, rom_domain.norm_fac_cons_in[model_idx]), default="zeros"
+                    )
+            else:
+                rom_model.space_mapping.norm_fac_prof_cons = rom_model.space_mapping.load_feature_scaling(
+                    os.path.join(rom_domain.model_dir, self.norm_fac_profs_cons[model_idx]), default="ones"
+                )
 
         super().init_method(sol_domain, rom_domain)
 
@@ -99,17 +112,18 @@ class MPLSVTProjection(ProjectionMethod):
             test_basis = (res_jacob @ scaled_decoder_jacob_concat).toarray()
 
         # scaling
-        res_scaled = np.zeros(test_basis.shape[0], dtype=REAL_TYPE)
+        # this doesn't seem to work, therefore I switched to last version
+        # res_scaled = np.zeros(test_basis.shape[0], dtype=REAL_TYPE)
         for model in rom_domain.model_list:
             space_mapping = model.space_mapping
-            for iter_idx, var_idx in enumerate(model.var_idxs):
-                row_slice = np.s_[var_idx * sol_domain.mesh.num_cells : (var_idx + 1) * sol_domain.mesh.num_cells]
-                res_scaled[row_slice] = (
-                    res[var_idx, :] / space_mapping.norm_fac_prof_cons[iter_idx, sol_domain.direct_samp_idxs]
-                )
-                test_basis[row_slice, :] /= space_mapping.norm_fac_prof_cons[iter_idx, self.direct_samp_idxs_flat, None]
-
-        if self.hyper_reduc:
+        #     for iter_idx, var_idx in enumerate(model.var_idxs):
+        #         row_slice = np.s_[var_idx * sol_domain.mesh.num_cells :: (var_idx + 1) * sol_domain.mesh.num_cells]
+        #         res_scaled[row_slice] = (res[var_idx, :] / space_mapping.norm_fac_prof_cons[iter_idx, sol_domain.direct_samp_idxs])
+        #         test_basis[row_slice, :] /= space_mapping.norm_fac_prof_cons[iter_idx, self.direct_samp_idxs_flat, None]
+            test_basis /= space_mapping.norm_fac_prof_cons.ravel(order="C")[self.direct_samp_idxs_flat, None]
+            res_scaled = (res / space_mapping.norm_fac_prof_cons[:, sol_domain.direct_samp_idxs]).ravel(order="C")
+        
+        if rom_domain.hyper_reduc:
             res_scaled = self.hyper_reduc_operator @ res_scaled
             test_basis = self.hyper_reduc_operator @ test_basis
 
@@ -118,3 +132,23 @@ class MPLSVTProjection(ProjectionMethod):
         rhs = test_basis.T @ res_scaled
 
         return lhs, rhs
+
+    def update_basis(self, new_basis, rom_domain):
+
+        for model in rom_domain.model_list:
+            space_mapping = model.space_mapping
+        
+        # test for debugging
+        self.prev_basis = copy.copy(self.trial_basis_concat)
+        self.trial_basis_concat = new_basis
+        
+        #if not rom_domain.time_stepper.time_integrator.time_type == "explicit":
+            # precompute scaled trial basis
+        # TODO: make sure this normalization factor is based on premitive variables.
+        self.trial_basis_scaled_concat = self.trial_basis_concat * space_mapping.norm_fac_prof.ravel(order="C")[:, None]
+            
+        if rom_domain.hyper_reduc:
+            self.hyper_reduc_basis = new_basis
+            self.hyper_reduc_operator = np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
+        
+        

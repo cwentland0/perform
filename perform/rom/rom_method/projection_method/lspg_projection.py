@@ -10,7 +10,7 @@ class LSPGProjection(ProjectionMethod):
     LSPG projection is intrusive w/ numerical time integration, and targets the conservative variables
     """
 
-    def __init__(self, sol_domain, rom_domain):
+    def __init__(self, sol_domain, rom_domain, solver):
 
         # check ROM input
         rom_dict = rom_domain.rom_dict
@@ -40,7 +40,7 @@ class LSPGProjection(ProjectionMethod):
         if sol_domain.time_integrator.dual_time:
             raise ValueError("LSPG is intended for conservative variable evolution, please set dual_time = False")
 
-        super().__init__(sol_domain, rom_domain)
+        super().__init__(sol_domain, rom_domain, solver)
 
     def calc_d_code(self, res_jacob, res, sol_domain, rom_domain):
         """Compute change in low-dimensional state for implicit scheme Newton iteration.

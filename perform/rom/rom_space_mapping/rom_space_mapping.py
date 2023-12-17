@@ -15,20 +15,72 @@ class RomSpaceMapping:
         model_idx = rom_model.model_idx
         self.latent_dim = rom_model.latent_dim
         self.sol_shape = rom_model.sol_shape
-
-        # all mappings require scaling by default, specific methods may include additional scalings
         model_dir = rom_dict["model_dir"]
-        self.cent_prof = self.load_feature_scaling(
-            os.path.join(model_dir, rom_dict["cent_profs"][model_idx]), default="zeros"
-        )
-        self.norm_fac_prof = self.load_feature_scaling(
-            os.path.join(model_dir, rom_dict["norm_fac_profs"][model_idx]), default="ones"
-        )
-        self.norm_sub_prof = self.load_feature_scaling(
-            os.path.join(model_dir, rom_dict["norm_sub_profs"][model_idx]), default="zeros"
-        )
-        if callable(getattr(rom_domain.rom_method, "load_extra_scalings", None)):
-            rom_domain.rom_method.load_extra_scalings(model_idx, sol_domain, rom_domain)
+        
+
+        if rom_domain.adaptive_rom:
+            if rom_dict["rom_method"] == "mplsvt":
+                if isinstance(rom_domain.cent_prim_in[model_idx], np.ndarray):
+                    self.cent_prof = rom_domain.cent_prim_in[model_idx]
+                else:
+                    self.cent_prof = self.load_feature_scaling(
+                            os.path.join(model_dir, rom_domain.cent_prim_in[model_idx]), default="zeros"
+                    )
+                if isinstance(rom_domain.norm_fac_prim_in[model_idx], np.ndarray):
+                    self.norm_fac_prof = rom_domain.norm_fac_prim_in[model_idx]
+                else:
+                    self.norm_fac_prof = self.load_feature_scaling(
+                        os.path.join(model_dir, rom_domain.norm_fac_prim_in[model_idx]), default="ones"
+                    )
+                if isinstance(rom_domain.norm_sub_prim_in[model_idx], np.ndarray):
+                    self.norm_sub_prof = rom_domain.norm_sub_prim_in[model_idx]
+                else:
+                    self.norm_sub_prof = self.load_feature_scaling(
+                        os.path.join(model_dir, rom_domain.norm_sub_prim_in[model_idx]), default="zeros"
+                    )
+            else:
+                if isinstance(rom_domain.cent_cons_in[model_idx], np.ndarray):
+                    self.cent_prof = rom_domain.cent_cons_in[model_idx]
+                else:
+                    self.cent_prof = self.load_feature_scaling(
+                            os.path.join(model_dir, rom_domain.cent_cons_in[model_idx]), default="zeros"
+                    )
+                if isinstance(rom_domain.norm_fac_cons_in[model_idx], np.ndarray):
+                    self.norm_fac_prof = rom_domain.norm_fac_cons_in[model_idx]
+                else:
+                    self.norm_fac_prof = self.load_feature_scaling(
+                        os.path.join(model_dir, rom_domain.norm_fac_cons_in[model_idx]), default="ones"
+                    )
+                if isinstance(rom_domain.norm_sub_cons_in[model_idx], np.ndarray):
+                    self.norm_sub_prof = rom_domain.norm_sub_cons_in[model_idx]
+                else:
+                    self.norm_sub_prof = self.load_feature_scaling(
+                        os.path.join(model_dir, rom_domain.norm_sub_cons_in[model_idx]), default="zeros"
+                    )
+        else:
+            # all mappings require scaling by default, specific methods may include additional scalings
+            if isinstance(rom_dict["cent_profs"][model_idx], np.ndarray):
+                self.cent_prof = rom_dict["cent_profs"][model_idx]
+            else:
+                self.cent_prof = self.load_feature_scaling(
+                    os.path.join(model_dir, rom_dict["cent_profs"][model_idx]), default="zeros"
+                )
+            if isinstance(rom_dict["norm_fac_profs"][model_idx], np.ndarray):
+                self.cent_prof = rom_dict["norm_fac_profs"][model_idx]
+            else:
+                self.norm_fac_prof = self.load_feature_scaling(
+                    os.path.join(model_dir, rom_dict["norm_fac_profs"][model_idx]), default="ones"
+                )
+            if isinstance(rom_dict["norm_sub_profs"][model_idx], np.ndarray):
+                self.cent_prof = rom_dict["norm_sub_profs"][model_idx]
+            else:
+                self.norm_sub_prof = self.load_feature_scaling(
+                    os.path.join(model_dir, rom_dict["norm_sub_profs"][model_idx]), default="zeros"
+                )
+        
+            #this is not compatible with the current implementation of rom_domain, why do we need this?
+            #if callable(getattr(rom_domain.rom_method, "load_extra_scalings", None)):
+            #    rom_domain.rom_method.load_extra_scalings(model_idx, sol_domain, rom_domain)
 
         # specific mapping loading functions implemented by child classes
         self.load_mapping()
@@ -212,3 +264,5 @@ class RomSpaceMapping:
         )
 
         return sol
+
+

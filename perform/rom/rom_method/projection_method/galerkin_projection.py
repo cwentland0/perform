@@ -2,6 +2,7 @@ import numpy as np
 
 from perform.constants import REAL_TYPE
 from perform.rom.rom_method.projection_method.projection_method import ProjectionMethod
+from perform.rom.adaptive_basis.adaptive_rom import AdaptROM
 
 
 class GalerkinProjection(ProjectionMethod):
@@ -10,7 +11,7 @@ class GalerkinProjection(ProjectionMethod):
     Galerkin projection is intrusive w/ numerical time integration, and targets the conservative variables
     """
 
-    def __init__(self, sol_domain, rom_domain):
+    def __init__(self, sol_domain, rom_domain, solver):
 
         # check ROM input
         rom_dict = rom_domain.rom_dict
@@ -33,7 +34,10 @@ class GalerkinProjection(ProjectionMethod):
         if (sol_domain.time_integrator.time_type == "implicit") and (sol_domain.time_integrator.dual_time):
             raise ValueError("Galerkin is intended for conservative variable evolution, please set dual_time = False")
 
-        super().__init__(sol_domain, rom_domain)
+        super().__init__(sol_domain, rom_domain, solver)
+
+        if rom_domain.adaptive_rom: 
+            self.adapt = AdaptROM(solver, rom_domain, sol_domain)
 
     def calc_projector(self, sol_domain, rom_model):
         """Compute RHS projection operator.
@@ -47,7 +51,7 @@ class GalerkinProjection(ProjectionMethod):
 
         if self.hyper_reduc:
             raise ValueError("Hyper-reduction not implemented yet")
-            # projector = self.hyper_reduc_operator
+            projector = self.hyper_reduc_operator
         else:
             projector = rom_model.space_mapping.calc_decoder_jacob_pinv(rom_model.code)
 
@@ -104,10 +108,29 @@ class GalerkinProjection(ProjectionMethod):
         # Project LHS and RHS onto low-dimensional space via
         if self.hyper_reduc:
             raise ValueError("Hyper-reduction not fixed yet")
-            # lhs = self.hyper_reduc_operator @ lhs
-            # rhs = self.hyper_reduc_operator @ res_scaled
+            lhs = self.hyper_reduc_operator @ lhs
+            rhs = self.hyper_reduc_operator @ res_scaled
         else:
             lhs = decoder_jacob_pinv @ lhs
             rhs = decoder_jacob_pinv @ res_scaled
 
         return lhs, rhs
+
+    def update_basis(self, new_basis, rom_domain):
+
+        for model in rom_domain.model_list:
+            space_mapping = model.space_mapping
+        
+        # test for debugging
+        self.prev_basis = copy.copy(self.trial_basis_concat)
+        self.trial_basis_concat = new_basis
+        
+        if not rom_domain.time_integrator.time_type == "explicit":
+            # precompute scaled trial basis
+            self.trial_basis_scaled_concat = self.trial_basis_concat * space_mapping.norm_fac_prof.ravel(order="C")[:, None]
+            
+        if self.hyper_reduc:
+            self.hyper_reduc_basis = new_basis
+            self.hyper_reduc_operator = np.linalg.pinv(self.hyper_reduc_basis[self.direct_samp_idxs_flat, :])
+        
+        

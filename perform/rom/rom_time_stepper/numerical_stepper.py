@@ -3,10 +3,11 @@ import numpy as np
 from perform.constants import REAL_TYPE
 from perform.input_funcs import catch_input
 from perform.rom.rom_time_stepper.rom_time_stepper import RomTimeStepper
+import sys
 
 
 class NumericalStepper(RomTimeStepper):
-    def __init__(self, sol_domain, rom_domain):
+    def __init__(self, sol_domain, rom_domain, solver):
 
         # use definition of time integrator in solver_params.inp
         # NOTE: user classes are mutable, so changes to NumericalStepper.time_integrator are reflected in
@@ -55,7 +56,7 @@ class NumericalStepper(RomTimeStepper):
             rom_domain.var_mapping.update_full_state(sol_domain, rom_domain)
             rom_domain.var_mapping.update_state_hist(sol_domain, rom_domain)
 
-    def advance_iter(self, sol_domain, solver, rom_domain):
+    def advance_iter(self, sol_domain, solver, rom_domain):   
 
         for self.time_integrator.subiter in range(self.time_integrator.subiter_max):
 
@@ -109,6 +110,7 @@ class NumericalStepper(RomTimeStepper):
                 # Low-dimensional quantities
                 model.d_code[:] = d_code[latent_dim_idx : latent_dim_idx + model.latent_dim]
                 model.res[:] = res_solve[latent_dim_idx : latent_dim_idx + model.latent_dim]
+
                 model.code += model.d_code
                 model.code_hist[0] = model.code.copy()
 
@@ -211,3 +213,56 @@ class NumericalStepper(RomTimeStepper):
         res_norm_l1 /= rom_model.latent_dim
 
         return res_norm_l2, res_norm_l1
+
+    def calc_fullydiscrhs(self, sol_domain, stateArg, solver, rom_domain, samp_idxs=np.s_[:]):
+        """Compute fully discrete rhs
+            stateArg is a column vector. also returns a column vector
+        """
+        
+        assert self.time_order < 2, "BDF order has to be 1, backward Euler only"
+        
+        # make a deep copy of sol_domain 
+        copy_sol_domain = copy.deepcopy(sol_domain)
+        
+        # reshape stateArg (solution reconstruction by ROM)
+        stateArg_reshape = stateArg.reshape((sol_domain.gas_model.num_eqs, sol_domain.mesh.num_cells), order="C")
+        
+        # update sol_cons and sol_prim
+        if sol_domain.time_integrator.dual_time:
+            copy_sol_domain.sol_int.sol_prim = stateArg_reshape
+        else:
+            copy_sol_domain.sol_int.sol_cons = stateArg_reshape
+        copy_sol_domain.sol_int.update_state(from_cons=(not sol_domain.time_integrator.dual_time))
+        
+        # update deim indices
+        copy_sol_domain.direct_samp_idxs = np.arange(0, sol_domain.mesh.num_cells)
+        copy_sol_domain.num_samp_cells = len(copy_sol_domain.direct_samp_idxs)
+        rom_domain.compute_cellidx_hyper_reduc(copy_sol_domain)
+        
+        # compute rhs 
+        copy_sol_domain.calc_rhs(solver)
+        rhs_main = copy_sol_domain.sol_int.rhs # shape will be num_eqs x num_cells
+        
+        # reshape rhs to be a column vector
+        rhs = rhs_main.reshape((-1,1))
+        
+        # calculate semi-discrete rhs here
+        # Account for cold start
+        time_order = min(solver.iter, self.time_order)
+
+        coeffs = self.coeffs[time_order - 1]
+
+        # compute the rhs function according to the time advancement scheme
+        if sol_domain.time_integrator.dual_time:
+            res_jacob = copy_sol_domain.calc_res_jacob(solver)
+            residual = coeffs[0] * copy_sol_domain.sol_int.sol_hist_cons[0][:, samp_idxs]
+            for iter_idx in range(1, time_order + 1):
+                residual += coeffs[iter_idx] * copy_sol_domain.sol_int.sol_hist_cons[iter_idx][:, samp_idxs]
+            residual = -(residual / self.dt) + rhs_main[:, samp_idxs]
+            d_sol = spsolve(res_jacob, residual.ravel("C"))
+            fullydiscrhs = stateArg[samp_idxs, :] + np.expand_dims(d_sol, axis=1)
+        else:
+            fullydiscrhs = coeffs[0] * stateArg[samp_idxs, :] + self.dt * rhs[samp_idxs, :] 
+        
+        return fullydiscrhs
+

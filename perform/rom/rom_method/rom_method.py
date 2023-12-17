@@ -1,7 +1,7 @@
 class RomMethod:
     """Base class for ROM methods."""
 
-    def __init__(self, sol_domain, rom_domain):
+    def __init__(self, sol_domain, rom_domain, solver):
 
         rom_dict = rom_domain.rom_dict
 

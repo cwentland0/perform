@@ -1,0 +1,35 @@
+# model definition
+model_dir = "directory of feature scaling profiles"
+rom_method = "mplsvt"  #"galerkin"
+space_mapping = "linear"
+time_stepper = "numerical"
+
+num_models     = 1
+model_var_idxs = [[0,1,2,3]]
+latent_dims = [4]
+
+# hyperreduction
+hyper_reduc = True
+#samp_file = "samples.npy"
+
+# adaptive basis
+adaptive_rom = True
+init_window_size = 10
+adaptive_rom_window_size = 1
+adeim_update = "afdeim"
+use_fom = 0
+adapt_freq = 1
+sampling_update_freq = 1
+num_residual_comp = 2048
+adeim_update = "AFDEIM"
+#initbasis_snap_skip = 1
+#initbasis_cent_type = "mean"
+#initbasis_norm_type = "minmax"
+
+# feature scaling profiles
+norm_sub_prim = ["norm_sub_prof_prim_0_1_2_3.npy"]
+norm_fac_prim = ["norm_fac_prof_prim_0_1_2_3.npy"]
+norm_sub_cons = ["norm_sub_prof_prim_0_1_2_3.npy"]
+norm_fac_cons = ["norm_fac_prof_prim_0_1_2_3.npy"]
+cent_prim = ["cent_prim_0_1_2_3.npy"]
+#basis_files = ["spatial_modes_0_1_2_3.npy"]

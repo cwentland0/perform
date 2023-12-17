@@ -13,6 +13,7 @@ from time import time
 import argparse
 import traceback
 import warnings
+import sys
 
 from perform.constants import PARAM_INPUTS, ROM_INPUTS
 from perform.system_solver import SystemSolver
@@ -21,7 +22,6 @@ from perform.visualization.visualization_group import VisualizationGroup
 from perform.rom.rom_domain import RomDomain
 
 warnings.filterwarnings("error")
-
 
 def driver(working_dir, params_inp=PARAM_INPUTS, rom_inp=ROM_INPUTS):
     """Main driver function which initializes all necessary constructs and advances the solution in time"""
@@ -62,7 +62,7 @@ def driver(working_dir, params_inp=PARAM_INPUTS, rom_inp=ROM_INPUTS):
 
             # Advance one physical time step
             if solver.calc_rom:
-                rom_domain.advance_iter(sol_domain, solver)
+                rom_domain.advance_time(sol_domain, solver)
             else:
                 sol_domain.advance_iter(solver)
             solver.time_iter += 1
@@ -101,7 +101,10 @@ def driver(working_dir, params_inp=PARAM_INPUTS, rom_inp=ROM_INPUTS):
     sol_domain.write_nonsol_outputs(solver)
     solver.iter -= 1
 
-    sol_domain.write_final_outputs(solver)
+    if rom_domain == None:
+        sol_domain.write_final_outputs(solver)
+    else:
+        sol_domain.write_final_outputs(solver, rom_domain.param_string)
 
     # ----- End post-processing -----
 

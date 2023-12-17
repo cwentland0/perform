@@ -749,7 +749,7 @@ class SolutionDomain:
 
         return break_flag
 
-    def write_final_outputs(self, solver):
+    def write_final_outputs(self, solver, param_string = ""):
         """Save final field and probe data to disk at end of simulation
 
         If simulation ran to completion, full field snapshot and probe data are written to disk.
@@ -761,7 +761,7 @@ class SolutionDomain:
         """
 
         if not solver.run_steady:
-            self.sol_int.write_snapshots(solver, intermediate=False, failed=solver.solve_failed)
+            self.sol_int.write_snapshots(solver, param_string, intermediate=False, failed=solver.solve_failed)
 
         if self.num_probes > 0:
             self.write_probes(solver, intermediate=False, failed=solver.solve_failed)

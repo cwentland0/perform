@@ -11,15 +11,19 @@ class LinearSpaceMapping(RomSpaceMapping):
     def __init__(self, sol_domain, rom_domain, rom_model):
 
         rom_dict = rom_domain.rom_dict
+        model_idx = rom_model.model_idx
 
         # Input checking
-        basis_files = rom_dict["basis_files"]
-        assert len(basis_files) == rom_domain.num_models, "Must provide model_files for each model"  # redundant
-        in_file = os.path.join(rom_domain.model_dir, basis_files[rom_model.model_idx])
-        assert os.path.isfile(in_file), "Could not find basis file at " + in_file
-        _, ext = os.path.splitext(in_file)
-        assert ext == ".npy", "Basis file is not NumPy binary (*.npy): " + in_file
-        self.basis_file = in_file
+        if rom_domain.adaptive_rom and isinstance(rom_domain.model_files[model_idx], np.ndarray):
+            self.basis_file = rom_domain.model_files[model_idx]
+        else:
+            basis_files = rom_dict["basis_files"]
+            assert len(basis_files) == rom_domain.num_models, "Must provide model_files for each model"  # redundant
+            in_file = os.path.join(rom_domain.model_dir, basis_files[rom_model.model_idx])
+            assert os.path.isfile(in_file), "Could not find basis file at " + in_file
+            _, ext = os.path.splitext(in_file)
+            assert ext == ".npy", "Basis file is not NumPy binary (*.npy): " + in_file
+            self.basis_file = in_file
 
         super().__init__(sol_domain, rom_domain, rom_model)
 
@@ -31,7 +35,10 @@ class LinearSpaceMapping(RomSpaceMapping):
     def load_mapping(self):
 
         # load and check trial basis
-        self.trial_basis = np.load(self.basis_file)
+        if isinstance(self.basis_file, np.ndarray):
+            self.trial_basis = self.basis_file
+        else:
+            self.trial_basis = np.load(self.basis_file)
         num_vars_basis, num_cells_basis, num_modes_basis = self.trial_basis.shape
 
         assert num_vars_basis == self.sol_shape[0], (
